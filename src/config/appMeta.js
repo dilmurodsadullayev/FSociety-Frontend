@@ -118,7 +118,7 @@ export const DEVELOPER_URL =
 
 export const GITHUB_URL =
     process.env.REACT_APP_GITHUB_URL ||
-    "https://github.com/dilmurodsadullayev/CodeUnity-Frontend";
+    "https://github.com/dilmurodsadullayev/FSociety-Frontend";
 
 
 export const TELEGRAM_URL =

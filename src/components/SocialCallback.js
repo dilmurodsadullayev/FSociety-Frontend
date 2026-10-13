@@ -117,7 +117,7 @@ const SocialCallback = () => {
                 </div>
 
                 <p className="text-xs text-gray-500 animate-pulse">
-                    CodeUnity xavfsiz ulanishni ta'minlamoqda
+                    FSociety xavfsiz ulanishni ta'minlamoqda
                 </p>
             </div>
         </div>
