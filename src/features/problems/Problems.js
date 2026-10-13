@@ -756,17 +756,68 @@ const getProblemIdFromPayload = (
 };
 
 
+
+
+// =========================================================
+// STAR PROBLEM ID FROM PAYLOAD
+// =========================================================
+
+const getStarProblemIdFromPayload = (
+    payload,
+    state
+) => {
+
+    // Star API javobidagi "id" Star obyektining
+    // ID'si bo'lishi mumkin.
+    //
+    // Shuning uchun payload.id ni
+    // Problem ID deb ishlatmaymiz.
+
+    const problem =
+        payload?.problem;
+
+    return (
+
+        payload?.problem_id
+
+        ??
+
+        payload?.problemId
+
+        ??
+
+        (
+            problem &&
+            typeof problem === "object"
+                ? problem.id
+                : problem
+        )
+
+        ??
+
+        state.problemDetail?.id
+
+        ??
+
+        null
+    );
+};
+
+
+
 // =========================================================
 // STAR COUNT FROM SERVER
 // =========================================================
+
 
 const getTotalStarsFromPayload = (
     payload
 ) => {
 
-    const candidates = [
+    // payload.star = bitta Star qiymati.
+    // Uni umumiy Star soni deb qabul qilmaymiz.
 
-        payload?.star,
+    const candidates = [
 
         payload?.stars,
 
@@ -775,19 +826,31 @@ const getTotalStarsFromPayload = (
         payload?.stars_count,
 
         payload?.star_count,
-    ];
 
+    ];
 
     for (
         const value
         of candidates
     ) {
 
+        // null, undefined va bo'sh qiymatni
+        // Number() orqali 0 ga aylantirmaymiz.
+
+        if (
+            value === null
+            ||
+            value === undefined
+            ||
+            value === ""
+        ) {
+            continue;
+        }
+
         const number =
             Number(
                 value
             );
-
 
         if (
             Number.isFinite(
@@ -799,12 +862,13 @@ const getTotalStarsFromPayload = (
                 0,
                 number
             );
+
         }
     }
 
-
     return null;
 };
+
 
 
 // =========================================================
@@ -1596,11 +1660,13 @@ export const problemSlice =
                         : {};
 
 
+                
                 const problemId =
-                    getProblemIdFromPayload(
+                    getStarProblemIdFromPayload(
                         payload,
                         state
                     );
+
 
 
                 const serverTotal =
@@ -1724,11 +1790,13 @@ export const problemSlice =
                         : {};
 
 
+                
                 const problemId =
-                    getProblemIdFromPayload(
+                    getStarProblemIdFromPayload(
                         payload,
                         state
                     );
+
 
 
                 const serverTotal =
