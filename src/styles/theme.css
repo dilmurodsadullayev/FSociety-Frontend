@@ -1,0 +1,45 @@
+
+/* =========================================================
+   FSOCIETY — CYBER THEME REVEAL
+   ========================================================= */
+
+/*
+   View Transitions API
+
+   Old theme stays behind.
+   New theme expands from the toggle button.
+
+   This animation only applies while
+   fs-theme-revealing class is present.
+*/
+
+html.fs-theme-revealing::view-transition-old(root),
+html.fs-theme-revealing::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+/* OLD THEME */
+
+html.fs-theme-revealing::view-transition-old(root) {
+    z-index: 1;
+}
+
+/* NEW THEME */
+
+html.fs-theme-revealing::view-transition-new(root) {
+    z-index: 2;
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    html.fs-theme-revealing::view-transition-old(root),
+    html.fs-theme-revealing::view-transition-new(root) {
+        animation: none !important;
+    }
+
+}

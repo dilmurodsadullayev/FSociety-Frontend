@@ -96,11 +96,8 @@ export {
 
 export {
     default as PopularProblemCard,
-} from "./PopularProbelmCard";
+} from "./PopularProblemCard";
 
-export {
-    default as PopularProbelmCard,
-} from "./PopularProbelmCard";
 
 
 // =========================================================

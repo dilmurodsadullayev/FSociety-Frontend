@@ -1,10 +1,6 @@
-// src/components/Footer.jsx
 
 import React from "react";
-
-import {
-    Link,
-} from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
     ArrowUp,
@@ -42,490 +38,1230 @@ import {
     TELEGRAM_URL,
 } from "../config/appMeta";
 
+// =========================================================
+// FSOCIETY — FOOTER
+//
+// Features:
+// - Dark / Light Mode
+// - Responsive navigation
+// - Social links
+// - Application metadata
+// - Release channel
+// - Technology stack
+// - Copyright
+// - Scroll to top
+//
+// Theme:
+// Controlled by global ThemeContext.
+//
+// No additional theme state.
+// No API requests.
+// =========================================================
 
 // =========================================================
 // NAVIGATION
 // =========================================================
 
 const FOOTER_GROUPS = [
-
     {
-        title:
-            "Platforma",
-
+        title: "Platforma",
         links: [
-
             {
-                label:
-                    "Muammolar",
-
-                to:
-                    "/problems",
-
-                Icon:
-                    Bug,
+                label: "Muammolar",
+                to: "/problems",
+                Icon: Bug,
             },
-
             {
-                label:
-                    "Loyihalar",
-
-                to:
-                    "/projects",
-
-                Icon:
-                    FolderKanban,
+                label: "Loyihalar",
+                to: "/projects",
+                Icon: FolderKanban,
             },
-
             {
-                label:
-                    "Developerlar",
-
-                to:
-                    "/users",
-
-                Icon:
-                    Users,
+                label: "Developerlar",
+                to: "/users",
+                Icon: Users,
             },
-
             {
-                label:
-                    "Feedback",
-
-                to:
-                    "/feedback",
-
-                Icon:
-                    MessageSquareText,
+                label: "Feedback",
+                to: "/feedback",
+                Icon: MessageSquareText,
             },
-
         ],
     },
-
-
     {
-        title:
-            "Ecosystem",
-
+        title: "Ecosystem",
         links: [
-
             {
-                label:
-                    "FCoin",
-
-                to:
-                    "/fcoin-history",
-
-                Icon:
-                    Coins,
+                label: "FCoin",
+                to: "/fcoin-history",
+                Icon: Coins,
             },
-
             {
-                label:
-                    "Bildirishnomalar",
-
-                to:
-                    "/notifications",
-
-                Icon:
-                    Bell,
+                label: "Bildirishnomalar",
+                to: "/notifications",
+                Icon: Bell,
             },
-
             {
-                label:
-                    "Changelog",
-
-                href:
-                    "/#changelog",
-
-                Icon:
-                    History,
+                label: "Changelog",
+                href: "/#changelog",
+                Icon: History,
             },
-
         ],
     },
-
 ];
-
 
 // =========================================================
 // RELEASE CHANNEL
 // =========================================================
 
-const getReleaseChannelData = (
-    channel
-) => {
+const RELEASE_CONFIG = {
+    stable: {
+        label: "Stable",
+        className: `
+            border-emerald-400/30
+            bg-emerald-500/[0.08]
+            text-emerald-800
 
-    const map = {
+            dark:border-emerald-400/20
+            dark:bg-emerald-400/[0.06]
+            dark:text-emerald-300
+        `,
+    },
 
-        stable: {
-            label:
-                "Stable",
+    beta: {
+        label: "Beta",
+        className: `
+            border-indigo-400/30
+            bg-indigo-500/[0.08]
+            text-indigo-700
 
-            className:
-                `
-                    border-emerald-400/15
-                    bg-emerald-400/[0.05]
-                    text-emerald-300
-                `,
-        },
+            dark:border-indigo-400/20
+            dark:bg-indigo-400/[0.06]
+            dark:text-indigo-300
+        `,
+    },
 
+    alpha: {
+        label: "Alpha",
+        className: `
+            border-orange-400/30
+            bg-orange-500/[0.08]
+            text-orange-800
 
-        beta: {
-            label:
-                "Beta",
+            dark:border-orange-400/20
+            dark:bg-orange-400/[0.06]
+            dark:text-orange-300
+        `,
+    },
 
-            className:
-                `
-                    border-indigo-400/15
-                    bg-indigo-400/[0.05]
-                    text-indigo-300
-                `,
-        },
+    dev: {
+        label: "Development",
+        className: `
+            border-fuchsia-400/30
+            bg-fuchsia-500/[0.08]
+            text-fuchsia-800
 
+            dark:border-fuchsia-400/20
+            dark:bg-fuchsia-400/[0.06]
+            dark:text-fuchsia-300
+        `,
+    },
 
-        alpha: {
-            label:
-                "Alpha",
+    community: {
+        label: "Community",
+        className: `
+            border-cyan-400/30
+            bg-cyan-500/[0.08]
+            text-cyan-800
 
-            className:
-                `
-                    border-orange-400/15
-                    bg-orange-400/[0.05]
-                    text-orange-300
-                `,
-        },
-
-
-        dev: {
-            label:
-                "Development",
-
-            className:
-                `
-                    border-fuchsia-400/15
-                    bg-fuchsia-400/[0.05]
-                    text-fuchsia-300
-                `,
-        },
-
-
-        community: {
-            label:
-                "Community",
-
-            className:
-                `
-                    border-cyan-400/15
-                    bg-cyan-400/[0.05]
-                    text-cyan-300
-                `,
-        },
-
-    };
-
-
-    return (
-        map[channel] ||
-        map.beta
-    );
+            dark:border-cyan-400/20
+            dark:bg-cyan-400/[0.06]
+            dark:text-cyan-300
+        `,
+    },
 };
 
+const getReleaseChannelData = (channel) => {
+    const key = String(channel || "beta")
+        .trim()
+        .toLowerCase();
 
-// =========================================================
-// POWERED BY ICON
-// =========================================================
-
-const getTechnologyIcon = (
-    key
-) => {
-
-    if (
-        key ===
-        "react"
-    ) {
-        return (
-            <Sparkles
-                size={15}
-                strokeWidth={2}
-            />
-        );
-    }
-
-
-    if (
-        key ===
-        "django"
-    ) {
-        return (
-            <Braces
-                size={15}
-                strokeWidth={2}
-            />
-        );
-    }
-
-
-    return (
-        <Code2
-            size={15}
-            strokeWidth={2}
-        />
-    );
+    return RELEASE_CONFIG[key] || RELEASE_CONFIG.beta;
 };
 
+// =========================================================
+// TECHNOLOGY ICON
+// =========================================================
+
+const getTechnologyIcon = (key) => {
+    const value = String(key || "").toLowerCase();
+
+    if (value === "react") {
+        return Sparkles;
+    }
+
+    if (value === "django") {
+        return Braces;
+    }
+
+    return Code2;
+};
 
 // =========================================================
 // FOOTER LINK
 // =========================================================
 
-const FooterLink = ({
-    item,
-}) => {
-
-    const Icon =
-        item.Icon;
-
+const FooterLink = ({ item }) => {
+    const Icon = item.Icon;
 
     const className = `
         group/link
-
         inline-flex
         w-fit
-
+        max-w-full
         items-center
+        gap-2.5
 
-        gap-2
+        rounded-md
 
-        text-sm
-        font-semibold
+        py-1
 
-        text-gray-500
+        text-[13px]
+        font-medium
 
-        transition-all
-        duration-200
+        text-slate-600
 
-        hover:translate-x-0.5
-        hover:text-cyan-300
+        transition-colors
+        duration-150
+
+        hover:text-indigo-700
+
+        focus-visible:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-indigo-500
+
+        dark:text-gray-400
+        dark:hover:text-cyan-300
     `;
 
+    const content = (
+        <>
+            <Icon
+                size={15}
+                strokeWidth={1.9}
+                aria-hidden="true"
+                className="
+                    shrink-0
 
-    if (
-        item.href
-    ) {
+                    text-slate-400
 
+                    transition-colors
+                    duration-150
+
+                    group-hover/link:text-indigo-600
+
+                    dark:text-gray-600
+                    dark:group-hover/link:text-cyan-300
+                "
+            />
+
+            <span>{item.label}</span>
+        </>
+    );
+
+    if (item.href) {
         return (
-
             <a
-                href={
-                    item.href
-                }
-
-                className={
-                    className
-                }
+                href={item.href}
+                className={className}
             >
+                {content}
+            </a>
+        );
+    }
 
-                <Icon
-                    size={14}
-                    strokeWidth={2}
+    return (
+        <Link
+            to={item.to}
+            className={className}
+        >
+            {content}
+        </Link>
+    );
+};
+
+// =========================================================
+// FOOTER NAVIGATION GROUP
+// =========================================================
+
+const FooterNavigationGroup = ({ group }) => {
+    return (
+        <div className="min-w-0">
+
+            <h3
+                className="
+                    font-mono
+                    text-[10px]
+                    font-black
+                    uppercase
+                    tracking-[0.16em]
+
+                    text-slate-800
+
+                    dark:text-gray-300
+                "
+            >
+                {group.title}
+            </h3>
+
+            <div
+                className="
+                    mt-4
+                    flex
+                    flex-col
+                    items-start
+                    gap-2.5
+                "
+            >
+                {group.links.map((item) => (
+                    <FooterLink
+                        key={item.label}
+                        item={item}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// =========================================================
+// SOCIAL LINK
+// =========================================================
+
+const SocialLink = ({
+    href,
+    label,
+    Icon,
+    variant = "default",
+}) => {
+    if (!href) {
+        return null;
+    }
+
+    const variants = {
+        default: `
+            text-slate-600
+            hover:text-slate-900
+
+            dark:text-gray-400
+            dark:hover:text-white
+        `,
+
+        cyan: `
+            text-cyan-700
+            hover:text-cyan-800
+
+            dark:text-cyan-400
+            dark:hover:text-cyan-200
+        `,
+
+        blue: `
+            text-blue-700
+            hover:text-blue-800
+
+            dark:text-blue-400
+            dark:hover:text-blue-200
+        `,
+    };
+
+    return (
+        <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+
+            aria-label={label}
+            title={label}
+
+            className={`
+                group/social
+
+                grid
+                h-11
+                w-11
+                shrink-0
+
+                place-items-center
+
+                rounded-xl
+                border
+
+                border-[#dce4ef]
+                bg-white/80
+
+                shadow-[0_3px_10px_rgba(15,23,42,0.03)]
+
+                transition-all
+                duration-150
+
+                hover:-translate-y-0.5
+                hover:border-indigo-400/40
+                hover:bg-indigo-500/[0.06]
+
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-indigo-500
+
+                dark:border-white/[0.08]
+                dark:bg-white/[0.035]
+                dark:shadow-none
+
+                dark:hover:border-indigo-400/25
+                dark:hover:bg-white/[0.06]
+
+                motion-reduce:transform-none
+
+                ${variants[variant] || variants.default}
+            `}
+        >
+            <Icon
+                size={18}
+                strokeWidth={1.9}
+                aria-hidden="true"
+            />
+        </a>
+    );
+};
+
+// =========================================================
+// FOOTER SOCIALS
+// =========================================================
+
+const FooterSocials = () => {
+    return (
+        <div className="min-w-0">
+
+            <h3
+                className="
+                    font-mono
+                    text-[10px]
+                    font-black
+                    uppercase
+                    tracking-[0.16em]
+
+                    text-slate-800
+
+                    dark:text-gray-300
+                "
+            >
+                Connect
+            </h3>
+
+            <p
+                className="
+                    mt-3
+                    max-w-[220px]
+                    text-xs
+                    leading-5
+
+                    text-slate-500
+
+                    dark:text-gray-500
+                "
+            >
+                Biz bilan bog‘laning va hamjamiyatga
+                qo‘shiling.
+            </p>
+
+            <div
+                className="
+                    mt-4
+                    flex
+                    flex-wrap
+                    items-center
+                    gap-2
+                "
+            >
+                <SocialLink
+                    href={GITHUB_URL}
+                    label="GitHub"
+                    Icon={Github}
+                />
+
+                <SocialLink
+                    href={TELEGRAM_URL}
+                    label="Telegram"
+                    Icon={Send}
+                    variant="cyan"
+                />
+
+                <SocialLink
+                    href={LINKEDIN_URL}
+                    label="LinkedIn"
+                    Icon={Linkedin}
+                    variant="blue"
+                />
+            </div>
+
+            {GITHUB_URL && (
+                <a
+                    href={GITHUB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
 
                     className="
-                        text-gray-700
+                        group/source
+
+                        mt-4
+                        inline-flex
+                        items-center
+                        gap-1.5
+
+                        rounded-md
+
+                        text-[11px]
+                        font-semibold
+
+                        text-slate-500
+
+                        transition-colors
+                        duration-150
+
+                        hover:text-indigo-700
+
+                        focus-visible:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-indigo-500
+
+                        dark:text-gray-500
+                        dark:hover:text-cyan-300
+                    "
+                >
+                    Source code
+
+                    <ExternalLink
+                        size={12}
+                        aria-hidden="true"
+                        className="
+                            transition-transform
+                            duration-150
+
+                            group-hover/source:-translate-y-0.5
+                            group-hover/source:translate-x-0.5
+
+                            motion-reduce:transform-none
+                        "
+                    />
+                </a>
+            )}
+        </div>
+    );
+};
+
+// =========================================================
+// FOOTER BRAND
+// =========================================================
+
+const FooterBrand = ({ release }) => {
+    return (
+        <div className="min-w-0 max-w-xl">
+
+            {/* ======================================
+                LOGO + BRAND
+            ====================================== */}
+
+            <Link
+                to="/"
+
+                className="
+                    group/brand
+
+                    inline-flex
+                    max-w-full
+                    items-center
+                    gap-3
+
+                    rounded-xl
+
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-indigo-500
+                "
+            >
+                {/* LOGO */}
+
+                <span
+                    className="
+                        relative
+
+                        grid
+                        h-[62px]
+                        w-[62px]
+                        shrink-0
+
+                        place-items-center
+
+                        overflow-hidden
+                        rounded-2xl
+
+                        border
+                        border-indigo-400/20
+
+                        bg-white/80
 
                         transition-colors
                         duration-200
 
-                        group-hover/link:text-cyan-300
+                        group-hover/brand:border-indigo-400/45
+
+                        dark:border-cyan-400/10
+                        dark:bg-white/[0.025]
+
+                        dark:group-hover/brand:border-cyan-400/30
                     "
-                />
+                >
+                    <img
+                        src={APP_LOGO}
+                        alt={`${APP_FULL_NAME} logo`}
+                        draggable={false}
 
+                        className="
+                            h-full
+                            w-full
 
-                {
-                    item.label
-                }
+                            object-contain
 
-            </a>
+                            scale-110
 
-        );
-    }
+                            transition-transform
+                            duration-300
 
+                            group-hover/brand:scale-[1.18]
 
-    return (
+                            motion-reduce:transform-none
+                        "
+                    />
+                </span>
 
-        <Link
-            to={
-                item.to
-            }
+                {/* BRAND TEXT */}
 
-            className={
-                className
-            }
-        >
+                <span className="min-w-0">
 
-            <Icon
-                size={14}
-                strokeWidth={2}
+                    <span
+                        className="
+                            block
 
+                            text-[25px]
+                            font-black
+                            tracking-[-0.05em]
+
+                            text-slate-900
+
+                            dark:text-white
+                        "
+                    >
+                        F
+                        <span
+                            className="
+                                text-indigo-600
+                                dark:text-indigo-400
+                            "
+                        >
+                            Society
+                        </span>
+                    </span>
+
+                    <span
+                        className="
+                            mt-0.5
+                            block
+
+                            font-mono
+                            text-[9px]
+                            font-bold
+                            uppercase
+                            tracking-[0.12em]
+
+                            text-slate-500
+
+                            dark:text-gray-600
+                        "
+                    >
+                        Fix Society // Developer Network
+                    </span>
+                </span>
+            </Link>
+
+            {/* ======================================
+                DESCRIPTION
+            ====================================== */}
+
+            <p
                 className="
-                    text-gray-700
+                    mt-5
+                    max-w-lg
 
-                    transition-colors
-                    duration-200
+                    text-[13px]
+                    leading-7
 
-                    group-hover/link:text-cyan-300
+                    text-slate-600
+
+                    dark:text-gray-400
                 "
-            />
+            >
+                {APP_DESCRIPTION}
+            </p>
 
+            {/* ======================================
+                CREATED BY
+            ====================================== */}
 
-            {
-                item.label
-            }
+            <div
+                className="
+                    mt-4
 
-        </Link>
+                    flex
+                    flex-wrap
+                    items-center
 
+                    gap-x-2
+                    gap-y-1
+
+                    text-[11px]
+                    font-medium
+
+                    text-slate-500
+
+                    dark:text-gray-500
+                "
+            >
+                <span>
+                    Created in{" "}
+                    <strong
+                        className="
+                            text-slate-800
+                            dark:text-gray-300
+                        "
+                    >
+                        {APP_CREATED_YEAR}
+                    </strong>
+                </span>
+
+                <span
+                    aria-hidden="true"
+                    className="
+                        text-slate-300
+                        dark:text-gray-700
+                    "
+                >
+                    /
+                </span>
+
+                <span>
+                    Developed by{" "}
+
+                    {DEVELOPER_URL ? (
+                        <a
+                            href={DEVELOPER_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+
+                            className="
+                                rounded-md
+                                font-bold
+
+                                text-indigo-700
+
+                                transition-colors
+                                duration-150
+
+                                hover:text-cyan-700
+
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-indigo-500
+
+                                dark:text-indigo-300
+                                dark:hover:text-cyan-300
+                            "
+                        >
+                            {DEVELOPER_NAME}
+                        </a>
+                    ) : (
+                        <strong
+                            className="
+                                text-indigo-700
+                                dark:text-indigo-300
+                            "
+                        >
+                            {DEVELOPER_NAME}
+                        </strong>
+                    )}
+                </span>
+            </div>
+
+            {/* ======================================
+                STATUS + VERSION
+            ====================================== */}
+
+            <div
+                className="
+                    mt-6
+
+                    flex
+                    flex-wrap
+                    items-center
+                    gap-2
+                "
+            >
+                {/* SYSTEM BADGE */}
+
+                <span
+                    className="
+                        inline-flex
+                        items-center
+                        gap-2
+
+                        rounded-xl
+                        border
+                        border-emerald-400/25
+
+                        bg-emerald-500/[0.06]
+
+                        px-3
+                        py-2
+
+                        dark:border-emerald-400/15
+                        dark:bg-emerald-400/[0.04]
+                    "
+                >
+                    <span
+                        aria-hidden="true"
+                        className="
+                            h-2
+                            w-2
+
+                            rounded-full
+
+                            bg-emerald-500
+
+                            dark:bg-emerald-400
+                        "
+                    />
+
+                    <span
+                        className="
+                            font-mono
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-[0.09em]
+
+                            text-emerald-800
+
+                            dark:text-emerald-300
+                        "
+                    >
+                        System online
+                    </span>
+                </span>
+
+                {/* VERSION */}
+
+                <a
+                    href="/#changelog"
+
+                    className="
+                        group/version
+
+                        inline-flex
+                        max-w-full
+                        flex-wrap
+
+                        items-center
+                        gap-2
+
+                        rounded-xl
+                        border
+
+                        border-indigo-400/25
+
+                        bg-indigo-500/[0.06]
+
+                        px-3
+                        py-2
+
+                        transition-colors
+                        duration-150
+
+                        hover:border-indigo-400/45
+                        hover:bg-indigo-500/[0.10]
+
+                        focus-visible:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-indigo-500
+
+                        dark:border-indigo-400/15
+                        dark:bg-indigo-400/[0.04]
+
+                        dark:hover:border-indigo-400/30
+                    "
+                >
+                    <History
+                        size={14}
+                        strokeWidth={2}
+                        aria-hidden="true"
+
+                        className="
+                            text-indigo-600
+
+                            dark:text-indigo-300
+                        "
+                    />
+
+                    <span
+                        className="
+                            font-mono
+                            text-[10px]
+                            font-bold
+
+                            text-slate-500
+
+                            dark:text-gray-500
+                        "
+                    >
+                        Version
+                    </span>
+
+                    <span
+                        className="
+                            font-mono
+                            text-[10px]
+                            font-black
+
+                            text-indigo-700
+
+                            dark:text-indigo-300
+                        "
+                    >
+                        {APP_VERSION}
+                    </span>
+
+                    <span
+                        className={`
+                            rounded-md
+                            border
+
+                            px-2
+                            py-0.5
+
+                            font-mono
+                            text-[8px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+
+                            ${release.className}
+                        `}
+                    >
+                        {release.label}
+                    </span>
+                </a>
+            </div>
+        </div>
     );
 };
 
+// =========================================================
+// POWERED BY SECTION
+// =========================================================
+
+const FooterTechnologies = () => {
+    const technologies = Array.isArray(POWERED_BY)
+        ? POWERED_BY
+        : [];
+
+    return (
+        <div
+            className="
+                flex
+                flex-col
+                gap-4
+
+                border-t
+                border-[#e0e7f1]
+
+                py-5
+
+                md:flex-row
+                md:items-center
+                md:justify-between
+
+                dark:border-white/[0.065]
+            "
+        >
+            <div
+                className="
+                    flex
+                    min-w-0
+                    flex-wrap
+                    items-center
+                    gap-2
+                "
+            >
+                <span
+                    className="
+                        mr-1
+
+                        font-mono
+                        text-[10px]
+                        font-black
+                        uppercase
+                        tracking-[0.12em]
+
+                        text-slate-500
+
+                        dark:text-gray-600
+                    "
+                >
+                    Powered by
+                </span>
+
+                {technologies.map((technology) => {
+                    const Icon = getTechnologyIcon(
+                        technology.key
+                    );
+
+                    if (!technology.url) {
+                        return null;
+                    }
+
+                    return (
+                        <a
+                            key={technology.key}
+
+                            href={technology.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+
+                            className="
+                                group/tech
+
+                                inline-flex
+                                max-w-full
+                                items-center
+                                gap-2
+
+                                rounded-lg
+                                border
+                                border-[#dce4ef]
+
+                                bg-white/80
+
+                                px-2.5
+                                py-1.5
+
+                                text-[10px]
+                                font-semibold
+
+                                text-slate-600
+
+                                transition-colors
+                                duration-150
+
+                                hover:border-cyan-400/40
+                                hover:bg-cyan-500/[0.05]
+                                hover:text-cyan-800
+
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-indigo-500
+
+                                dark:border-white/[0.07]
+                                dark:bg-white/[0.025]
+                                dark:text-gray-400
+
+                                dark:hover:border-cyan-400/20
+                                dark:hover:bg-cyan-400/[0.045]
+                                dark:hover:text-cyan-300
+                            "
+                        >
+                            <Icon
+                                size={14}
+                                strokeWidth={2}
+                                aria-hidden="true"
+
+                                className="
+                                    shrink-0
+                                    text-cyan-700
+
+                                    dark:text-cyan-300
+                                "
+                            />
+
+                            <span className="truncate">
+                                {technology.name}
+                            </span>
+                        </a>
+                    );
+                })}
+            </div>
+
+            <p
+                className="
+                    shrink-0
+
+                    text-[10px]
+                    font-medium
+
+                    text-slate-500
+
+                    dark:text-gray-600
+                "
+            >
+                Building since{" "}
+
+                <strong
+                    className="
+                        text-slate-700
+
+                        dark:text-gray-400
+                    "
+                >
+                    {APP_CREATED_YEAR}
+                </strong>
+            </p>
+        </div>
+    );
+};
 
 // =========================================================
-// FOOTER
+// MAIN FOOTER
 // =========================================================
 
 const Footer = () => {
+    const currentYear = new Date().getFullYear();
+
+    const release = getReleaseChannelData(
+        RELEASE_CHANNEL
+    );
 
     // =====================================================
-    // CURRENT YEAR
+    // SCROLL TO TOP
     // =====================================================
 
-    const currentYear =
-        new Date()
-            .getFullYear();
+    const scrollToTop = () => {
+        const reduceMotion =
+            typeof window.matchMedia === "function" &&
+            window.matchMedia(
+                "(prefers-reduced-motion: reduce)"
+            ).matches;
 
-
-    // =====================================================
-    // RELEASE
-    // =====================================================
-
-    const release =
-        getReleaseChannelData(
-            RELEASE_CHANNEL
-        );
-
-
-    // =====================================================
-    // SCROLL TOP
-    // =====================================================
-
-    const scrollToTop =
-        () => {
-
-            window.scrollTo({
-
-                top:
-                    0,
-
-                behavior:
-                    "smooth",
-
-            });
-        };
-
+        window.scrollTo({
+            top: 0,
+            behavior: reduceMotion ? "auto" : "smooth",
+        });
+    };
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-
         <footer
             className="
                 relative
-
+                isolate
+                min-w-0
                 overflow-hidden
 
                 border-t
-                border-white/[0.055]
+                border-[#dce5f0]
 
-                bg-[#05080d]
+                bg-[#f6f8fd]
 
-                text-white
+                text-slate-900
+
+                dark:border-white/[0.06]
+                dark:bg-[#05080d]
+                dark:text-white
             "
         >
-
-            {/* =================================================
-                GRID BACKGROUND
-            ================================================== */}
+            {/* ======================================
+                BACKGROUND ACCENTS
+            ====================================== */}
 
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
-
                     absolute
-                    inset-0
+                    -left-24
+                    -top-24
 
-                    opacity-[0.018]
+                    hidden
+                    h-72
+                    w-72
 
-                    [background-image:linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.35)_1px,transparent_1px)]
+                    rounded-full
+                    bg-cyan-500/[0.07]
 
-                    [background-size:36px_36px]
+                    blur-[100px]
+
+                    sm:block
+
+                    dark:bg-lime-500/[0.045]
                 "
             />
 
-
-            {/* =================================================
-                LEFT GLOW
-            ================================================== */}
-
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
-
                     absolute
+                    -bottom-24
+                    -right-24
 
-                    -left-24
+                    hidden
+                    h-72
+                    w-72
+
+                    rounded-full
+                    bg-indigo-500/[0.07]
+
+                    blur-[100px]
+
+                    sm:block
+
+                    dark:bg-indigo-500/[0.055]
+                "
+            />
+
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+                className="
+                    absolute
+                    inset-x-0
                     top-0
 
-                    h-72
-                    w-72
+                    h-px
 
-                    rounded-full
+                    bg-gradient-to-r
+                    from-transparent
+                    via-indigo-400/35
+                    to-transparent
 
-                    bg-lime-500/[0.045]
-
-                    blur-[110px]
+                    dark:via-cyan-400/20
                 "
             />
 
-
-            {/* =================================================
-                RIGHT GLOW
-            ================================================== */}
-
-            <div
-                className="
-                    pointer-events-none
-
-                    absolute
-
-                    -right-24
-                    bottom-0
-
-                    h-72
-                    w-72
-
-                    rounded-full
-
-                    bg-indigo-500/[0.055]
-
-                    blur-[110px]
-                "
-            />
-
-
-            {/* =================================================
-                MAIN CONTAINER
-            ================================================== */}
+            {/* ======================================
+                CONTENT CONTAINER
+            ====================================== */}
 
             <div
                 className="
@@ -543,1031 +1279,112 @@ const Footer = () => {
                     xl:px-8
                 "
             >
-
-                {/* =================================================
-                    MAIN GRID
-                ================================================== */}
+                {/* ==================================
+                    MAIN FOOTER GRID
+                ================================== */}
 
                 <div
                     className="
                         grid
+                        min-w-0
 
+                        grid-cols-1
                         gap-10
 
                         py-12
 
-                        lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]
+                        sm:py-14
 
-                        lg:py-14
+                        lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]
+                        lg:gap-12
                     "
                 >
+                    {/* BRAND */}
 
-                    {/* =================================================
-                        BRAND SIDE
-                    ================================================== */}
+                    <FooterBrand release={release} />
 
-                    <div
-                        className="
-                            max-w-xl
-                        "
-                    >
+                    {/* ==================================
+                        NAVIGATION + CONNECT
+                    ================================== */}
 
-                        {/* =============================================
-                            LOGO + BRAND
-                        ============================================== */}
+                    <nav
+                        aria-label="Footer navigatsiyasi"
 
-                        <Link
-                            to="/"
-
-                            className="
-                                group/brand
-
-                                inline-flex
-
-                                items-center
-
-                                gap-4
-                            "
-                        >
-
-                            {/* LOGO */}
-
-                            <div
-                                className="
-                                    relative
-
-                                    flex
-
-                                    h-[72px]
-                                    w-[72px]
-
-                                    items-center
-                                    justify-center
-
-                                    overflow-hidden
-
-                                    rounded-2xl
-
-                                    border
-                                    border-lime-400/10
-
-                                    bg-black/20
-
-                                    transition-all
-                                    duration-300
-
-                                    group-hover/brand:border-lime-400/25
-
-                                    group-hover/brand:shadow-[0_0_35px_rgba(163,230,53,0.08)]
-                                "
-                            >
-
-                                <img
-                                    src={
-                                        APP_LOGO
-                                    }
-
-                                    alt={
-                                        `${APP_FULL_NAME} logo`
-                                    }
-
-                                    className="
-                                        h-full
-                                        w-full
-
-                                        scale-[1.15]
-
-                                        object-contain
-
-                                        transition-all
-                                        duration-500
-
-                                        group-hover/brand:scale-[1.22]
-                                    "
-                                />
-
-                            </div>
-
-
-                            {/* BRAND TEXT */}
-
-                            <div>
-
-                                <h2
-                                    className="
-                                        text-2xl
-                                        font-black
-
-                                        tracking-[-0.045em]
-
-                                        text-white
-                                    "
-                                >
-                                    F
-                                    <span
-                                        className="
-                                            text-indigo-400
-                                        "
-                                    >
-                                        Society
-                                    </span>
-                                </h2>
-
-
-                                <p
-                                    className="
-                                        mt-0.5
-
-                                        font-mono
-
-                                        text-[8px]
-                                        font-black
-
-                                        uppercase
-                                        tracking-[0.19em]
-
-                                        text-gray-700
-                                    "
-                                >
-                                    Fix Society
-                                    {" // "}
-                                    Developer Network
-                                </p>
-
-                            </div>
-
-                        </Link>
-
-
-                        {/* =============================================
-                            DESCRIPTION
-                        ============================================== */}
-
-                        <p
-                            className="
-                                mt-6
-
-                                max-w-lg
-
-                                text-sm
-                                leading-7
-
-                                text-gray-500
-                            "
-                        >
-                            {
-                                APP_DESCRIPTION
-                            }
-                        </p>
-
-
-                        {/* =============================================
-                            CREATED BY
-                        ============================================== */}
-
-                        <div
-                            className="
-                                mt-5
-
-                                flex
-                                flex-wrap
-
-                                items-center
-
-                                gap-x-2
-                                gap-y-1
-
-                                text-xs
-                                font-semibold
-
-                                text-gray-600
-                            "
-                        >
-
-                            <span>
-                                Created in{" "}
-                                <span
-                                    className="
-                                        font-black
-
-                                        text-gray-300
-                                    "
-                                >
-                                    {
-                                        APP_CREATED_YEAR
-                                    }
-                                </span>
-                            </span>
-
-
-                            <span
-                                className="
-                                    text-gray-800
-                                "
-                            >
-                                /
-                            </span>
-
-
-                            <span>
-                                Developed by{" "}
-
-                                {DEVELOPER_URL ? (
-
-                                    <a
-                                        href={
-                                            DEVELOPER_URL
-                                        }
-
-                                        target="_blank"
-                                        rel="noreferrer"
-
-                                        className="
-                                            font-black
-
-                                            text-indigo-300
-
-                                            transition-colors
-
-                                            hover:text-cyan-300
-                                        "
-                                    >
-                                        {
-                                            DEVELOPER_NAME
-                                        }
-                                    </a>
-
-                                ) : (
-
-                                    <span
-                                        className="
-                                            font-black
-
-                                            text-indigo-300
-                                        "
-                                    >
-                                        {
-                                            DEVELOPER_NAME
-                                        }
-                                    </span>
-
-                                )}
-
-                            </span>
-
-                        </div>
-
-
-                        {/* =============================================
-                            STATUS / VERSION
-                        ============================================== */}
-
-                        <div
-                            className="
-                                mt-6
-
-                                flex
-                                flex-wrap
-
-                                items-center
-
-                                gap-2.5
-                            "
-                        >
-
-                            {/* SYSTEM ONLINE */}
-
-                            <div
-                                className="
-                                    inline-flex
-
-                                    items-center
-
-                                    gap-2
-
-                                    rounded-xl
-
-                                    border
-                                    border-emerald-400/10
-
-                                    bg-emerald-400/[0.03]
-
-                                    px-3
-                                    py-2
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        relative
-
-                                        flex
-
-                                        h-2
-                                        w-2
-                                    "
-                                >
-
-                                    <span
-                                        className="
-                                            absolute
-
-                                            inline-flex
-
-                                            h-full
-                                            w-full
-
-                                            animate-ping
-
-                                            rounded-full
-
-                                            bg-emerald-400
-
-                                            opacity-50
-                                        "
-                                    />
-
-
-                                    <span
-                                        className="
-                                            relative
-
-                                            inline-flex
-
-                                            h-2
-                                            w-2
-
-                                            rounded-full
-
-                                            bg-emerald-400
-                                        "
-                                    />
-
-                                </span>
-
-
-                                <span
-                                    className="
-                                        font-mono
-
-                                        text-[9px]
-                                        font-black
-
-                                        uppercase
-                                        tracking-[0.13em]
-
-                                        text-emerald-300
-                                    "
-                                >
-                                    System online
-                                </span>
-
-                            </div>
-
-
-                            {/* VERSION */}
-
-                            <a
-                                href="/#changelog"
-
-                                className="
-                                    group/version
-
-                                    inline-flex
-
-                                    items-center
-
-                                    gap-2
-
-                                    rounded-xl
-
-                                    border
-                                    border-indigo-400/10
-
-                                    bg-indigo-400/[0.035]
-
-                                    px-3
-                                    py-2
-
-                                    transition-all
-                                    duration-200
-
-                                    hover:border-indigo-400/20
-
-                                    hover:bg-indigo-400/[0.06]
-                                "
-                            >
-
-                                <History
-                                    size={13}
-                                    strokeWidth={2}
-
-                                    className="
-                                        text-indigo-300
-                                    "
-                                />
-
-
-                                <span
-                                    className="
-                                        font-mono
-
-                                        text-[9px]
-                                        font-black
-
-                                        uppercase
-                                        tracking-[0.12em]
-
-                                        text-gray-500
-                                    "
-                                >
-                                    Version
-                                </span>
-
-
-                                <span
-                                    className="
-                                        font-mono
-
-                                        text-[9px]
-                                        font-black
-
-                                        text-indigo-300
-                                    "
-                                >
-                                    {
-                                        APP_VERSION
-                                    }
-                                </span>
-
-
-                                <span
-                                    className={`
-                                        rounded-md
-
-                                        border
-
-                                        px-1.5
-                                        py-0.5
-
-                                        font-mono
-
-                                        text-[7px]
-                                        font-black
-
-                                        uppercase
-                                        tracking-[0.1em]
-
-                                        ${release.className}
-                                    `}
-                                >
-                                    {
-                                        release.label
-                                    }
-                                </span>
-
-                            </a>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* =================================================
-                        RIGHT AREA
-                    ================================================== */}
-
-                    <div
                         className="
                             grid
+                            min-w-0
 
-                            gap-8
+                            grid-cols-2
+                            gap-x-5
+                            gap-y-9
 
-                            sm:grid-cols-2
+                            sm:grid-cols-3
 
-                            lg:grid-cols-[1fr_1fr_auto]
+                            lg:grid-cols-2
+
+                            xl:grid-cols-3
+                            xl:gap-x-7
                         "
                     >
-
-                        {/* =============================================
-                            LINKS
-                        ============================================== */}
-
-                        {FOOTER_GROUPS.map(
-                            (
-                                group
-                            ) => (
-
-                                <div
-                                    key={
-                                        group.title
-                                    }
-                                >
-
-                                    <p
-                                        className="
-                                            font-mono
-
-                                            text-[9px]
-                                            font-black
-
-                                            uppercase
-                                            tracking-[0.17em]
-
-                                            text-gray-700
-                                        "
-                                    >
-                                        {
-                                            group.title
-                                        }
-                                    </p>
-
-
-                                    <div
-                                        className="
-                                            mt-4
-
-                                            flex
-                                            flex-col
-
-                                            gap-3
-                                        "
-                                    >
-
-                                        {group.links.map(
-                                            (
-                                                item
-                                            ) => (
-
-                                                <FooterLink
-                                                    key={
-                                                        item.label
-                                                    }
-
-                                                    item={
-                                                        item
-                                                    }
-                                                />
-
-                                            )
-                                        )}
-
-                                    </div>
-
-                                </div>
-
-                            )
-                        )}
-
-
-                        {/* =============================================
-                            CONNECT
-                        ============================================== */}
-
-                        <div>
-
-                            <p
-                                className="
-                                    font-mono
-
-                                    text-[9px]
-                                    font-black
-
-                                    uppercase
-                                    tracking-[0.17em]
-
-                                    text-gray-700
-                                "
-                            >
-                                Connect
-                            </p>
-
-
-                            {/* SOCIAL BUTTONS */}
-
-                            <div
-                                className="
-                                    mt-4
-
-                                    flex
-                                    flex-wrap
-
-                                    items-center
-
-                                    gap-2
-                                "
-                            >
-
-                                {/* GITHUB */}
-
-                                <a
-                                    href={
-                                        GITHUB_URL
-                                    }
-
-                                    target="_blank"
-                                    rel="noreferrer"
-
-                                    aria-label="GitHub"
-
-                                    className="
-                                        grid
-
-                                        h-10
-                                        w-10
-
-                                        place-items-center
-
-                                        rounded-xl
-
-                                        border
-                                        border-white/[0.065]
-
-                                        bg-white/[0.025]
-
-                                        text-gray-500
-
-                                        transition-all
-                                        duration-200
-
-                                        hover:-translate-y-0.5
-
-                                        hover:border-white/[0.13]
-
-                                        hover:bg-white/[0.05]
-
-                                        hover:text-white
-                                    "
-                                >
-
-                                    <Github
-                                        size={17}
-                                        strokeWidth={2}
-                                    />
-
-                                </a>
-
-
-                                {/* TELEGRAM */}
-
-                                <a
-                                    href={
-                                        TELEGRAM_URL
-                                    }
-
-                                    target="_blank"
-                                    rel="noreferrer"
-
-                                    aria-label="Telegram"
-
-                                    className="
-                                        grid
-
-                                        h-10
-                                        w-10
-
-                                        place-items-center
-
-                                        rounded-xl
-
-                                        border
-                                        border-cyan-400/10
-
-                                        bg-cyan-400/[0.035]
-
-                                        text-cyan-300/70
-
-                                        transition-all
-                                        duration-200
-
-                                        hover:-translate-y-0.5
-
-                                        hover:border-cyan-400/20
-
-                                        hover:bg-cyan-400/[0.07]
-
-                                        hover:text-cyan-300
-                                    "
-                                >
-
-                                    <Send
-                                        size={17}
-                                        strokeWidth={2}
-                                    />
-
-                                </a>
-
-
-                                {/* LINKEDIN */}
-
-                                {LINKEDIN_URL && (
-
-                                    <a
-                                        href={
-                                            LINKEDIN_URL
-                                        }
-
-                                        target="_blank"
-                                        rel="noreferrer"
-
-                                        aria-label="LinkedIn"
-
-                                        className="
-                                            grid
-
-                                            h-10
-                                            w-10
-
-                                            place-items-center
-
-                                            rounded-xl
-
-                                            border
-                                            border-blue-400/10
-
-                                            bg-blue-400/[0.03]
-
-                                            text-blue-300/70
-
-                                            transition-all
-                                            duration-200
-
-                                            hover:-translate-y-0.5
-
-                                            hover:border-blue-400/20
-
-                                            hover:bg-blue-400/[0.07]
-
-                                            hover:text-blue-300
-                                        "
-                                    >
-
-                                        <Linkedin
-                                            size={17}
-                                            strokeWidth={2}
-                                        />
-
-                                    </a>
-
-                                )}
-
-                            </div>
-
-
-                            {/* SOURCE */}
-
-                            <a
-                                href={
-                                    GITHUB_URL
-                                }
-
-                                target="_blank"
-                                rel="noreferrer"
-
-                                className="
-                                    group/source
-
-                                    mt-4
-
-                                    inline-flex
-
-                                    items-center
-
-                                    gap-1.5
-
-                                    text-[10px]
-                                    font-semibold
-
-                                    text-gray-700
-
-                                    transition-colors
-
-                                    hover:text-gray-400
-                                "
-                            >
-
-                                Source code
-
-
-                                <ExternalLink
-                                    size={11}
-
-                                    className="
-                                        transition-transform
-
-                                        group-hover/source:-translate-y-0.5
-
-                                        group-hover/source:translate-x-0.5
-                                    "
-                                />
-
-                            </a>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                {/* =================================================
-                    POWERED BY
-                ================================================== */}
-
-                <div
-                    className="
-                        border-t
-                        border-white/[0.055]
-
-                        py-5
-                    "
-                >
-
-                    <div
-                        className="
-                            flex
-                            flex-col
-
-                            gap-4
-
-                            md:flex-row
-                            md:items-center
-                            md:justify-between
-                        "
-                    >
-
-                        {/* LEFT */}
+                        {FOOTER_GROUPS.map((group) => (
+                            <FooterNavigationGroup
+                                key={group.title}
+                                group={group}
+                            />
+                        ))}
 
                         <div
                             className="
-                                flex
-                                flex-wrap
+                                col-span-2
 
-                                items-center
+                                sm:col-span-1
 
-                                gap-3
+                                lg:col-span-2
+
+                                xl:col-span-1
                             "
                         >
-
-                            <span
-                                className="
-                                    font-mono
-
-                                    text-[8px]
-                                    font-black
-
-                                    uppercase
-                                    tracking-[0.17em]
-
-                                    text-gray-700
-                                "
-                            >
-                                Powered by
-                            </span>
-
-
-                            {POWERED_BY.map(
-                                (
-                                    technology
-                                ) => (
-
-                                    <a
-                                        key={
-                                            technology.key
-                                        }
-
-                                        href={
-                                            technology.url
-                                        }
-
-                                        target="_blank"
-                                        rel="noreferrer"
-
-                                        className="
-                                            group/tech
-
-                                            inline-flex
-
-                                            items-center
-
-                                            gap-1.5
-
-                                            rounded-lg
-
-                                            border
-                                            border-white/[0.055]
-
-                                            bg-white/[0.02]
-
-                                            px-2.5
-                                            py-1.5
-
-                                            text-[9px]
-                                            font-bold
-
-                                            text-gray-600
-
-                                            transition-all
-                                            duration-200
-
-                                            hover:-translate-y-0.5
-
-                                            hover:border-cyan-400/10
-
-                                            hover:bg-cyan-400/[0.03]
-
-                                            hover:text-gray-300
-                                        "
-                                    >
-
-                                        <span
-                                            className="
-                                                text-cyan-300/70
-
-                                                transition-colors
-
-                                                group-hover/tech:text-cyan-300
-                                            "
-                                        >
-                                            {
-                                                getTechnologyIcon(
-                                                    technology.key
-                                                )
-                                            }
-                                        </span>
-
-
-                                        {
-                                            technology.name
-                                        }
-
-                                    </a>
-
-                                )
-                            )}
-
+                            <FooterSocials />
                         </div>
-
-
-                        {/* CREATED */}
-
-                        <p
-                            className="
-                                text-[9px]
-                                font-medium
-
-                                text-gray-700
-                            "
-                        >
-                            Building since{" "}
-
-                            <span
-                                className="
-                                    font-black
-
-                                    text-gray-500
-                                "
-                            >
-                                {
-                                    APP_CREATED_YEAR
-                                }
-                            </span>
-                        </p>
-
-                    </div>
-
+                    </nav>
                 </div>
 
+                {/* ==================================
+                    TECHNOLOGIES
+                ================================== */}
 
-                {/* =================================================
-                    BOTTOM BAR
-                ================================================== */}
+                <FooterTechnologies />
+
+                {/* ==================================
+                    COPYRIGHT / BOTTOM BAR
+                ================================== */}
 
                 <div
                     className="
                         flex
+                        min-w-0
                         flex-col
 
                         gap-4
 
                         border-t
-                        border-white/[0.055]
+                        border-[#e0e7f1]
 
                         py-5
 
                         sm:flex-row
                         sm:items-center
                         sm:justify-between
+
+                        dark:border-white/[0.065]
                     "
                 >
-
-                    {/* =============================================
-                        COPYRIGHT
-                    ============================================== */}
+                    {/* COPYRIGHT */}
 
                     <div
                         className="
                             flex
+                            min-w-0
                             flex-wrap
                             items-center
 
@@ -1577,205 +1394,203 @@ const Footer = () => {
                             text-[10px]
                             font-medium
 
-                            text-gray-700
+                            text-slate-500
+
+                            dark:text-gray-500
                         "
                     >
-
                         <span>
-                            © {
-                                APP_CREATED_YEAR
-                            }–{
-                                currentYear
-                            }{" "}
-
-                            {
-                                APP_NAME
-                            }.
+                            © {APP_CREATED_YEAR}
+                            {String(APP_CREATED_YEAR) ===
+                            String(currentYear)
+                                ? ""
+                                : `–${currentYear}`}{" "}
+                            {APP_NAME}.
                         </span>
 
-
                         <span
+                            aria-hidden="true"
                             className="
                                 hidden
-                                text-gray-800
+                                text-slate-300
+
                                 sm:inline
+
+                                dark:text-gray-700
                             "
                         >
                             /
                         </span>
 
-
                         <span>
-                            Barcha huquqlar
-                            himoyalangan.
+                            Barcha huquqlar himoyalangan.
                         </span>
 
-
                         <span
+                            aria-hidden="true"
                             className="
                                 hidden
-                                text-gray-800
+                                text-slate-300
+
                                 sm:inline
+
+                                dark:text-gray-700
                             "
                         >
                             /
                         </span>
-
 
                         <span
                             className="
                                 inline-flex
-
                                 items-center
-
                                 gap-1.5
                             "
                         >
                             Built with
 
                             <Heart
-                                size={11}
+                                size={12}
                                 strokeWidth={2}
+                                aria-hidden="true"
 
                                 className="
-                                    fill-pink-400/50
+                                    fill-pink-400/40
+                                    text-pink-500
 
-                                    text-pink-400/70
+                                    dark:fill-pink-400/50
+                                    dark:text-pink-400
                                 "
                             />
 
-                            by{" "}
+                            by
 
-                            <span
+                            <strong
                                 className="
-                                    font-black
+                                    text-indigo-700
 
-                                    text-indigo-300
+                                    dark:text-indigo-300
                                 "
                             >
-                                {
-                                    DEVELOPER_NAME
-                                }
-                            </span>
-
+                                {DEVELOPER_NAME}
+                            </strong>
                         </span>
-
                     </div>
 
-
-                    {/* =============================================
-                        RIGHT
-                    ============================================== */}
+                    {/* ==================================
+                        RIGHT ACTIONS
+                    ================================== */}
 
                     <div
                         className="
                             flex
-
+                            shrink-0
                             items-center
 
+                            justify-between
                             gap-3
+
+                            sm:justify-end
                         "
                     >
-
-                        <div
+                        <span
                             className="
                                 hidden
 
                                 items-center
-
                                 gap-1.5
 
                                 font-mono
-
-                                text-[8px]
+                                text-[9px]
                                 font-bold
-
                                 uppercase
-                                tracking-[0.13em]
+                                tracking-wider
 
-                                text-gray-800
+                                text-slate-400
 
-                                md:flex
+                                md:inline-flex
+
+                                dark:text-gray-600
                             "
                         >
-
                             <ShieldCheck
-                                size={11}
+                                size={13}
+                                strokeWidth={2}
+                                aria-hidden="true"
                             />
 
-
                             community driven
+                        </span>
 
-                        </div>
-
-
-                        {/* TOP */}
+                        {/* SCROLL TO TOP */}
 
                         <button
                             type="button"
+                            onClick={scrollToTop}
 
-                            onClick={
-                                scrollToTop
-                            }
-
-                            aria-label="Tepaga qaytish"
+                            aria-label="Sahifa tepasiga qaytish"
+                            title="Tepaga qaytish"
 
                             className="
                                 group/top
 
                                 grid
-
-                                h-9
-                                w-9
+                                h-10
+                                w-10
+                                shrink-0
 
                                 cursor-pointer
 
                                 place-items-center
 
                                 rounded-xl
-
                                 border
-                                border-white/[0.065]
+                                border-[#dce4ef]
 
-                                bg-white/[0.025]
+                                bg-white/80
 
-                                text-gray-600
+                                text-slate-600
 
-                                transition-all
-                                duration-200
+                                transition-colors
+                                duration-150
 
-                                hover:-translate-y-0.5
+                                hover:border-cyan-400/40
+                                hover:bg-cyan-500/[0.06]
+                                hover:text-cyan-700
 
-                                hover:border-cyan-400/15
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-indigo-500
 
-                                hover:bg-cyan-400/[0.04]
+                                dark:border-white/[0.08]
+                                dark:bg-white/[0.035]
+                                dark:text-gray-400
 
-                                hover:text-cyan-300
+                                dark:hover:border-cyan-400/25
+                                dark:hover:bg-cyan-400/[0.05]
+                                dark:hover:text-cyan-300
                             "
                         >
-
                             <ArrowUp
-                                size={15}
+                                size={17}
                                 strokeWidth={2.2}
+                                aria-hidden="true"
 
                                 className="
                                     transition-transform
+                                    duration-150
 
                                     group-hover/top:-translate-y-0.5
+
+                                    motion-reduce:transform-none
                                 "
                             />
-
                         </button>
-
                     </div>
-
                 </div>
-
             </div>
-
         </footer>
     );
 };
 
-
-export default Footer;
+export default React.memo(Footer);

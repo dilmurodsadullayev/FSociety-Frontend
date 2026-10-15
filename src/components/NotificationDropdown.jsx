@@ -1,4 +1,8 @@
-import React from "react";
+
+import React, {
+    useCallback,
+    useMemo,
+} from "react";
 
 import {
     useDispatch,
@@ -15,1519 +19,68 @@ import {
 } from "framer-motion";
 
 import {
-    AlertTriangle,
     ArrowRight,
-    Award,
     Bell,
-    BellOff,
     CheckCheck,
-    CheckCircle2,
-    Clock3,
-    Coins,
-    Info,
-    ListChecks,
-    MessageSquareText,
-    Newspaper,
-    Star,
-    UserRound,
     Wifi,
     WifiOff,
 } from "lucide-react";
 
-import PlaceholderUserImage from "../assests/userImage.jpeg";
-
-import {
-    timeUntilDeadline,
-} from "../utils/timeUntilDeadline";
+// =========================================================
+// NOTIFICATION ACTIONS
+// =========================================================
 
 import {
     markAllNotificationsAsRead,
     markNotificationAsRead,
 } from "../middleware/notificationMiddleware";
 
-import {
-    BACKEND_URL,
-} from "../services/config";
+// =========================================================
+// COMPONENTS
+// =========================================================
 
+import NotificationItem from "./notifications/dropdown/NotificationItem";
+
+import {
+    EmptyState,
+    NotificationSkeleton,
+} from "./notifications/dropdown/NotificationStates";
 
 // =========================================================
-// ANIMATION
+// DROPDOWN ANIMATION
+//
+// No expensive blur filter.
 // =========================================================
 
 const dropdownVariants = {
     hidden: {
         opacity: 0,
-
-        y: -10,
-
-        scale: 0.97,
-
-        filter:
-            "blur(5px)",
+        y: -6,
+        scale: 0.99,
     },
 
     visible: {
         opacity: 1,
-
         y: 0,
-
         scale: 1,
 
-        filter:
-            "blur(0px)",
-
         transition: {
-            duration: 0.2,
-
-            ease:
-                "easeOut",
+            duration: 0.15,
+            ease: "easeOut",
         },
     },
 
     exit: {
         opacity: 0,
-
-        y: -8,
-
-        scale: 0.97,
-
-        filter:
-            "blur(5px)",
+        y: -6,
+        scale: 0.99,
 
         transition: {
-            duration: 0.15,
-
-            ease:
-                "easeIn",
+            duration: 0.12,
+            ease: "easeIn",
         },
     },
 };
-
-
-// =========================================================
-// VALID TYPES
-// =========================================================
-
-const VALID_CONTENT_TYPES = [
-    "problem",
-    "solution",
-    "coin",
-    "post",
-    "task",
-    "star",
-    "info",
-    "badge",
-    "feedback",
-];
-
-
-// =========================================================
-// URL HELPERS
-// =========================================================
-
-const normalizeBaseUrl = (
-    url
-) => {
-    if (!url) {
-        return (
-            typeof window !==
-            "undefined"
-
-                ? window.location.origin
-
-                : ""
-        );
-    }
-
-
-    return String(
-        url
-    ).replace(
-        /\/+$/,
-        ""
-    );
-};
-
-
-const getAbsoluteImageUrl = (
-    image
-) => {
-    if (!image) {
-        return PlaceholderUserImage;
-    }
-
-
-    const value =
-        String(
-            image
-        ).trim();
-
-
-    if (!value) {
-        return PlaceholderUserImage;
-    }
-
-
-    // Already absolute URL
-
-    if (
-        /^https?:\/\//i.test(
-            value
-        )
-    ) {
-        return value;
-    }
-
-
-    // Browser generated image
-
-    if (
-        value.startsWith(
-            "blob:"
-        ) ||
-        value.startsWith(
-            "data:"
-        )
-    ) {
-        return value;
-    }
-
-
-    const baseUrl =
-        normalizeBaseUrl(
-            BACKEND_URL
-        );
-
-
-    const path =
-        value.startsWith(
-            "/"
-        )
-
-            ? value
-
-            : `/${value}`;
-
-
-    return (
-        `${baseUrl}${path}`
-    );
-};
-
-
-// =========================================================
-// SENDER
-// =========================================================
-
-const getSenderUsername = (
-    sender
-) => {
-    if (!sender) {
-        return "FSociety";
-    }
-
-
-    if (
-        typeof sender ===
-        "string"
-    ) {
-        return sender;
-    }
-
-
-    return (
-        sender.username ||
-        sender.full_name ||
-        sender.first_name ||
-        sender.email ||
-        "FSociety"
-    );
-};
-
-
-// =========================================================
-// CONTENT TYPE
-// =========================================================
-
-const getContentType = (
-    notification
-) => {
-    const contentType =
-        notification?.content_type ||
-        notification?.notification_type ||
-        notification?.category;
-
-
-    if (
-        VALID_CONTENT_TYPES.includes(
-            contentType
-        )
-    ) {
-        return contentType;
-    }
-
-
-    if (
-        VALID_CONTENT_TYPES.includes(
-            notification?.type
-        )
-    ) {
-        return notification.type;
-    }
-
-
-    return "info";
-};
-
-
-// =========================================================
-// DATE
-// =========================================================
-
-const formatDateTime = (
-    value
-) => {
-    if (!value) {
-        return "Hozirgina";
-    }
-
-
-    const date =
-        new Date(
-            value
-        );
-
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return "Hozirgina";
-    }
-
-
-    const time =
-        date.toLocaleTimeString(
-            "uz-UZ",
-            {
-                hour:
-                    "2-digit",
-
-                minute:
-                    "2-digit",
-            }
-        );
-
-
-    const day =
-        date.toLocaleDateString(
-            "uz-UZ"
-        );
-
-
-    return (
-        `${time} • ${day}`
-    );
-};
-
-
-// =========================================================
-// NOTIFICATION URL
-// =========================================================
-
-const getNotificationUrl = (
-    notification
-) => {
-    const contentType =
-        getContentType(
-            notification
-        );
-
-
-    const objectId =
-        notification?.object_id;
-
-
-    // =====================================================
-    // PROBLEM / SOLUTION / STAR
-    // =====================================================
-
-    if (
-        contentType ===
-            "problem" ||
-        contentType ===
-            "solution" ||
-        contentType ===
-            "star"
-    ) {
-        return objectId
-
-            ? `/problem/${objectId}/detail`
-
-            : "/problems";
-    }
-
-
-    // =====================================================
-    // POST
-    // =====================================================
-
-    if (
-        contentType ===
-        "post"
-    ) {
-        const senderUsername =
-            getSenderUsername(
-                notification?.sender
-            );
-
-
-        const slug =
-            notification
-                ?.post
-                ?.slug ||
-            notification
-                ?.slug;
-
-
-        if (
-            senderUsername &&
-            slug
-        ) {
-            return (
-                `/${senderUsername}/post/${slug}/`
-            );
-        }
-
-
-        return "/notifications";
-    }
-
-
-    // =====================================================
-    // COIN
-    // =====================================================
-
-    if (
-        contentType ===
-        "coin"
-    ) {
-        return "/fcoin-history";
-    }
-
-
-    // =====================================================
-    // BADGE
-    // =====================================================
-
-    if (
-        contentType ===
-        "badge"
-    ) {
-        const username =
-            notification
-                ?.recipient
-                ?.username ||
-            notification
-                ?.sender
-                ?.username;
-
-
-        return username
-
-            ? `/${username}/profile`
-
-            : "/notifications";
-    }
-
-
-    // =====================================================
-    // FEEDBACK
-    // =====================================================
-
-    if (
-        contentType ===
-        "feedback"
-    ) {
-        return "/feedback";
-    }
-
-
-    return "/notifications";
-};
-
-
-// =========================================================
-// NOTIFICATION META
-// =========================================================
-
-const getNotificationMeta = (
-    notification
-) => {
-    const contentType =
-        getContentType(
-            notification
-        );
-
-
-    const feedbackStatus =
-        notification
-            ?.metadata
-            ?.feedback_status;
-
-
-    if (
-        contentType ===
-        "feedback"
-    ) {
-
-        if (
-            feedbackStatus ===
-            "approved"
-        ) {
-            return {
-                Icon:
-                    CheckCircle2,
-
-                label:
-                    "Feedback tasdiqlandi",
-
-                iconBox:
-                    "border-emerald-400/20 bg-emerald-500/10 text-emerald-300",
-
-                glow:
-                    "from-emerald-500/[0.10]",
-
-                pill:
-                    "border-emerald-400/20 bg-emerald-500/[0.07] text-emerald-300",
-            };
-        }
-
-
-        if (
-            feedbackStatus ===
-            "rejected"
-        ) {
-            return {
-                Icon:
-                    AlertTriangle,
-
-                label:
-                    "Feedback rad etildi",
-
-                iconBox:
-                    "border-red-400/20 bg-red-500/10 text-red-300",
-
-                glow:
-                    "from-red-500/[0.10]",
-
-                pill:
-                    "border-red-400/20 bg-red-500/[0.07] text-red-300",
-            };
-        }
-    }
-
-
-    const map = {
-
-        problem: {
-            Icon:
-                AlertTriangle,
-
-            label:
-                "Problem",
-
-            iconBox:
-                "border-red-400/20 bg-red-500/10 text-red-300",
-
-            glow:
-                "from-red-500/[0.10]",
-
-            pill:
-                "border-red-400/20 bg-red-500/[0.07] text-red-300",
-        },
-
-
-        solution: {
-            Icon:
-                CheckCircle2,
-
-            label:
-                "Yechim",
-
-            iconBox:
-                "border-emerald-400/20 bg-emerald-500/10 text-emerald-300",
-
-            glow:
-                "from-emerald-500/[0.10]",
-
-            pill:
-                "border-emerald-400/20 bg-emerald-500/[0.07] text-emerald-300",
-        },
-
-
-        coin: {
-            Icon:
-                Coins,
-
-            label:
-                "FCoin",
-
-            iconBox:
-                "border-amber-400/20 bg-amber-500/10 text-amber-300",
-
-            glow:
-                "from-amber-500/[0.10]",
-
-            pill:
-                "border-amber-400/20 bg-amber-500/[0.07] text-amber-300",
-        },
-
-
-        post: {
-            Icon:
-                Newspaper,
-
-            label:
-                "Post",
-
-            iconBox:
-                "border-violet-400/20 bg-violet-500/10 text-violet-300",
-
-            glow:
-                "from-violet-500/[0.10]",
-
-            pill:
-                "border-violet-400/20 bg-violet-500/[0.07] text-violet-300",
-        },
-
-
-        task: {
-            Icon:
-                ListChecks,
-
-            label:
-                "Task",
-
-            iconBox:
-                "border-blue-400/20 bg-blue-500/10 text-blue-300",
-
-            glow:
-                "from-blue-500/[0.10]",
-
-            pill:
-                "border-blue-400/20 bg-blue-500/[0.07] text-blue-300",
-        },
-
-
-        star: {
-            Icon:
-                Star,
-
-            label:
-                "Star",
-
-            iconBox:
-                "border-yellow-400/20 bg-yellow-500/10 text-yellow-300",
-
-            glow:
-                "from-yellow-500/[0.10]",
-
-            pill:
-                "border-yellow-400/20 bg-yellow-500/[0.07] text-yellow-300",
-        },
-
-
-        badge: {
-            Icon:
-                Award,
-
-            label:
-                "Badge",
-
-            iconBox:
-                "border-orange-400/20 bg-orange-500/10 text-orange-300",
-
-            glow:
-                "from-orange-500/[0.10]",
-
-            pill:
-                "border-orange-400/20 bg-orange-500/[0.07] text-orange-300",
-        },
-
-
-        feedback: {
-            Icon:
-                MessageSquareText,
-
-            label:
-                "Feedback",
-
-            iconBox:
-                "border-cyan-400/20 bg-cyan-500/10 text-cyan-300",
-
-            glow:
-                "from-cyan-500/[0.10]",
-
-            pill:
-                "border-cyan-400/20 bg-cyan-500/[0.07] text-cyan-300",
-        },
-
-
-        info: {
-            Icon:
-                Info,
-
-            label:
-                "Info",
-
-            iconBox:
-                "border-indigo-400/20 bg-indigo-500/10 text-indigo-300",
-
-            glow:
-                "from-indigo-500/[0.10]",
-
-            pill:
-                "border-indigo-400/20 bg-indigo-500/[0.07] text-indigo-300",
-        },
-    };
-
-
-    return (
-        map[
-            contentType
-        ] ||
-        map.info
-    );
-};
-
-
-// =========================================================
-// NOTIFICATION TEXT
-// =========================================================
-
-const getNotificationText = (
-    notification
-) => {
-    if (
-        notification?.message
-    ) {
-        return (
-            notification.message
-        );
-    }
-
-
-    const contentType =
-        getContentType(
-            notification
-        );
-
-
-    switch (
-        contentType
-    ) {
-
-        case "coin":
-            return (
-                "Sizga FCoin mukofot berildi."
-            );
-
-
-        case "badge":
-            return (
-                "Siz yangi nishon qo‘lga kiritdingiz."
-            );
-
-
-        case "star":
-            return (
-                "Sizga yangi star berildi."
-            );
-
-
-        case "post":
-            return (
-                "Yangi post bo‘yicha bildirishnoma."
-            );
-
-
-        case "problem":
-            return (
-                "Yangi problem bo‘yicha bildirishnoma."
-            );
-
-
-        case "solution":
-            return (
-                "Yangi yechim bo‘yicha bildirishnoma."
-            );
-
-
-        case "task":
-            return (
-                "Task bo‘yicha yangi bildirishnoma."
-            );
-
-
-        case "feedback": {
-            const status =
-                notification
-                    ?.metadata
-                    ?.feedback_status;
-
-
-            const rewardAmount =
-                Number(
-                    notification
-                        ?.metadata
-                        ?.reward_amount ||
-                    0
-                );
-
-
-            if (
-                status ===
-                "approved"
-            ) {
-                return rewardAmount > 0
-
-                    ? (
-                        `Feedbackingiz tasdiqlandi. ` +
-                        `+${rewardAmount} FCoin berildi.`
-                    )
-
-                    : "Feedbackingiz tasdiqlandi.";
-            }
-
-
-            if (
-                status ===
-                "rejected"
-            ) {
-                return (
-                    "Feedbackingiz rad etildi."
-                );
-            }
-
-
-            return (
-                "Feedback holati yangilandi."
-            );
-        }
-
-
-        default:
-            return (
-                "Yangi bildirishnoma."
-            );
-    }
-};
-
-
-// =========================================================
-// NOTIFICATION ITEM
-// =========================================================
-
-const NotificationItem = ({
-    notification,
-    onMarkRead,
-    onClose,
-}) => {
-    const isUnread =
-        !notification?.is_read;
-
-
-    const meta =
-        getNotificationMeta(
-            notification
-        );
-
-
-    const Icon =
-        meta.Icon;
-
-
-    const sender =
-        notification?.sender ||
-        {};
-
-
-    const senderUsername =
-        getSenderUsername(
-            sender
-        );
-
-
-    const imageSrc =
-        getAbsoluteImageUrl(
-            sender?.image
-        );
-
-
-    const notificationUrl =
-        getNotificationUrl(
-            notification
-        );
-
-
-    const text =
-        getNotificationText(
-            notification
-        );
-
-
-    const coins =
-        notification
-            ?.metadata
-            ?.reward_amount ??
-        notification?.coins ??
-        notification?.amount ??
-        notification?.offered_coins ??
-        notification
-            ?.problem
-            ?.offered_coins;
-
-
-    const deadline =
-        notification?.deadline ||
-        notification
-            ?.problem
-            ?.deadline;
-
-
-    // =====================================================
-    // CLICK
-    // =====================================================
-
-    const handleClick =
-        () => {
-
-            if (
-                notification?.id &&
-                isUnread
-            ) {
-                onMarkRead(
-                    notification.id
-                );
-            }
-
-
-            onClose?.();
-        };
-
-
-    // =====================================================
-    // IMAGE ERROR
-    // =====================================================
-
-    const handleImageError = (
-        event
-    ) => {
-        event.currentTarget.onerror =
-            null;
-
-
-        event.currentTarget.src =
-            PlaceholderUserImage;
-    };
-
-
-    // =====================================================
-    // JSX
-    // =====================================================
-
-    return (
-        <Link
-            to={
-                notificationUrl
-            }
-
-            onClick={
-                handleClick
-            }
-
-            className={`
-                group
-                relative
-                block
-                overflow-hidden
-                border-b
-                border-white/[0.05]
-                transition-all
-                duration-200
-                last:border-b-0
-
-                ${
-                    isUnread
-
-                        ? `
-                            bg-indigo-500/[0.055]
-                            hover:bg-indigo-500/[0.09]
-                        `
-
-                        : `
-                            bg-transparent
-                            hover:bg-white/[0.025]
-                        `
-                }
-            `}
-        >
-
-            {/* GLOW */}
-
-            <div
-                className={`
-                    pointer-events-none
-                    absolute
-                    inset-0
-                    bg-gradient-to-r
-                    ${meta.glow}
-                    via-transparent
-                    to-transparent
-                    opacity-0
-                    transition-opacity
-                    duration-300
-                    group-hover:opacity-100
-                `}
-            />
-
-
-            <div
-                className="
-                    relative
-                    z-10
-                    flex
-                    gap-3
-                    px-4
-                    py-4
-                "
-            >
-
-                {/* =============================
-                    AVATAR
-                ============================== */}
-
-                <div
-                    className="
-                        relative
-                        flex-shrink-0
-                    "
-                >
-
-                    <img
-                        src={
-                            imageSrc
-                        }
-
-                        alt={
-                            senderUsername
-                        }
-
-                        onError={
-                            handleImageError
-                        }
-
-                        className="
-                            h-11
-                            w-11
-                            rounded-xl
-                            border
-                            border-white/[0.08]
-                            bg-[#161b22]
-                            object-cover
-                        "
-                    />
-
-
-                    {/* TYPE ICON */}
-
-                    <div
-                        className={`
-                            absolute
-                            -bottom-1
-                            -right-1
-                            grid
-                            h-7
-                            w-7
-                            place-items-center
-                            rounded-lg
-                            border
-                            backdrop-blur-md
-                            ${meta.iconBox}
-                        `}
-                    >
-
-                        <Icon
-                            size={13}
-                            strokeWidth={2.2}
-                        />
-
-                    </div>
-
-                </div>
-
-
-                {/* =============================
-                    CONTENT
-                ============================== */}
-
-                <div
-                    className="
-                        min-w-0
-                        flex-1
-                    "
-                >
-
-                    <div
-                        className="
-                            flex
-                            items-start
-                            justify-between
-                            gap-3
-                        "
-                    >
-
-                        <div
-                            className="
-                                min-w-0
-                            "
-                        >
-
-                            {/* TAGS */}
-
-                            <div
-                                className="
-                                    mb-1.5
-                                    flex
-                                    flex-wrap
-                                    items-center
-                                    gap-1.5
-                                "
-                            >
-
-                                <span
-                                    className={`
-                                        rounded-full
-                                        border
-                                        px-2
-                                        py-0.5
-                                        font-mono
-                                        text-[9px]
-                                        font-bold
-                                        uppercase
-                                        tracking-[0.08em]
-                                        ${meta.pill}
-                                    `}
-                                >
-                                    {
-                                        meta.label
-                                    }
-                                </span>
-
-
-                                {isUnread && (
-
-                                    <span
-                                        className="
-                                            rounded-full
-                                            border
-                                            border-indigo-400/15
-                                            bg-indigo-500/[0.08]
-                                            px-2
-                                            py-0.5
-                                            font-mono
-                                            text-[9px]
-                                            font-bold
-                                            uppercase
-                                            tracking-[0.08em]
-                                            text-indigo-300
-                                        "
-                                    >
-                                        Yangi
-                                    </span>
-
-                                )}
-
-                            </div>
-
-
-                            {/* MESSAGE */}
-
-                            <p
-                                className="
-                                    line-clamp-2
-                                    text-[13px]
-                                    font-semibold
-                                    leading-5
-                                    text-gray-300
-                                    transition-colors
-                                    group-hover:text-white
-                                "
-                            >
-                                {text}
-                            </p>
-
-                        </div>
-
-
-                        {/* UNREAD DOT */}
-
-                        {isUnread && (
-
-                            <span
-                                className="
-                                    mt-1.5
-                                    h-2
-                                    w-2
-                                    flex-shrink-0
-                                    rounded-full
-                                    bg-indigo-400
-                                    shadow-[0_0_10px_rgba(129,140,248,0.8)]
-                                "
-                            />
-
-                        )}
-
-                    </div>
-
-
-                    {/* =============================
-                        META
-                    ============================== */}
-
-                    <div
-                        className="
-                            mt-2
-                            flex
-                            flex-wrap
-                            items-center
-                            gap-x-3
-                            gap-y-1
-                            text-[10px]
-                            font-semibold
-                            text-gray-600
-                        "
-                    >
-
-                        {/* USER */}
-
-                        <span
-                            className="
-                                inline-flex
-                                items-center
-                                gap-1
-                            "
-                        >
-
-                            <UserRound
-                                size={12}
-                                strokeWidth={2}
-                            />
-
-                            @
-                            {
-                                senderUsername
-                            }
-
-                        </span>
-
-
-                        {/* COINS */}
-
-                        {coins !== undefined &&
-                            coins !== null &&
-                            Number(coins) > 0 && (
-
-                            <span
-                                className="
-                                    inline-flex
-                                    items-center
-                                    gap-1
-                                    text-amber-300
-                                "
-                            >
-
-                                <Coins
-                                    size={12}
-                                    strokeWidth={2}
-                                />
-
-                                {coins} FCoin
-
-                            </span>
-
-                        )}
-
-
-                        {/* DEADLINE */}
-
-                        {deadline && (
-
-                            <span
-                                className="
-                                    inline-flex
-                                    items-center
-                                    gap-1
-                                    text-red-300
-                                "
-                            >
-
-                                <Clock3
-                                    size={12}
-                                    strokeWidth={2}
-                                />
-
-                                {
-                                    timeUntilDeadline(
-                                        deadline
-                                    )
-                                }
-
-                            </span>
-
-                        )}
-
-                    </div>
-
-
-                    {/* TIME */}
-
-                    <div
-                        className="
-                            mt-2
-                            text-right
-                            font-mono
-                            text-[9px]
-                            font-medium
-                            text-gray-700
-                        "
-                    >
-                        {
-                            formatDateTime(
-                                notification
-                                    ?.created_at
-                            )
-                        }
-                    </div>
-
-                </div>
-
-            </div>
-
-        </Link>
-    );
-};
-
-
-// =========================================================
-// EMPTY STATE
-// =========================================================
-
-const EmptyState = ({
-    type,
-}) => {
-    const isReadState =
-        type ===
-        "read";
-
-
-    const EmptyIcon =
-        isReadState
-            ? CheckCircle2
-            : BellOff;
-
-
-    return (
-        <div
-            className="
-                px-5
-                py-12
-                text-center
-            "
-        >
-
-            <div
-                className={`
-                    mx-auto
-                    mb-4
-                    grid
-                    h-16
-                    w-16
-                    place-items-center
-                    rounded-2xl
-                    border
-
-                    ${
-                        isReadState
-
-                            ? `
-                                border-emerald-400/15
-                                bg-emerald-500/[0.06]
-                                text-emerald-400
-                            `
-
-                            : `
-                                border-white/[0.06]
-                                bg-white/[0.025]
-                                text-gray-700
-                            `
-                    }
-                `}
-            >
-
-                <EmptyIcon
-                    size={28}
-                    strokeWidth={1.8}
-                />
-
-            </div>
-
-
-            <h4
-                className="
-                    text-[14px]
-                    font-bold
-                    text-white
-                "
-            >
-                {
-                    isReadState
-
-                        ? "Barcha bildirishnomalar o‘qilgan"
-
-                        : "Hali bildirishnomalar mavjud emas"
-                }
-            </h4>
-
-
-            <p
-                className="
-                    mx-auto
-                    mt-2
-                    max-w-xs
-                    text-[11px]
-                    font-medium
-                    leading-5
-                    text-gray-600
-                "
-            >
-                {
-                    isReadState
-
-                        ? (
-                            "Yangi xabarlar kelganda "
-                            + "bu yerda yana ko‘rinadi."
-                        )
-
-                        : (
-                            "Problem, post, FCoin yoki "
-                            + "badge bo‘yicha xabarlar "
-                            + "shu yerda chiqadi."
-                        )
-                }
-            </p>
-
-        </div>
-    );
-};
-
-
-// =========================================================
-// LOADING STATE
-// =========================================================
-
-const NotificationSkeleton =
-    () => {
-
-        return (
-            <div
-                className="
-                    space-y-2
-                    p-3
-                "
-            >
-
-                {[1, 2, 3].map(
-                    (
-                        item
-                    ) => (
-
-                        <div
-                            key={
-                                item
-                            }
-
-                            className="
-                                flex
-                                animate-pulse
-                                gap-3
-                                rounded-2xl
-                                border
-                                border-white/[0.05]
-                                bg-white/[0.02]
-                                p-3
-                            "
-                        >
-
-                            <div
-                                className="
-                                    h-11
-                                    w-11
-                                    flex-shrink-0
-                                    rounded-xl
-                                    bg-white/[0.05]
-                                "
-                            />
-
-
-                            <div
-                                className="
-                                    flex-1
-                                    space-y-2
-                                    pt-1
-                                "
-                            >
-
-                                <div
-                                    className="
-                                        h-2.5
-                                        w-20
-                                        rounded-full
-                                        bg-white/[0.05]
-                                    "
-                                />
-
-                                <div
-                                    className="
-                                        h-3.5
-                                        w-full
-                                        rounded-full
-                                        bg-white/[0.06]
-                                    "
-                                />
-
-                                <div
-                                    className="
-                                        h-2.5
-                                        w-2/3
-                                        rounded-full
-                                        bg-white/[0.04]
-                                    "
-                                />
-
-                            </div>
-
-                        </div>
-
-                    )
-                )}
-
-            </div>
-        );
-    };
-
 
 // =========================================================
 // NOTIFICATION DROPDOWN
@@ -1538,9 +91,15 @@ const NotificationDropdown = ({
     setOpenNotifications,
     notificationsRef,
 }) => {
-    const dispatch =
-        useDispatch();
+    // =====================================================
+    // REDUX
+    // =====================================================
 
+    const dispatch = useDispatch();
+
+    const notificationState = useSelector(
+        (state) => state.notifications
+    );
 
     const {
         notifications = [],
@@ -1548,137 +107,106 @@ const NotificationDropdown = ({
         wsConnected = false,
         wsError = null,
         loading = false,
-    } = useSelector(
-        (
-            state
-        ) =>
-            state.notifications ||
-            {}
-    );
-
+    } = notificationState || {};
 
     // =====================================================
-    // SAFE DATA
+    // PREPARE NOTIFICATIONS
+    //
+    // Sorting only when notifications change.
     // =====================================================
 
-    const safeNotifications =
-        Array.isArray(
-            notifications
-        )
+    const {
+        safeNotifications,
+        dropdownItems,
+        unreadNotifications,
+    } = useMemo(() => {
+        const safe = Array.isArray(notifications)
             ? notifications
             : [];
 
-
-    const sortedNotifications =
-        [
-            ...safeNotifications,
-        ].sort(
-            (
-                a,
-                b
-            ) => {
+        const sorted = [...safe].sort(
+            (a, b) => {
                 return (
-                    new Date(
-                        b.created_at ||
-                        0
-                    ) -
-                    new Date(
-                        a.created_at ||
-                        0
-                    )
+                    new Date(b?.created_at || 0) -
+                    new Date(a?.created_at || 0)
                 );
             }
         );
 
-
-    const unreadNotifications =
-        sortedNotifications.filter(
-            (
-                item
-            ) =>
-                !item.is_read
+        const unread = sorted.filter(
+            (item) => !item.is_read
         );
 
+        const items = unread.length > 0
+            ? unread.slice(0, 8)
+            : sorted.slice(0, 8);
+
+        return {
+            safeNotifications: safe,
+            unreadNotifications: unread,
+            dropdownItems: items,
+        };
+    }, [notifications]);
+
+    // =====================================================
+    // UNREAD COUNT
+    // =====================================================
 
     const unreadCount =
-        typeof totalUnreadCount ===
-        "number"
-
+        typeof totalUnreadCount === "number" &&
+        Number.isFinite(totalUnreadCount)
             ? totalUnreadCount
-
             : unreadNotifications.length;
 
-
-    // Avval unread notificationlar.
-    // Agar unread qolmasa oxirgi notificationlar.
-
-    const dropdownItems =
-        unreadNotifications.length >
-        0
-
-            ? unreadNotifications
-                .slice(
-                    0,
-                    8
-                )
-
-            : sortedNotifications
-                .slice(
-                    0,
-                    8
-                );
-
-
     // =====================================================
-    // ACTIONS
+    // MARK ONE AS READ
     // =====================================================
 
-    const handleMarkOneAsRead =
-        (
-            notificationId
-        ) => {
-
+    const handleMarkOneAsRead = useCallback(
+        (notificationId) => {
             dispatch(
-                markNotificationAsRead(
-                    notificationId
-                )
+                markNotificationAsRead(notificationId)
             );
+        },
+        [dispatch]
+    );
 
-        };
+    // =====================================================
+    // MARK ALL AS READ
+    // =====================================================
 
-
-    const handleMarkAllAsRead =
+    const handleMarkAllAsRead = useCallback(
         () => {
-
             dispatch(
                 markAllNotificationsAsRead()
             );
+        },
+        [dispatch]
+    );
 
-        };
+    // =====================================================
+    // CLOSE DROPDOWN
+    // =====================================================
 
-
-    const closeDropdown =
+    const closeDropdown = useCallback(
         () => {
+            setOpenNotifications(false);
+        },
+        [setOpenNotifications]
+    );
 
-            setOpenNotifications(
-                false
-            );
+    // =====================================================
+    // TOGGLE DROPDOWN
+    // =====================================================
 
-        };
-
-
-    const toggleDropdown =
+    const toggleDropdown = useCallback(
         () => {
-
             setOpenNotifications(
-                (
-                    previous
-                ) =>
-                    !previous
+                (previous) => !previous
             );
-
-        };
-
+        },
+        [setOpenNotifications]
+    );
 
     // =====================================================
     // JSX
@@ -1686,246 +214,248 @@ const NotificationDropdown = ({
 
     return (
         <div
-            ref={
-                notificationsRef
-            }
-
-            className="
-                relative
-            "
+            ref={notificationsRef}
+            className="relative shrink-0"
         >
-
-            {/* =============================================
+            {/* ==========================================
                 BELL BUTTON
-            ============================================== */}
+            ========================================== */}
 
             <button
                 type="button"
-
-                onClick={
-                    toggleDropdown
-                }
-
+                onClick={toggleDropdown}
                 aria-label="Bildirishnomalar"
-
-                aria-expanded={
-                    openNotifications
-                }
+                aria-expanded={Boolean(openNotifications)}
+                aria-controls="fsociety-notification-dropdown"
 
                 className={`
                     group
                     relative
+
                     grid
                     h-10
                     w-10
+
                     place-items-center
+
                     rounded-xl
                     border
+
                     outline-none
-                    transition-all
-                    duration-200
+
+                    transition-colors
+                    duration-150
+
+                    focus-visible:ring-2
+                    focus-visible:ring-indigo-500
 
                     ${
                         openNotifications
-
                             ? `
-                                border-indigo-400/25
+                                border-indigo-400/35
                                 bg-indigo-500/10
-                                text-indigo-300
-                            `
+                                text-indigo-700
 
+                                dark:border-indigo-400/25
+                                dark:text-indigo-300
+                            `
                             : `
-                                border-white/[0.07]
-                                bg-white/[0.035]
-                                text-gray-400
-                                hover:border-indigo-400/25
-                                hover:bg-indigo-500/[0.06]
-                                hover:text-indigo-300
+                                border-[#cdd7e8]
+                                bg-[#f6f8ff]/90
+                                text-slate-600
+
+                                hover:border-indigo-400/40
+                                hover:bg-indigo-500/[0.07]
+                                hover:text-indigo-700
+
+                                dark:border-white/[0.07]
+                                dark:bg-white/[0.035]
+                                dark:text-gray-400
+
+                                dark:hover:border-indigo-400/25
+                                dark:hover:bg-indigo-500/[0.06]
+                                dark:hover:text-indigo-300
                             `
                     }
                 `}
             >
-
-                {/* GLOW */}
-
-                <span
-                    className="
-                        pointer-events-none
-                        absolute
-                        inset-0
-                        rounded-xl
-                        bg-indigo-500/10
-                        opacity-0
-                        blur-xl
-                        transition-opacity
-                        group-hover:opacity-100
-                    "
-                />
-
-
                 <Bell
                     size={18}
-
                     strokeWidth={2}
-
-                    className="
-                        relative
-                        z-10
-                    "
+                    aria-hidden="true"
                 />
-
 
                 {/* UNREAD COUNT */}
 
                 {unreadCount > 0 && (
-
                     <span
                         className="
                             absolute
                             -right-2
                             -top-2
                             z-20
+
                             flex
                             min-h-5
                             min-w-5
+
                             items-center
                             justify-center
+
                             rounded-full
                             border-2
-                            border-[#080c12]
+
+                            border-[#eaf0f9]
                             bg-red-500
+
                             px-1
+
                             font-mono
                             text-[8px]
                             font-bold
                             leading-none
                             text-white
-                            shadow-[0_0_12px_rgba(239,68,68,0.35)]
+
+                            dark:border-[#080c12]
                         "
                     >
-                        {
-                            unreadCount >
-                            99
-
-                                ? "99+"
-
-                                : unreadCount
-                        }
+                        {unreadCount > 99
+                            ? "99+"
+                            : unreadCount}
                     </span>
-
                 )}
 
-
-                {/* WEBSOCKET STATUS */}
+                {/* WEBSOCKET CONNECTED */}
 
                 {wsConnected && (
-
                     <span
+                        aria-label="Real-time ulangan"
                         className="
                             absolute
                             bottom-[3px]
                             right-[3px]
+
                             h-2
                             w-2
+
                             rounded-full
                             border
-                            border-[#080c12]
-                            bg-emerald-400
-                            shadow-[0_0_8px_rgba(52,211,153,0.8)]
+
+                            border-[#eaf0f9]
+                            bg-emerald-500
+
+                            dark:border-[#080c12]
+                            dark:bg-emerald-400
                         "
                     />
-
                 )}
-
             </button>
 
-
-            {/* =============================================
+            {/* ==========================================
                 DROPDOWN
-            ============================================== */}
+            ========================================== */}
 
             <AnimatePresence>
-
                 {openNotifications && (
-
                     <motion.div
-                        variants={
-                            dropdownVariants
-                        }
+                        id="fsociety-notification-dropdown"
 
+                        variants={dropdownVariants}
                         initial="hidden"
-
                         animate="visible"
-
                         exit="exit"
 
+                        aria-label="Bildirishnomalar paneli"
+
                         className="
-                            absolute
-                            right-0
+                            fixed
+                            inset-x-3
+                            top-[80px]
+
                             z-[70]
-                            mt-3
-                            w-[calc(100vw-2rem)]
-                            max-w-[430px]
+
                             origin-top-right
+
                             overflow-hidden
+
                             rounded-2xl
                             border
-                            border-white/[0.07]
-                            bg-[#0d121a]/[0.98]
-                            shadow-[0_30px_90px_rgba(0,0,0,0.60)]
-                            backdrop-blur-2xl
+
+                            border-[#d5deeb]
+
+                            bg-[#f9fbff]/[0.99]
+
+                            shadow-[0_22px_65px_rgba(30,41,59,0.16)]
+
+                            sm:absolute
+                            sm:inset-x-auto
+                            sm:right-0
+                            sm:top-full
+                            sm:mt-3
+                            sm:w-[430px]
+                            sm:max-w-[calc(100vw-2rem)]
+
+                            dark:border-white/[0.07]
+                            dark:bg-[#0d121a]/[0.98]
+
+                            dark:shadow-[0_30px_90px_rgba(0,0,0,0.60)]
                         "
                     >
-
-                        {/* =================================
+                        {/* ==================================
                             HEADER
                         ================================== */}
 
                         <div
                             className="
                                 relative
+
                                 overflow-hidden
+
                                 border-b
-                                border-white/[0.06]
-                                bg-white/[0.02]
+                                border-[#e2e8f2]
+
+                                bg-[#f0f4fb]
+
                                 px-4
                                 py-4
+
+                                dark:border-white/[0.06]
+                                dark:bg-white/[0.02]
                             "
                         >
+                            {/* SUBTLE ACCENT */}
 
-                            <div
+                            <span
+                                aria-hidden="true"
                                 className="
                                     pointer-events-none
                                     absolute
                                     -right-14
                                     -top-14
+
                                     h-32
                                     w-32
+
                                     rounded-full
-                                    bg-indigo-500/10
-                                    blur-3xl
+
+                                    bg-indigo-500/[0.08]
                                 "
                             />
-
 
                             <div
                                 className="
                                     relative
-                                    z-10
+
                                     flex
                                     items-start
                                     justify-between
+
                                     gap-3
                                 "
                             >
+                                {/* HEADER TEXT */}
 
-                                <div
-                                    className="
-                                        min-w-0
-                                    "
-                                >
-
-                                    {/* TITLE */}
+                                <div className="min-w-0">
 
                                     <div
                                         className="
@@ -1934,77 +464,75 @@ const NotificationDropdown = ({
                                             gap-2
                                         "
                                     >
-
                                         <Bell
                                             size={17}
-                                            className="text-indigo-400"
+                                            className="
+                                                text-indigo-600
+                                                dark:text-indigo-400
+                                            "
                                         />
-
 
                                         <h3
                                             className="
                                                 text-[15px]
                                                 font-bold
-                                                text-white
+
+                                                text-slate-900
+
+                                                dark:text-white
                                             "
                                         >
                                             Bildirishnomalar
                                         </h3>
 
-
                                         {unreadCount > 0 && (
-
                                             <span
                                                 className="
                                                     rounded-full
                                                     border
-                                                    border-indigo-400/15
+
+                                                    border-indigo-400/20
                                                     bg-indigo-500/[0.07]
+
                                                     px-2
                                                     py-0.5
+
                                                     font-mono
                                                     text-[9px]
                                                     font-bold
-                                                    text-indigo-300
+
+                                                    text-indigo-700
+
+                                                    dark:text-indigo-300
                                                 "
                                             >
-                                                {
-                                                    unreadCount
-                                                }
+                                                {unreadCount}
                                             </span>
-
                                         )}
-
                                     </div>
 
-
-                                    {/* CONNECTION */}
+                                    {/* CONNECTION STATUS */}
 
                                     <div
                                         className="
                                             mt-2
+
                                             flex
                                             items-center
                                             gap-1.5
                                         "
                                     >
-
                                         {wsConnected ? (
-
                                             <Wifi
                                                 size={12}
-                                                className="text-emerald-400"
+                                                className="text-emerald-600 dark:text-emerald-400"
                                             />
-
                                         ) : (
-
                                             <WifiOff
                                                 size={12}
-                                                className="text-gray-600"
+                                                className="text-slate-400 dark:text-gray-600"
                                             />
-
                                         )}
-
 
                                         <p
                                             className={`
@@ -2016,242 +544,222 @@ const NotificationDropdown = ({
 
                                                 ${
                                                     wsConnected
-                                                        ? "text-emerald-400/70"
-                                                        : "text-gray-600"
+                                                        ? "text-emerald-700 dark:text-emerald-400/70"
+                                                        : "text-slate-500 dark:text-gray-600"
                                                 }
                                             `}
                                         >
-                                            {
-                                                wsConnected
-
-                                                    ? "Real-time online"
-
-                                                    : "Connecting..."
-                                            }
+                                            {wsConnected
+                                                ? "Real-time online"
+                                                : wsError
+                                                    ? "Ulanishda xatolik"
+                                                    : "Connecting..."}
                                         </p>
-
                                     </div>
-
 
                                     {/* WS ERROR */}
 
                                     {wsError && (
-
                                         <p
                                             className="
                                                 mt-1.5
                                                 max-w-[240px]
                                                 truncate
+
                                                 text-[10px]
                                                 font-medium
-                                                text-red-300
+
+                                                text-red-600
+
+                                                dark:text-red-300
                                             "
-                                            title={
-                                                String(
-                                                    wsError
-                                                )
-                                            }
+                                            title={String(wsError)}
                                         >
-                                            {
-                                                String(
-                                                    wsError
-                                                )
-                                            }
+                                            {String(wsError)}
                                         </p>
-
                                     )}
-
                                 </div>
 
-
-                                {/* MARK ALL */}
+                                {/* MARK ALL READ */}
 
                                 {unreadCount > 0 && (
-
                                     <button
                                         type="button"
-
-                                        onClick={
-                                            handleMarkAllAsRead
-                                        }
+                                        onClick={handleMarkAllAsRead}
 
                                         className="
                                             flex
-                                            flex-shrink-0
+                                            shrink-0
                                             items-center
                                             gap-1.5
+
                                             rounded-xl
                                             border
-                                            border-indigo-400/15
-                                            bg-indigo-500/[0.06]
+
+                                            border-indigo-400/20
+                                            bg-indigo-500/[0.07]
+
                                             px-2.5
                                             py-2
+
                                             text-[10px]
                                             font-bold
-                                            text-indigo-300
-                                            transition-all
-                                            hover:border-indigo-400/25
-                                            hover:bg-indigo-500/10
-                                            hover:text-indigo-200
+
+                                            text-indigo-700
+
+                                            transition-colors
+                                            duration-150
+
+                                            hover:bg-indigo-500/[0.12]
+
+                                            focus-visible:outline-none
+                                            focus-visible:ring-2
+                                            focus-visible:ring-indigo-500
+
+                                            dark:border-indigo-400/15
+                                            dark:bg-indigo-500/[0.06]
+                                            dark:text-indigo-300
+
+                                            dark:hover:bg-indigo-500/10
                                         "
                                     >
-
                                         <CheckCheck
                                             size={14}
                                             strokeWidth={2}
                                         />
 
-                                        <span
-                                            className="
-                                                hidden
-                                                sm:inline
-                                            "
-                                        >
+                                        <span className="hidden sm:inline">
                                             O‘qildi
                                         </span>
-
                                     </button>
-
                                 )}
-
                             </div>
-
                         </div>
 
-
-                        {/* =================================
-                            BODY
+                        {/* ==================================
+                            NOTIFICATION LIST
                         ================================== */}
 
                         <div
                             className="
-                                max-h-[410px]
+                                max-h-[45vh]
                                 overflow-y-auto
+
+                                sm:max-h-[410px]
                             "
                         >
-
                             {loading ? (
-
                                 <NotificationSkeleton />
-
-                            ) : safeNotifications.length ===
-                                0 ? (
-
+                            ) : safeNotifications.length === 0 ? (
                                 <EmptyState />
-
-                            ) : dropdownItems.length >
-                                0 ? (
-
+                            ) : dropdownItems.length > 0 ? (
                                 dropdownItems.map(
-                                    (
-                                        notification
-                                    ) => (
-
+                                    (notification) => (
                                         <NotificationItem
-                                            key={
-                                                notification.id
-                                            }
-
-                                            notification={
-                                                notification
-                                            }
-
+                                            key={notification.id}
+                                            notification={notification}
                                             onMarkRead={
                                                 handleMarkOneAsRead
                                             }
-
                                             onClose={
                                                 closeDropdown
                                             }
                                         />
-
                                     )
                                 )
-
                             ) : (
-
-                                <EmptyState
-                                    type="read"
-                                />
-
+                                <EmptyState type="read" />
                             )}
-
                         </div>
 
-
-                        {/* =================================
+                        {/* ==================================
                             FOOTER
                         ================================== */}
 
-                        {safeNotifications.length >
-                            0 && (
-
+                        {safeNotifications.length > 0 && (
                             <div
                                 className="
                                     border-t
-                                    border-white/[0.06]
-                                    bg-black/10
+                                    border-[#e2e8f2]
+
+                                    bg-[#f0f4fa]/70
+
                                     p-3
+
+                                    dark:border-white/[0.06]
+                                    dark:bg-black/10
                                 "
                             >
-
                                 <Link
                                     to="/notifications"
-
-                                    onClick={
-                                        closeDropdown
-                                    }
+                                    onClick={closeDropdown}
 
                                     className="
                                         group
+
                                         flex
                                         items-center
                                         justify-center
                                         gap-2
+
                                         rounded-xl
                                         border
-                                        border-white/[0.06]
-                                        bg-white/[0.025]
+
+                                        border-[#d5deeb]
+
+                                        bg-white/80
+
                                         px-4
                                         py-3
+
                                         text-[11px]
                                         font-bold
-                                        text-gray-400
-                                        transition-all
-                                        hover:border-indigo-400/20
+
+                                        text-slate-600
+
+                                        transition-colors
+                                        duration-150
+
+                                        hover:border-indigo-400/30
                                         hover:bg-indigo-500/[0.06]
-                                        hover:text-indigo-300
+                                        hover:text-indigo-700
+
+                                        focus-visible:outline-none
+                                        focus-visible:ring-2
+                                        focus-visible:ring-indigo-500
+
+                                        dark:border-white/[0.06]
+                                        dark:bg-white/[0.025]
+                                        dark:text-gray-400
+
+                                        dark:hover:border-indigo-400/20
+                                        dark:hover:bg-indigo-500/[0.06]
+                                        dark:hover:text-indigo-300
                                     "
                                 >
-
                                     Barcha bildirishnomalar
-
 
                                     <ArrowRight
                                         size={14}
+                                        aria-hidden="true"
 
                                         className="
                                             transition-transform
-                                            duration-200
+                                            duration-150
+
                                             group-hover:translate-x-1
+
+                                            motion-reduce:transition-none
                                         "
                                     />
-
                                 </Link>
-
                             </div>
-
                         )}
-
                     </motion.div>
-
                 )}
-
             </AnimatePresence>
-
         </div>
     );
 };
-
 
 export default NotificationDropdown;

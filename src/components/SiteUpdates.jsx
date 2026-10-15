@@ -1,3 +1,4 @@
+
 import React, {
     useCallback,
     useEffect,
@@ -23,7 +24,15 @@ import {
     RefreshCw,
 } from "lucide-react";
 
+// =========================================================
+// SERVICES
+// =========================================================
+
 import UpdateService from "../services/updates";
+
+// =========================================================
+// REDUX ACTIONS
+// =========================================================
 
 import {
     getUpdatesFailure,
@@ -34,8 +43,51 @@ import {
     toggleUpdateLikeSuccess,
 } from "../features/updates/Updates";
 
+// =========================================================
+// COMPONENTS
+// =========================================================
+
 import SiteUpdateCard from "./siteUpdates/SiteUpdateCard";
 
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const UPDATES_LIMIT = 5;
+const EMPTY_ARRAY = [];
+
+// =========================================================
+// ANIMATION
+// =========================================================
+
+const accordionTransition = {
+    duration: 0.25,
+    ease: [0.16, 1, 0.3, 1],
+};
+
+// =========================================================
+// ERROR MESSAGE HELPER
+// =========================================================
+
+const getErrorMessage = (error, fallback) => {
+    const data = error?.response?.data;
+
+    const candidates = [
+        typeof data === "string" ? data : null,
+        data?.detail,
+        data?.error,
+        data?.message,
+        error?.message,
+    ];
+
+    const message = candidates.find(
+        (value) =>
+            typeof value === "string" &&
+            value.trim().length > 0
+    );
+
+    return message || fallback;
+};
 
 // =========================================================
 // LOADING SKELETON
@@ -44,44 +96,47 @@ import SiteUpdateCard from "./siteUpdates/SiteUpdateCard";
 const UpdatesSkeleton = () => {
     return (
         <div
+            role="status"
+            aria-label="Yangiliklar yuklanmoqda"
             className="
                 animate-pulse
                 rounded-3xl
                 border
-                border-white/[0.06]
-                bg-white/[0.02]
+                border-[#dce5f0]
+                bg-white/80
                 p-5
+
                 sm:p-6
+
+                dark:border-white/[0.06]
+                dark:bg-white/[0.02]
+
+                motion-reduce:animate-none
             "
         >
-            <div
-                className="
-                    flex
-                    items-center
-                    gap-4
-                "
-            >
+            <div className="flex items-center gap-4">
                 <div
                     className="
                         h-12
                         w-12
+                        shrink-0
                         rounded-2xl
-                        bg-white/[0.06]
+                        bg-slate-200
+
+                        dark:bg-white/[0.06]
                     "
                 />
 
-                <div
-                    className="
-                        min-w-0
-                        flex-1
-                    "
-                >
+                <div className="min-w-0 flex-1">
                     <div
                         className="
                             h-3
                             w-28
+                            max-w-full
                             rounded-full
-                            bg-white/[0.06]
+                            bg-slate-200
+
+                            dark:bg-white/[0.06]
                         "
                     />
 
@@ -91,7 +146,9 @@ const UpdatesSkeleton = () => {
                             h-5
                             w-2/3
                             rounded-lg
-                            bg-white/[0.06]
+                            bg-slate-200
+
+                            dark:bg-white/[0.06]
                         "
                     />
                 </div>
@@ -102,21 +159,30 @@ const UpdatesSkeleton = () => {
                     mt-5
                     h-12
                     rounded-xl
-                    bg-white/[0.035]
+                    bg-slate-100
+
+                    dark:bg-white/[0.035]
                 "
             />
         </div>
     );
 };
 
-
 // =========================================================
 // SITE UPDATES
+//
+// Responsibilities:
+// - Load latest updates
+// - Handle update likes
+// - Manage dropdown
+// - Manage compact card accordion
+// - Render loading / error / empty states
+//
+// Existing SiteUpdateCard contract is preserved.
 // =========================================================
 
 const SiteUpdates = () => {
-    const dispatch =
-        useDispatch();
+    const dispatch = useDispatch();
 
     // =====================================================
     // LOCAL STATE
@@ -136,147 +202,120 @@ const SiteUpdates = () => {
     // AUTH
     // =====================================================
 
-    const {
-        isLoggedIn,
-    } = useSelector(
+    const isLoggedIn = useSelector(
         (state) =>
-            state.auth
+            Boolean(state.auth?.isLoggedIn)
     );
 
     // =====================================================
     // UPDATES REDUX
     // =====================================================
 
+    const updatesState = useSelector(
+        (state) => state.updates || {}
+    );
+
     const {
-        updates = [],
+        updates,
         count = 0,
         isLoading = false,
         error = null,
-        likingUpdateIds = [],
+        likingUpdateIds,
         likeError = null,
-    } = useSelector(
-        (state) =>
-            state.updates ||
-            {}
-    );
+    } = updatesState;
 
     // =====================================================
     // SAFE DATA
     // =====================================================
 
-    const safeUpdates =
-        useMemo(
-            () =>
-                Array.isArray(
-                    updates
-                )
-                    ? updates
-                    : [],
-            [
-                updates,
-            ]
-        );
+    const safeUpdates = Array.isArray(updates)
+        ? updates
+        : EMPTY_ARRAY;
+
+    const likingIds = Array.isArray(
+        likingUpdateIds
+    )
+        ? likingUpdateIds
+        : EMPTY_ARRAY;
 
     const featuredUpdate =
-        safeUpdates[0] ||
-        null;
+        safeUpdates[0] || null;
 
-    const dropdownUpdates =
-        safeUpdates.slice(
-            1
-        );
+    const dropdownUpdates = useMemo(
+        () => safeUpdates.slice(1),
+        [safeUpdates]
+    );
+
+    const totalCount =
+        Number.isFinite(Number(count))
+            ? Math.max(0, Number(count))
+            : 0;
+
+    const displayError =
+        typeof error === "string"
+            ? error
+            : error?.message ||
+              "Yangiliklarni yuklab bo‘lmadi.";
+
+    const displayLikeError =
+        typeof likeError === "string"
+            ? likeError
+            : likeError?.message ||
+              (likeError
+                  ? "Like yuborishda xatolik yuz berdi."
+                  : null);
 
     // =====================================================
-    // FETCH
+    // FETCH UPDATES
     // =====================================================
 
-    const fetchUpdates =
-        useCallback(
-            async () => {
+    const fetchUpdates = useCallback(
+        async () => {
+            dispatch(getUpdatesStart());
+
+            try {
+                const response =
+                    await UpdateService.getUpdates(
+                        UPDATES_LIMIT
+                    );
+
                 dispatch(
-                    getUpdatesStart()
+                    getUpdatesSuccess(response)
+                );
+            } catch (fetchError) {
+                const message = getErrorMessage(
+                    fetchError,
+                    "Saytdagi yangiliklarni yuklab bo‘lmadi."
                 );
 
-                try {
-                    const response =
-                        await UpdateService
-                            .getUpdates(
-                                5
-                            );
-
-                    dispatch(
-                        getUpdatesSuccess(
-                            response
-                        )
-                    );
-                } catch (
-                    fetchError
-                ) {
-                    const message =
-                        fetchError
-                            ?.response
-                            ?.data
-                            ?.detail ||
-
-                        fetchError
-                            ?.response
-                            ?.data
-                            ?.error ||
-
-                        fetchError
-                            ?.message ||
-
-                        (
-                            "Saytdagi yangiliklarni "
-                            + "yuklab bo‘lmadi."
-                        );
-
-                    dispatch(
-                        getUpdatesFailure(
-                            message
-                        )
-                    );
-                }
-            },
-            [
-                dispatch,
-            ]
-        );
+                dispatch(
+                    getUpdatesFailure(message)
+                );
+            }
+        },
+        [dispatch]
+    );
 
     // =====================================================
     // INITIAL LOAD
     // =====================================================
 
-    useEffect(
-        () => {
-            fetchUpdates();
-        },
-        [
-            fetchUpdates,
-        ]
-    );
+    useEffect(() => {
+        fetchUpdates();
+    }, [fetchUpdates]);
 
     // =====================================================
-    // LIKE
+    // LIKE UPDATE
     // =====================================================
 
-    const handleLike =
-        async (
-            updateId
-        ) => {
-            if (
-                !isLoggedIn
-            ) {
+    const handleLike = useCallback(
+        async (updateId) => {
+            if (!isLoggedIn) {
                 dispatch(
                     toggleUpdateLikeFailure({
-                        id:
-                            updateId,
-
+                        id: updateId,
                         error:
-                            (
-                                "Like bosish uchun "
-                                + "tizimga kirishingiz kerak."
-                            ),
+                            "Like bosish uchun tizimga kirishingiz kerak.",
                     })
                 );
 
@@ -284,107 +323,79 @@ const SiteUpdates = () => {
             }
 
             if (
-                likingUpdateIds.includes(
-                    updateId
-                )
+                likingIds.includes(updateId)
             ) {
                 return;
             }
 
             dispatch(
-                toggleUpdateLikeStart(
-                    updateId
-                )
+                toggleUpdateLikeStart(updateId)
             );
 
             try {
                 const response =
-                    await UpdateService
-                        .toggleLike(
-                            updateId
-                        );
+                    await UpdateService.toggleLike(
+                        updateId
+                    );
 
                 dispatch(
                     toggleUpdateLikeSuccess(
                         response
                     )
                 );
-            } catch (
-                requestError
-            ) {
-                const message =
-                    requestError
-                        ?.response
-                        ?.data
-                        ?.detail ||
-
-                    requestError
-                        ?.response
-                        ?.data
-                        ?.error ||
-
-                    requestError
-                        ?.message ||
-
-                    (
-                        "Like yuborishda "
-                        + "xatolik yuz berdi."
-                    );
+            } catch (requestError) {
+                const message = getErrorMessage(
+                    requestError,
+                    "Like yuborishda xatolik yuz berdi."
+                );
 
                 dispatch(
                     toggleUpdateLikeFailure({
-                        id:
-                            updateId,
-
-                        error:
-                            message,
+                        id: updateId,
+                        error: message,
                     })
                 );
             }
-        };
+        },
+        [
+            dispatch,
+            isLoggedIn,
+            likingIds,
+        ]
+    );
 
     // =====================================================
     // ACCORDION
     // =====================================================
 
-    const toggleUpdate =
-        (
-            updateId
-        ) => {
+    const toggleUpdate = useCallback(
+        (updateId) => {
             setOpenedUpdateId(
-                (
-                    current
-                ) =>
-                    current ===
-                    updateId
+                (current) =>
+                    current === updateId
                         ? null
                         : updateId
             );
-        };
+        },
+        []
+    );
 
     // =====================================================
     // DROPDOWN
     // =====================================================
 
-    const toggleDropdown =
+    const toggleDropdown = useCallback(
         () => {
             setDropdownOpen(
-                (
-                    current
-                ) => {
-                    const next =
-                        !current;
-
-                    if (!next) {
-                        setOpenedUpdateId(
-                            null
-                        );
-                    }
-
-                    return next;
-                }
+                (current) => !current
             );
-        };
+
+            // Reset nested accordion when
+            // the dropdown state changes.
+            setOpenedUpdateId(null);
+        },
+        []
+    );
 
     // =====================================================
     // JSX
@@ -392,116 +403,180 @@ const SiteUpdates = () => {
 
     return (
         <section
+            id="changelog"
+            aria-labelledby="fsociety-updates-title"
             className="
                 relative
                 overflow-hidden
+
                 border-y
-                border-white/[0.05]
-                bg-[#090d14]
+                border-[#dce5f0]
+
+                bg-[#f6f8fd]
+
                 px-4
-                py-16
+                py-14
+
                 sm:px-6
+                sm:py-16
+
+                lg:px-8
                 lg:py-20
+
+                xl:px-10
+
+                dark:border-white/[0.05]
+                dark:bg-[#090d14]
             "
         >
-            {/* =============================================
+            {/* ======================================
                 GRID BACKGROUND
-            ============================================== */}
+            ====================================== */}
 
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
                     absolute
                     inset-0
-                    opacity-[0.02]
-                    [background-image:linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.35)_1px,transparent_1px)]
+
+                    opacity-[0.035]
+                    text-slate-900
+
+                    [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
                     [background-size:34px_34px]
+
+                    dark:opacity-[0.018]
+                    dark:text-white
                 "
             />
 
-            {/* =============================================
-                BACKGROUND GLOW
-            ============================================== */}
+            {/* ======================================
+                BACKGROUND ACCENT
+            ====================================== */}
 
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
                     absolute
                     left-1/2
                     top-0
+
+                    hidden
+
                     h-[300px]
                     w-[600px]
+                    max-w-full
+
                     -translate-x-1/2
                     -translate-y-1/2
+
                     rounded-full
-                    bg-indigo-500/[0.07]
+
+                    bg-indigo-500/[0.06]
+
                     blur-[110px]
+
+                    sm:block
+
+                    dark:bg-indigo-500/[0.07]
                 "
             />
+
+            {/* ======================================
+                CONTENT CONTAINER
+            ====================================== */}
 
             <div
                 className="
                     relative
                     z-10
+
                     mx-auto
                     w-full
+                    min-w-0
                     max-w-6xl
                 "
             >
-                {/* =========================================
+                {/* ==================================
                     HEADER
-                ========================================== */}
+                ================================== */}
 
                 <div
                     className="
                         flex
                         flex-col
                         gap-5
+
                         lg:flex-row
                         lg:items-end
                         lg:justify-between
                     "
                 >
-                    <div
-                        className="
-                            max-w-2xl
-                        "
-                    >
+                    {/* HEADER TEXT */}
+
+                    <div className="min-w-0 max-w-2xl">
+                        {/* EYEBROW */}
+
                         <div
                             className="
                                 inline-flex
+                                max-w-full
                                 items-center
                                 gap-2
+
                                 rounded-full
                                 border
-                                border-indigo-400/20
-                                bg-indigo-400/[0.06]
+
+                                border-indigo-400/25
+                                bg-indigo-500/[0.07]
+
                                 px-3
                                 py-1.5
+
                                 font-mono
                                 text-[9px]
                                 font-bold
                                 uppercase
-                                tracking-[0.18em]
-                                text-indigo-300
+                                tracking-[0.16em]
+
+                                text-indigo-700
+
+                                dark:border-indigo-400/20
+                                dark:bg-indigo-400/[0.06]
+                                dark:text-indigo-300
                             "
                         >
                             <History
                                 size={13}
                                 strokeWidth={2}
+                                aria-hidden="true"
+                                className="shrink-0"
                             />
 
-                            fsociety://changelog
+                            <span className="truncate">
+                                fsociety://changelog
+                            </span>
                         </div>
 
+                        {/* TITLE */}
+
                         <h2
+                            id="fsociety-updates-title"
                             className="
                                 mt-4
+
                                 text-3xl
                                 font-black
-                                tracking-tight
-                                text-white
+                                tracking-[-0.035em]
+                                leading-tight
+
+                                text-slate-900
+
                                 sm:text-4xl
+
+                                dark:text-white
                             "
                         >
                             Saytda{" "}
@@ -509,58 +584,77 @@ const SiteUpdates = () => {
                             <span
                                 className="
                                     bg-gradient-to-r
-                                    from-cyan-300
-                                    via-indigo-300
-                                    to-fuchsia-300
+
+                                    from-cyan-600
+                                    via-indigo-600
+                                    to-fuchsia-600
+
                                     bg-clip-text
                                     text-transparent
+
+                                    dark:from-cyan-300
+                                    dark:via-indigo-300
+                                    dark:to-fuchsia-300
                                 "
                             >
                                 nimalar o‘zgardi?
                             </span>
                         </h2>
 
+                        {/* DESCRIPTION */}
+
                         <p
                             className="
                                 mt-3
                                 max-w-xl
+
                                 text-sm
                                 leading-6
-                                text-gray-500
+
+                                text-slate-600
+
+                                dark:text-gray-500
                             "
                         >
-                            Yangi imkoniyatlar,
-                            tuzatilgan xatolar,
-                            xavfsizlik yangilanishlari
-                            va platformadagi muhim
-                            o‘zgarishlar.
+                            Yangi imkoniyatlar, tuzatilgan
+                            xatolar, xavfsizlik yangilanishlari
+                            va platformadagi muhim o‘zgarishlar.
                         </p>
                     </div>
 
-                    {/* =====================================
-                        STATUS
-                    ====================================== */}
+                    {/* ==================================
+                        CHANGELOG STATUS
+                    ================================== */}
 
                     <div
                         className="
                             flex
                             w-fit
+                            shrink-0
                             items-center
                             gap-3
+
                             rounded-2xl
                             border
-                            border-emerald-400/10
-                            bg-emerald-400/[0.03]
+
+                            border-emerald-400/25
+                            bg-emerald-500/[0.06]
+
                             px-4
                             py-3
+
+                            dark:border-emerald-400/10
+                            dark:bg-emerald-400/[0.03]
                         "
                     >
                         <span
+                            aria-hidden="true"
                             className="
                                 relative
                                 flex
                                 h-2
                                 w-2
+                                shrink-0
                             "
                         >
                             <span
@@ -569,10 +663,15 @@ const SiteUpdates = () => {
                                     inline-flex
                                     h-full
                                     w-full
+
                                     animate-ping
                                     rounded-full
-                                    bg-emerald-400
-                                    opacity-50
+                                    bg-emerald-500
+                                    opacity-40
+
+                                    dark:bg-emerald-400
+
+                                    motion-reduce:animate-none
                                 "
                             />
 
@@ -582,8 +681,11 @@ const SiteUpdates = () => {
                                     inline-flex
                                     h-2
                                     w-2
+
                                     rounded-full
-                                    bg-emerald-400
+                                    bg-emerald-500
+
+                                    dark:bg-emerald-400
                                 "
                             />
                         </span>
@@ -592,21 +694,27 @@ const SiteUpdates = () => {
                             <p
                                 className="
                                     font-mono
-                                    text-[8px]
+                                    text-[9px]
                                     font-bold
                                     uppercase
                                     tracking-[0.15em]
-                                    text-emerald-300
+
+                                    text-emerald-700
+
+                                    dark:text-emerald-300
                                 "
                             >
-                                System status
+                                System updates
                             </p>
 
                             <p
                                 className="
                                     mt-0.5
-                                    text-[10px]
-                                    text-gray-600
+                                    text-[11px]
+
+                                    text-slate-500
+
+                                    dark:text-gray-600
                                 "
                             >
                                 Changelog live
@@ -615,88 +723,136 @@ const SiteUpdates = () => {
                     </div>
                 </div>
 
-                {/* =========================================
+                {/* ==================================
                     LIKE ERROR
-                ========================================== */}
+                ================================== */}
 
-                <AnimatePresence>
-                    {likeError && (
+                <AnimatePresence initial={false}>
+                    {displayLikeError && (
                         <motion.div
+                            role="alert"
+
                             initial={{
                                 opacity: 0,
                                 y: -6,
                             }}
+
                             animate={{
                                 opacity: 1,
                                 y: 0,
                             }}
+
                             exit={{
                                 opacity: 0,
                                 y: -6,
                             }}
+
+                            transition={{
+                                duration: 0.16,
+                            }}
+
                             className="
                                 mt-5
                                 flex
-                                items-center
-                                gap-2
+                                items-start
+                                gap-2.5
+
                                 rounded-xl
                                 border
-                                border-red-400/15
-                                bg-red-500/[0.055]
+
+                                border-red-400/25
+                                bg-red-500/[0.06]
+
                                 px-4
                                 py-3
+
                                 text-xs
                                 font-semibold
-                                text-red-300
+                                leading-5
+
+                                text-red-700
+
+                                dark:border-red-400/15
+                                dark:bg-red-500/[0.055]
+                                dark:text-red-300
                             "
                         >
                             <AlertTriangle
-                                size={14}
+                                size={15}
                                 strokeWidth={2}
+                                aria-hidden="true"
+                                className="
+                                    mt-0.5
+                                    shrink-0
+                                "
                             />
 
-                            {
-                                likeError
-                            }
+                            <span className="min-w-0 break-words">
+                                {displayLikeError}
+                            </span>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* =========================================
-                    CONTENT
-                ========================================== */}
+                {/* ==================================
+                    UPDATES CONTENT
+                ================================== */}
 
-                <div
-                    className="
-                        mt-9
-                    "
-                >
+                <div className="mt-9">
+
+                    {/* ==============================
+                        LOADING
+                    ============================== */}
+
                     {isLoading ? (
                         <UpdatesSkeleton />
+
                     ) : error ? (
+
+                        /* ==========================
+                            ERROR STATE
+                        ========================== */
+
                         <div
+                            role="alert"
                             className="
                                 rounded-3xl
                                 border
-                                border-red-400/15
-                                bg-red-500/[0.045]
-                                p-8
+
+                                border-red-400/25
+                                bg-red-500/[0.04]
+
+                                p-6
                                 text-center
+
+                                sm:p-8
+
+                                dark:border-red-400/15
+                                dark:bg-red-500/[0.045]
                             "
                         >
                             <AlertTriangle
-                                size={24}
+                                size={25}
+                                strokeWidth={1.8}
+                                aria-hidden="true"
                                 className="
                                     mx-auto
-                                    text-red-300
+                                    text-red-600
+
+                                    dark:text-red-300
                                 "
                             />
 
                             <h3
                                 className="
                                     mt-4
+
+                                    text-base
                                     font-bold
-                                    text-white
+
+                                    text-slate-900
+
+                                    dark:text-white
                                 "
                             >
                                 Yangiliklar yuklanmadi
@@ -704,127 +860,187 @@ const SiteUpdates = () => {
 
                             <p
                                 className="
+                                    mx-auto
                                     mt-2
+                                    max-w-lg
+
+                                    break-words
+
                                     text-sm
-                                    text-gray-500
+                                    leading-6
+
+                                    text-slate-600
+
+                                    dark:text-gray-500
                                 "
                             >
-                                {
-                                    error
-                                }
+                                {displayError}
                             </p>
 
                             <button
                                 type="button"
-                                onClick={
-                                    fetchUpdates
-                                }
+                                onClick={fetchUpdates}
+
                                 className="
                                     mt-5
                                     inline-flex
-                                    cursor-pointer
                                     items-center
+                                    justify-center
                                     gap-2
+
                                     rounded-xl
                                     border
-                                    border-red-400/20
+
+                                    border-red-400/25
                                     bg-red-500/[0.07]
+
                                     px-4
                                     py-2.5
+
                                     text-xs
                                     font-bold
-                                    text-red-300
-                                    transition-all
-                                    duration-200
+
+                                    text-red-700
+
+                                    transition-colors
+                                    duration-150
+
+                                    hover:border-red-400/40
                                     hover:bg-red-500/[0.12]
+
+                                    focus-visible:outline-none
+                                    focus-visible:ring-2
+                                    focus-visible:ring-red-500
+
+                                    dark:border-red-400/20
+                                    dark:text-red-300
                                 "
                             >
                                 <RefreshCw
                                     size={14}
+                                    aria-hidden="true"
                                 />
 
                                 Qayta urinish
                             </button>
                         </div>
+
                     ) : featuredUpdate ? (
+
+                        /* ==========================
+                            UPDATES LIST
+                        ========================== */
+
                         <>
-                            {/* =============================
-                                FEATURED / LATEST CARD
-                            ============================== */}
+                            {/* FEATURED UPDATE */}
 
                             <SiteUpdateCard
                                 variant="featured"
-                                update={
-                                    featuredUpdate
-                                }
+                                update={featuredUpdate}
                                 likeLoading={
-                                    likingUpdateIds
-                                        .includes(
-                                            featuredUpdate.id
-                                        )
+                                    likingIds.includes(
+                                        featuredUpdate.id
+                                    )
                                 }
-                                onLike={
-                                    handleLike
-                                }
+                                onLike={handleLike}
                             />
 
-                            {/* =============================
-                                DROPDOWN
-                            ============================== */}
+                            {/* ======================
+                                MORE UPDATES
+                            ====================== */}
 
                             {dropdownUpdates.length > 0 && (
                                 <div
                                     className="
                                         mt-4
                                         overflow-hidden
+
                                         rounded-2xl
                                         border
-                                        border-white/[0.06]
-                                        bg-[#0c1118]
+
+                                        border-[#dce5f0]
+                                        bg-white/85
+
+                                        shadow-[0_10px_30px_rgba(30,41,59,0.04)]
+
+                                        dark:border-white/[0.06]
+                                        dark:bg-[#0c1118]
+                                        dark:shadow-none
                                     "
                                 >
+                                    {/* DROPDOWN BUTTON */}
+
                                     <button
                                         type="button"
-                                        onClick={
-                                            toggleDropdown
+                                        onClick={toggleDropdown}
+
+                                        aria-expanded={
+                                            dropdownOpen
                                         }
+
+                                        aria-controls="fsociety-updates-dropdown"
+
                                         className="
                                             group/dropdown
+
                                             flex
                                             w-full
-                                            cursor-pointer
                                             items-center
                                             justify-between
                                             gap-4
-                                            px-5
+
+                                            px-4
                                             py-4
+
                                             text-left
-                                            transition-all
-                                            duration-200
-                                            hover:bg-white/[0.02]
+
+                                            transition-colors
+                                            duration-150
+
+                                            hover:bg-indigo-500/[0.045]
+
+                                            focus-visible:outline-none
+                                            focus-visible:ring-2
+                                            focus-visible:ring-inset
+                                            focus-visible:ring-indigo-500
+
+                                            sm:px-5
+
+                                            dark:hover:bg-white/[0.025]
                                         "
                                     >
+                                        {/* LEFT */}
+
                                         <div
                                             className="
                                                 flex
+                                                min-w-0
                                                 items-center
                                                 gap-3
                                             "
                                         >
                                             <Newspaper
-                                                size={17}
+                                                size={18}
                                                 strokeWidth={2}
+                                                aria-hidden="true"
+
                                                 className="
-                                                    text-indigo-300
+                                                    shrink-0
+                                                    text-indigo-600
+
+                                                    dark:text-indigo-300
                                                 "
                                             />
 
-                                            <div>
+                                            <div className="min-w-0">
                                                 <p
                                                     className="
                                                         text-[13px]
                                                         font-bold
-                                                        text-gray-300
+
+                                                        text-slate-800
+
+                                                        dark:text-gray-300
                                                     "
                                                 >
                                                     Oxirgi yangiliklar
@@ -833,103 +1049,123 @@ const SiteUpdates = () => {
                                                 <p
                                                     className="
                                                         mt-0.5
-                                                        text-[9px]
+
+                                                        text-[10px]
                                                         font-medium
                                                         uppercase
-                                                        tracking-[0.12em]
-                                                        text-gray-700
+                                                        tracking-[0.1em]
+
+                                                        text-slate-500
+
+                                                        dark:text-gray-600
                                                     "
                                                 >
-                                                    Jami{" "}
-                                                    {
-                                                        count
-                                                    }{" "}
-                                                    ta update
+                                                    Jami {totalCount} ta update
                                                 </p>
                                             </div>
                                         </div>
 
+                                        {/* RIGHT */}
+
                                         <div
                                             className="
                                                 flex
+                                                shrink-0
                                                 items-center
-                                                gap-3
+                                                gap-2
                                             "
                                         >
                                             <span
                                                 className="
                                                     hidden
-                                                    text-[10px]
+
+                                                    text-[11px]
                                                     font-medium
-                                                    text-gray-600
+
+                                                    text-slate-500
+
                                                     sm:block
+
+                                                    dark:text-gray-500
                                                 "
                                             >
-                                                {
-                                                    dropdownOpen
-                                                        ? "Yopish"
-                                                        : "Ko‘rsatish"
-                                                }
+                                                {dropdownOpen
+                                                    ? "Yopish"
+                                                    : "Ko‘rsatish"}
                                             </span>
 
-                                            <div
+                                            <span
                                                 className="
                                                     grid
                                                     h-8
                                                     w-8
                                                     place-items-center
+
                                                     rounded-lg
                                                     border
-                                                    border-white/[0.06]
-                                                    bg-white/[0.025]
+
+                                                    border-[#dce5f0]
+                                                    bg-[#f5f8fd]
+
+                                                    dark:border-white/[0.06]
+                                                    dark:bg-white/[0.025]
                                                 "
                                             >
                                                 <ChevronDown
                                                     size={16}
+                                                    strokeWidth={2}
+
+                                                    aria-hidden="true"
+
                                                     className={`
-                                                        text-gray-500
+                                                        text-slate-500
+
                                                         transition-transform
-                                                        duration-300
-                                                        ${dropdownOpen
-                                                            ? "rotate-180 text-indigo-300"
-                                                            : ""
+                                                        duration-200
+
+                                                        dark:text-gray-500
+
+                                                        ${
+                                                            dropdownOpen
+                                                                ? "rotate-180 text-indigo-600 dark:text-indigo-300"
+                                                                : ""
                                                         }
+
+                                                        motion-reduce:transition-none
                                                     `}
                                                 />
-                                            </div>
+                                            </span>
                                         </div>
                                     </button>
 
-                                    {/* =========================
+                                    {/* ======================
                                         DROPDOWN BODY
-                                    ========================== */}
+                                    ====================== */}
 
-                                    <AnimatePresence
-                                        initial={false}
-                                    >
+                                    <AnimatePresence initial={false}>
                                         {dropdownOpen && (
                                             <motion.div
+                                                id="fsociety-updates-dropdown"
+
                                                 initial={{
                                                     height: 0,
                                                     opacity: 0,
                                                 }}
+
                                                 animate={{
                                                     height: "auto",
                                                     opacity: 1,
                                                 }}
+
                                                 exit={{
                                                     height: 0,
                                                     opacity: 0,
                                                 }}
-                                                transition={{
-                                                    duration: 0.3,
-                                                    ease: [
-                                                        0.16,
-                                                        1,
-                                                        0.3,
-                                                        1,
-                                                    ],
-                                                }}
+
+                                                transition={
+                                                    accordionTransition
+                                                }
+
                                                 className="
                                                     overflow-hidden
                                                 "
@@ -937,36 +1173,38 @@ const SiteUpdates = () => {
                                                 <div
                                                     className="
                                                         border-t
-                                                        border-white/[0.05]
+
+                                                        border-[#e5eaf3]
+
+                                                        dark:border-white/[0.05]
                                                     "
                                                 >
                                                     {dropdownUpdates.map(
-                                                        (
-                                                            update
-                                                        ) => (
+                                                        (update) => (
                                                             <SiteUpdateCard
-                                                                key={
-                                                                    update.id
-                                                                }
+                                                                key={update.id}
+
                                                                 variant="compact"
-                                                                update={
-                                                                    update
-                                                                }
+
+                                                                update={update}
+
                                                                 opened={
                                                                     openedUpdateId ===
                                                                     update.id
                                                                 }
+
                                                                 onToggle={() =>
                                                                     toggleUpdate(
                                                                         update.id
                                                                     )
                                                                 }
+
                                                                 likeLoading={
-                                                                    likingUpdateIds
-                                                                        .includes(
-                                                                            update.id
-                                                                        )
+                                                                    likingIds.includes(
+                                                                        update.id
+                                                                    )
                                                                 }
+
                                                                 onLike={
                                                                     handleLike
                                                                 }
@@ -980,74 +1218,111 @@ const SiteUpdates = () => {
                                 </div>
                             )}
 
-                            {/* =============================
+                            {/* ======================
                                 TOTAL INFO
-                            ============================== */}
+                            ====================== */}
 
-                            {count >
-                                safeUpdates.length && (
+                            {totalCount > safeUpdates.length && (
                                 <div
                                     className="
                                         mt-4
+
                                         flex
                                         flex-wrap
                                         items-center
                                         justify-center
                                         gap-1.5
+
                                         text-center
-                                        text-[10px]
+
+                                        text-[11px]
                                         font-medium
-                                        text-gray-700
+
+                                        text-slate-500
+
+                                        dark:text-gray-600
                                     "
                                 >
                                     <History
-                                        size={12}
+                                        size={13}
+                                        strokeWidth={2}
+                                        aria-hidden="true"
                                     />
 
                                     <span>
-                                        Homepage’da oxirgi{" "}
-                                        {
-                                            safeUpdates.length
-                                        }{" "}
-                                        ta yangilik ko‘rsatildi.
+                                        Homepage'da oxirgi{" "}
+                                        {safeUpdates.length} ta yangilik
+                                        ko‘rsatildi.
                                     </span>
 
                                     <span>
-                                        Jami{" "}
-                                        {
-                                            count
-                                        }{" "}
-                                        ta mavjud.
+                                        Jami {totalCount} ta mavjud.
                                     </span>
                                 </div>
                             )}
                         </>
+
                     ) : (
+
+                        /* ==========================
+                            EMPTY STATE
+                        ========================== */
+
                         <div
                             className="
                                 rounded-3xl
                                 border
                                 border-dashed
-                                border-white/[0.08]
-                                bg-white/[0.02]
-                                p-9
+
+                                border-[#dce5f0]
+                                bg-white/75
+
+                                p-7
                                 text-center
+
+                                sm:p-9
+
+                                dark:border-white/[0.08]
+                                dark:bg-white/[0.02]
                             "
                         >
-                            <Newspaper
-                                size={24}
+                            <div
                                 className="
                                     mx-auto
-                                    text-indigo-300
+
+                                    grid
+                                    h-14
+                                    w-14
+                                    place-items-center
+
+                                    rounded-2xl
+                                    border
+
+                                    border-indigo-400/20
+                                    bg-indigo-500/[0.06]
+
+                                    text-indigo-600
+
+                                    dark:text-indigo-300
                                 "
-                            />
+                            >
+                                <Newspaper
+                                    size={24}
+                                    strokeWidth={1.8}
+                                    aria-hidden="true"
+                                />
+                            </div>
 
                             <h3
                                 className="
                                     mt-4
+
                                     text-lg
                                     font-black
-                                    text-white
+
+                                    text-slate-900
+
+                                    dark:text-white
                                 "
                             >
                                 Hozircha yangilik yo‘q
@@ -1055,15 +1330,21 @@ const SiteUpdates = () => {
 
                             <p
                                 className="
+                                    mx-auto
                                     mt-2
+                                    max-w-md
+
                                     text-sm
-                                    text-gray-500
+                                    leading-6
+
+                                    text-slate-600
+
+                                    dark:text-gray-500
                                 "
                             >
-                                Admin paneldan
-                                changelog qo‘shilganda
-                                shu yerda avtomatik
-                                ko‘rinadi.
+                                Admin paneldan changelog
+                                qo‘shilganda shu yerda
+                                avtomatik ko‘rinadi.
                             </p>
                         </div>
                     )}
@@ -1073,5 +1354,8 @@ const SiteUpdates = () => {
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default SiteUpdates;

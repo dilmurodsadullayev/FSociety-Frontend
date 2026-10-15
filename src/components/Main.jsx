@@ -1,17 +1,12 @@
+
 import React, {
     useCallback,
     useEffect,
     useMemo,
 } from "react";
 
-import {
-    Link,
-} from "react-router-dom";
-
-import {
-    useDispatch,
-    useSelector,
-} from "react-redux";
+import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
     ArrowRight,
@@ -34,7 +29,7 @@ import {
 } from "lucide-react";
 
 import CommentSection from "./CommentSection";
-import PopularProbelmCard from "./PopularProbelmCard";
+import PopularProblemCard from "./PopularProblemCard";
 import HomeSidebar from "./HomeSidebar";
 import SiteUpdates from "./SiteUpdates";
 
@@ -47,67 +42,107 @@ import {
 
 import FCoinIcon from "../assests/coin/fcoin.png";
 
+// =========================================================
+// FSOCIETY HOME — THEME STYLES
+//
+// Light Mode = default
+// Dark Mode  = html.dark
+//
+// Keep all Tailwind classes literal for class scanning.
+// =========================================================
+
+const styles = {
+    page: `
+        min-h-screen
+        bg-[#edf2fa]
+        text-slate-900
+        dark:bg-[#050816]
+        dark:text-white
+    `,
+
+    mainCard: `
+        min-w-0
+        overflow-hidden
+        rounded-[30px]
+        border
+        border-[#d9e2ef]
+        bg-white
+        shadow-[0_18px_70px_rgba(30,41,59,0.08)]
+        dark:border-white/[0.055]
+        dark:bg-[#070b12]
+        dark:shadow-[0_28px_100px_rgba(0,0,0,0.22)]
+    `,
+
+    divider: `
+        border-[#e1e7f1]
+        dark:border-white/[0.055]
+    `,
+
+    title: `
+        text-slate-900
+        dark:text-white
+    `,
+
+    subtitle: `
+        text-slate-600
+        dark:text-gray-500
+    `,
+
+    eyebrow: `
+        text-slate-500
+        dark:text-gray-600
+    `,
+
+    surface: `
+        border-[#dce4ef]
+        bg-[#f8faff]
+        dark:border-white/[0.06]
+        dark:bg-white/[0.025]
+    `,
+
+    secondaryButton: `
+        border-[#d8e1ef]
+        bg-white/80
+        text-slate-700
+        hover:border-indigo-400/30
+        hover:bg-indigo-50
+        hover:text-indigo-700
+        dark:border-white/[0.075]
+        dark:bg-white/[0.028]
+        dark:text-gray-300
+        dark:hover:border-indigo-400/20
+        dark:hover:bg-indigo-400/[0.055]
+        dark:hover:text-white
+    `,
+};
 
 // =========================================================
 // HELPERS
 // =========================================================
 
-const formatCompactNumber = (
-    value
-) => {
-    const number =
-        Number(
-            value ||
-            0
-        );
+const formatCompactNumber = (value) => {
+    const number = Number(value || 0);
 
-    if (
-        Number.isNaN(
-            number
-        )
-    ) {
+    if (!Number.isFinite(number)) {
         return "0";
     }
 
-    if (
-        number >=
-        1_000_000
-    ) {
-        return `${(
-            number /
-            1_000_000
-        ).toFixed(
-            number >=
-                10_000_000
-                ? 0
-                : 1
+    if (number >= 1_000_000) {
+        return `${(number / 1_000_000).toFixed(
+            number >= 10_000_000 ? 0 : 1
         )}M`;
     }
 
-    if (
-        number >=
-        1_000
-    ) {
-        return `${(
-            number /
-            1_000
-        ).toFixed(
-            number >=
-                10_000
-                ? 0
-                : 1
+    if (number >= 1_000) {
+        return `${(number / 1_000).toFixed(
+            number >= 10_000 ? 0 : 1
         )}K`;
     }
 
-    return String(
-        number
-    );
+    return String(number);
 };
 
-
-const getProblemTitle = (
-    problem
-) => {
+const getProblemTitle = (problem) => {
     return (
         problem?.problem ||
         problem?.title ||
@@ -115,16 +150,12 @@ const getProblemTitle = (
     );
 };
 
-
-const getProblemDescription = (
-    problem
-) => {
+const getProblemDescription = (problem) => {
     return (
         problem?.description ||
         "Muammo tafsilotlarini ko‘rish uchun oching."
     );
 };
-
 
 // =========================================================
 // HERO MINI STAT
@@ -138,57 +169,53 @@ const HeroStat = ({
 }) => {
     return (
         <div
-            className="
+            className={`
                 flex
                 min-w-0
                 items-center
                 gap-3
                 rounded-2xl
                 border
-                border-white/[0.06]
-                bg-white/[0.025]
                 px-3.5
                 py-3
-            "
+                ${styles.surface}
+            `}
         >
             <div
                 className={`
                     grid
                     h-9
                     w-9
-                    flex-shrink-0
+                    shrink-0
                     place-items-center
                     rounded-xl
                     border
-                    border-white/[0.06]
-                    bg-white/[0.025]
+                    border-[#e2e8f2]
+                    bg-white
+                    dark:border-white/[0.06]
+                    dark:bg-white/[0.025]
                     ${accentClass}
                 `}
             >
                 <Icon
                     size={16}
                     strokeWidth={2}
+                    aria-hidden="true"
                 />
             </div>
 
-            <div
-                className="
-                    min-w-0
-                "
-            >
+            <div className="min-w-0">
                 <p
-                    className="
+                    className={`
                         truncate
                         text-[9px]
                         font-black
                         uppercase
                         tracking-[0.14em]
-                        text-gray-600
-                    "
+                        ${styles.eyebrow}
+                    `}
                 >
-                    {
-                        label
-                    }
+                    {label}
                 </p>
 
                 <p
@@ -197,18 +224,16 @@ const HeroStat = ({
                         truncate
                         text-sm
                         font-black
-                        text-gray-200
+                        text-slate-800
+                        dark:text-gray-200
                     "
                 >
-                    {
-                        value
-                    }
+                    {value}
                 </p>
             </div>
         </div>
     );
 };
-
 
 // =========================================================
 // PROBLEM RADAR ITEM
@@ -218,8 +243,7 @@ const ProblemRadarItem = ({
     problem,
     index,
 }) => {
-    const problemId =
-        problem?.id;
+    const problemId = problem?.id;
 
     const content = (
         <div
@@ -229,16 +253,21 @@ const ProblemRadarItem = ({
                 overflow-hidden
                 rounded-2xl
                 border
-                border-white/[0.055]
-                bg-white/[0.018]
+                border-[#dfe6f1]
+                bg-[#f8faff]
                 p-3.5
-                transition-all
-                duration-200
-                hover:border-cyan-400/20
-                hover:bg-cyan-400/[0.035]
+                transition-colors
+                duration-150
+                hover:border-cyan-400/40
+                hover:bg-cyan-50/70
+                dark:border-white/[0.055]
+                dark:bg-white/[0.018]
+                dark:hover:border-cyan-400/20
+                dark:hover:bg-cyan-400/[0.035]
             "
         >
             <span
+                aria-hidden="true"
                 className="
                     pointer-events-none
                     absolute
@@ -247,73 +276,56 @@ const ProblemRadarItem = ({
                     h-full
                     w-px
                     bg-gradient-to-b
-                    from-cyan-400/50
-                    via-indigo-400/20
+                    from-cyan-500/60
+                    via-indigo-500/20
                     to-transparent
                     opacity-0
                     transition-opacity
-                    duration-200
+                    duration-150
                     group-hover/radar:opacity-100
                 "
             />
 
-            <div
-                className="
-                    flex
-                    items-start
-                    gap-3
-                "
-            >
+            <div className="flex items-start gap-3">
                 <div
                     className="
                         mt-0.5
                         grid
                         h-8
                         w-8
-                        flex-shrink-0
+                        shrink-0
                         place-items-center
                         rounded-xl
                         border
-                        border-cyan-400/10
-                        bg-cyan-400/[0.05]
+                        border-cyan-400/20
+                        bg-cyan-500/[0.07]
                         font-mono
                         text-[10px]
                         font-black
-                        text-cyan-300
+                        text-cyan-700
+                        dark:border-cyan-400/10
+                        dark:bg-cyan-400/[0.05]
+                        dark:text-cyan-300
                     "
                 >
-                    {
-                        String(
-                            index +
-                            1
-                        ).padStart(
-                            2,
-                            "0"
-                        )
-                    }
+                    {String(index + 1).padStart(2, "0")}
                 </div>
 
-                <div
-                    className="
-                        min-w-0
-                        flex-1
-                    "
-                >
+                <div className="min-w-0 flex-1">
                     <h4
                         className="
                             line-clamp-1
                             text-[13px]
                             font-bold
-                            text-gray-200
+                            text-slate-800
                             transition-colors
-                            group-hover/radar:text-white
+                            duration-150
+                            group-hover/radar:text-indigo-700
+                            dark:text-gray-200
+                            dark:group-hover/radar:text-white
                         "
                     >
-                        {
-                            getProblemTitle(
-                                problem
-                            )
-                        }
+                        {getProblemTitle(problem)}
                     </h4>
 
                     <p
@@ -322,14 +334,11 @@ const ProblemRadarItem = ({
                             line-clamp-1
                             text-[10px]
                             leading-5
-                            text-gray-600
+                            text-slate-500
+                            dark:text-gray-600
                         "
                     >
-                        {
-                            getProblemDescription(
-                                problem
-                            )
-                        }
+                        {getProblemDescription(problem)}
                     </p>
 
                     <div
@@ -342,73 +351,50 @@ const ProblemRadarItem = ({
                             gap-y-1
                             text-[9px]
                             font-semibold
-                            text-gray-600
+                            text-slate-500
+                            dark:text-gray-600
                         "
                     >
-                        <span
-                            className="
-                                inline-flex
-                                items-center
-                                gap-1
-                            "
-                        >
+                        <span className="inline-flex items-center gap-1">
                             <Star
                                 size={11}
                                 strokeWidth={2}
                                 className="
-                                    text-yellow-300
+                                    text-amber-600
+                                    dark:text-yellow-300
                                 "
                             />
-
-                            {
-                                formatCompactNumber(
-                                    problem?.total_stars
-                                )
-                            }
+                            {formatCompactNumber(
+                                problem?.total_stars
+                            )}
                         </span>
 
-                        <span
-                            className="
-                                inline-flex
-                                items-center
-                                gap-1
-                            "
-                        >
+                        <span className="inline-flex items-center gap-1">
                             <MessageCircle
                                 size={11}
                                 strokeWidth={2}
                                 className="
-                                    text-indigo-300
+                                    text-indigo-600
+                                    dark:text-indigo-300
                                 "
                             />
-
-                            {
-                                formatCompactNumber(
-                                    problem?.total_responses
-                                )
-                            }
+                            {formatCompactNumber(
+                                problem?.total_responses
+                            )}
                         </span>
 
-                        <span
-                            className="
-                                inline-flex
-                                items-center
-                                gap-1
-                            "
-                        >
+                        <span className="inline-flex items-center gap-1">
                             <Eye
                                 size={11}
                                 strokeWidth={2}
                                 className="
-                                    text-cyan-300
+                                    text-cyan-700
+                                    dark:text-cyan-300
                                 "
                             />
-
-                            {
-                                formatCompactNumber(
-                                    problem?.total_views
-                                )
-                            }
+                            {formatCompactNumber(
+                                problem?.total_views
+                            )}
                         </span>
                     </div>
                 </div>
@@ -416,23 +402,22 @@ const ProblemRadarItem = ({
                 <ArrowRight
                     size={15}
                     strokeWidth={2}
+                    aria-hidden="true"
                     className="
                         mt-1
-                        flex-shrink-0
-                        text-gray-700
-                        transition-all
-                        duration-200
+                        shrink-0
+                        text-slate-400
+                        transition-transform
+                        duration-150
                         group-hover/radar:translate-x-0.5
-                        group-hover/radar:text-cyan-300
+                        dark:text-gray-700
                     "
                 />
             </div>
         </div>
     );
 
-    if (
-        !problemId
-    ) {
+    if (!problemId) {
         return content;
     }
 
@@ -441,15 +426,16 @@ const ProblemRadarItem = ({
             to={`/problem/${problemId}/detail`}
             className="
                 block
+                rounded-2xl
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-indigo-500
             "
         >
-            {
-                content
-            }
+            {content}
         </Link>
     );
 };
-
 
 // =========================================================
 // PROBLEM RADAR SKELETON
@@ -458,76 +444,64 @@ const ProblemRadarItem = ({
 const ProblemRadarSkeleton = () => {
     return (
         <div
-            className="
-                space-y-2.5
-            "
+            role="status"
+            aria-label="Trenddagi muammolar yuklanmoqda"
+            className="space-y-2.5"
         >
-            {[...Array(3)].map(
-                (
-                    _,
-                    index
-                ) => (
-                    <div
-                        key={
-                            index
-                        }
-                        className="
-                            animate-pulse
-                            rounded-2xl
-                            border
-                            border-white/[0.05]
-                            bg-white/[0.018]
-                            p-3.5
-                        "
-                    >
+            {[0, 1, 2].map((index) => (
+                <div
+                    key={index}
+                    className="
+                        animate-pulse
+                        rounded-2xl
+                        border
+                        border-[#e1e7f0]
+                        bg-[#f8faff]
+                        p-3.5
+                        motion-reduce:animate-none
+                        dark:border-white/[0.05]
+                        dark:bg-white/[0.018]
+                    "
+                >
+                    <div className="flex items-center gap-3">
                         <div
                             className="
-                                flex
-                                items-center
-                                gap-3
+                                h-8
+                                w-8
+                                rounded-xl
+                                bg-slate-200
+                                dark:bg-white/[0.05]
                             "
-                        >
+                        />
+
+                        <div className="flex-1">
                             <div
                                 className="
-                                    h-8
-                                    w-8
-                                    rounded-xl
-                                    bg-white/[0.05]
+                                    h-3.5
+                                    w-3/4
+                                    rounded-full
+                                    bg-slate-200
+                                    dark:bg-white/[0.055]
                                 "
                             />
 
                             <div
                                 className="
-                                    flex-1
+                                    mt-2
+                                    h-2.5
+                                    w-1/2
+                                    rounded-full
+                                    bg-slate-100
+                                    dark:bg-white/[0.035]
                                 "
-                            >
-                                <div
-                                    className="
-                                        h-3.5
-                                        w-3/4
-                                        rounded-full
-                                        bg-white/[0.055]
-                                    "
-                                />
-
-                                <div
-                                    className="
-                                        mt-2
-                                        h-2.5
-                                        w-1/2
-                                        rounded-full
-                                        bg-white/[0.035]
-                                    "
-                                />
-                            </div>
+                            />
                         </div>
                     </div>
-                )
-            )}
+                </div>
+            ))}
         </div>
     );
 };
-
 
 // =========================================================
 // REWARD STEP
@@ -549,33 +523,19 @@ const RewardStep = ({
                 overflow-hidden
                 rounded-3xl
                 border
-                border-white/[0.06]
-                bg-white/[0.022]
+                border-[#dee6f2]
+                bg-white/80
                 p-5
-                transition-all
-                duration-300
-                hover:-translate-y-1
-                hover:border-white/[0.11]
-                hover:bg-white/[0.035]
+                transition-colors
+                duration-150
+                hover:border-indigo-300/60
+                hover:bg-white
+                dark:border-white/[0.06]
+                dark:bg-white/[0.022]
+                dark:hover:border-white/[0.11]
+                dark:hover:bg-white/[0.035]
             "
         >
-            <span
-                className="
-                    pointer-events-none
-                    absolute
-                    -right-12
-                    -top-12
-                    h-28
-                    w-28
-                    rounded-full
-                    bg-white/[0.025]
-                    blur-3xl
-                    transition-transform
-                    duration-500
-                    group-hover/step:scale-150
-                "
-            />
-
             <div
                 className="
                     relative
@@ -593,20 +553,20 @@ const RewardStep = ({
                         place-items-center
                         rounded-2xl
                         border
-                        border-white/[0.07]
-                        bg-white/[0.03]
+                        border-[#e0e7f1]
+                        bg-[#f4f7fd]
+                        dark:border-white/[0.07]
+                        dark:bg-white/[0.03]
                         ${accentClass}
                     `}
                 >
-                    {
-                        children ||
-                        (
-                            <Icon
-                                size={20}
-                                strokeWidth={1.9}
-                            />
-                        )
-                    }
+                    {children || (
+                        <Icon
+                            size={20}
+                            strokeWidth={1.9}
+                            aria-hidden="true"
+                        />
+                    )}
                 </div>
 
                 <span
@@ -615,12 +575,11 @@ const RewardStep = ({
                         text-[9px]
                         font-black
                         tracking-[0.18em]
-                        text-gray-700
+                        text-slate-400
+                        dark:text-gray-700
                     "
                 >
-                    {
-                        number
-                    }
+                    {number}
                 </span>
             </div>
 
@@ -630,12 +589,11 @@ const RewardStep = ({
                     mt-5
                     text-lg
                     font-black
-                    text-white
+                    text-slate-900
+                    dark:text-white
                 "
             >
-                {
-                    title
-                }
+                {title}
             </h3>
 
             <p
@@ -644,25 +602,22 @@ const RewardStep = ({
                     mt-2
                     text-sm
                     leading-6
-                    text-gray-500
+                    text-slate-600
+                    dark:text-gray-500
                 "
             >
-                {
-                    description
-                }
+                {description}
             </p>
         </div>
     );
 };
-
 
 // =========================================================
 // MAIN
 // =========================================================
 
 const Main = () => {
-    const dispatch =
-        useDispatch();
+    const dispatch = useDispatch();
 
     // =====================================================
     // REDUX
@@ -671,108 +626,65 @@ const Main = () => {
     const {
         isLoggedIn,
         user,
-    } = useSelector(
-        (state) =>
-            state.auth
-    );
+    } = useSelector((state) => state.auth);
 
     const {
         popularProblems,
         isLoading,
-    } = useSelector(
-        (state) =>
-            state.problem
+    } = useSelector((state) => state.problem);
+
+    // =====================================================
+    // SAFE DATA
+    // =====================================================
+
+    const safePopularProblems = useMemo(
+        () =>
+            Array.isArray(popularProblems)
+                ? popularProblems
+                : [],
+        [popularProblems]
     );
 
-    // =====================================================
-    // SAFE PROBLEM DATA
-    // =====================================================
-
-    const safePopularProblems =
-        useMemo(
-            () =>
-                Array.isArray(
-                    popularProblems
-                )
-                    ? popularProblems
-                    : [],
-            [
-                popularProblems,
-            ]
-        );
-
-    const radarProblems =
-        useMemo(
-            () =>
-                safePopularProblems.slice(
-                    0,
-                    3
-                ),
-            [
-                safePopularProblems,
-            ]
-        );
+    const radarProblems = useMemo(
+        () => safePopularProblems.slice(0, 3),
+        [safePopularProblems]
+    );
 
     // =====================================================
     // FETCH POPULAR PROBLEMS
     // =====================================================
 
-    const getPopularProblems =
-        useCallback(
-            async () => {
+    const getPopularProblems = useCallback(
+        async () => {
+            dispatch(getPopularProblemStart());
+
+            try {
+                const response =
+                    await ProblemService.getPopularProblemsList();
+
                 dispatch(
-                    getPopularProblemStart()
+                    getPopularProblemSuccess(response)
                 );
-
-                try {
-                    const response =
-                        await ProblemService
-                            .getPopularProblemsList();
-
-                    dispatch(
-                        getPopularProblemSuccess(
-                            response
-                        )
-                    );
-                } catch (
+            } catch (error) {
+                console.error(
+                    "Popular problems olishda xato:",
                     error
-                ) {
-                    console.error(
-                        "Popular problems olishda xato:",
-                        error
-                    );
-                }
-            },
-            [
-                dispatch,
-            ]
-        );
-
-    // =====================================================
-    // INITIAL LOAD
-    // =====================================================
-
-    useEffect(
-        () => {
-            getPopularProblems();
+                );
+            }
         },
-        [
-            getPopularProblems,
-        ]
+        [dispatch]
     );
+
+    useEffect(() => {
+        getPopularProblems();
+    }, [getPopularProblems]);
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-        <main
-            className="
-                min-h-screen
-                bg-[#050816]
-                text-white
-            "
-        >
+        <main className={styles.page}>
             <div
                 className="
                     mx-auto
@@ -783,66 +695,57 @@ const Main = () => {
                     px-4
                     py-5
                     sm:px-6
-                    xl:px-8
                     lg:grid-cols-[300px_minmax(0,1fr)]
                     xl:grid-cols-[310px_minmax(0,1fr)]
+                    xl:px-8
                 "
             >
-                {/* =================================================
+                {/* ======================================
                     LEFT SIDEBAR
-                ================================================== */}
+                ====================================== */}
 
                 <HomeSidebar
-                    isLoggedIn={
-                        isLoggedIn
-                    }
-                    user={
-                        user
-                    }
+                    isLoggedIn={isLoggedIn}
+                    user={user}
                 />
 
-                {/* =================================================
+                {/* ======================================
                     MAIN CONTENT
-                ================================================== */}
+                ====================================== */}
 
-                <div
-                    className="
-                        min-w-0
-                        overflow-hidden
-                        rounded-[30px]
-                        border
-                        border-white/[0.055]
-                        bg-[#070b12]
-                        shadow-[0_28px_100px_rgba(0,0,0,0.22)]
-                    "
-                >
-                    {/* =================================================
+                <div className={styles.mainCard}>
+
+                    {/* ==================================
                         HERO
-                    ================================================== */}
+                    ================================== */}
 
                     <section
-                        className="
+                        className={`
                             relative
                             overflow-hidden
                             border-b
-                            border-white/[0.055]
                             px-4
                             py-10
                             sm:px-6
                             lg:px-8
                             lg:py-12
                             xl:px-10
-                        "
+                            ${styles.divider}
+                        `}
                     >
                         {/* BACKGROUND GRID */}
 
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
                                 inset-0
-                                opacity-[0.018]
-                                [background-image:linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.35)_1px,transparent_1px)]
+                                opacity-[0.025]
+                                text-slate-900
+                                dark:opacity-[0.018]
+                                dark:text-white
+                                [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
                                 [background-size:38px_38px]
                             "
                         />
@@ -850,30 +753,36 @@ const Main = () => {
                         {/* GLOWS */}
 
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
                                 -left-20
                                 -top-24
+                                hidden
                                 h-80
                                 w-80
                                 rounded-full
                                 bg-cyan-500/[0.08]
                                 blur-[110px]
+                                sm:block
                             "
                         />
 
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
                                 right-0
                                 top-0
+                                hidden
                                 h-96
                                 w-96
                                 rounded-full
                                 bg-indigo-500/[0.10]
                                 blur-[120px]
+                                sm:block
                             "
                         />
 
@@ -887,16 +796,13 @@ const Main = () => {
                                 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]
                             "
                         >
-                            {/* =========================================
+                            {/* ==========================
                                 HERO LEFT
-                            ========================================== */}
+                            ========================== */}
 
-                            <div
-                                className="
-                                    min-w-0
-                                "
-                            >
-                                {/* STATUS BAR */}
+                            <div className="min-w-0">
+
+                                {/* STATUS */}
 
                                 <div
                                     className="
@@ -913,7 +819,7 @@ const Main = () => {
                                             gap-2
                                             rounded-full
                                             border
-                                            border-cyan-400/20
+                                            border-cyan-400/25
                                             bg-cyan-400/[0.065]
                                             px-3
                                             py-1.5
@@ -922,12 +828,15 @@ const Main = () => {
                                             font-black
                                             uppercase
                                             tracking-[0.16em]
-                                            text-cyan-300
+                                            text-cyan-700
+                                            dark:border-cyan-400/20
+                                            dark:text-cyan-300
                                         "
                                     >
                                         <Terminal
                                             size={13}
                                             strokeWidth={2}
+                                            aria-hidden="true"
                                         />
 
                                         fsociety://build_together
@@ -940,8 +849,8 @@ const Main = () => {
                                             gap-2
                                             rounded-full
                                             border
-                                            border-emerald-400/10
-                                            bg-emerald-400/[0.03]
+                                            border-emerald-400/20
+                                            bg-emerald-400/[0.05]
                                             px-3
                                             py-1.5
                                             font-mono
@@ -949,7 +858,10 @@ const Main = () => {
                                             font-bold
                                             uppercase
                                             tracking-[0.12em]
-                                            text-emerald-300
+                                            text-emerald-700
+                                            dark:border-emerald-400/10
+                                            dark:bg-emerald-400/[0.03]
+                                            dark:text-emerald-300
                                         "
                                     >
                                         <span
@@ -970,6 +882,7 @@ const Main = () => {
                                                     rounded-full
                                                     bg-emerald-400
                                                     opacity-50
+                                                    motion-reduce:animate-none
                                                 "
                                             />
 
@@ -980,7 +893,8 @@ const Main = () => {
                                                     h-1.5
                                                     w-1.5
                                                     rounded-full
-                                                    bg-emerald-400
+                                                    bg-emerald-500
+                                                    dark:bg-emerald-400
                                                 "
                                             />
                                         </span>
@@ -992,29 +906,32 @@ const Main = () => {
                                 {/* TITLE */}
 
                                 <h1
-                                    className="
+                                    className={`
                                         mt-7
                                         max-w-4xl
                                         text-[42px]
                                         font-black
                                         leading-[0.98]
                                         tracking-[-0.055em]
-                                        text-white
                                         sm:text-5xl
                                         lg:text-[58px]
                                         xl:text-[64px]
-                                    "
+                                        ${styles.title}
+                                    `}
                                 >
                                     Muammoni{" "}
 
                                     <span
                                         className="
                                             bg-gradient-to-r
-                                            from-cyan-300
-                                            via-indigo-300
-                                            to-fuchsia-300
+                                            from-cyan-600
+                                            via-indigo-600
+                                            to-fuchsia-600
                                             bg-clip-text
                                             text-transparent
+                                            dark:from-cyan-300
+                                            dark:via-indigo-300
+                                            dark:to-fuchsia-300
                                         "
                                     >
                                         yechimga
@@ -1028,14 +945,14 @@ const Main = () => {
                                 {/* DESCRIPTION */}
 
                                 <p
-                                    className="
+                                    className={`
                                         mt-6
                                         max-w-2xl
                                         text-sm
                                         leading-7
-                                        text-gray-500
                                         sm:text-[15px]
-                                    "
+                                        ${styles.subtitle}
+                                    `}
                                 >
                                     Xatoni yolg‘iz yechmang.
                                     Savolingizni joylang,
@@ -1076,16 +993,21 @@ const Main = () => {
                                             text-sm
                                             font-black
                                             text-white
-                                            shadow-[0_12px_35px_rgba(34,211,238,0.15)]
-                                            transition-all
-                                            duration-300
+                                            shadow-[0_12px_35px_rgba(34,211,238,0.12)]
+                                            transition-transform
+                                            duration-150
                                             hover:-translate-y-0.5
-                                            hover:shadow-[0_16px_45px_rgba(99,102,241,0.22)]
+                                            focus-visible:outline-none
+                                            focus-visible:ring-2
+                                            focus-visible:ring-indigo-500
+                                            dark:shadow-[0_12px_35px_rgba(34,211,238,0.15)]
+                                            motion-reduce:transform-none
                                         "
                                     >
                                         <Plus
                                             size={17}
                                             strokeWidth={2.4}
+                                            aria-hidden="true"
                                         />
 
                                         Savol berish
@@ -1093,9 +1015,10 @@ const Main = () => {
                                         <ArrowRight
                                             size={15}
                                             strokeWidth={2.2}
+                                            aria-hidden="true"
                                             className="
                                                 transition-transform
-                                                duration-200
+                                                duration-150
                                                 group-hover/create:translate-x-0.5
                                             "
                                         />
@@ -1103,7 +1026,7 @@ const Main = () => {
 
                                     <Link
                                         to="/problems"
-                                        className="
+                                        className={`
                                             group/problems
                                             inline-flex
                                             min-h-[48px]
@@ -1112,23 +1035,21 @@ const Main = () => {
                                             gap-2.5
                                             rounded-2xl
                                             border
-                                            border-white/[0.075]
-                                            bg-white/[0.028]
                                             px-5
                                             text-sm
                                             font-black
-                                            text-gray-300
-                                            transition-all
-                                            duration-300
-                                            hover:-translate-y-0.5
-                                            hover:border-indigo-400/20
-                                            hover:bg-indigo-400/[0.055]
-                                            hover:text-white
-                                        "
+                                            transition-colors
+                                            duration-150
+                                            focus-visible:outline-none
+                                            focus-visible:ring-2
+                                            focus-visible:ring-indigo-500
+                                            ${styles.secondaryButton}
+                                        `}
                                     >
                                         <Bug
                                             size={17}
                                             strokeWidth={2.2}
+                                            aria-hidden="true"
                                         />
 
                                         Muammolarni ko‘rish
@@ -1146,55 +1067,49 @@ const Main = () => {
                                     "
                                 >
                                     <HeroStat
-                                        Icon={
-                                            Bug
-                                        }
+                                        Icon={Bug}
                                         label="Trending"
                                         value={`${safePopularProblems.length} ta muammo`}
-                                        accentClass="text-cyan-300"
+                                        accentClass="text-cyan-700 dark:text-cyan-300"
                                     />
 
                                     <HeroStat
-                                        Icon={
-                                            Coins
-                                        }
+                                        Icon={Coins}
                                         label="Sizning FCoin"
                                         value={
                                             isLoggedIn
                                                 ? `${user?.coins ?? 0} FCoin`
                                                 : "Login kerak"
                                         }
-                                        accentClass="text-yellow-300"
+                                        accentClass="text-amber-700 dark:text-yellow-300"
                                     />
 
                                     <HeroStat
-                                        Icon={
-                                            Zap
-                                        }
+                                        Icon={Zap}
                                         label="Platforma"
                                         value="Real-time"
-                                        accentClass="text-indigo-300"
+                                        accentClass="text-indigo-700 dark:text-indigo-300"
                                     />
                                 </div>
                             </div>
 
-                            {/* =========================================
+                            {/* ==========================
                                 PROBLEM RADAR
-                            ========================================== */}
+                            ========================== */}
 
-                            <div
-                                className="
-                                    relative
-                                "
-                            >
+                            <div className="relative">
+
                                 <div
+                                    aria-hidden="true"
                                     className="
                                         pointer-events-none
                                         absolute
                                         -inset-10
+                                        hidden
                                         rounded-full
                                         bg-cyan-500/[0.035]
                                         blur-3xl
+                                        sm:block
                                     "
                                 />
 
@@ -1204,11 +1119,13 @@ const Main = () => {
                                         overflow-hidden
                                         rounded-[26px]
                                         border
-                                        border-white/[0.07]
-                                        bg-[#0b1018]/95
+                                        border-[#dce5f1]
+                                        bg-white/95
                                         p-3
-                                        shadow-[0_30px_90px_rgba(0,0,0,0.30)]
-                                        backdrop-blur-xl
+                                        shadow-[0_15px_45px_rgba(30,41,59,0.08)]
+                                        dark:border-white/[0.07]
+                                        dark:bg-[#0b1018]/95
+                                        dark:shadow-[0_30px_90px_rgba(0,0,0,0.30)]
                                     "
                                 >
                                     {/* RADAR HEADER */}
@@ -1220,9 +1137,10 @@ const Main = () => {
                                             justify-between
                                             gap-4
                                             border-b
-                                            border-white/[0.055]
+                                            border-[#e4eaf3]
                                             px-2
                                             pb-3
+                                            dark:border-white/[0.055]
                                         "
                                     >
                                         <div
@@ -1240,27 +1158,30 @@ const Main = () => {
                                                     place-items-center
                                                     rounded-xl
                                                     border
-                                                    border-cyan-400/15
+                                                    border-cyan-400/20
                                                     bg-cyan-400/[0.06]
-                                                    text-cyan-300
+                                                    text-cyan-700
+                                                    dark:border-cyan-400/15
+                                                    dark:text-cyan-300
                                                 "
                                             >
                                                 <Code2
                                                     size={17}
                                                     strokeWidth={2}
+                                                    aria-hidden="true"
                                                 />
                                             </div>
 
                                             <div>
                                                 <p
-                                                    className="
+                                                    className={`
                                                         font-mono
                                                         text-[8px]
                                                         font-black
                                                         uppercase
                                                         tracking-[0.16em]
-                                                        text-gray-600
-                                                    "
+                                                        ${styles.eyebrow}
+                                                    `}
                                                 >
                                                     Live problem radar
                                                 </p>
@@ -1270,7 +1191,8 @@ const Main = () => {
                                                         mt-0.5
                                                         text-sm
                                                         font-black
-                                                        text-gray-200
+                                                        text-slate-800
+                                                        dark:text-gray-200
                                                     "
                                                 >
                                                     Hozir trendda
@@ -1285,8 +1207,8 @@ const Main = () => {
                                                 gap-1.5
                                                 rounded-full
                                                 border
-                                                border-emerald-400/10
-                                                bg-emerald-400/[0.03]
+                                                border-emerald-400/20
+                                                bg-emerald-400/[0.05]
                                                 px-2.5
                                                 py-1
                                                 font-mono
@@ -1294,7 +1216,10 @@ const Main = () => {
                                                 font-bold
                                                 uppercase
                                                 tracking-[0.12em]
-                                                text-emerald-300
+                                                text-emerald-700
+                                                dark:border-emerald-400/10
+                                                dark:bg-emerald-400/[0.03]
+                                                dark:text-emerald-300
                                             "
                                         >
                                             <span
@@ -1302,7 +1227,8 @@ const Main = () => {
                                                     h-1.5
                                                     w-1.5
                                                     rounded-full
-                                                    bg-emerald-400
+                                                    bg-emerald-500
+                                                    dark:bg-emerald-400
                                                 "
                                             />
 
@@ -1312,35 +1238,17 @@ const Main = () => {
 
                                     {/* RADAR BODY */}
 
-                                    <div
-                                        className="
-                                            mt-3
-                                        "
-                                    >
+                                    <div className="mt-3">
                                         {isLoading ? (
                                             <ProblemRadarSkeleton />
                                         ) : radarProblems.length > 0 ? (
-                                            <div
-                                                className="
-                                                    space-y-2.5
-                                                "
-                                            >
+                                            <div className="space-y-2.5">
                                                 {radarProblems.map(
-                                                    (
-                                                        problem,
-                                                        index
-                                                    ) => (
+                                                    (problem, index) => (
                                                         <ProblemRadarItem
-                                                            key={
-                                                                problem?.id ??
-                                                                index
-                                                            }
-                                                            problem={
-                                                                problem
-                                                            }
-                                                            index={
-                                                                index
-                                                            }
+                                                            key={problem?.id ?? index}
+                                                            problem={problem}
+                                                            index={index}
                                                         />
                                                     )
                                                 )}
@@ -1351,11 +1259,13 @@ const Main = () => {
                                                     rounded-2xl
                                                     border
                                                     border-dashed
-                                                    border-white/[0.07]
-                                                    bg-white/[0.018]
+                                                    border-[#dce4ef]
+                                                    bg-[#f8faff]
                                                     px-5
                                                     py-9
                                                     text-center
+                                                    dark:border-white/[0.07]
+                                                    dark:bg-white/[0.018]
                                                 "
                                             >
                                                 <Bug
@@ -1363,7 +1273,8 @@ const Main = () => {
                                                     strokeWidth={1.8}
                                                     className="
                                                         mx-auto
-                                                        text-gray-700
+                                                        text-slate-400
+                                                        dark:text-gray-700
                                                     "
                                                 />
 
@@ -1372,7 +1283,8 @@ const Main = () => {
                                                         mt-3
                                                         text-xs
                                                         font-bold
-                                                        text-gray-500
+                                                        text-slate-600
+                                                        dark:text-gray-500
                                                     "
                                                 >
                                                     Hozircha trenddagi
@@ -1392,9 +1304,10 @@ const Main = () => {
                                             justify-between
                                             gap-3
                                             border-t
-                                            border-white/[0.05]
+                                            border-[#e4eaf3]
                                             px-2
                                             pt-3
+                                            dark:border-white/[0.05]
                                         "
                                     >
                                         <p
@@ -1403,7 +1316,8 @@ const Main = () => {
                                                 text-[8px]
                                                 uppercase
                                                 tracking-[0.14em]
-                                                text-gray-700
+                                                text-slate-400
+                                                dark:text-gray-700
                                             "
                                         >
                                             signal://community_activity
@@ -1418,7 +1332,8 @@ const Main = () => {
                                                 gap-1.5
                                                 text-[10px]
                                                 font-bold
-                                                text-cyan-300
+                                                text-cyan-700
+                                                dark:text-cyan-300
                                             "
                                         >
                                             Barchasi
@@ -1426,8 +1341,10 @@ const Main = () => {
                                             <ArrowRight
                                                 size={12}
                                                 strokeWidth={2}
+                                                aria-hidden="true"
                                                 className="
                                                     transition-transform
+                                                    duration-150
                                                     group-hover/radar-link:translate-x-0.5
                                                 "
                                             />
@@ -1438,36 +1355,40 @@ const Main = () => {
                         </div>
                     </section>
 
-                    {/* =================================================
+                    {/* ==================================
                         TRENDING PROBLEMS
-                    ================================================== */}
+                    ================================== */}
 
                     <section
                         id="problems"
-                        className="
+                        className={`
                             relative
                             border-b
-                            border-white/[0.055]
-                            bg-[#0a0f16]
+                            bg-[#f6f8fd]
                             px-4
                             py-16
                             sm:px-6
                             lg:px-8
                             lg:py-20
                             xl:px-10
-                        "
+                            dark:bg-[#0a0f16]
+                            ${styles.divider}
+                        `}
                     >
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
                                 right-0
                                 top-0
+                                hidden
                                 h-72
                                 w-72
                                 rounded-full
                                 bg-indigo-500/[0.04]
                                 blur-[100px]
+                                sm:block
                             "
                         />
 
@@ -1492,7 +1413,7 @@ const Main = () => {
                                         gap-2
                                         rounded-full
                                         border
-                                        border-orange-400/15
+                                        border-orange-400/20
                                         bg-orange-400/[0.05]
                                         px-3
                                         py-1.5
@@ -1501,32 +1422,36 @@ const Main = () => {
                                         font-black
                                         uppercase
                                         tracking-[0.16em]
-                                        text-orange-300
+                                        text-orange-700
+                                        dark:border-orange-400/15
+                                        dark:text-orange-300
                                     "
                                 >
                                     <Zap
                                         size={13}
                                         strokeWidth={2}
+                                        aria-hidden="true"
                                     />
 
                                     community://trending
                                 </div>
 
                                 <h2
-                                    className="
+                                    className={`
                                         mt-4
                                         text-3xl
                                         font-black
                                         tracking-[-0.035em]
-                                        text-white
                                         sm:text-4xl
-                                    "
+                                        ${styles.title}
+                                    `}
                                 >
                                     Qaynoq{" "}
 
                                     <span
                                         className="
-                                            text-cyan-300
+                                            text-cyan-700
+                                            dark:text-cyan-300
                                         "
                                     >
                                         Muammolar
@@ -1534,13 +1459,13 @@ const Main = () => {
                                 </h2>
 
                                 <p
-                                    className="
+                                    className={`
                                         mt-3
                                         max-w-xl
                                         text-sm
                                         leading-6
-                                        text-gray-500
-                                    "
+                                        ${styles.subtitle}
+                                    `}
                                 >
                                     Jamiyat eng ko‘p ko‘rayotgan,
                                     muhokama qilayotgan va yechim
@@ -1550,7 +1475,7 @@ const Main = () => {
 
                             <Link
                                 to="/problems"
-                                className="
+                                className={`
                                     group/all
                                     inline-flex
                                     w-fit
@@ -1558,27 +1483,27 @@ const Main = () => {
                                     gap-2
                                     rounded-xl
                                     border
-                                    border-white/[0.065]
-                                    bg-white/[0.025]
                                     px-4
                                     py-2.5
                                     text-[11px]
                                     font-bold
-                                    text-gray-400
-                                    transition-all
-                                    duration-200
-                                    hover:border-cyan-400/15
-                                    hover:bg-cyan-400/[0.045]
-                                    hover:text-cyan-300
-                                "
+                                    transition-colors
+                                    duration-150
+                                    focus-visible:outline-none
+                                    focus-visible:ring-2
+                                    focus-visible:ring-indigo-500
+                                    ${styles.secondaryButton}
+                                `}
                             >
                                 Barcha muammolar
 
                                 <ArrowRight
                                     size={13}
                                     strokeWidth={2}
+                                    aria-hidden="true"
                                     className="
                                         transition-transform
+                                        duration-150
                                         group-hover/all:translate-x-0.5
                                     "
                                 />
@@ -1590,172 +1515,146 @@ const Main = () => {
                         <div
                             className="
                                 relative
-                                mt-9
+                                mt-7
                                 grid
-                                gap-5
-                                md:grid-cols-2
-                                xl:grid-cols-3
+                                grid-cols-[repeat(auto-fit,minmax(min(100%,285px),1fr))]
+                                gap-4
+                                items-stretch
                             "
                         >
                             {isLoading ? (
-                                [...Array(3)].map(
-                                    (
-                                        _,
-                                        index
-                                    ) => (
+
+                                [0, 1, 2].map((index) => (
+                                    <div
+                                        key={index}
+                                        className="
+                                            animate-pulse
+                                            rounded-3xl
+                                            border
+                                            border-[#dee6f1]
+                                            bg-white
+                                            p-5
+                                            motion-reduce:animate-none
+                                            dark:border-white/[0.055]
+                                            dark:bg-white/[0.02]
+                                        "
+                                    >
                                         <div
-                                            key={
-                                                index
-                                            }
                                             className="
-                                                animate-pulse
-                                                rounded-3xl
-                                                border
-                                                border-white/[0.055]
-                                                bg-white/[0.02]
-                                                p-5
+                                                flex
+                                                items-center
+                                                justify-between
+                                                gap-3
                                             "
                                         >
                                             <div
                                                 className="
-                                                    flex
-                                                    items-center
-                                                    justify-between
-                                                    gap-3
-                                                "
-                                            >
-                                                <div
-                                                    className="
-                                                        h-5
-                                                        w-24
-                                                        rounded-full
-                                                        bg-white/[0.055]
-                                                    "
-                                                />
-
-                                                <div
-                                                    className="
-                                                        h-7
-                                                        w-7
-                                                        rounded-lg
-                                                        bg-white/[0.04]
-                                                    "
-                                                />
-                                            </div>
-
-                                            <div
-                                                className="
-                                                    mt-5
                                                     h-5
-                                                    w-4/5
+                                                    w-24
+                                                    rounded-full
+                                                    bg-slate-200
+                                                    dark:bg-white/[0.055]
+                                                "
+                                            />
+
+                                            <div
+                                                className="
+                                                    h-7
+                                                    w-7
                                                     rounded-lg
-                                                    bg-white/[0.055]
-                                                "
-                                            />
-
-                                            <div
-                                                className="
-                                                    mt-3
-                                                    h-3
-                                                    w-full
-                                                    rounded-full
-                                                    bg-white/[0.035]
-                                                "
-                                            />
-
-                                            <div
-                                                className="
-                                                    mt-2
-                                                    h-3
-                                                    w-3/4
-                                                    rounded-full
-                                                    bg-white/[0.035]
-                                                "
-                                            />
-
-                                            <div
-                                                className="
-                                                    mt-8
-                                                    h-9
-                                                    rounded-xl
-                                                    bg-white/[0.03]
+                                                    bg-slate-100
+                                                    dark:bg-white/[0.04]
                                                 "
                                             />
                                         </div>
-                                    )
-                                )
+
+                                        <div
+                                            className="
+                                                mt-5
+                                                h-5
+                                                w-4/5
+                                                rounded-lg
+                                                bg-slate-200
+                                                dark:bg-white/[0.055]
+                                            "
+                                        />
+
+                                        <div
+                                            className="
+                                                mt-3
+                                                h-3
+                                                w-full
+                                                rounded-full
+                                                bg-slate-100
+                                                dark:bg-white/[0.035]
+                                            "
+                                        />
+
+                                        <div
+                                            className="
+                                                mt-2
+                                                h-3
+                                                w-3/4
+                                                rounded-full
+                                                bg-slate-100
+                                                dark:bg-white/[0.035]
+                                            "
+                                        />
+
+                                        <div
+                                            className="
+                                                mt-8
+                                                h-9
+                                                rounded-xl
+                                                bg-slate-100
+                                                dark:bg-white/[0.03]
+                                            "
+                                        />
+                                    </div>
+                                ))
+
                             ) : safePopularProblems.length > 0 ? (
-                                safePopularProblems.map(
-                                    (
-                                        problem
-                                    ) => (
-                                        <PopularProbelmCard
-                                              key={
-                                                  problem.id
-                                              }
 
-                                              id={
-                                                  problem.id
-                                              }
+                                safePopularProblems.map((problem) => (
+                                    <PopularProblemCard
+                                        key={problem.id}
+                                        id={problem.id}
+                                        user={problem.user}
+                                        problem={problem.problem}
+                                        description={problem.description}
+                                        star={problem.total_stars}
+                                        response={problem.total_responses}
+                                        views={problem.total_views}
+                                        language={
+                                            problem.language ||
+                                            problem.languages ||
+                                            []
+                                        }
+                                        technology={
+                                            problem.technology ||
+                                            problem.technologies ||
+                                            []
+                                        }
+                                        status={problem.status}
+                                        createdAt={problem.created_at}
+                                    />
+                                ))
 
-                                              user={
-                                                  problem.user
-                                              }
-
-                                              problem={
-                                                  problem.problem
-                                              }
-
-                                              description={
-                                                  problem.description
-                                              }
-
-                                              star={
-                                                  problem.total_stars
-                                              }
-
-                                              response={
-                                                  problem.total_responses
-                                              }
-
-                                              views={
-                                                  problem.total_views
-                                              }
-
-                                              language={
-                                                  problem.language ||
-                                                  problem.languages ||
-                                                  []
-                                              }
-
-                                              technology={
-                                                  problem.technology ||
-                                                  problem.technologies ||
-                                                  []
-                                              }
-
-                                              status={
-                                                  problem.status
-                                              }
-
-                                              createdAt={
-                                                  problem.created_at
-                                              }
-                                          />
-                                    )
-                                )
                             ) : (
+
                                 <div
                                     className="
                                         col-span-full
                                         rounded-3xl
                                         border
                                         border-dashed
-                                        border-white/[0.07]
-                                        bg-white/[0.018]
+                                        border-[#dce4ef]
+                                        bg-white
                                         px-6
                                         py-12
                                         text-center
+                                        dark:border-white/[0.07]
+                                        dark:bg-white/[0.018]
                                     "
                                 >
                                     <Bug
@@ -1763,7 +1662,8 @@ const Main = () => {
                                         strokeWidth={1.8}
                                         className="
                                             mx-auto
-                                            text-gray-700
+                                            text-slate-400
+                                            dark:text-gray-700
                                         "
                                     />
 
@@ -1772,7 +1672,8 @@ const Main = () => {
                                             mt-4
                                             text-sm
                                             font-black
-                                            text-gray-300
+                                            text-slate-800
+                                            dark:text-gray-300
                                         "
                                     >
                                         Hozircha qaynoq muammo yo‘q
@@ -1782,10 +1683,12 @@ const Main = () => {
                                         className="
                                             mt-2
                                             text-xs
-                                            text-gray-600
+                                            text-slate-500
+                                            dark:text-gray-600
                                         "
                                     >
-                                        Birinchi muammoni siz joylashingiz mumkin.
+                                        Birinchi muammoni siz
+                                        joylashingiz mumkin.
                                     </p>
 
                                     <Link
@@ -1797,58 +1700,66 @@ const Main = () => {
                                             gap-2
                                             rounded-xl
                                             border
-                                            border-cyan-400/15
-                                            bg-cyan-400/[0.05]
+                                            border-cyan-400/25
+                                            bg-cyan-400/[0.07]
                                             px-4
                                             py-2.5
                                             text-xs
                                             font-bold
-                                            text-cyan-300
+                                            text-cyan-700
+                                            dark:border-cyan-400/15
+                                            dark:bg-cyan-400/[0.05]
+                                            dark:text-cyan-300
                                         "
                                     >
                                         <Plus
                                             size={14}
+                                            aria-hidden="true"
                                         />
 
                                         Muammo joylash
                                     </Link>
                                 </div>
+
                             )}
                         </div>
                     </section>
 
-                    {/* =================================================
+                    {/* ==================================
                         SITE UPDATES
-                    ================================================== */}
+                    ================================== */}
 
                     <SiteUpdates />
 
-                    {/* =================================================
+                    {/* ==================================
                         REWARD SYSTEM
-                    ================================================== */}
+                    ================================== */}
 
                     <section
                         id="about"
-                        className="
+                        className={`
                             relative
                             overflow-hidden
                             border-b
-                            border-white/[0.055]
-                            bg-[#070b12]
+                            bg-white
                             px-4
                             py-16
                             sm:px-6
                             lg:px-8
                             lg:py-20
                             xl:px-10
-                        "
+                            dark:bg-[#070b12]
+                            ${styles.divider}
+                        `}
                     >
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
                                 left-1/2
                                 top-0
+                                hidden
                                 h-72
                                 w-[520px]
                                 -translate-x-1/2
@@ -1856,14 +1767,12 @@ const Main = () => {
                                 rounded-full
                                 bg-indigo-500/[0.06]
                                 blur-[110px]
+                                sm:block
                             "
                         />
 
-                        <div
-                            className="
-                                relative
-                            "
-                        >
+                        <div className="relative">
+
                             {/* HEADER */}
 
                             <div
@@ -1880,7 +1789,7 @@ const Main = () => {
                                         gap-2
                                         rounded-full
                                         border
-                                        border-cyan-400/15
+                                        border-cyan-400/20
                                         bg-cyan-400/[0.05]
                                         px-3
                                         py-1.5
@@ -1889,37 +1798,43 @@ const Main = () => {
                                         font-black
                                         uppercase
                                         tracking-[0.16em]
-                                        text-cyan-300
+                                        text-cyan-700
+                                        dark:border-cyan-400/15
+                                        dark:text-cyan-300
                                     "
                                 >
                                     <Zap
                                         size={13}
                                         strokeWidth={2}
+                                        aria-hidden="true"
                                     />
 
                                     fsociety://reward_loop
                                 </div>
 
                                 <h2
-                                    className="
+                                    className={`
                                         mt-4
                                         text-3xl
                                         font-black
                                         tracking-[-0.035em]
-                                        text-white
                                         sm:text-4xl
-                                    "
+                                        ${styles.title}
+                                    `}
                                 >
                                     Bilim ulashing.{" "}
 
                                     <span
                                         className="
                                             bg-gradient-to-r
-                                            from-cyan-300
-                                            via-indigo-300
-                                            to-yellow-300
+                                            from-cyan-600
+                                            via-indigo-600
+                                            to-amber-600
                                             bg-clip-text
                                             text-transparent
+                                            dark:from-cyan-300
+                                            dark:via-indigo-300
+                                            dark:to-yellow-300
                                         "
                                     >
                                         Qiymat yarating.
@@ -1927,14 +1842,14 @@ const Main = () => {
                                 </h2>
 
                                 <p
-                                    className="
+                                    className={`
                                         mx-auto
                                         mt-3
                                         max-w-2xl
                                         text-sm
                                         leading-6
-                                        text-gray-500
-                                    "
+                                        ${styles.subtitle}
+                                    `}
                                 >
                                     F.Society’da foydali harakat
                                     shunchaki “activity” emas —
@@ -1943,7 +1858,7 @@ const Main = () => {
                                 </p>
                             </div>
 
-                            {/* STEPS */}
+                            {/* REWARD STEPS */}
 
                             <div
                                 className="
@@ -1955,45 +1870,38 @@ const Main = () => {
                             >
                                 <RewardStep
                                     number="01"
-                                    Icon={
-                                        Handshake
-                                    }
+                                    Icon={Handshake}
                                     title="Yordam bering"
                                     description="Savollarga javob yozing, yechim ulashing va boshqa developerga muammoni yopishga yordam bering."
-                                    accentClass="text-cyan-300"
+                                    accentClass="text-cyan-700 dark:text-cyan-300"
                                 />
 
                                 <RewardStep
                                     number="02"
-                                    Icon={
-                                        Coins
-                                    }
+                                    Icon={Coins}
                                     title="FCoin yig‘ing"
                                     description="Foydali javoblar, faoliyat va platformadagi hissangiz orqali FCoin hamda reyting oling."
-                                    accentClass="text-yellow-300"
+                                    accentClass="text-amber-700 dark:text-yellow-300"
                                 >
                                     <img
-                                        src={
-                                            FCoinIcon
-                                        }
+                                        src={FCoinIcon}
                                         alt="FCoin"
                                         className="
                                             h-7
                                             w-7
                                             object-contain
-                                            drop-shadow-[0_0_12px_rgba(234,179,8,0.5)]
+                                            drop-shadow-[0_0_12px_rgba(234,179,8,0.25)]
+                                            dark:drop-shadow-[0_0_12px_rgba(234,179,8,0.5)]
                                         "
                                     />
                                 </RewardStep>
 
                                 <RewardStep
                                     number="03"
-                                    Icon={
-                                        Gift
-                                    }
+                                    Icon={Gift}
                                     title="Profilni kuchaytiring"
                                     description="Badge, reyting, portfolio va jamiyatdagi faollik orqali developer profilingizni ajratib ko‘rsating."
-                                    accentClass="text-fuchsia-300"
+                                    accentClass="text-fuchsia-700 dark:text-fuchsia-300"
                                 />
                             </div>
 
@@ -2006,10 +1914,12 @@ const Main = () => {
                                     gap-2.5
                                     rounded-3xl
                                     border
-                                    border-white/[0.055]
-                                    bg-white/[0.018]
+                                    border-[#dee6f1]
+                                    bg-[#f8faff]
                                     p-3
                                     sm:grid-cols-3
+                                    dark:border-white/[0.055]
+                                    dark:bg-white/[0.018]
                                 "
                             >
                                 <div
@@ -2026,7 +1936,8 @@ const Main = () => {
                                         size={17}
                                         strokeWidth={2}
                                         className="
-                                            text-emerald-300
+                                            text-emerald-700
+                                            dark:text-emerald-300
                                         "
                                     />
 
@@ -2037,7 +1948,8 @@ const Main = () => {
                                                 font-black
                                                 uppercase
                                                 tracking-[0.12em]
-                                                text-gray-500
+                                                text-slate-500
+                                                dark:text-gray-500
                                             "
                                         >
                                             Real contribution
@@ -2048,7 +1960,8 @@ const Main = () => {
                                                 mt-0.5
                                                 text-xs
                                                 font-semibold
-                                                text-gray-300
+                                                text-slate-700
+                                                dark:text-gray-300
                                             "
                                         >
                                             Foydali ish qadrlanadi
@@ -2070,7 +1983,8 @@ const Main = () => {
                                         size={17}
                                         strokeWidth={2}
                                         className="
-                                            text-indigo-300
+                                            text-indigo-700
+                                            dark:text-indigo-300
                                         "
                                     />
 
@@ -2081,7 +1995,8 @@ const Main = () => {
                                                 font-black
                                                 uppercase
                                                 tracking-[0.12em]
-                                                text-gray-500
+                                                text-slate-500
+                                                dark:text-gray-500
                                             "
                                         >
                                             Reputation
@@ -2092,7 +2007,8 @@ const Main = () => {
                                                 mt-0.5
                                                 text-xs
                                                 font-semibold
-                                                text-gray-300
+                                                text-slate-700
+                                                dark:text-gray-300
                                             "
                                         >
                                             Profil kuchayib boradi
@@ -2114,7 +2030,8 @@ const Main = () => {
                                         size={17}
                                         strokeWidth={2}
                                         className="
-                                            text-cyan-300
+                                            text-cyan-700
+                                            dark:text-cyan-300
                                         "
                                     />
 
@@ -2125,7 +2042,8 @@ const Main = () => {
                                                 font-black
                                                 uppercase
                                                 tracking-[0.12em]
-                                                text-gray-500
+                                                text-slate-500
+                                                dark:text-gray-500
                                             "
                                         >
                                             Real-time
@@ -2136,7 +2054,8 @@ const Main = () => {
                                                 mt-0.5
                                                 text-xs
                                                 font-semibold
-                                                text-gray-300
+                                                text-slate-700
+                                                dark:text-gray-300
                                             "
                                         >
                                             Yangilanishlar darhol
@@ -2147,35 +2066,39 @@ const Main = () => {
                         </div>
                     </section>
 
-                    {/* =================================================
+                    {/* ==================================
                         CTA
-                    ================================================== */}
+                    ================================== */}
 
                     <section
-                        className="
+                        className={`
                             relative
                             overflow-hidden
                             border-b
-                            border-white/[0.055]
-                            bg-[#090d14]
+                            bg-[#f4f6fc]
                             px-4
                             py-14
                             sm:px-6
                             lg:px-8
                             xl:px-10
-                        "
+                            dark:bg-[#090d14]
+                            ${styles.divider}
+                        `}
                     >
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
                                 -bottom-24
                                 right-0
+                                hidden
                                 h-80
                                 w-80
                                 rounded-full
                                 bg-fuchsia-500/[0.055]
                                 blur-[110px]
+                                sm:block
                             "
                         />
 
@@ -2185,23 +2108,32 @@ const Main = () => {
                                 overflow-hidden
                                 rounded-[28px]
                                 border
-                                border-indigo-400/15
+                                border-indigo-400/25
                                 bg-gradient-to-br
-                                from-indigo-500/[0.09]
-                                via-white/[0.025]
-                                to-cyan-500/[0.05]
+                                from-indigo-500/[0.10]
+                                via-white/70
+                                to-cyan-500/[0.06]
                                 p-6
                                 sm:p-8
                                 lg:p-10
+                                dark:border-indigo-400/15
+                                dark:from-indigo-500/[0.09]
+                                dark:via-white/[0.025]
+                                dark:to-cyan-500/[0.05]
                             "
                         >
+                            {/* GRID */}
+
                             <div
+                                aria-hidden="true"
                                 className="
                                     pointer-events-none
                                     absolute
                                     inset-0
                                     opacity-[0.025]
-                                    [background-image:linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.35)_1px,transparent_1px)]
+                                    text-slate-900
+                                    dark:text-white
+                                    [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
                                     [background-size:28px_28px]
                                 "
                             />
@@ -2223,7 +2155,7 @@ const Main = () => {
                                             gap-2
                                             rounded-full
                                             border
-                                            border-indigo-400/20
+                                            border-indigo-400/25
                                             bg-indigo-400/[0.06]
                                             px-3
                                             py-1.5
@@ -2232,33 +2164,37 @@ const Main = () => {
                                             font-black
                                             uppercase
                                             tracking-[0.15em]
-                                            text-indigo-300
+                                            text-indigo-700
+                                            dark:border-indigo-400/20
+                                            dark:text-indigo-300
                                         "
                                     >
                                         <Sparkles
                                             size={13}
                                             strokeWidth={2}
+                                            aria-hidden="true"
                                         />
 
                                         next://your_contribution
                                     </div>
 
                                     <h2
-                                        className="
+                                        className={`
                                             mt-4
                                             max-w-3xl
                                             text-3xl
                                             font-black
                                             tracking-[-0.04em]
-                                            text-white
                                             sm:text-4xl
-                                        "
+                                            ${styles.title}
+                                        `}
                                     >
                                         Keyingi kuchli yechim{" "}
 
                                         <span
                                             className="
-                                                text-indigo-300
+                                                text-indigo-700
+                                                dark:text-indigo-300
                                             "
                                         >
                                             sizniki bo‘lishi mumkin.
@@ -2266,13 +2202,13 @@ const Main = () => {
                                     </h2>
 
                                     <p
-                                        className="
+                                        className={`
                                             mt-3
                                             max-w-2xl
                                             text-sm
                                             leading-6
-                                            text-gray-500
-                                        "
+                                            ${styles.subtitle}
+                                        `}
                                     >
                                         Savol bering, yechim yozing,
                                         portfolio yarating va
@@ -2280,6 +2216,8 @@ const Main = () => {
                                         developer izingizni qoldiring.
                                     </p>
                                 </div>
+
+                                {/* CTA BUTTONS */}
 
                                 <div
                                     className="
@@ -2301,28 +2239,36 @@ const Main = () => {
                                                 justify-center
                                                 gap-2.5
                                                 rounded-2xl
-                                                bg-white
+                                                bg-indigo-600
                                                 px-5
                                                 text-sm
                                                 font-black
-                                                text-[#111827]
-                                                transition-all
-                                                duration-300
-                                                hover:-translate-y-0.5
-                                                hover:bg-gray-100
+                                                text-white
+                                                transition-colors
+                                                duration-150
+                                                hover:bg-indigo-500
+                                                focus-visible:outline-none
+                                                focus-visible:ring-2
+                                                focus-visible:ring-indigo-500
+                                                dark:bg-white
+                                                dark:text-[#111827]
+                                                dark:hover:bg-gray-100
                                             "
                                         >
                                             <UserRound
                                                 size={17}
                                                 strokeWidth={2.2}
+                                                aria-hidden="true"
                                             />
 
                                             Hisob ochish
 
                                             <ArrowRight
                                                 size={14}
+                                                aria-hidden="true"
                                                 className="
                                                     transition-transform
+                                                    duration-150
                                                     group-hover/register:translate-x-0.5
                                                 "
                                             />
@@ -2338,28 +2284,36 @@ const Main = () => {
                                                 justify-center
                                                 gap-2.5
                                                 rounded-2xl
-                                                bg-white
+                                                bg-indigo-600
                                                 px-5
                                                 text-sm
                                                 font-black
-                                                text-[#111827]
-                                                transition-all
-                                                duration-300
-                                                hover:-translate-y-0.5
-                                                hover:bg-gray-100
+                                                text-white
+                                                transition-colors
+                                                duration-150
+                                                hover:bg-indigo-500
+                                                focus-visible:outline-none
+                                                focus-visible:ring-2
+                                                focus-visible:ring-indigo-500
+                                                dark:bg-white
+                                                dark:text-[#111827]
+                                                dark:hover:bg-gray-100
                                             "
                                         >
                                             <Plus
                                                 size={17}
                                                 strokeWidth={2.2}
+                                                aria-hidden="true"
                                             />
 
                                             Muammo joylash
 
                                             <ArrowRight
                                                 size={14}
+                                                aria-hidden="true"
                                                 className="
                                                     transition-transform
+                                                    duration-150
                                                     group-hover/create2:translate-x-0.5
                                                 "
                                             />
@@ -2368,7 +2322,7 @@ const Main = () => {
 
                                     <Link
                                         to="/users"
-                                        className="
+                                        className={`
                                             inline-flex
                                             min-h-[48px]
                                             items-center
@@ -2376,22 +2330,21 @@ const Main = () => {
                                             gap-2.5
                                             rounded-2xl
                                             border
-                                            border-white/[0.08]
-                                            bg-white/[0.025]
                                             px-5
                                             text-sm
                                             font-bold
-                                            text-gray-300
-                                            transition-all
-                                            duration-200
-                                            hover:border-cyan-400/15
-                                            hover:bg-cyan-400/[0.045]
-                                            hover:text-white
-                                        "
+                                            transition-colors
+                                            duration-150
+                                            focus-visible:outline-none
+                                            focus-visible:ring-2
+                                            focus-visible:ring-indigo-500
+                                            ${styles.secondaryButton}
+                                        `}
                                     >
                                         <UserRound
                                             size={17}
                                             strokeWidth={2}
+                                            aria-hidden="true"
                                         />
 
                                         Community
@@ -2401,18 +2354,19 @@ const Main = () => {
                         </div>
                     </section>
 
-                    {/* =================================================
+                    {/* ==================================
                         COMMENTS
-                    ================================================== */}
+                    ================================== */}
 
                     <section
                         className="
-                            bg-[#070b12]
+                            bg-white
                             px-4
                             py-14
                             sm:px-6
                             lg:px-8
                             xl:px-10
+                            dark:bg-[#070b12]
                         "
                     >
                         <div
@@ -2428,27 +2382,27 @@ const Main = () => {
                         >
                             <div>
                                 <p
-                                    className="
+                                    className={`
                                         font-mono
                                         text-[9px]
                                         font-black
                                         uppercase
                                         tracking-[0.16em]
-                                        text-gray-600
-                                    "
+                                        ${styles.eyebrow}
+                                    `}
                                 >
                                     community://voice
                                 </p>
 
                                 <h2
-                                    className="
+                                    className={`
                                         mt-2
                                         text-2xl
                                         font-black
                                         tracking-[-0.03em]
-                                        text-white
                                         sm:text-3xl
-                                    "
+                                        ${styles.title}
+                                    `}
                                 >
                                     Jamiyat nima deyapti?
                                 </h2>
@@ -2462,19 +2416,23 @@ const Main = () => {
                                     gap-2
                                     rounded-full
                                     border
-                                    border-white/[0.06]
-                                    bg-white/[0.02]
+                                    border-[#dee6f1]
+                                    bg-[#f8faff]
                                     px-3
                                     py-1.5
                                     text-[9px]
                                     font-bold
                                     uppercase
                                     tracking-[0.12em]
-                                    text-gray-600
+                                    text-slate-500
+                                    dark:border-white/[0.06]
+                                    dark:bg-white/[0.02]
+                                    dark:text-gray-600
                                 "
                             >
                                 <MessageCircle
                                     size={12}
+                                    aria-hidden="true"
                                 />
 
                                 feedback loop
@@ -2483,11 +2441,11 @@ const Main = () => {
 
                         <CommentSection />
                     </section>
+
                 </div>
             </div>
         </main>
     );
 };
-
 
 export default Main;
