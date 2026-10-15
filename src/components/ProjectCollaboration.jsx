@@ -1,395 +1,881 @@
+
+import React from "react";
+
+import {
+    CheckCircle2,
+    Clock3,
+    Loader2,
+    Settings2,
+    UserPlus,
+    Users,
+} from "lucide-react";
+
+// =========================================================
+// PROJECT COLLABORATION COMPONENTS
+// =========================================================
+
+import {
+    CollaborationMemberCard,
+} from "./projectCollaboration/CollaborationCards";
+
+import JoinCollaborationModal from "./projectCollaboration/JoinCollaborationModal";
+
+import ManageCollaboratorsModal from "./projectCollaboration/ManageCollaboratorsModal";
+
+// =========================================================
+// CONTROLLER
+// =========================================================
+
+import useProjectCollaboration from "./projectCollaboration/useProjectCollaboration";
+
+// =========================================================
+// FSOCIETY — PROJECT COLLABORATION
+//
+// Architecture:
+//
 // ProjectCollaboration.jsx
-import React, { useState, useCallback, useEffect } from 'react'; 
-import { useSelector, useDispatch } from 'react-redux'; 
-import { 
-    fetchCollaborationRequests, 
-    sendCollaborationRequest,
-    manageCollaborationRequest, 
-    fetchProjectCollaborators 
-} from '../redux/thunks/projectThunks'; 
-import UserImage from '../assests/userImage.jpeg'; 
+//   ├── useProjectCollaboration
+//   │     ├── Redux
+//   │     ├── Fetch collaborators
+//   │     ├── Fetch requests
+//   │     ├── Send join request
+//   │     ├── Accept / reject request
+//   │     └── Modal state
+//   │
+//   ├── CollaborationMemberCard
+//   │     ├── Project owner
+//   │     └── Active collaborators
+//   │
+//   ├── JoinCollaborationModal
+//   │     └── CollaborationModalFrame
+//   │
+//   └── ManageCollaboratorsModal
+//         ├── CollaborationModalFrame
+//         ├── CollaborationRequestCard
+//         └── CollaborationCollaboratorRow
+//
+// Dark / Light Mode supported.
+//
+// No direct API calls here.
+// =========================================================
 
-// Modelda mavjud bo'lgan ROLE_CHOICES ni frontendda ishlatish uchun
-const COLLABORATION_ROLES = [
-    { value: 'backend', label: 'Backend Developer' },
-    { value: 'api_developer', label: 'API Developer' },
-    { value: 'database_admin', label: 'Database Administrator' },
-    { value: 'devops', label: 'DevOps Engineer' },
-    { value: 'frontend', label: 'Frontend Developer' },
-    { value: 'react_dev', label: 'React Developer' },
-    { value: 'vue_dev', label: 'Vue Developer' },
-    { value: 'angular_dev', label: 'Angular Developer' },
-    { value: 'fullstack', label: 'Fullstack Developer' },
-    { value: 'uiux', label: 'UI/UX Designer' },
-    { value: 'graphic_designer', label: 'Graphic Designer' },
-    { value: 'android_dev', label: 'Android Developer' },
-    { value: 'ios_dev', label: 'iOS Developer' },
-    { value: 'flutter_dev', label: 'Flutter Developer' },
-    { value: 'ml_engineer', label: 'Machine Learning Engineer' },
-    { value: 'data_scientist', label: 'Data Scientist' },
-    { value: 'ai_researcher', label: 'AI Researcher' },
-    { value: 'cybersecurity', label: 'Cybersecurity Specialist' },
-    { value: 'pentester', label: 'Penetration Tester' },
-    { value: 'game_dev', label: 'Game Developer' },
-    { value: 'software_architect', label: 'Software Architect' },
-    { value: 'qa_tester', label: 'QA Tester / Software Tester' },
-    { value: 'project_manager', label: 'Project Manager' },
-    { value: 'mentor', label: 'Mentor / Instructor' },
-    { value: 'researcher', label: 'Researcher' },
-    { value: 'tech_writer', label: 'Technical Writer' },
-];
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
 
-const ProjectCollaboration = ({ 
-    projectId, 
-    projectOwner, 
-    isOwner, 
-    isCollaborator, 
-    hasSentRequest: initialHasSentRequest 
+const ProjectCollaboration = ({
+    projectId,
+
+    projectOwner,
+
+    isOwner = false,
+
+    isCollaborator = false,
+
+    hasSentRequest = false,
+
+    currentCollaborators,
+    pendingRequests,
 }) => {
-    const dispatch = useDispatch();
+    // =====================================================
+    // CONTROLLER
+    // =====================================================
 
-    // Redux State'dan ma'lumotlarni olish
-    const { 
-        collaborators: currentCollaborators = [], 
-        collaboratorsIsLoading: collaboratorsLoading, 
-        
-        collaborationRequestIsLoading: isLoading, 
-        collaborationRequests: pendingRequests = [], 
-        collaborationRequestError: error,
-        isCollaborationActionLoading: isActionLoading 
-    } = useSelector(state => state.project || {}); 
+    const {
+        // ================================================
+        // AUTH
+        // ================================================
 
-    // Hamkorlik logikasi uchun local state'lar
-    const [showJoinModal, setShowJoinModal] = useState(false);
-    const [selectedRole, setSelectedRole] = useState('');
-    const [comment, setComment] = useState('');
-    const [joinRequestError, setJoinRequestError] = useState(null); 
-    
-    const [showManageModal, setShowManageModal] = useState(false);
-    const [activeTab, setActiveTab] = useState('requests');
-    
-    const [hasSentRequest, setHasSentRequest] = useState(initialHasSentRequest);
+        isOwner: currentUserIsOwner,
 
-    // =============================================================
-    // EFFECT: Ma'lumotlarni yuklash
-    // =============================================================
-    useEffect(() => {
-        // 1. So'rovlarni yuklash (Faqat owner uchun)
-        if (isOwner && projectId) {
-            dispatch(fetchCollaborationRequests(projectId));
-        }
-        
-        // 2. Hamkorlarni yuklash (Har kim uchun)
-        if (projectId) {
-            dispatch(fetchProjectCollaborators(projectId));
-        }
+        isCollaborator:
+            currentUserIsCollaborator,
 
-    }, [dispatch, isOwner, projectId]);
+        hasSentRequest:
+            currentUserHasSentRequest,
 
-    // Yordamchi funksiya: Rolning qisqa nomini to'liq nomga o'girish
-    const getRoleLabel = (value) => {
-        const role = COLLABORATION_ROLES.find(r => r.value === value);
-        return role ? role.label : value;
-    };
-    
-    // ✅ YORDAMCHI FUNKSIYA: Ism/Familiya yoki Username ni qaytarish
-    const getFullNameOrUsername = (user) => {
-        if (!user) return 'Noma\'lum';
-        // Ism va Familiyani birlashtirib, bo'sh joylarni olib tashlaymiz
-        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        // Agar to'liq ism mavjud bo'lsa, uni, aks holda username ni qaytaramiz
-        return fullName || user.username || 'Noma\'lum Foydalanuvchi';
-    }
+        // ================================================
+        // TEAM
+        // ================================================
 
+        currentCollaborators:
+            collaborationMembers,
 
-    // =============================================================
-    // HANDLERS
-    // =============================================================
+        displayedCollaborators,
 
-    const sendJoinRequest = useCallback(async () => {
-        if (!selectedRole) return;
-        
-        setJoinRequestError(null); 
+        totalMembers,
 
-        const requestData = {
-            role: selectedRole,
-            message: comment,
-        };
+        // ================================================
+        // REQUESTS
+        // ================================================
 
-        try {
-            await dispatch(sendCollaborationRequest(projectId, requestData));
-            
-            setShowJoinModal(false);
-            setSelectedRole('');
-            setComment('');
-            setHasSentRequest(true); 
-            
-            alert('Hamkorlik so\'rovingiz muvaffaqiyatli yuborildi va tasdiqlash kutilmoqda!');
+        pendingRequests:
+            collaborationRequests,
 
-        } catch (err) {
-            const errorMessage = err.message || "So'rov yuborishda xato yuz berdi.";
-            setJoinRequestError(errorMessage);
-            console.error("So'rov yuborish xatosi:", err);
-        }
-    }, [selectedRole, comment, projectId, dispatch]);
+        // ================================================
+        // LOADING / ERROR
+        // ================================================
 
+        collaboratorsLoading,
+        requestsLoading,
+        requestError,
+        isActionLoading,
 
-    // ✅ Qabul qilish (Haqiqiy backend chaqiruvi bilan)
-    const acceptRequest = useCallback(async (requestId) => {
-        if(isActionLoading) return; 
-        try {
-            await dispatch(manageCollaborationRequest(requestId, 'accepted', projectId));
-            alert('So\'rov muvaffaqiyatli qabul qilindi va hamkor qo\'shildi!');
-            
-        } catch (error) {
-            alert(`Xato: ${error.message}`);
-        }
-    }, [projectId, dispatch, isActionLoading]); 
+        // ================================================
+        // JOIN MODAL
+        // ================================================
 
-    // ✅ Rad etish (Haqiqiy backend chaqiruvi bilan)
-    const rejectRequest = useCallback(async (requestId) => {
-        if(isActionLoading) return; 
-        try {
-            await dispatch(manageCollaborationRequest(requestId, 'rejected', projectId));
-            alert('So\'rov muvaffaqiyatli rad etildi.');
-        } catch (error) {
-            alert(`Xato: ${error.message}`);
-        }
-    }, [projectId, dispatch, isActionLoading]);
+        showJoinModal,
+        handleOpenJoinModal,
+        handleCloseJoinModal,
 
-    // O'chirish (Collaboratorlarni o'chirish)
-    const removeCollaborator = useCallback((collaboratorId) => {
-        // ... (Bu yerda ProjectCollaboration ob'ektini o'chirish Thunk'i chaqirilishi kerak)
-        alert('Hamkor loyihadan olib tashlandi.');
-    }, []);
+        selectedRole,
+        setSelectedRole,
 
+        comment,
+        setComment,
 
-    // =============================================================
-    // MODAL COMPONENTS
-    // =============================================================
+        joinRequestError,
+        isJoining,
 
-    const JoinModal = ({ show, onClose, onSend }) => {
-        if (!show) return null;
-        return (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-                <div onClick={(e) => e.stopPropagation()} className="bg-dark-bg-secondary border border-gray-700 rounded-xl p-8 max-w-lg w-full shadow-2xl space-y-6">
-                    <h3 className="text-2xl font-bold text-white text-center">Loyiha Hamkorligi So'rovi</h3>
-                    {joinRequestError && ( 
-                         <div className="bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-md text-sm">
-                            <i className="fas fa-exclamation-circle mr-2"></i> {joinRequestError}
-                        </div>
-                    )}
-                    <div>
-                        <label htmlFor="role" className="block text-gray-300 text-sm font-medium mb-2">Sizning rolingiz:</label>
-                        <select 
-                            id="role" 
-                            value={selectedRole}
-                            onChange={(e) => setSelectedRole(e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-700 rounded-md p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        >
-                            <option value="" disabled>Rolni tanlang</option>
-                            {COLLABORATION_ROLES.map(role => ( 
-                                <option key={role.value} value={role.value}>{role.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="comment" className="block text-gray-300 text-sm font-medium mb-2">Qo'shimcha izoh (ixtiyoriy):</label>
-                        <textarea 
-                            id="comment" 
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            rows="4" 
-                            className="w-full bg-gray-800 border border-gray-700 rounded-md p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
-                            placeholder="Qanday yordam bera olishingizni yozing..."
-                        ></textarea>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                        <button onClick={onClose} disabled={isActionLoading} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50">Bekor qilish</button>
-                        <button 
-                            onClick={onSend} 
-                            disabled={!selectedRole || isActionLoading} 
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <i className={`fas ${isActionLoading ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i> {isActionLoading ? 'Yuborilmoqda...' : 'So\'rov yuborish'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
+        sendJoinRequest,
+
+        // ================================================
+        // MANAGE MODAL
+        // ================================================
+
+        showManageModal,
+        handleOpenManageModal,
+        handleCloseManageModal,
+
+        activeTab,
+        setActiveTab,
+
+        isManaging,
+        managingRequestId,
+
+        acceptRequest,
+        rejectRequest,
+
+        // ================================================
+        // REFRESH
+        // ================================================
+
+        refreshCollaboration,
+    } = useProjectCollaboration({
+        projectId,
+        projectOwner,
+
+        isOwner,
+        isCollaborator,
+        hasSentRequest,
+
+        currentCollaborators,
+        pendingRequests,
+    });
+
+    // =====================================================
+    // SAFE OWNER
+    // =====================================================
+
+    const owner = projectOwner || {};
+
+    const hasOwner =
+        owner.id != null ||
+        Boolean(owner.username);
+
+    // =====================================================
+    // STATISTICS
+    // =====================================================
+
+    const displayedMemberCount = hasOwner
+        ? totalMembers
+        : displayedCollaborators.length;
+
+    const pendingCount =
+        collaborationRequests.length;
+
+    // =====================================================
+    // JOIN BUTTON STATUS
+    // =====================================================
+
+    const joinBusy =
+        isJoining ||
+        isActionLoading;
+
+    // =====================================================
+    // REFRESH CALLBACK FOR MODAL
+    // =====================================================
+
+    const handleRefresh = () => {
+        return refreshCollaboration({
+            silent: false,
+        });
     };
 
-    const ManageCollaboratorsModal = ({ show, onClose }) => {
-        if (!show) return null;
-
-        return (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-                <div onClick={(e) => e.stopPropagation()} className="bg-dark-bg-secondary border border-gray-700 rounded-xl p-8 max-w-2xl w-full shadow-2xl space-y-6">
-                    <h3 className="text-2xl font-bold text-white text-center">Hamkorlarni boshqarish</h3>
-                    <div className="flex border-b border-gray-700">
-                        <button onClick={() => setActiveTab('requests')} className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === 'requests' ? 'border-indigo-500 text-white' : 'border-transparent text-gray-400 hover:text-white'}`}>
-                            So'rovlar ({isLoading ? '...' : pendingRequests.length})
-                        </button>
-                        <button onClick={() => setActiveTab('collaborators')} className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === 'collaborators' ? 'border-indigo-500 text-white' : 'border-transparent text-gray-400 hover:text-white'}`}>
-                            Mavjud Hamkorlar ({currentCollaborators.length})
-                        </button>
-                    </div>
-
-                    {activeTab === 'requests' && (
-                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                            {isLoading && <p className="text-center text-indigo-400 py-4"><i className="fas fa-spinner fa-spin"></i> So'rovlar yuklanmoqda...</p>}
-                            {error && <p className="text-center text-red-500 py-4"><i className="fas fa-exclamation-triangle"></i> Xato: {error}</p>}
-                            
-                            {!isLoading && pendingRequests.length === 0 && (
-                                <p className="text-gray-400 text-center py-4">Hozircha yangi hamkorlik so'rovlari yo'q.</p>
-                            )}
-
-                            {!isLoading && pendingRequests.length > 0 && (
-                                pendingRequests.map(request => (
-                                    <div key={request.id} className="flex items-center justify-between bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                        <div className="flex items-center gap-3">
-                                            <img src={request.user?.image || UserImage} className="w-10 h-10 rounded-full" alt={request.user?.username} />
-                                            <div>
-                                                <p className="font-bold text-white">{getFullNameOrUsername(request.user)}</p> {/* ✅ getFullNameOrUsername ishlatildi */}
-                                                <p className="text-sm text-gray-400">{getRoleLabel(request?.role)}</p> 
-                                                {request?.message && <p className="text-xs text-gray-500 mt-1">{request?.message}</p>}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => acceptRequest(request.id)} 
-                                                disabled={isActionLoading}
-                                                className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-3 rounded-md text-sm transition-colors disabled:opacity-50"
-                                            >
-                                                <i className={`fas ${isActionLoading ? 'fa-spinner fa-spin' : 'fa-check'}`}></i> Qabul
-                                            </button>
-                                            <button 
-                                                onClick={() => rejectRequest(request.id)} 
-                                                disabled={isActionLoading}
-                                                className="bg-red-600 hover:bg-red-700 text-white py-1.5 px-3 rounded-md text-sm transition-colors disabled:opacity-50"
-                                            >
-                                                <i className={`fas ${isActionLoading ? 'fa-spinner fa-spin' : 'fa-times'}`}></i> Rad
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'collaborators' && (
-                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                            {collaboratorsLoading && <p className="text-center text-indigo-400 py-4"><i className="fas fa-spinner fa-spin"></i> Hamkorlar yuklanmoqda...</p>} 
-                            
-                            {!collaboratorsLoading && currentCollaborators.length === 0 ? (
-                                <p className="text-gray-400 text-center py-4">Hozircha hamkorlar yo'q.</p>
-                            ) : (
-                                currentCollaborators.map(collaborator => (
-                                    <div key={collaborator.id} className="flex items-center justify-between bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                        <div className="flex items-center gap-3">
-                                            <img src={collaborator.user?.image ?? UserImage } className="w-12 h-12 rounded-full" alt={collaborator.user?.username} />
-                                            <div>
-                                                <p className="font-bold text-white">{getFullNameOrUsername(collaborator.user)}</p> {/* ✅ getFullNameOrUsername ishlatildi */}
-                                                <p className="text-sm text-gray-400">{getRoleLabel(collaborator?.role)}</p> 
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <button onClick={() => removeCollaborator(collaborator.id)} className="bg-red-600/20 text-red-300 hover:text-red-400 py-1 px-2 rounded-md text-xs transition-colors">
-                                                <i className="fas fa-trash-alt"></i> O'chirish
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    <div className="flex justify-end">
-                        <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Yopish</button>
-                    </div>
-                </div>
-            </div>
-        );
-    };
+    // =====================================================
+    // JSX
+    // =====================================================
 
     return (
-        <>
-            {/* Loyiha Jamoasi Bo'limi - Asosiy Rendering */}
-            <section className="p-6 md:p-10 border-t border-gray-700/50">
-                <h2 className="text-2xl font-bold text-white mb-6">Loyiha Jamoasi ({currentCollaborators.length + 1})</h2>
-                {collaboratorsLoading && <p className="text-center text-indigo-400 py-4"><i className="fas fa-spinner fa-spin"></i> Hamkorlar yuklanmoqda...</p>}
+        <section
+            aria-labelledby="project-collaboration-title"
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Project Owner */}
-                    <div className="flex items-center gap-3 bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                        <img src={projectOwner.image || UserImage} className="w-12 h-12 rounded-full object-cover" alt="Project Owner" />
-                        <div>
-                            {/* ✅ Project Owner uchun ham getFullNameOrUsername ishlatildi */}
-                            <p className="font-bold text-white">{getFullNameOrUsername(projectOwner)}</p> 
-                            <p className="text-sm text-gray-400 flex items-center gap-1"><i className="fas fa-crown text-yellow-500"></i> Project Owner</p>
-                        </div>
+            className="
+                relative
+
+                w-full
+                min-w-0
+
+                self-start
+                overflow-hidden
+
+                bg-white/40
+
+                px-4
+                py-5
+
+                sm:px-6
+                sm:py-6
+
+                lg:px-8
+
+                xl:px-10
+                xl:py-7
+
+                dark:bg-transparent
+            "
+        >
+            {/* ======================================
+                HEADER
+            ====================================== */}
+
+            <div
+                className="
+                    flex
+                    min-w-0
+
+                    flex-col
+                    gap-3
+
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                "
+            >
+                {/* ==================================
+                    TITLE
+                ================================== */}
+
+                <div
+                    className="
+                        flex
+                        min-w-0
+                        items-center
+                        gap-3
+                    "
+                >
+                    {/* ICON */}
+
+                    <div
+                        className="
+                            grid
+                            h-10
+                            w-10
+                            shrink-0
+                            place-items-center
+
+                            rounded-xl
+                            border
+                            border-indigo-400/25
+
+                            bg-indigo-500/[0.08]
+
+                            text-indigo-700
+
+                            dark:border-indigo-400/15
+                            dark:bg-indigo-400/[0.07]
+                            dark:text-indigo-300
+                        "
+                    >
+                        <Users
+                            size={20}
+                            strokeWidth={1.9}
+                            aria-hidden="true"
+                        />
                     </div>
-                    {/* Collaborators */}
-                    {!collaboratorsLoading && currentCollaborators.map(collaborator => (
-                        <div key={collaborator.id} className="flex items-center gap-3 bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                            <img src={collaborator.user?.image ?? UserImage } className="w-12 h-12 rounded-full" alt={collaborator.user?.username} />
-                            <div>
-                                {/* ✅ getFullNameOrUsername ishlatildi */}
-                                <p className="font-bold text-white">{getFullNameOrUsername(collaborator.user)}</p> 
-                                <p className="text-sm text-gray-400">{getRoleLabel(collaborator?.role)}</p> 
-                            </div>
-                        </div>
-                    ))}
+
+                    {/* TITLE / COUNT */}
+
+                    <div className="min-w-0">
+                        <h2
+                            id="project-collaboration-title"
+
+                            className="
+                                text-[18px]
+                                font-black
+                                tracking-tight
+
+                                text-slate-900
+
+                                sm:text-xl
+
+                                dark:text-white
+                            "
+                        >
+                            Loyiha jamoasi
+                        </h2>
+
+                        <p
+                            className="
+                                mt-1
+
+                                font-mono
+                                text-[10px]
+                                font-semibold
+
+                                text-slate-500
+
+                                dark:text-gray-500
+                            "
+                        >
+                            {collaboratorsLoading
+                                ? "Hamkorlar yuklanmoqda..."
+                                : `${displayedMemberCount} ta a’zo`}
+                        </p>
+                    </div>
                 </div>
-            </section>
 
-            {/* Collaboration Buttons (Sidebar uchun) */}
-            <div className="space-y-3 mt-8">
-                {/* Loyihaga qo'shilish tugmasi */}
-                {!isOwner && !hasSentRequest && !isCollaborator && (
-                    <button onClick={() => setShowJoinModal(true)} disabled={isActionLoading} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i className={`fas ${isActionLoading ? 'fa-spinner fa-spin' : 'fa-user-plus'}`}></i> Loyihaga qo'shilish
-                    </button>
-                )}
+                {/* ==================================
+                    OWNER MANAGEMENT BUTTON
+                ================================== */}
 
-                {/* So'rov kutilmoqda tugmasi */}
-                {!isOwner && hasSentRequest && !isCollaborator && (
-                    <button disabled className="w-full flex items-center justify-center gap-2 bg-gray-700 text-gray-400 font-semibold py-3 px-5 rounded-lg cursor-not-allowed">
-                        <i className="fas fa-hourglass-half"></i> So'rov kutilmoqda...
-                    </button>
-                )}
+                {currentUserIsOwner && (
+                    <button
+                        type="button"
 
-                {/* Siz hamkorsiz tugmasi */}
-                {!isOwner && isCollaborator && (
-                    <div className="w-full flex items-center justify-center gap-2 bg-green-600/20 text-green-300 font-semibold py-3 px-5 rounded-lg">
-                        <i className="fas fa-check-circle"></i> Siz hamkorsiz!
-                    </div>
-                )}
+                        onClick={handleOpenManageModal}
 
-                {/* Hamkorlarni boshqarish tugmasi (faqat owner uchun) */}
-                {isOwner && (
-                    <button onClick={() => setShowManageModal(true)} className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-5 rounded-lg transition-colors">
-                        <i className="fas fa-users-cog"></i> Hamkorlarni boshqarish ({isLoading ? '...' : pendingRequests.length})
+                        aria-haspopup="dialog"
+
+                        className="
+                            inline-flex
+                            min-h-10
+
+                            items-center
+                            justify-center
+                            gap-2
+
+                            self-start
+
+                            rounded-xl
+                            border
+                            border-indigo-400/30
+
+                            bg-indigo-500/[0.08]
+
+                            px-3.5
+                            py-2.5
+
+                            text-[11px]
+                            font-bold
+
+                            text-indigo-700
+
+                            transition-colors
+
+                            hover:bg-indigo-500/[0.13]
+
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-indigo-500
+
+                            dark:border-indigo-400/20
+                            dark:bg-indigo-400/[0.07]
+                            dark:text-indigo-300
+
+                            dark:hover:bg-indigo-400/[0.12]
+                        "
+                    >
+                        <Settings2
+                            size={16}
+                            aria-hidden="true"
+                        />
+
+                        <span>
+                            Hamkorlarni boshqarish
+                        </span>
+
+                        {/* REQUEST COUNT */}
+
+                        <span
+                            className="
+                                inline-flex
+                                min-w-5
+                                items-center
+                                justify-center
+
+                                rounded-md
+
+                                bg-indigo-500/[0.10]
+
+                                px-1.5
+                                py-0.5
+
+                                font-mono
+                                text-[10px]
+
+                                dark:bg-indigo-400/[0.12]
+                            "
+                        >
+                            {requestsLoading
+                                ? "..."
+                                : pendingCount}
+                        </span>
                     </button>
                 )}
             </div>
 
-            {/* Modals */}
-            <JoinModal 
-                show={showJoinModal} 
-                onClose={() => {
-                    setShowJoinModal(false); 
-                    setJoinRequestError(null); 
-                }} 
-                onSend={sendJoinRequest} 
-            />
-            
-            <ManageCollaboratorsModal 
-                show={showManageModal} 
-                onClose={() => setShowManageModal(false)} 
-            />
-        </>
+            {/* ======================================
+                TEAM MEMBERS
+
+                Important layout rules:
+                - Natural content height
+                - No h-full
+                - No min-h-screen
+                - No justify-between
+                - No mt-auto
+            ====================================== */}
+
+            <div
+                className="
+                    mt-5
+
+                    grid
+                    w-full
+                    min-w-0
+                    grid-cols-1
+
+                    content-start
+                    items-start
+
+                    gap-3
+
+                    sm:grid-cols-2
+                "
+            >
+                {/* ==================================
+                    PROJECT OWNER
+                ================================== */}
+
+                {hasOwner && (
+                    <CollaborationMemberCard
+                        user={owner}
+                        isProjectOwner
+                    />
+                )}
+
+                {/* ==================================
+                    ACTIVE COLLABORATORS
+                ================================== */}
+
+                {!collaboratorsLoading &&
+                    displayedCollaborators.map(
+                        (collaborator, index) => (
+                            <CollaborationMemberCard
+                                key={
+                                    collaborator.id ??
+                                    collaborator.user?.id ??
+                                    `collaborator-${index}`
+                                }
+
+                                user={
+                                    collaborator.user
+                                }
+
+                                role={
+                                    collaborator.role
+                                }
+                            />
+                        )
+                    )}
+            </div>
+
+            {/* ======================================
+                LOADING INDICATOR
+            ====================================== */}
+
+            {collaboratorsLoading && (
+                <div
+                    role="status"
+
+                    className="
+                        mt-3
+
+                        flex
+                        items-center
+                        gap-2
+
+                        text-[11px]
+                        font-semibold
+
+                        text-indigo-700
+
+                        dark:text-indigo-300
+                    "
+                >
+                    <Loader2
+                        size={15}
+                        aria-hidden="true"
+
+                        className="
+                            animate-spin
+                            motion-reduce:animate-none
+                        "
+                    />
+
+                    Hamkorlar yuklanmoqda...
+                </div>
+            )}
+
+            {/* ======================================
+                EMPTY OWNER STATE
+            ====================================== */}
+
+            {!hasOwner &&
+                !collaboratorsLoading &&
+                displayedCollaborators.length === 0 && (
+                    <p
+                        className="
+                            mt-4
+
+                            rounded-xl
+                            border
+                            border-dashed
+                            border-[#dce5f0]
+
+                            bg-slate-50
+
+                            p-4
+
+                            text-xs
+                            font-medium
+
+                            text-slate-500
+
+                            dark:border-white/[0.08]
+                            dark:bg-white/[0.025]
+                            dark:text-gray-400
+                        "
+                    >
+                        Jamoa a’zolari haqida
+                        ma’lumot topilmadi.
+                    </p>
+                )}
+
+            {/* ======================================
+                JOIN / PENDING / COLLABORATOR STATUS
+
+                This block directly follows
+                the team cards.
+
+                No excessive vertical spacing.
+            ====================================== */}
+
+            {!currentUserIsOwner && (
+                <div
+                    className="
+                        mt-4
+                        w-full
+                        min-w-0
+                    "
+                >
+                    {/* ==============================
+                        ALREADY A COLLABORATOR
+                    ============================== */}
+
+                    {currentUserIsCollaborator ? (
+                        <div
+                            role="status"
+
+                            className="
+                                flex
+                                min-h-11
+                                w-full
+
+                                items-center
+                                justify-center
+                                gap-2
+
+                                rounded-xl
+                                border
+                                border-emerald-300/60
+
+                                bg-emerald-500/[0.08]
+
+                                px-4
+                                py-3
+
+                                text-xs
+                                font-bold
+
+                                text-emerald-700
+
+                                dark:border-emerald-400/20
+                                dark:bg-emerald-400/[0.08]
+                                dark:text-emerald-300
+                            "
+                        >
+                            <CheckCircle2
+                                size={17}
+                                aria-hidden="true"
+                            />
+
+                            Siz ushbu loyiha hamkorisiz!
+                        </div>
+
+                    ) : currentUserHasSentRequest ? (
+                        /* ==========================
+                            PENDING REQUEST
+                        ========================== */
+
+                        <div
+                            role="status"
+
+                            className="
+                                flex
+                                min-h-11
+                                w-full
+
+                                items-center
+                                justify-center
+                                gap-2
+
+                                rounded-xl
+                                border
+                                border-amber-300/60
+
+                                bg-amber-500/[0.07]
+
+                                px-4
+                                py-3
+
+                                text-xs
+                                font-bold
+
+                                text-amber-800
+
+                                dark:border-amber-400/20
+                                dark:bg-amber-400/[0.07]
+                                dark:text-amber-300
+                            "
+                        >
+                            <Clock3
+                                size={17}
+                                aria-hidden="true"
+                            />
+
+                            Hamkorlik so‘rovingiz
+                            kutilmoqda
+                        </div>
+
+                    ) : (
+                        /* ==========================
+                            JOIN BUTTON
+                        ========================== */
+
+                        <button
+                            type="button"
+
+                            onClick={
+                                handleOpenJoinModal
+                            }
+
+                            disabled={joinBusy}
+
+                            aria-haspopup="dialog"
+
+                            className="
+                                inline-flex
+                                min-h-11
+                                w-full
+
+                                items-center
+                                justify-center
+                                gap-2
+
+                                rounded-xl
+                                border
+                                border-indigo-500/60
+
+                                bg-indigo-600
+
+                                px-4
+                                py-3
+
+                                text-xs
+                                font-bold
+
+                                text-white
+
+                                transition-colors
+
+                                hover:bg-indigo-700
+
+                                focus-visible:outline-none
+                                focus-visible:ring-2
+                                focus-visible:ring-indigo-500
+                                focus-visible:ring-offset-2
+
+                                disabled:cursor-not-allowed
+                                disabled:opacity-60
+
+                                dark:focus-visible:ring-offset-[#0b1018]
+                            "
+                        >
+                            {joinBusy ? (
+                                <Loader2
+                                    size={17}
+                                    aria-hidden="true"
+
+                                    className="
+                                        animate-spin
+                                        motion-reduce:animate-none
+                                    "
+                                />
+                            ) : (
+                                <UserPlus
+                                    size={17}
+                                    aria-hidden="true"
+                                />
+                            )}
+
+                            <span>
+                                {joinBusy
+                                    ? "Yuborilmoqda..."
+                                    : "Loyihaga qo‘shilish"}
+                            </span>
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* ======================================
+                JOIN MODAL
+            ====================================== */}
+
+            {!currentUserIsOwner && (
+                <JoinCollaborationModal
+                    isOpen={
+                        showJoinModal
+                    }
+
+                    onClose={
+                        handleCloseJoinModal
+                    }
+
+                    onSend={
+                        sendJoinRequest
+                    }
+
+                    selectedRole={
+                        selectedRole
+                    }
+
+                    onRoleChange={
+                        setSelectedRole
+                    }
+
+                    comment={
+                        comment
+                    }
+
+                    onCommentChange={
+                        setComment
+                    }
+
+                    error={
+                        joinRequestError
+                    }
+
+                    isSubmitting={
+                        isJoining ||
+                        isActionLoading
+                    }
+                />
+            )}
+
+            {/* ======================================
+                OWNER MANAGEMENT MODAL
+            ====================================== */}
+
+            {currentUserIsOwner && (
+                <ManageCollaboratorsModal
+                    isOpen={
+                        showManageModal
+                    }
+
+                    onClose={
+                        handleCloseManageModal
+                    }
+
+                    activeTab={
+                        activeTab
+                    }
+
+                    onTabChange={
+                        setActiveTab
+                    }
+
+                    requests={
+                        collaborationRequests
+                    }
+
+                    collaborators={
+                        collaborationMembers
+                    }
+
+                    requestsLoading={
+                        requestsLoading
+                    }
+
+                    collaboratorsLoading={
+                        collaboratorsLoading
+                    }
+
+                    requestError={
+                        requestError
+                    }
+
+                    isActionLoading={
+                        isManaging
+                    }
+
+                    managingRequestId={
+                        managingRequestId
+                    }
+
+                    onAccept={
+                        acceptRequest
+                    }
+
+                    onReject={
+                        rejectRequest
+                    }
+
+                    onRefresh={
+                        handleRefresh
+                    }
+                />
+            )}
+        </section>
     );
 };
 
-export default ProjectCollaboration;
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default React.memo(
+    ProjectCollaboration
+);
