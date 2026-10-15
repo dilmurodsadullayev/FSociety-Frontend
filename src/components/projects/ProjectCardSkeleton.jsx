@@ -1,134 +1,163 @@
-// src/components/projects/ProjectCardSkeleton.jsx
 
 import React from "react";
 
+// =========================================================
+// FSOCIETY — PROJECT CARD SKELETON
+//
+// Features:
+// - Dark / Light Mode
+// - Responsive card proportions
+// - Same layout as ProjectsPageCard
+// - Reduced motion support
+// - Accessible loading state
+// =========================================================
+
+// =========================================================
+// REUSABLE SKELETON BLOCK
+// =========================================================
+
+const SkeletonBlock = ({
+    className = "",
+}) => {
+    return (
+        <div
+            aria-hidden="true"
+
+            className={`
+                animate-pulse
+
+                rounded-lg
+
+                bg-slate-200/90
+
+                dark:bg-white/[0.07]
+
+                motion-reduce:animate-none
+
+                ${className}
+            `}
+        />
+    );
+};
+
+// =========================================================
+// PROJECT CARD SKELETON
+// =========================================================
 
 const ProjectCardSkeleton = () => {
-
     return (
-
         <div
+            role="status"
+            aria-label="Loyiha yuklanmoqda"
+
             className="
+                relative
+
+                flex
+                h-full
+                min-w-0
+                flex-col
+
                 overflow-hidden
 
                 rounded-2xl
-
                 border
-                border-white/[0.07]
+                border-[#dce5f0]
 
-                bg-[#0d1117]
+                bg-white
 
-                shadow-lg
-                shadow-black/10
+                shadow-[0_8px_30px_rgba(15,23,42,0.045)]
+
+                dark:border-white/[0.07]
+                dark:bg-[#0d1117]
+
+                dark:shadow-[0_8px_28px_rgba(0,0,0,0.14)]
             "
         >
-
-            {/* =================================================
+            {/* ======================================
                 TOP BAR
-            ================================================== */}
+            ====================================== */}
 
             <div
                 className="
                     flex
                     h-10
+                    min-w-0
+                    shrink-0
 
                     items-center
                     justify-between
+                    gap-3
 
                     border-b
-                    border-white/[0.055]
+                    border-[#e4eaf3]
 
-                    px-4
+                    bg-slate-50/60
+
+                    px-3
+
+                    sm:px-4
+
+                    dark:border-white/[0.055]
+                    dark:bg-black/[0.10]
                 "
             >
-
-                {/* LEFT */}
+                {/* PROJECT NUMBER / PROMOTION */}
 
                 <div
                     className="
                         flex
+                        min-w-0
                         items-center
-
                         gap-2
                     "
                 >
-
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-2
+                            h-2.5
                             w-16
-
-                            animate-pulse
-
-                            rounded-full
-
-                            bg-white/[0.05]
                         "
                     />
 
-
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-4
+                            h-5
                             w-14
 
-                            animate-pulse
-
                             rounded-full
-
-                            bg-cyan-400/[0.04]
                         "
                     />
-
                 </div>
 
-
-                {/* RIGHT */}
+                {/* STATS */}
 
                 <div
                     className="
                         flex
+                        shrink-0
                         items-center
-
                         gap-3
                     "
                 >
-
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-2
+                            h-2.5
                             w-7
-
-                            animate-pulse
-
-                            rounded-full
-
-                            bg-white/[0.05]
                         "
                     />
 
-
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-2
+                            h-2.5
                             w-7
-
-                            animate-pulse
-
-                            rounded-full
-
-                            bg-white/[0.05]
                         "
                     />
-
                 </div>
-
             </div>
 
-
-            {/* =================================================
-                IMAGE SKELETON
-            ================================================== */}
+            {/* ======================================
+                IMAGE PREVIEW SKELETON
+            ====================================== */}
 
             <div
                 className="
@@ -136,282 +165,285 @@ const ProjectCardSkeleton = () => {
 
                     h-[170px]
                     w-full
+                    shrink-0
 
                     overflow-hidden
 
                     border-b
-                    border-white/[0.06]
+                    border-[#e2e8f0]
 
-                    bg-[#080b10]
+                    bg-gradient-to-br
+                    from-[#edf5fd]
+                    via-[#f6f9fe]
+                    to-[#e8effa]
 
                     md:h-[180px]
+
+                    dark:border-white/[0.06]
+                    dark:from-[#080d14]
+                    dark:via-[#0b111b]
+                    dark:to-[#101a2a]
                 "
             >
+                {/* IMAGE SHAPE */}
 
                 <div
                     className="
                         absolute
                         inset-3
 
-                        animate-pulse
+                        overflow-hidden
 
                         rounded-xl
+                        border
+                        border-slate-200/50
 
-                        bg-white/[0.035]
+                        dark:border-white/[0.03]
                     "
-                />
+                >
+                    <SkeletonBlock
+                        className="
+                            h-full
+                            w-full
 
+                            !rounded-xl
 
-                <div
+                            !bg-slate-200/60
+
+                            dark:!bg-white/[0.04]
+                        "
+                    />
+                </div>
+
+                {/* PREVIEW LABEL */}
+
+                <SkeletonBlock
                     className="
-                        pointer-events-none
-
                         absolute
-                        inset-0
+                        bottom-3
+                        left-3
 
-                        opacity-[0.09]
+                        h-2
+                        w-24
 
-                        [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)]
+                        !bg-slate-300/60
 
-                        [background-size:20px_20px]
+                        dark:!bg-white/[0.055]
                     "
                 />
-
             </div>
 
-
-            {/* =================================================
-                CONTENT
-            ================================================== */}
+            {/* ======================================
+                CARD CONTENT
+            ====================================== */}
 
             <div
                 className="
                     flex
-                    min-h-[205px]
+                    min-h-[220px]
+                    min-w-0
+                    flex-1
                     flex-col
 
                     p-4
                 "
             >
-
-                {/* =================================================
-                    USER
-                ================================================== */}
+                {/* ==================================
+                    AUTHOR + DATE
+                ================================== */}
 
                 <div
                     className="
                         flex
+                        min-w-0
+
                         items-center
                         justify-between
-
                         gap-3
                     "
                 >
+                    {/* AUTHOR */}
 
                     <div
                         className="
                             flex
+                            min-w-0
                             items-center
-
                             gap-2
                         "
                     >
-
-                        <div
+                        <SkeletonBlock
                             className="
-                                h-5
-                                w-5
+                                h-6
+                                w-6
+                                shrink-0
 
-                                animate-pulse
-
-                                rounded-full
-
-                                bg-white/[0.06]
+                                !rounded-full
                             "
                         />
 
-
-                        <div
+                        <SkeletonBlock
                             className="
-                                h-2
+                                h-2.5
                                 w-20
 
-                                animate-pulse
-
-                                rounded-full
-
-                                bg-white/[0.05]
+                                sm:w-24
                             "
                         />
-
                     </div>
 
+                    {/* DATE */}
 
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-2
-                            w-14
-
-                            animate-pulse
-
-                            rounded-full
-
-                            bg-white/[0.035]
+                            h-2.5
+                            w-16
+                            shrink-0
                         "
                     />
-
                 </div>
 
+                {/* ==================================
+                    PROJECT TITLE
+                ================================== */}
 
-                {/* =================================================
-                    TITLE
-                ================================================== */}
-
-                <div
+                <SkeletonBlock
                     className="
                         mt-4
 
-                        h-4
-                        w-2/3
-
-                        animate-pulse
-
-                        rounded-full
-
-                        bg-white/[0.07]
+                        h-5
+                        w-[72%]
                     "
                 />
 
-
-                {/* =================================================
-                    FEATURE
-                ================================================== */}
+                {/* ==================================
+                    MAIN FEATURES
+                ================================== */}
 
                 <div
                     className="
                         mt-3
 
-                        h-2
-                        w-1/2
-
-                        animate-pulse
-
-                        rounded-full
-
-                        bg-violet-400/[0.045]
-                    "
-                />
-
-
-                {/* =================================================
-                    DESCRIPTION
-                ================================================== */}
-
-                <div
-                    className="
-                        mt-4
-
-                        space-y-2
+                        flex
+                        items-center
+                        gap-2
                     "
                 >
-
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-2
-                            w-full
+                            h-3
+                            w-3
+                            shrink-0
 
-                            animate-pulse
+                            !rounded
+                            !bg-violet-200/80
 
-                            rounded-full
-
-                            bg-white/[0.035]
+                            dark:!bg-violet-400/[0.10]
                         "
                     />
 
-
-                    <div
+                    <SkeletonBlock
                         className="
-                            h-2
-                            w-4/5
+                            h-2.5
+                            w-32
+                            max-w-[65%]
 
-                            animate-pulse
+                            !bg-violet-200/70
 
-                            rounded-full
-
-                            bg-white/[0.035]
+                            dark:!bg-violet-400/[0.08]
                         "
                     />
-
                 </div>
 
+                {/* ==================================
+                    DESCRIPTION
+                ================================== */}
 
-                {/* =================================================
+                <div className="mt-4 space-y-2.5">
+                    <SkeletonBlock
+                        className="
+                            h-2.5
+                            w-full
+
+                            !bg-slate-100
+
+                            dark:!bg-white/[0.045]
+                        "
+                    />
+
+                    <SkeletonBlock
+                        className="
+                            h-2.5
+                            w-[82%]
+
+                            !bg-slate-100
+
+                            dark:!bg-white/[0.045]
+                        "
+                    />
+                </div>
+
+                {/* ==================================
                     BOTTOM
-                ================================================== */}
+                ================================== */}
 
-                <div
-                    className="
-                        mt-auto
-                        pt-4
-                    "
-                >
+                <div className="mt-auto pt-4">
 
-                    {/* STACK */}
+                    {/* STACK BADGES */}
 
                     <div
                         className="
                             flex
+                            min-w-0
                             items-center
-
                             gap-2
                         "
                     >
-
-                        <div
+                        <SkeletonBlock
                             className="
-                                h-6
+                                h-7
                                 w-16
 
-                                animate-pulse
-
-                                rounded-md
-
-                                bg-white/[0.04]
+                                !rounded-lg
                             "
                         />
 
-
-                        <div
+                        <SkeletonBlock
                             className="
-                                h-6
+                                h-7
                                 w-20
 
-                                animate-pulse
-
-                                rounded-md
-
-                                bg-white/[0.04]
+                                !rounded-lg
                             "
                         />
 
-
-                        <div
+                        <SkeletonBlock
                             className="
-                                h-6
+                                h-7
                                 w-14
 
-                                animate-pulse
-
-                                rounded-md
-
-                                bg-white/[0.04]
+                                !rounded-lg
                             "
                         />
 
+                        {/* DETAIL BUTTON */}
+
+                        <SkeletonBlock
+                            className="
+                                ml-auto
+
+                                h-9
+                                w-9
+                                shrink-0
+
+                                !rounded-xl
+                            "
+                        />
                     </div>
 
-
-                    {/* FOOTER */}
+                    {/* ==================================
+                        CARD FOOTER
+                    ================================== */}
 
                     <div
                         className="
@@ -420,75 +452,70 @@ const ProjectCardSkeleton = () => {
                             flex
                             items-center
                             justify-between
+                            gap-3
 
                             border-t
-                            border-white/[0.045]
+                            border-[#e7ebf2]
 
                             pt-3
+
+                            dark:border-white/[0.055]
                         "
                     >
+                        {/* COLLABORATIONS / STACK COUNT */}
 
                         <div
                             className="
                                 flex
                                 items-center
-
                                 gap-4
                             "
                         >
-
-                            <div
+                            <SkeletonBlock
                                 className="
-                                    h-2
+                                    h-2.5
                                     w-14
 
-                                    animate-pulse
+                                    !bg-slate-100
 
-                                    rounded-full
-
-                                    bg-white/[0.03]
+                                    dark:!bg-white/[0.035]
                                 "
                             />
 
-
-                            <div
+                            <SkeletonBlock
                                 className="
-                                    h-2
+                                    h-2.5
                                     w-14
 
-                                    animate-pulse
+                                    !bg-slate-100
 
-                                    rounded-full
-
-                                    bg-white/[0.03]
+                                    dark:!bg-white/[0.035]
                                 "
                             />
-
                         </div>
 
+                        {/* PUBLIC STATUS */}
 
-                        <div
+                        <SkeletonBlock
                             className="
-                                h-2
-                                w-10
+                                h-2.5
+                                w-12
+                                shrink-0
 
-                                animate-pulse
+                                !bg-emerald-200/70
 
-                                rounded-full
-
-                                bg-emerald-400/[0.035]
+                                dark:!bg-emerald-400/[0.08]
                             "
                         />
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default ProjectCardSkeleton;
+export default React.memo(ProjectCardSkeleton);

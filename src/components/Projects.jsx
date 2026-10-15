@@ -1,4 +1,3 @@
-// src/components/Projects.jsx
 
 import React, {
     useCallback,
@@ -13,27 +12,37 @@ import {
     useSelector,
 } from "react-redux";
 
+// =========================================================
+// REDUX
+// =========================================================
+
 import {
     getProjectFailure,
     getProjectStart,
     getProjectSuccess,
 } from "../features/projects";
 
+// =========================================================
+// SERVICES
+// =========================================================
+
 import ProjectService from "../services/project";
 
+// =========================================================
+// PROJECT COMPONENTS
+// =========================================================
+
 import ProjectsPageCard from "./projects/ProjectsPageCard";
-
 import ProjectCardSkeleton from "./projects/ProjectCardSkeleton";
-
 import ProjectsEmptyState from "./projects/ProjectsEmptyState";
-
 import ProjectsErrorState from "./projects/ProjectsErrorState";
-
 import ProjectsHeader from "./projects/ProjectsHeader";
-
 import ProjectsToolbar from "./projects/ProjectsToolbar";
-
 import ProjectsPagination from "./projects/ProjectsPagination";
+
+// =========================================================
+// HELPERS
+// =========================================================
 
 import {
     getErrorMessage,
@@ -42,782 +51,700 @@ import {
     safeNumber,
 } from "./projects/projectHelpers";
 
-
 // =========================================================
 // CONFIG
 // =========================================================
 
 const PAGE_SIZE = 6;
-
 const SEARCH_DELAY = 400;
-
+const EMPTY_PROJECTS = [];
 
 // =========================================================
-// PROJECTS
+// FSOCIETY — PROJECTS PAGE
+//
+// Features:
+// - Global Dark / Light Mode
+// - Responsive project grid
+// - Search with debounce
+// - Ctrl / Cmd + K search shortcut
+// - Server-side pagination
+// - AbortController request cancellation
+// - Stale response protection
+// - Loading / Error / Empty states
+// - Retry support
+//
+// Theme is controlled by ThemeContext.
 // =========================================================
 
 const Projects = () => {
+    const dispatch = useDispatch();
 
-    const dispatch =
-        useDispatch();
+    // =====================================================
+    // REFS
+    // =====================================================
 
-
-    const projectsSectionRef =
-        useRef(
-            null
-        );
-
-
-    const searchInputRef =
-        useRef(
-            null
-        );
-
+    const projectsSectionRef = useRef(null);
+    const searchInputRef = useRef(null);
 
     // =====================================================
     // REDUX
     // =====================================================
 
     const {
-
         projects,
-
-        project_isLoading,
-
-        project_error,
-
+        project_isLoading = false,
+        project_error = null,
     } = useSelector(
-        (
-            state
-        ) =>
-            state.project
+        (state) => state.project || {}
     );
 
-
     // =====================================================
-    // SEARCH
-    // =====================================================
-
-    const [
-        searchTerm,
-        setSearchTerm,
-    ] = useState(
-        ""
-    );
-
-
-    const [
-        debouncedSearch,
-        setDebouncedSearch,
-    ] = useState(
-        ""
-    );
-
-
-    // =====================================================
-    // PAGE
+    // SEARCH STATE
     // =====================================================
 
-    const [
-        currentPage,
-        setCurrentPage,
-    ] = useState(
-        1
-    );
+    const [searchTerm, setSearchTerm] =
+        useState("");
 
+    const [debouncedSearch, setDebouncedSearch] =
+        useState("");
 
-    const [
-        pagination,
-        setPagination,
-    ] = useState({
-        count:
-            0,
+    // =====================================================
+    // PAGINATION STATE
+    // =====================================================
 
-        next:
-            null,
+    const [currentPage, setCurrentPage] =
+        useState(1);
 
-        previous:
-            null,
-    });
+    const [pagination, setPagination] =
+        useState({
+            count: 0,
+            next: null,
+            previous: null,
+        });
 
+    // =====================================================
+    // RETRY STATE
+    //
+    // Incrementing this key restarts the managed request.
+    // The previous request is aborted by effect cleanup.
+    // =====================================================
+
+    const [retryKey, setRetryKey] = useState(0);
 
     // =====================================================
     // SAFE PROJECTS
     // =====================================================
 
-    const projectList =
-        useMemo(
-            () => {
-
-                return Array.isArray(
-                    projects
-                )
-                    ? projects
-                    : [];
-
-            },
-            [
-                projects,
-            ]
-        );
-
+    const projectList = useMemo(() => {
+        return Array.isArray(projects)
+            ? projects
+            : EMPTY_PROJECTS;
+    }, [projects]);
 
     // =====================================================
-    // TOTAL PAGES
+    // TOTAL COUNT / PAGES
     // =====================================================
 
-    const totalPages =
-        useMemo(
-            () => {
+    const totalCount = safeNumber(
+        pagination.count
+    );
 
-                if (
-                    pagination.count <=
-                    0
-                ) {
+    const totalPages = useMemo(() => {
+        if (totalCount <= 0) {
+            return 0;
+        }
 
-                    return 0;
-                }
-
-
-                return Math.ceil(
-                    pagination.count /
-                    PAGE_SIZE
-                );
-
-            },
-            [
-                pagination.count,
-            ]
+        return Math.ceil(
+            totalCount / PAGE_SIZE
         );
-
+    }, [totalCount]);
 
     // =====================================================
     // PAGINATION ITEMS
     // =====================================================
 
-    const paginationItems =
-        useMemo(
-            () => {
-
-                return getPaginationItems(
-                    currentPage,
-                    totalPages
-                );
-
-            },
-            [
-                currentPage,
-                totalPages,
-            ]
+    const paginationItems = useMemo(() => {
+        return getPaginationItems(
+            currentPage,
+            totalPages
         );
-
+    }, [
+        currentPage,
+        totalPages,
+    ]);
 
     // =====================================================
     // RESULT RANGE
     // =====================================================
 
-    const rangeStart =
-        pagination.count >
-        0
+    const rangeStart = totalCount > 0
+        ? (currentPage - 1) * PAGE_SIZE + 1
+        : 0;
 
-            ? (
-                (
-                    currentPage -
-                    1
-                )
-                *
-                PAGE_SIZE
-            )
-            +
-            1
-
-            : 0;
-
-
-    const rangeEnd =
-        Math.min(
-            currentPage *
-            PAGE_SIZE,
-
-            pagination.count
-        );
-
+    const rangeEnd = Math.min(
+        currentPage * PAGE_SIZE,
+        totalCount
+    );
 
     // =====================================================
     // SEARCH DEBOUNCE
+    //
+    // Reset page together with the debounced search.
+    // This avoids an unnecessary request for page 1
+    // with the previous search term.
     // =====================================================
 
-    useEffect(
-        () => {
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            const nextSearch = searchTerm.trim();
 
-            const timer =
-                window.setTimeout(
-                    () => {
+            if (nextSearch !== debouncedSearch) {
+                setCurrentPage(1);
+                setDebouncedSearch(nextSearch);
+            }
+        }, SEARCH_DELAY);
 
-                        setDebouncedSearch(
-                            searchTerm.trim()
-                        );
-
-                    },
-                    SEARCH_DELAY
-                );
-
-
-            return () => {
-
-                window.clearTimeout(
-                    timer
-                );
-            };
-
-        },
-        [
-            searchTerm,
-        ]
-    );
-
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [
+        searchTerm,
+        debouncedSearch,
+    ]);
 
     // =====================================================
-    // CTRL + K
+    // SEARCH SHORTCUT
+    //
+    // Ctrl + K on Windows / Linux
+    // Cmd + K on macOS
     // =====================================================
 
-    useEffect(
-        () => {
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            const isSearchShortcut =
+                (event.ctrlKey || event.metaKey) &&
+                event.key.toLowerCase() === "k";
 
-            const handleKeyDown =
-                (
-                    event
-                ) => {
+            if (!isSearchShortcut) {
+                return;
+            }
 
-                    if (
-                        (
-                            event.ctrlKey
-                            ||
-                            event.metaKey
-                        )
-                        &&
-                        event.key
-                            .toLowerCase()
-                        ===
-                        "k"
-                    ) {
+            event.preventDefault();
 
-                        event.preventDefault();
+            searchInputRef.current?.focus();
+            searchInputRef.current?.select?.();
+        };
 
+        window.addEventListener(
+            "keydown",
+            handleKeyDown
+        );
 
-                        searchInputRef
-                            .current
-                            ?.focus();
-                    }
-                };
-
-
-            window.addEventListener(
+        return () => {
+            window.removeEventListener(
                 "keydown",
                 handleKeyDown
             );
-
-
-            return () => {
-
-                window.removeEventListener(
-                    "keydown",
-                    handleKeyDown
-                );
-            };
-
-        },
-        []
-    );
-
+        };
+    }, []);
 
     // =====================================================
-    // FETCH
+    // FETCH PROJECTS
     // =====================================================
 
-    const fetchProjects =
-        useCallback(
-            async (
-                signal
-            ) => {
+    const fetchProjects = useCallback(
+        async (signal) => {
+            if (signal?.aborted) {
+                return;
+            }
 
-                dispatch(
-                    getProjectStart()
-                );
+            dispatch(getProjectStart());
 
-
-                try {
-
-                    const response =
-                        await ProjectService
-                            .getAllProjects({
-
-                                page:
-                                    currentPage,
-
-                                pageSize:
-                                    PAGE_SIZE,
-
-                                search:
-                                    debouncedSearch,
-
-                                signal,
-
-                            });
-
-
-                    dispatch(
-                        getProjectSuccess(
-                            response
-                        )
-                    );
-
-
-                    setPagination({
-
-                        count:
-                            safeNumber(
-                                response?.count
-                            ),
-
-                        next:
-                            response?.next
-                            ??
-                            null,
-
-                        previous:
-                            response?.previous
-                            ??
-                            null,
-
+            try {
+                const response =
+                    await ProjectService.getAllProjects({
+                        page: currentPage,
+                        pageSize: PAGE_SIZE,
+                        search: debouncedSearch,
+                        signal,
                     });
 
+                // ========================================
+                // PREVENT STALE UPDATES
+                // ========================================
 
-                    const responseTotalPages =
-                        response?.count >
-                        0
-
-                            ? Math.ceil(
-                                response.count /
-                                PAGE_SIZE
-                            )
-
-                            : 0;
-
-
-                    if (
-                        responseTotalPages >
-                        0
-                        &&
-                        currentPage >
-                        responseTotalPages
-                    ) {
-
-                        setCurrentPage(
-                            responseTotalPages
-                        );
-                    }
-
-                } catch (
-                    error
-                ) {
-
-                    if (
-                        isCanceledRequest(
-                            error
-                        )
-                    ) {
-
-                        return;
-                    }
-
-
-                    dispatch(
-                        getProjectFailure(
-                            getErrorMessage(
-                                error
-                            )
-                        )
-                    );
+                if (signal?.aborted) {
+                    return;
                 }
-            },
-            [
-                dispatch,
-                currentPage,
-                debouncedSearch,
-            ]
-        );
 
+                // ========================================
+                // REDUX SUCCESS
+                // ========================================
 
-    // =====================================================
-    // LOAD
-    // =====================================================
+                dispatch(
+                    getProjectSuccess(response)
+                );
 
-    useEffect(
-        () => {
+                // ========================================
+                // PAGINATION META
+                // ========================================
 
-            const controller =
-                new AbortController();
+                const count = safeNumber(
+                    response?.count
+                );
 
+                setPagination({
+                    count,
+                    next: response?.next ?? null,
+                    previous: response?.previous ?? null,
+                });
 
-            fetchProjects(
-                controller.signal
-            );
+                // ========================================
+                // CORRECT INVALID PAGE
+                // ========================================
 
+                const responseTotalPages =
+                    count > 0
+                        ? Math.ceil(count / PAGE_SIZE)
+                        : 0;
 
-            return () => {
+                if (
+                    responseTotalPages > 0 &&
+                    currentPage > responseTotalPages
+                ) {
+                    setCurrentPage(responseTotalPages);
+                }
 
-                controller.abort();
-            };
+            } catch (error) {
+                // ========================================
+                // IGNORE CANCELED REQUESTS
+                // ========================================
 
+                if (
+                    signal?.aborted ||
+                    isCanceledRequest(error)
+                ) {
+                    return;
+                }
+
+                console.error(
+                    "Loyihalarni yuklashda xatolik:",
+                    error
+                );
+
+                dispatch(
+                    getProjectFailure(
+                        getErrorMessage(error)
+                    )
+                );
+            }
         },
         [
-            fetchProjects,
+            dispatch,
+            currentPage,
+            debouncedSearch,
         ]
     );
 
+    // =====================================================
+    // INITIAL LOAD / PAGE / SEARCH / RETRY
+    //
+    // Every request has its own AbortController.
+    // Cleanup aborts an obsolete request.
+    // =====================================================
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        fetchProjects(controller.signal);
+
+        return () => {
+            controller.abort();
+        };
+    }, [
+        fetchProjects,
+        retryKey,
+    ]);
 
     // =====================================================
     // SEARCH CHANGE
     // =====================================================
 
-    const handleSearchChange =
-        (
-            event
-        ) => {
-
-            setSearchTerm(
-                event.target.value
-            );
-
-
-            setCurrentPage(
-                1
-            );
-        };
-
+    const handleSearchChange = useCallback(
+        (event) => {
+            setSearchTerm(event.target.value);
+        },
+        []
+    );
 
     // =====================================================
     // CLEAR SEARCH
     // =====================================================
 
-    const handleClearSearch =
-        () => {
+    const handleClearSearch = useCallback(() => {
+        setSearchTerm("");
+        setDebouncedSearch("");
+        setCurrentPage(1);
 
-            setSearchTerm(
-                ""
-            );
+        searchInputRef.current?.focus();
+    }, []);
 
+    // =====================================================
+    // SCROLL TO PROJECTS
+    // =====================================================
 
-            setDebouncedSearch(
-                ""
-            );
+    const scrollToProjects = useCallback(() => {
+        const reduceMotion =
+            typeof window.matchMedia === "function" &&
+            window.matchMedia(
+                "(prefers-reduced-motion: reduce)"
+            ).matches;
 
-
-            setCurrentPage(
-                1
-            );
-
-
-            searchInputRef
-                .current
-                ?.focus();
-        };
-
+        projectsSectionRef.current?.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+        });
+    }, []);
 
     // =====================================================
     // PAGE CHANGE
     // =====================================================
 
-    const handlePageChange =
-        (
-            page
-        ) => {
+    const handlePageChange = useCallback(
+        (page) => {
+            const nextPage = Number(page);
 
             if (
-                page <
-                1
-
-                ||
-
-                page >
-                totalPages
-
-                ||
-
-                page ===
-                currentPage
-
-                ||
-
+                !Number.isInteger(nextPage) ||
+                nextPage < 1 ||
+                nextPage > totalPages ||
+                nextPage === currentPage ||
                 project_isLoading
             ) {
-
                 return;
             }
 
+            setCurrentPage(nextPage);
 
-            setCurrentPage(
-                page
-            );
-
-
-            window.setTimeout(
-                () => {
-
-                    projectsSectionRef
-                        .current
-                        ?.scrollIntoView({
-                            behavior:
-                                "smooth",
-
-                            block:
-                                "start",
-                        });
-
-                },
-                50
-            );
-        };
-
+            // The toolbar section already exists in DOM.
+            // No arbitrary timeout is required.
+            scrollToProjects();
+        },
+        [
+            currentPage,
+            totalPages,
+            project_isLoading,
+            scrollToProjects,
+        ]
+    );
 
     // =====================================================
     // RETRY
+    //
+    // Reuse the same request lifecycle instead of
+    // creating an unmanaged AbortController.
     // =====================================================
 
-    const handleRetry =
-        () => {
+    const handleRetry = useCallback(() => {
+        setRetryKey((previous) => previous + 1);
+    }, []);
 
-            const controller =
-                new AbortController();
+    // =====================================================
+    // VIEW STATES
+    // =====================================================
 
+    const isLoading = Boolean(
+        project_isLoading
+    );
 
-            fetchProjects(
-                controller.signal
+    const hasError = Boolean(
+        project_error
+    ) && !isLoading;
+
+    const hasProjects =
+        projectList.length > 0;
+
+    // =====================================================
+    // RENDER PROJECT GRID CONTENT
+    // =====================================================
+
+    const renderProjects = () => {
+        // ================================================
+        // LOADING
+        // ================================================
+
+        if (isLoading) {
+            return Array.from({
+                length: PAGE_SIZE,
+            }).map((_, index) => (
+                <ProjectCardSkeleton
+                    key={`project-skeleton-${index}`}
+                />
+            ));
+        }
+
+        // ================================================
+        // ERROR
+        //
+        // Error is displayed above the grid.
+        // Avoid also showing stale cards or empty state.
+        // ================================================
+
+        if (hasError) {
+            return null;
+        }
+
+        // ================================================
+        // PROJECT CARDS
+        // ================================================
+
+        if (hasProjects) {
+            return projectList.map(
+                (project, index) => (
+                    <ProjectsPageCard
+                        key={
+                            project?.id ??
+                            `project-${index}`
+                        }
+
+                        project={project}
+
+                        index={
+                            (currentPage - 1) *
+                            PAGE_SIZE +
+                            index
+                        }
+                    />
+                )
             );
-        };
+        }
 
+        // ================================================
+        // EMPTY STATE
+        // ================================================
 
-    // =====================================================
-    // JSX
-    // =====================================================
-
-    return (
-
-        <main
-            className="
-                min-h-screen
-
-                bg-[#080b10]
-
-                px-4
-                pb-20
-                pt-24
-
-                md:px-6
-                md:pt-28
-            "
-        >
-
-            <div
-                className="
-                    mx-auto
-
-                    max-w-7xl
-                "
-            >
-
-                {/* =================================================
-                    HEADER
-                ================================================== */}
-
-                <ProjectsHeader
-                    searchInputRef={
-                        searchInputRef
-                    }
-
-                    searchTerm={
-                        searchTerm
-                    }
-
-                    onSearchChange={
-                        handleSearchChange
+        return (
+            <div className="col-span-full min-w-0">
+                <ProjectsEmptyState
+                    hasSearch={
+                        Boolean(debouncedSearch)
                     }
 
                     onClearSearch={
                         handleClearSearch
                     }
                 />
+            </div>
+        );
+    };
 
+    // =====================================================
+    // JSX
+    // =====================================================
 
-                {/* =================================================
-                    TOOLBAR
-                ================================================== */}
+    return (
+        <main
+            className="
+                relative
+                isolate
+                min-h-screen
+                min-w-0
+                overflow-hidden
 
-                <ProjectsToolbar
-                    sectionRef={
-                        projectsSectionRef
-                    }
+                bg-[#edf2fa]
+                text-slate-900
 
-                    isLoading={
-                        project_isLoading
-                    }
+                px-4
+                pb-16
+                pt-24
 
-                    count={
-                        pagination.count
-                    }
+                sm:px-6
+                sm:pb-20
 
-                    rangeStart={
-                        rangeStart
-                    }
+                md:pt-28
 
-                    rangeEnd={
-                        rangeEnd
-                    }
+                lg:px-8
 
-                    search={
-                        debouncedSearch
-                    }
+                dark:bg-[#050816]
+                dark:text-white
+            "
+        >
+            {/* ======================================
+                BACKGROUND GRID
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+                    absolute
+                    inset-0
+                    z-0
+
+                    opacity-[0.025]
+
+                    text-slate-900
+
+                    [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
+                    [background-size:40px_40px]
+
+                    dark:opacity-[0.018]
+                    dark:text-white
+                "
+            />
+
+            {/* ======================================
+                BACKGROUND ACCENTS
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+                    absolute
+                    -left-28
+                    top-16
+
+                    hidden
+
+                    h-96
+                    w-96
+
+                    rounded-full
+
+                    bg-cyan-500/[0.07]
+                    blur-[110px]
+
+                    sm:block
+
+                    dark:bg-cyan-500/[0.045]
+                "
+            />
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+                    absolute
+                    -right-28
+                    top-72
+
+                    hidden
+
+                    h-96
+                    w-96
+
+                    rounded-full
+
+                    bg-indigo-500/[0.07]
+                    blur-[110px]
+
+                    sm:block
+
+                    dark:bg-indigo-500/[0.06]
+                "
+            />
+
+            {/* ======================================
+                CONTENT CONTAINER
+            ====================================== */}
+
+            <div
+                className="
+                    relative
+                    z-10
+
+                    mx-auto
+                    w-full
+                    min-w-0
+                    max-w-7xl
+                "
+            >
+                {/* ==================================
+                    HEADER
+                ================================== */}
+
+                <ProjectsHeader
+                    searchInputRef={searchInputRef}
+                    searchTerm={searchTerm}
+                    onSearchChange={handleSearchChange}
+                    onClearSearch={handleClearSearch}
                 />
 
+                {/* ==================================
+                    TOOLBAR
+                ================================== */}
 
-                {/* =================================================
+                <ProjectsToolbar
+                    sectionRef={projectsSectionRef}
+                    isLoading={isLoading}
+                    count={totalCount}
+                    rangeStart={rangeStart}
+                    rangeEnd={rangeEnd}
+                    search={debouncedSearch}
+                />
+
+                {/* ==================================
                     ERROR
-                ================================================== */}
+                ================================== */}
 
                 <ProjectsErrorState
                     error={
-                        project_error
+                        hasError
+                            ? project_error
+                            : null
                     }
-
-                    onRetry={
-                        handleRetry
-                    }
+                    onRetry={handleRetry}
                 />
 
-
-                {/* =================================================
+                {/* ==================================
                     PROJECT GRID
-                ================================================== */}
+                ================================== */}
 
-                <section
-                    className="
-                        mt-5
+                {!hasError && (
+                    <section
+                        aria-label="Loyihalar ro‘yxati"
+                        aria-busy={isLoading}
 
-                        grid
-                        gap-4
+                        className="
+                            mt-5
 
-                        xl:grid-cols-2
-                    "
-                >
+                            grid
+                            min-w-0
+                            grid-cols-1
 
-                    {project_isLoading &&
-                    projectList.length ===
-                    0 ? (
+                            items-stretch
 
-                        Array.from({
-                            length:
-                                PAGE_SIZE,
-                        }).map(
-                            (
-                                _,
-                                index
-                            ) => (
+                            gap-4
 
-                                <ProjectCardSkeleton
-                                    key={
-                                        index
-                                    }
-                                />
+                            sm:gap-5
 
-                            )
-                        )
+                            xl:grid-cols-2
+                        "
+                    >
+                        {renderProjects()}
+                    </section>
+                )}
 
-                    ) : projectList.length >
-                    0 ? (
-
-                        projectList.map(
-                            (
-                                project,
-                                index
-                            ) => (
-
-                                <ProjectsPageCard
-                                    key={
-                                        project.id
-                                    }
-
-                                    project={
-                                        project
-                                    }
-
-                                    index={
-                                        (
-                                            (
-                                                currentPage -
-                                                1
-                                            )
-                                            *
-                                            PAGE_SIZE
-                                        )
-                                        +
-                                        index
-                                    }
-                                />
-
-                            )
-                        )
-
-                    ) : (
-
-                        <ProjectsEmptyState
-                            hasSearch={
-                                Boolean(
-                                    debouncedSearch
-                                )
-                            }
-
-                            onClearSearch={
-                                handleClearSearch
-                            }
-                        />
-
-                    )}
-
-                </section>
-
-
-                {/* =================================================
+                {/* ==================================
                     PAGINATION
-                ================================================== */}
+                ================================== */}
 
-                <ProjectsPagination
-                    currentPage={
-                        currentPage
-                    }
-
-                    totalPages={
-                        totalPages
-                    }
-
-                    items={
-                        paginationItems
-                    }
-
-                    isLoading={
-                        project_isLoading
-                    }
-
-                    onPageChange={
-                        handlePageChange
-                    }
-                />
-
+                {!hasError && (
+                    <ProjectsPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        items={paginationItems}
+                        isLoading={isLoading}
+                        onPageChange={handlePageChange}
+                    />
+                )}
             </div>
-
         </main>
     );
 };
-
 
 export default Projects;
