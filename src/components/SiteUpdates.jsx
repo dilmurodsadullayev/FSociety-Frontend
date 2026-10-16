@@ -1,8 +1,10 @@
 
 import React, {
+    memo,
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
@@ -14,14 +16,18 @@ import {
 import {
     AnimatePresence,
     motion,
+    useReducedMotion,
 } from "framer-motion";
 
 import {
     AlertTriangle,
+    ArrowRight,
     ChevronDown,
     History,
+    Loader2,
     Newspaper,
     RefreshCw,
+    ShieldCheck,
 } from "lucide-react";
 
 // =========================================================
@@ -54,138 +60,686 @@ import SiteUpdateCard from "./siteUpdates/SiteUpdateCard";
 // =========================================================
 
 const UPDATES_LIMIT = 5;
+
 const EMPTY_ARRAY = [];
 
-// =========================================================
-// ANIMATION
-// =========================================================
-
-const accordionTransition = {
+const ACCORDION_TRANSITION = {
     duration: 0.25,
     ease: [0.16, 1, 0.3, 1],
 };
 
 // =========================================================
-// ERROR MESSAGE HELPER
+// SHARED DESIGN
 // =========================================================
 
-const getErrorMessage = (error, fallback) => {
-    const data = error?.response?.data;
+const PANEL_CLASS = `
+    relative
+    min-w-0
+    overflow-hidden
+    rounded-[22px]
+    border
+    border-slate-200
+    bg-white/95
+    shadow-[0_12px_40px_rgba(15,23,42,0.045)]
 
-    const candidates = [
+    sm:rounded-[26px]
+
+    dark:border-white/[0.09]
+    dark:bg-[#0d131e]/95
+    dark:shadow-[0_20px_60px_rgba(0,0,0,0.20)]
+`;
+
+const TEXT_MUTED_CLASS = `
+    text-slate-600
+    dark:text-slate-400
+`;
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+const hasValidId = (value) =>
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== "";
+
+const sameId = (first, second) =>
+    hasValidId(first) &&
+    hasValidId(second) &&
+    String(first) === String(second);
+
+const getErrorMessage = (
+    error,
+    fallback = "Xatolik yuz berdi."
+) => {
+    const data =
+        error?.serverData ??
+        error?.response?.data;
+
+    const values = [
         typeof data === "string" ? data : null,
         data?.detail,
         data?.error,
         data?.message,
+        data?.non_field_errors,
+        error?.error,
         error?.message,
     ];
 
-    const message = candidates.find(
-        (value) =>
+    for (const value of values) {
+        if (
             typeof value === "string" &&
-            value.trim().length > 0
-    );
+            value.trim()
+        ) {
+            if (/<html|<!doctype/i.test(value)) {
+                return fallback;
+            }
 
-    return message || fallback;
+            return value.trim();
+        }
+
+        if (Array.isArray(value) && value.length) {
+            const first = value.find(
+                (item) =>
+                    typeof item === "string" &&
+                    item.trim()
+            );
+
+            if (first) {
+                return first.trim();
+            }
+        }
+    }
+
+    return fallback;
 };
+
+const getSafeCount = (value, minimum = 0) => {
+    const count = Number(value);
+
+    return Number.isFinite(count)
+        ? Math.max(minimum, Math.floor(count))
+        : minimum;
+};
+
+// =========================================================
+// SKELETON BLOCK
+// =========================================================
+
+const SkeletonBlock = ({
+    className = "",
+}) => (
+    <div
+        aria-hidden="true"
+        className={`
+            rounded-lg
+            bg-slate-200/90
+
+            dark:bg-white/[0.08]
+
+            ${className}
+        `}
+    />
+);
 
 // =========================================================
 // LOADING SKELETON
 // =========================================================
 
-const UpdatesSkeleton = () => {
+const UpdatesSkeleton = memo(function UpdatesSkeleton() {
     return (
         <div
             role="status"
             aria-label="Yangiliklar yuklanmoqda"
             className="
                 animate-pulse
-                rounded-3xl
-                border
-                border-[#dce5f0]
-                bg-white/80
-                p-5
-
-                sm:p-6
-
-                dark:border-white/[0.06]
-                dark:bg-white/[0.02]
+                space-y-4
 
                 motion-reduce:animate-none
             "
         >
-            <div className="flex items-center gap-4">
-                <div
-                    className="
-                        h-12
-                        w-12
-                        shrink-0
-                        rounded-2xl
-                        bg-slate-200
+            <span className="sr-only">
+                Saytdagi yangiliklar yuklanmoqda.
+            </span>
 
-                        dark:bg-white/[0.06]
-                    "
-                />
+            {/* FEATURED UPDATE */}
 
-                <div className="min-w-0 flex-1">
-                    <div
+            <div
+                className={`
+                    ${PANEL_CLASS}
+
+                    p-4
+                    sm:p-6
+                `}
+            >
+                <div className="flex items-start gap-4">
+                    <SkeletonBlock
                         className="
-                            h-3
-                            w-28
-                            max-w-full
-                            rounded-full
-                            bg-slate-200
-
-                            dark:bg-white/[0.06]
+                            h-12
+                            w-12
+                            shrink-0
+                            rounded-2xl
                         "
                     />
 
-                    <div
-                        className="
-                            mt-3
-                            h-5
-                            w-2/3
-                            rounded-lg
-                            bg-slate-200
+                    <div className="min-w-0 flex-1">
+                        <SkeletonBlock
+                            className="
+                                h-3
+                                w-28
+                                max-w-full
+                                rounded-full
+                            "
+                        />
 
-                            dark:bg-white/[0.06]
+                        <SkeletonBlock
+                            className="
+                                mt-3
+                                h-5
+                                w-2/3
+                                rounded-lg
+                            "
+                        />
+                    </div>
+
+                    <SkeletonBlock
+                        className="
+                            hidden
+                            h-8
+                            w-20
+                            rounded-full
+                            sm:block
                         "
+                    />
+                </div>
+
+                <div className="mt-6 space-y-3">
+                    <SkeletonBlock
+                        className="h-3 w-[95%] rounded-full"
+                    />
+
+                    <SkeletonBlock
+                        className="h-3 w-[82%] rounded-full"
+                    />
+
+                    <SkeletonBlock
+                        className="h-3 w-[69%] rounded-full"
+                    />
+                </div>
+
+                <div
+                    className="
+                        mt-6
+                        flex
+                        flex-wrap
+                        items-center
+                        justify-between
+                        gap-3
+
+                        border-t
+                        border-slate-200
+
+                        pt-5
+
+                        dark:border-white/[0.08]
+                    "
+                >
+                    <SkeletonBlock
+                        className="h-9 w-28 rounded-xl"
+                    />
+
+                    <SkeletonBlock
+                        className="h-9 w-24 rounded-xl"
                     />
                 </div>
             </div>
 
-            <div
-                className="
-                    mt-5
-                    h-12
-                    rounded-xl
-                    bg-slate-100
+            {/* MORE UPDATES */}
 
-                    dark:bg-white/[0.035]
-                "
-            />
+            <div
+                className={`
+                    ${PANEL_CLASS}
+
+                    p-5
+                `}
+            >
+                <div className="flex items-center gap-3">
+                    <SkeletonBlock
+                        className="
+                            h-10
+                            w-10
+                            shrink-0
+                            rounded-xl
+                        "
+                    />
+
+                    <div className="flex-1 space-y-2">
+                        <SkeletonBlock
+                            className="
+                                h-3.5
+                                w-40
+                                max-w-full
+                                rounded-full
+                            "
+                        />
+
+                        <SkeletonBlock
+                            className="
+                                h-2.5
+                                w-24
+                                max-w-full
+                                rounded-full
+                            "
+                        />
+                    </div>
+
+                    <SkeletonBlock
+                        className="h-9 w-9 rounded-xl"
+                    />
+                </div>
+            </div>
         </div>
     );
-};
+});
 
 // =========================================================
-// SITE UPDATES
-//
-// Responsibilities:
-// - Load latest updates
-// - Handle update likes
-// - Manage dropdown
-// - Manage compact card accordion
-// - Render loading / error / empty states
-//
-// Existing SiteUpdateCard contract is preserved.
+// ERROR STATE
+// =========================================================
+
+const UpdatesError = memo(function UpdatesError({
+    message,
+    onRetry,
+    isLoading = false,
+}) {
+    return (
+        <div
+            role="alert"
+            className="
+                rounded-[24px]
+                border
+                border-rose-200
+
+                bg-rose-50/80
+
+                px-5
+                py-9
+                text-center
+
+                sm:px-8
+                sm:py-11
+
+                dark:border-rose-400/20
+                dark:bg-rose-400/[0.055]
+            "
+        >
+            <div
+                className="
+                    mx-auto
+
+                    grid
+                    h-14
+                    w-14
+
+                    place-items-center
+
+                    rounded-2xl
+
+                    border
+                    border-rose-200
+
+                    bg-rose-100
+
+                    text-rose-700
+
+                    dark:border-rose-400/20
+                    dark:bg-rose-400/[0.10]
+                    dark:text-rose-300
+                "
+            >
+                <AlertTriangle
+                    size={25}
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                />
+            </div>
+
+            <h3
+                className="
+                    mt-5
+                    text-lg
+                    font-black
+                    tracking-tight
+
+                    text-slate-900
+
+                    dark:text-white
+                "
+            >
+                Yangiliklarni yuklab bo‘lmadi
+            </h3>
+
+            <p
+                className="
+                    mx-auto
+                    mt-3
+                    max-w-lg
+
+                    break-words
+
+                    text-sm
+                    leading-6
+
+                    text-slate-600
+
+                    dark:text-slate-300
+                "
+            >
+                {message ||
+                    "Server bilan bog‘lanishda xatolik yuz berdi."}
+            </p>
+
+            <button
+                type="button"
+                onClick={onRetry}
+
+                disabled={
+                    isLoading ||
+                    typeof onRetry !== "function"
+                }
+
+                className="
+                    mt-6
+
+                    inline-flex
+                    min-h-11
+
+                    items-center
+                    justify-center
+                    gap-2
+
+                    rounded-xl
+
+                    border
+                    border-rose-300
+
+                    bg-white
+
+                    px-5
+                    py-2.5
+
+                    text-xs
+                    font-black
+
+                    text-rose-800
+
+                    transition-colors
+
+                    hover:bg-rose-100
+
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-rose-500
+
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+
+                    dark:border-rose-400/25
+                    dark:bg-rose-400/[0.09]
+                    dark:text-rose-300
+
+                    dark:hover:bg-rose-400/[0.14]
+                "
+            >
+                <RefreshCw
+                    size={15}
+                    aria-hidden="true"
+
+                    className={
+                        isLoading
+                            ? "animate-spin motion-reduce:animate-none"
+                            : ""
+                    }
+                />
+
+                Qayta urinish
+            </button>
+        </div>
+    );
+});
+
+// =========================================================
+// EMPTY STATE
+// =========================================================
+
+const UpdatesEmpty = memo(function UpdatesEmpty() {
+    return (
+        <div
+            className="
+                rounded-[24px]
+
+                border
+                border-dashed
+                border-slate-300
+
+                bg-white/80
+
+                px-5
+                py-10
+
+                text-center
+
+                sm:px-8
+                sm:py-12
+
+                dark:border-white/[0.12]
+                dark:bg-white/[0.025]
+            "
+        >
+            <div
+                className="
+                    mx-auto
+
+                    grid
+                    h-16
+                    w-16
+
+                    place-items-center
+
+                    rounded-2xl
+
+                    border
+                    border-indigo-200
+
+                    bg-indigo-50
+
+                    text-indigo-700
+
+                    dark:border-indigo-400/20
+                    dark:bg-indigo-400/[0.09]
+                    dark:text-indigo-300
+                "
+            >
+                <Newspaper
+                    size={27}
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                />
+            </div>
+
+            <h3
+                className="
+                    mt-5
+                    text-lg
+                    font-black
+
+                    text-slate-900
+
+                    dark:text-white
+                "
+            >
+                Hozircha yangilik yo‘q
+            </h3>
+
+            <p
+                className="
+                    mx-auto
+                    mt-3
+                    max-w-md
+
+                    text-sm
+                    leading-6
+
+                    text-slate-600
+
+                    dark:text-slate-400
+                "
+            >
+                Admin paneldan changelog qo‘shilganda
+                u shu yerda avtomatik ko‘rinadi.
+            </p>
+        </div>
+    );
+});
+
+// =========================================================
+// BACKGROUND REFRESH ERROR
+// =========================================================
+
+const UpdatesRefreshError = memo(
+    function UpdatesRefreshError({
+        message,
+        onRetry,
+        isLoading = false,
+    }) {
+        return (
+            <div
+                role="alert"
+                className="
+                    mb-5
+
+                    flex
+                    flex-col
+                    gap-3
+
+                    rounded-2xl
+
+                    border
+                    border-amber-200
+
+                    bg-amber-50
+
+                    p-4
+
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+
+                    dark:border-amber-400/20
+                    dark:bg-amber-400/[0.065]
+                "
+            >
+                <div className="flex min-w-0 items-start gap-3">
+                    <AlertTriangle
+                        size={17}
+                        aria-hidden="true"
+
+                        className="
+                            mt-0.5
+                            shrink-0
+
+                            text-amber-700
+
+                            dark:text-amber-300
+                        "
+                    />
+
+                    <p
+                        className="
+                            min-w-0
+
+                            text-xs
+                            leading-6
+
+                            text-amber-900
+
+                            dark:text-amber-100
+                        "
+                    >
+                        {message}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={onRetry}
+                    disabled={isLoading}
+
+                    className="
+                        inline-flex
+                        min-h-9
+
+                        shrink-0
+
+                        items-center
+                        justify-center
+                        gap-2
+
+                        self-start
+
+                        rounded-xl
+
+                        border
+                        border-amber-300
+
+                        bg-white
+
+                        px-3
+                        py-2
+
+                        text-[11px]
+                        font-black
+
+                        text-amber-900
+
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
+
+                        sm:self-auto
+
+                        dark:border-amber-400/25
+                        dark:bg-amber-400/[0.09]
+                        dark:text-amber-300
+                    "
+                >
+                    <RefreshCw
+                        size={14}
+                        aria-hidden="true"
+
+                        className={
+                            isLoading
+                                ? "animate-spin motion-reduce:animate-none"
+                                : ""
+                        }
+                    />
+
+                    Yangilash
+                </button>
+            </div>
+        );
+    }
+);
+
+// =========================================================
+// SITE UPDATES MAIN COMPONENT
 // =========================================================
 
 const SiteUpdates = () => {
     const dispatch = useDispatch();
 
+    const prefersReducedMotion = useReducedMotion();
+
     // =====================================================
-    // LOCAL STATE
+    // LOCAL UI STATE
     // =====================================================
 
     const [
@@ -197,6 +751,16 @@ const SiteUpdates = () => {
         openedUpdateId,
         setOpenedUpdateId,
     ] = useState(null);
+
+    // =====================================================
+    // REQUEST REFS
+    // =====================================================
+
+    const mountedRef = useRef(false);
+
+    const requestVersionRef = useRef(0);
+
+    const likePendingRef = useRef(new Set());
 
     // =====================================================
     // AUTH
@@ -232,11 +796,13 @@ const SiteUpdates = () => {
         ? updates
         : EMPTY_ARRAY;
 
-    const likingIds = Array.isArray(
-        likingUpdateIds
-    )
+    const likingIds = Array.isArray(likingUpdateIds)
         ? likingUpdateIds
         : EMPTY_ARRAY;
+
+    // =====================================================
+    // FEATURED + DROPDOWN
+    // =====================================================
 
     const featuredUpdate =
         safeUpdates[0] || null;
@@ -246,74 +812,141 @@ const SiteUpdates = () => {
         [safeUpdates]
     );
 
-    const totalCount =
-        Number.isFinite(Number(count))
-            ? Math.max(0, Number(count))
-            : 0;
+    // =====================================================
+    // TOTAL COUNT
+    // =====================================================
+
+    const totalCount = getSafeCount(
+        count,
+        safeUpdates.length
+    );
+
+    // =====================================================
+    // DISPLAY ERRORS
+    // =====================================================
 
     const displayError =
         typeof error === "string"
             ? error
-            : error?.message ||
-              "Yangiliklarni yuklab bo‘lmadi.";
+            : getErrorMessage(
+                error,
+                "Yangiliklarni yuklab bo‘lmadi."
+            );
 
-    const displayLikeError =
-        typeof likeError === "string"
+    const displayLikeError = likeError
+        ? typeof likeError === "string"
             ? likeError
-            : likeError?.message ||
-              (likeError
-                  ? "Like yuborishda xatolik yuz berdi."
-                  : null);
+            : getErrorMessage(
+                likeError,
+                "Like yuborishda xatolik yuz berdi."
+            )
+        : null;
 
     // =====================================================
-    // FETCH UPDATES
+    // CHECK LIKE LOADING
     // =====================================================
 
-    const fetchUpdates = useCallback(
-        async () => {
-            dispatch(getUpdatesStart());
-
-            try {
-                const response =
-                    await UpdateService.getUpdates(
-                        UPDATES_LIMIT
-                    );
-
-                dispatch(
-                    getUpdatesSuccess(response)
-                );
-            } catch (fetchError) {
-                const message = getErrorMessage(
-                    fetchError,
-                    "Saytdagi yangiliklarni yuklab bo‘lmadi."
-                );
-
-                dispatch(
-                    getUpdatesFailure(message)
-                );
-            }
-        },
-        [dispatch]
+    const isLikingUpdate = useCallback(
+        (updateId) =>
+            likingIds.some((id) =>
+                sameId(id, updateId)
+            ),
+        [likingIds]
     );
 
     // =====================================================
-    // INITIAL LOAD
+    // FETCH UPDATES
+    //
+    // Original Redux contract preserved.
+    //
+    // New:
+    // - Ignore outdated requests
+    // - Ignore results after unmount
+    // =====================================================
+
+    const fetchUpdates = useCallback(async () => {
+        const requestVersion =
+            ++requestVersionRef.current;
+
+        dispatch(getUpdatesStart());
+
+        try {
+            const response =
+                await UpdateService.getUpdates(
+                    UPDATES_LIMIT
+                );
+
+            if (
+                !mountedRef.current ||
+                requestVersion !== requestVersionRef.current
+            ) {
+                return;
+            }
+
+            dispatch(
+                getUpdatesSuccess(response)
+            );
+        } catch (fetchError) {
+            if (
+                !mountedRef.current ||
+                requestVersion !== requestVersionRef.current
+            ) {
+                return;
+            }
+
+            const message = getErrorMessage(
+                fetchError,
+                "Saytdagi yangiliklarni yuklab bo‘lmadi."
+            );
+
+            dispatch(
+                getUpdatesFailure(message)
+            );
+        }
+    }, [dispatch]);
+
+    // =====================================================
+    // INITIAL LOAD / CLEANUP
     // =====================================================
 
     useEffect(() => {
+        mountedRef.current = true;
+
         fetchUpdates();
+
+        return () => {
+            mountedRef.current = false;
+
+            requestVersionRef.current += 1;
+
+            likePendingRef.current.clear();
+        };
     }, [fetchUpdates]);
 
     // =====================================================
-    // LIKE UPDATE
+    // LIKE / UNLIKE UPDATE
+    //
+    // Preserves:
+    // - Authentication check
+    // - Redux Start / Success / Failure
+    // - Original API method
+    //
+    // New:
+    // - Immediate request lock
+    // - Handles mixed string/number IDs
     // =====================================================
 
     const handleLike = useCallback(
         async (updateId) => {
+            if (!hasValidId(updateId)) {
+                return;
+            }
+
             if (!isLoggedIn) {
                 dispatch(
                     toggleUpdateLikeFailure({
                         id: updateId,
+
                         error:
                             "Like bosish uchun tizimga kirishingiz kerak.",
                     })
@@ -322,11 +955,16 @@ const SiteUpdates = () => {
                 return;
             }
 
+            const key = String(updateId);
+
             if (
-                likingIds.includes(updateId)
+                likePendingRef.current.has(key) ||
+                isLikingUpdate(updateId)
             ) {
                 return;
             }
+
+            likePendingRef.current.add(key);
 
             dispatch(
                 toggleUpdateLikeStart(updateId)
@@ -338,12 +976,18 @@ const SiteUpdates = () => {
                         updateId
                     );
 
+                if (!mountedRef.current) {
+                    return;
+                }
+
                 dispatch(
-                    toggleUpdateLikeSuccess(
-                        response
-                    )
+                    toggleUpdateLikeSuccess(response)
                 );
             } catch (requestError) {
+                if (!mountedRef.current) {
+                    return;
+                }
+
                 const message = getErrorMessage(
                     requestError,
                     "Like yuborishda xatolik yuz berdi."
@@ -355,64 +999,109 @@ const SiteUpdates = () => {
                         error: message,
                     })
                 );
+            } finally {
+                likePendingRef.current.delete(key);
             }
         },
         [
             dispatch,
             isLoggedIn,
-            likingIds,
+            isLikingUpdate,
         ]
     );
 
     // =====================================================
-    // ACCORDION
+    // COMPACT UPDATE ACCORDION
     // =====================================================
 
     const toggleUpdate = useCallback(
         (updateId) => {
-            setOpenedUpdateId(
-                (current) =>
-                    current === updateId
-                        ? null
-                        : updateId
+            if (!hasValidId(updateId)) {
+                return;
+            }
+
+            setOpenedUpdateId((current) =>
+                sameId(current, updateId)
+                    ? null
+                    : updateId
             );
         },
         []
     );
 
     // =====================================================
-    // DROPDOWN
+    // MORE UPDATES DROPDOWN
     // =====================================================
 
-    const toggleDropdown = useCallback(
-        () => {
-            setDropdownOpen(
-                (current) => !current
-            );
+    const toggleDropdown = useCallback(() => {
+        setDropdownOpen((current) => !current);
 
-            // Reset nested accordion when
-            // the dropdown state changes.
-            setOpenedUpdateId(null);
-        },
-        []
-    );
+        // Close nested accordion when dropdown changes.
+        setOpenedUpdateId(null);
+    }, []);
 
     // =====================================================
-    // JSX
+    // DERIVED UI STATE
+    // =====================================================
+
+    const hasUpdates = Boolean(featuredUpdate);
+
+    const showInitialLoading =
+        isLoading && !hasUpdates;
+
+    const showInitialError =
+        !isLoading &&
+        Boolean(error) &&
+        !hasUpdates;
+
+    const showEmpty =
+        !isLoading &&
+        !error &&
+        !hasUpdates;
+
+    const showRefreshError =
+        Boolean(error) &&
+        hasUpdates &&
+        !isLoading;
+
+    // =====================================================
+    // ANIMATION CONFIGURATION
+    // =====================================================
+
+    const dropdownTransition = prefersReducedMotion
+        ? { duration: 0 }
+        : ACCORDION_TRANSITION;
+
+    const alertTransition = prefersReducedMotion
+        ? { duration: 0 }
+        : { duration: 0.16 };
+
+    // =====================================================
+    // RENDER
     // =====================================================
 
     return (
         <section
             id="changelog"
+
             aria-labelledby="fsociety-updates-title"
+
             className="
                 relative
+                isolate
+
+                w-full
+                min-w-0
+
                 overflow-hidden
 
                 border-y
-                border-[#dce5f0]
+                border-slate-200
 
-                bg-[#f6f8fd]
+                bg-gradient-to-b
+                from-[#f6f8fd]
+                via-white
+                to-[#f5f7fc]
 
                 px-4
                 py-14
@@ -425,8 +1114,10 @@ const SiteUpdates = () => {
 
                 xl:px-10
 
-                dark:border-white/[0.05]
-                dark:bg-[#090d14]
+                dark:border-white/[0.07]
+                dark:from-[#090d14]
+                dark:via-[#0b111b]
+                dark:to-[#080c13]
             "
         >
             {/* ======================================
@@ -435,30 +1126,35 @@ const SiteUpdates = () => {
 
             <div
                 aria-hidden="true"
+
                 className="
                     pointer-events-none
+
                     absolute
                     inset-0
 
-                    opacity-[0.035]
                     text-slate-900
+
+                    opacity-[0.035]
 
                     [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
                     [background-size:34px_34px]
 
-                    dark:opacity-[0.018]
                     dark:text-white
+                    dark:opacity-[0.025]
                 "
             />
 
             {/* ======================================
-                BACKGROUND ACCENT
+                DECORATIVE GLOWS
             ====================================== */}
 
             <div
                 aria-hidden="true"
+
                 className="
                     pointer-events-none
+
                     absolute
                     left-1/2
                     top-0
@@ -480,12 +1176,35 @@ const SiteUpdates = () => {
 
                     sm:block
 
-                    dark:bg-indigo-500/[0.07]
+                    dark:bg-indigo-400/[0.07]
+                "
+            />
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -right-32
+                    bottom-0
+
+                    h-64
+                    w-64
+
+                    rounded-full
+
+                    bg-cyan-400/[0.045]
+
+                    blur-[100px]
+
+                    dark:bg-cyan-400/[0.055]
                 "
             />
 
             {/* ======================================
-                CONTENT CONTAINER
+                MAIN CONTENT
             ====================================== */}
 
             <div
@@ -494,6 +1213,7 @@ const SiteUpdates = () => {
                     z-10
 
                     mx-auto
+
                     w-full
                     min-w-0
                     max-w-6xl
@@ -503,7 +1223,7 @@ const SiteUpdates = () => {
                     HEADER
                 ================================== */}
 
-                <div
+                <header
                     className="
                         flex
                         flex-col
@@ -514,44 +1234,46 @@ const SiteUpdates = () => {
                         lg:justify-between
                     "
                 >
-                    {/* HEADER TEXT */}
+                    {/* LEFT */}
 
                     <div className="min-w-0 max-w-2xl">
-                        {/* EYEBROW */}
+                        {/* SYSTEM BADGE */}
 
                         <div
                             className="
                                 inline-flex
                                 max-w-full
+
                                 items-center
                                 gap-2
 
                                 rounded-full
-                                border
 
-                                border-indigo-400/25
-                                bg-indigo-500/[0.07]
+                                border
+                                border-indigo-200
+
+                                bg-indigo-50
 
                                 px-3
                                 py-1.5
 
                                 font-mono
-                                text-[9px]
-                                font-bold
+                                text-[10px]
+                                font-black
                                 uppercase
-                                tracking-[0.16em]
+                                tracking-[0.12em]
 
                                 text-indigo-700
 
-                                dark:border-indigo-400/20
-                                dark:bg-indigo-400/[0.06]
+                                dark:border-indigo-400/25
+                                dark:bg-indigo-400/[0.09]
                                 dark:text-indigo-300
                             "
                         >
                             <History
                                 size={13}
-                                strokeWidth={2}
                                 aria-hidden="true"
+
                                 className="shrink-0"
                             />
 
@@ -564,6 +1286,7 @@ const SiteUpdates = () => {
 
                         <h2
                             id="fsociety-updates-title"
+
                             className="
                                 mt-4
 
@@ -604,17 +1327,16 @@ const SiteUpdates = () => {
                         {/* DESCRIPTION */}
 
                         <p
-                            className="
+                            className={`
                                 mt-3
+
                                 max-w-xl
 
                                 text-sm
-                                leading-6
+                                leading-7
 
-                                text-slate-600
-
-                                dark:text-gray-500
-                            "
+                                ${TEXT_MUTED_CLASS}
+                            `}
                         >
                             Yangi imkoniyatlar, tuzatilgan
                             xatolar, xavfsizlik yangilanishlari
@@ -622,54 +1344,62 @@ const SiteUpdates = () => {
                         </p>
                     </div>
 
-                    {/* ==================================
-                        CHANGELOG STATUS
-                    ================================== */}
+                    {/* RIGHT — SYSTEM STATUS */}
 
                     <div
                         className="
-                            flex
+                            inline-flex
                             w-fit
+
                             shrink-0
+
                             items-center
                             gap-3
 
                             rounded-2xl
-                            border
 
-                            border-emerald-400/25
-                            bg-emerald-500/[0.06]
+                            border
+                            border-emerald-200
+
+                            bg-emerald-50
 
                             px-4
                             py-3
 
-                            dark:border-emerald-400/10
-                            dark:bg-emerald-400/[0.03]
+                            dark:border-emerald-400/20
+                            dark:bg-emerald-400/[0.075]
                         "
                     >
+                        {/* STATUS DOT */}
+
                         <span
                             aria-hidden="true"
+
                             className="
                                 relative
+
                                 flex
                                 h-2
                                 w-2
+
                                 shrink-0
                             "
                         >
                             <span
                                 className="
                                     absolute
+
                                     inline-flex
                                     h-full
                                     w-full
 
                                     animate-ping
-                                    rounded-full
-                                    bg-emerald-500
-                                    opacity-40
 
-                                    dark:bg-emerald-400
+                                    rounded-full
+
+                                    bg-emerald-500
+
+                                    opacity-40
 
                                     motion-reduce:animate-none
                                 "
@@ -678,50 +1408,63 @@ const SiteUpdates = () => {
                             <span
                                 className="
                                     relative
+
                                     inline-flex
                                     h-2
                                     w-2
 
                                     rounded-full
-                                    bg-emerald-500
 
-                                    dark:bg-emerald-400
+                                    bg-emerald-500
                                 "
                             />
                         </span>
 
+                        {/* STATUS TEXT */}
+
                         <div>
                             <p
                                 className="
-                                    font-mono
-                                    text-[9px]
-                                    font-bold
-                                    uppercase
-                                    tracking-[0.15em]
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
 
-                                    text-emerald-700
+                                    font-mono
+                                    text-[10px]
+                                    font-black
+                                    uppercase
+                                    tracking-[0.12em]
+
+                                    text-emerald-800
 
                                     dark:text-emerald-300
                                 "
                             >
+                                <ShieldCheck
+                                    size={12}
+                                    aria-hidden="true"
+                                />
+
                                 System updates
                             </p>
 
                             <p
                                 className="
                                     mt-0.5
+
                                     text-[11px]
+                                    font-medium
 
-                                    text-slate-500
+                                    text-slate-600
 
-                                    dark:text-gray-600
+                                    dark:text-slate-400
                                 "
                             >
                                 Changelog live
                             </p>
                         </div>
                     </div>
-                </div>
+                </header>
 
                 {/* ==================================
                     LIKE ERROR
@@ -730,57 +1473,71 @@ const SiteUpdates = () => {
                 <AnimatePresence initial={false}>
                     {displayLikeError && (
                         <motion.div
+                            key="updates-like-error"
+
                             role="alert"
 
-                            initial={{
-                                opacity: 0,
-                                y: -6,
-                            }}
+                            initial={
+                                prefersReducedMotion
+                                    ? false
+                                    : {
+                                        opacity: 0,
+                                        y: -6,
+                                    }
+                            }
 
                             animate={{
                                 opacity: 1,
                                 y: 0,
                             }}
 
-                            exit={{
-                                opacity: 0,
-                                y: -6,
-                            }}
+                            exit={
+                                prefersReducedMotion
+                                    ? {
+                                        opacity: 0,
+                                    }
+                                    : {
+                                        opacity: 0,
+                                        y: -6,
+                                    }
+                            }
 
-                            transition={{
-                                duration: 0.16,
-                            }}
+                            transition={alertTransition}
 
                             className="
-                                mt-5
+                                mt-6
+
                                 flex
+                                min-w-0
+
                                 items-start
-                                gap-2.5
+                                gap-3
 
-                                rounded-xl
+                                rounded-2xl
+
                                 border
+                                border-rose-200
 
-                                border-red-400/25
-                                bg-red-500/[0.06]
+                                bg-rose-50
 
                                 px-4
-                                py-3
+                                py-3.5
 
                                 text-xs
                                 font-semibold
-                                leading-5
+                                leading-6
 
-                                text-red-700
+                                text-rose-800
 
-                                dark:border-red-400/15
-                                dark:bg-red-500/[0.055]
-                                dark:text-red-300
+                                dark:border-rose-400/20
+                                dark:bg-rose-400/[0.07]
+                                dark:text-rose-200
                             "
                         >
                             <AlertTriangle
-                                size={15}
-                                strokeWidth={2}
+                                size={17}
                                 aria-hidden="true"
+
                                 className="
                                     mt-0.5
                                     shrink-0
@@ -799,179 +1556,131 @@ const SiteUpdates = () => {
                 ================================== */}
 
                 <div className="mt-9">
+                    {/* INITIAL LOADING */}
 
-                    {/* ==============================
-                        LOADING
-                    ============================== */}
-
-                    {isLoading ? (
+                    {showInitialLoading && (
                         <UpdatesSkeleton />
+                    )}
 
-                    ) : error ? (
+                    {/* INITIAL ERROR */}
 
-                        /* ==========================
-                            ERROR STATE
-                        ========================== */
+                    {showInitialError && (
+                        <UpdatesError
+                            message={displayError}
 
-                        <div
-                            role="alert"
-                            className="
-                                rounded-3xl
-                                border
+                            onRetry={fetchUpdates}
 
-                                border-red-400/25
-                                bg-red-500/[0.04]
+                            isLoading={isLoading}
+                        />
+                    )}
 
-                                p-6
-                                text-center
+                    {/* EMPTY */}
 
-                                sm:p-8
+                    {showEmpty && (
+                        <UpdatesEmpty />
+                    )}
 
-                                dark:border-red-400/15
-                                dark:bg-red-500/[0.045]
-                            "
-                        >
-                            <AlertTriangle
-                                size={25}
-                                strokeWidth={1.8}
-                                aria-hidden="true"
-                                className="
-                                    mx-auto
-                                    text-red-600
+                    {/* ==================================
+                        UPDATES LIST
+                    ================================== */}
 
-                                    dark:text-red-300
-                                "
-                            />
+                    {hasUpdates && (
+                        <div className="min-w-0">
+                            {/* BACKGROUND REFRESH */}
 
-                            <h3
-                                className="
-                                    mt-4
+                            {isLoading && (
+                                <div
+                                    role="status"
 
-                                    text-base
-                                    font-bold
+                                    className="
+                                        mb-4
 
-                                    text-slate-900
+                                        flex
+                                        items-center
+                                        justify-end
+                                        gap-2
 
-                                    dark:text-white
-                                "
-                            >
-                                Yangiliklar yuklanmadi
-                            </h3>
+                                        font-mono
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-wide
 
-                            <p
-                                className="
-                                    mx-auto
-                                    mt-2
-                                    max-w-lg
+                                        text-slate-500
 
-                                    break-words
+                                        dark:text-slate-400
+                                    "
+                                >
+                                    <Loader2
+                                        size={14}
+                                        aria-hidden="true"
 
-                                    text-sm
-                                    leading-6
+                                        className="
+                                            animate-spin
 
-                                    text-slate-600
+                                            text-indigo-600
 
-                                    dark:text-gray-500
-                                "
-                            >
-                                {displayError}
-                            </p>
+                                            dark:text-indigo-400
 
-                            <button
-                                type="button"
-                                onClick={fetchUpdates}
+                                            motion-reduce:animate-none
+                                        "
+                                    />
 
-                                className="
-                                    mt-5
-                                    inline-flex
-                                    items-center
-                                    justify-center
-                                    gap-2
+                                    Yangilanmoqda
+                                </div>
+                            )}
 
-                                    rounded-xl
-                                    border
+                            {/* NON-BLOCKING REFRESH ERROR */}
 
-                                    border-red-400/25
-                                    bg-red-500/[0.07]
+                            {showRefreshError && (
+                                <UpdatesRefreshError
+                                    message={displayError}
 
-                                    px-4
-                                    py-2.5
+                                    onRetry={fetchUpdates}
 
-                                    text-xs
-                                    font-bold
-
-                                    text-red-700
-
-                                    transition-colors
-                                    duration-150
-
-                                    hover:border-red-400/40
-                                    hover:bg-red-500/[0.12]
-
-                                    focus-visible:outline-none
-                                    focus-visible:ring-2
-                                    focus-visible:ring-red-500
-
-                                    dark:border-red-400/20
-                                    dark:text-red-300
-                                "
-                            >
-                                <RefreshCw
-                                    size={14}
-                                    aria-hidden="true"
+                                    isLoading={isLoading}
                                 />
+                            )}
 
-                                Qayta urinish
-                            </button>
-                        </div>
+                            {/* ==========================
+                                FEATURED UPDATE
 
-                    ) : featuredUpdate ? (
-
-                        /* ==========================
-                            UPDATES LIST
-                        ========================== */
-
-                        <>
-                            {/* FEATURED UPDATE */}
+                                Existing props preserved:
+                                - variant
+                                - update
+                                - likeLoading
+                                - onLike
+                            ========================== */}
 
                             <SiteUpdateCard
                                 variant="featured"
+
                                 update={featuredUpdate}
-                                likeLoading={
-                                    likingIds.includes(
-                                        featuredUpdate.id
-                                    )
-                                }
+
+                                likeLoading={isLikingUpdate(
+                                    featuredUpdate.id
+                                )}
+
                                 onLike={handleLike}
                             />
 
-                            {/* ======================
+                            {/* ==========================
                                 MORE UPDATES
-                            ====================== */}
+                            ========================== */}
 
                             {dropdownUpdates.length > 0 && (
                                 <div
-                                    className="
+                                    className={`
+                                        ${PANEL_CLASS}
+
                                         mt-4
-                                        overflow-hidden
-
-                                        rounded-2xl
-                                        border
-
-                                        border-[#dce5f0]
-                                        bg-white/85
-
-                                        shadow-[0_10px_30px_rgba(30,41,59,0.04)]
-
-                                        dark:border-white/[0.06]
-                                        dark:bg-[#0c1118]
-                                        dark:shadow-none
-                                    "
+                                    `}
                                 >
                                     {/* DROPDOWN BUTTON */}
 
                                     <button
                                         type="button"
+
                                         onClick={toggleDropdown}
 
                                         aria-expanded={
@@ -981,10 +1690,12 @@ const SiteUpdates = () => {
                                         aria-controls="fsociety-updates-dropdown"
 
                                         className="
-                                            group/dropdown
+                                            group
 
                                             flex
                                             w-full
+                                            min-w-0
+
                                             items-center
                                             justify-between
                                             gap-4
@@ -995,9 +1706,9 @@ const SiteUpdates = () => {
                                             text-left
 
                                             transition-colors
-                                            duration-150
+                                            duration-200
 
-                                            hover:bg-indigo-500/[0.045]
+                                            hover:bg-indigo-50/80
 
                                             focus-visible:outline-none
                                             focus-visible:ring-2
@@ -1006,7 +1717,9 @@ const SiteUpdates = () => {
 
                                             sm:px-5
 
-                                            dark:hover:bg-white/[0.025]
+                                            dark:hover:bg-white/[0.045]
+
+                                            motion-reduce:transition-none
                                         "
                                     >
                                         {/* LEFT */}
@@ -1015,32 +1728,50 @@ const SiteUpdates = () => {
                                             className="
                                                 flex
                                                 min-w-0
+
                                                 items-center
                                                 gap-3
                                             "
                                         >
-                                            <Newspaper
-                                                size={18}
-                                                strokeWidth={2}
-                                                aria-hidden="true"
-
+                                            <span
                                                 className="
-                                                    shrink-0
-                                                    text-indigo-600
+                                                    grid
+                                                    h-10
+                                                    w-10
 
+                                                    shrink-0
+
+                                                    place-items-center
+
+                                                    rounded-xl
+
+                                                    border
+                                                    border-indigo-200
+
+                                                    bg-indigo-50
+
+                                                    text-indigo-700
+
+                                                    dark:border-indigo-400/20
+                                                    dark:bg-indigo-400/[0.09]
                                                     dark:text-indigo-300
                                                 "
-                                            />
+                                            >
+                                                <Newspaper
+                                                    size={18}
+                                                    aria-hidden="true"
+                                                />
+                                            </span>
 
                                             <div className="min-w-0">
                                                 <p
                                                     className="
                                                         text-[13px]
-                                                        font-bold
+                                                        font-black
 
                                                         text-slate-800
 
-                                                        dark:text-gray-300
+                                                        dark:text-slate-100
                                                     "
                                                 >
                                                     Oxirgi yangiliklar
@@ -1048,16 +1779,17 @@ const SiteUpdates = () => {
 
                                                 <p
                                                     className="
-                                                        mt-0.5
+                                                        mt-1
 
+                                                        font-mono
                                                         text-[10px]
                                                         font-medium
                                                         uppercase
-                                                        tracking-[0.1em]
+                                                        tracking-wider
 
                                                         text-slate-500
 
-                                                        dark:text-gray-600
+                                                        dark:text-slate-400
                                                     "
                                                 >
                                                     Jami {totalCount} ta update
@@ -1071,22 +1803,23 @@ const SiteUpdates = () => {
                                             className="
                                                 flex
                                                 shrink-0
+
                                                 items-center
-                                                gap-2
+                                                gap-3
                                             "
                                         >
                                             <span
                                                 className="
                                                     hidden
 
-                                                    text-[11px]
-                                                    font-medium
+                                                    text-xs
+                                                    font-bold
 
-                                                    text-slate-500
+                                                    text-slate-600
 
-                                                    sm:block
+                                                    sm:inline
 
-                                                    dark:text-gray-500
+                                                    dark:text-slate-300
                                                 "
                                             >
                                                 {dropdownOpen
@@ -1097,38 +1830,34 @@ const SiteUpdates = () => {
                                             <span
                                                 className="
                                                     grid
-                                                    h-8
-                                                    w-8
+                                                    h-9
+                                                    w-9
+
                                                     place-items-center
 
-                                                    rounded-lg
+                                                    rounded-xl
+
                                                     border
+                                                    border-slate-200
 
-                                                    border-[#dce5f0]
-                                                    bg-[#f5f8fd]
+                                                    bg-slate-50
 
-                                                    dark:border-white/[0.06]
-                                                    dark:bg-white/[0.025]
+                                                    dark:border-white/[0.10]
+                                                    dark:bg-white/[0.045]
                                                 "
                                             >
                                                 <ChevronDown
-                                                    size={16}
-                                                    strokeWidth={2}
-
+                                                    size={17}
                                                     aria-hidden="true"
 
                                                     className={`
-                                                        text-slate-500
-
                                                         transition-transform
                                                         duration-200
-
-                                                        dark:text-gray-500
 
                                                         ${
                                                             dropdownOpen
                                                                 ? "rotate-180 text-indigo-600 dark:text-indigo-300"
-                                                                : ""
+                                                                : "text-slate-500 dark:text-slate-400"
                                                         }
 
                                                         motion-reduce:transition-none
@@ -1147,10 +1876,14 @@ const SiteUpdates = () => {
                                             <motion.div
                                                 id="fsociety-updates-dropdown"
 
-                                                initial={{
-                                                    height: 0,
-                                                    opacity: 0,
-                                                }}
+                                                initial={
+                                                    prefersReducedMotion
+                                                        ? false
+                                                        : {
+                                                            height: 0,
+                                                            opacity: 0,
+                                                        }
+                                                }
 
                                                 animate={{
                                                     height: "auto",
@@ -1163,7 +1896,7 @@ const SiteUpdates = () => {
                                                 }}
 
                                                 transition={
-                                                    accordionTransition
+                                                    dropdownTransition
                                                 }
 
                                                 className="
@@ -1173,10 +1906,9 @@ const SiteUpdates = () => {
                                                 <div
                                                     className="
                                                         border-t
+                                                        border-slate-200
 
-                                                        border-[#e5eaf3]
-
-                                                        dark:border-white/[0.05]
+                                                        dark:border-white/[0.08]
                                                     "
                                                 >
                                                     {dropdownUpdates.map(
@@ -1189,8 +1921,10 @@ const SiteUpdates = () => {
                                                                 update={update}
 
                                                                 opened={
-                                                                    openedUpdateId ===
-                                                                    update.id
+                                                                    sameId(
+                                                                        openedUpdateId,
+                                                                        update.id
+                                                                    )
                                                                 }
 
                                                                 onToggle={() =>
@@ -1200,7 +1934,7 @@ const SiteUpdates = () => {
                                                                 }
 
                                                                 likeLoading={
-                                                                    likingIds.includes(
+                                                                    isLikingUpdate(
                                                                         update.id
                                                                     )
                                                                 }
@@ -1218,144 +1952,136 @@ const SiteUpdates = () => {
                                 </div>
                             )}
 
-                            {/* ======================
-                                TOTAL INFO
-                            ====================== */}
+                            {/* ==========================
+                                TOTAL INFORMATION
+                            ========================== */}
 
                             {totalCount > safeUpdates.length && (
                                 <div
                                     className="
-                                        mt-4
+                                        mt-5
 
                                         flex
                                         flex-wrap
+
                                         items-center
                                         justify-center
-                                        gap-1.5
+                                        gap-x-2
+                                        gap-y-1
 
                                         text-center
 
                                         text-[11px]
                                         font-medium
+                                        leading-6
 
-                                        text-slate-500
+                                        text-slate-600
 
-                                        dark:text-gray-600
+                                        dark:text-slate-400
                                     "
                                 >
                                     <History
-                                        size={13}
-                                        strokeWidth={2}
+                                        size={14}
                                         aria-hidden="true"
+
+                                        className="
+                                            shrink-0
+                                            text-indigo-600
+
+                                            dark:text-indigo-400
+                                        "
                                     />
 
                                     <span>
                                         Homepage'da oxirgi{" "}
-                                        {safeUpdates.length} ta yangilik
-                                        ko‘rsatildi.
+                                        <strong
+                                            className="
+                                                font-black
+                                                text-slate-800
+
+                                                dark:text-slate-200
+                                            "
+                                        >
+                                            {safeUpdates.length}
+                                        </strong>{" "}
+                                        ta yangilik ko‘rsatildi.
                                     </span>
 
                                     <span>
-                                        Jami {totalCount} ta mavjud.
+                                        Jami{" "}
+                                        <strong
+                                            className="
+                                                font-black
+                                                text-indigo-700
+
+                                                dark:text-indigo-300
+                                            "
+                                        >
+                                            {totalCount}
+                                        </strong>{" "}
+                                        ta mavjud.
                                     </span>
                                 </div>
                             )}
-                        </>
-
-                    ) : (
-
-                        /* ==========================
-                            EMPTY STATE
-                        ========================== */
-
-                        <div
-                            className="
-                                rounded-3xl
-                                border
-                                border-dashed
-
-                                border-[#dce5f0]
-                                bg-white/75
-
-                                p-7
-                                text-center
-
-                                sm:p-9
-
-                                dark:border-white/[0.08]
-                                dark:bg-white/[0.02]
-                            "
-                        >
-                            <div
-                                className="
-                                    mx-auto
-
-                                    grid
-                                    h-14
-                                    w-14
-                                    place-items-center
-
-                                    rounded-2xl
-                                    border
-
-                                    border-indigo-400/20
-                                    bg-indigo-500/[0.06]
-
-                                    text-indigo-600
-
-                                    dark:text-indigo-300
-                                "
-                            >
-                                <Newspaper
-                                    size={24}
-                                    strokeWidth={1.8}
-                                    aria-hidden="true"
-                                />
-                            </div>
-
-                            <h3
-                                className="
-                                    mt-4
-
-                                    text-lg
-                                    font-black
-
-                                    text-slate-900
-
-                                    dark:text-white
-                                "
-                            >
-                                Hozircha yangilik yo‘q
-                            </h3>
-
-                            <p
-                                className="
-                                    mx-auto
-                                    mt-2
-                                    max-w-md
-
-                                    text-sm
-                                    leading-6
-
-                                    text-slate-600
-
-                                    dark:text-gray-500
-                                "
-                            >
-                                Admin paneldan changelog
-                                qo‘shilganda shu yerda
-                                avtomatik ko‘rinadi.
-                            </p>
                         </div>
                     )}
+                </div>
+
+                {/* ==================================
+                    FOOTER DECORATION
+                ================================== */}
+
+                <div
+                    aria-hidden="true"
+
+                    className="
+                        mt-10
+
+                        flex
+                        items-center
+                        justify-center
+                        gap-3
+
+                        opacity-50
+
+                        dark:opacity-35
+                    "
+                >
+                    <span
+                        className="
+                            h-px
+                            w-12
+
+                            bg-gradient-to-r
+                            from-transparent
+                            to-indigo-400
+                        "
+                    />
+
+                    <ArrowRight
+                        size={13}
+
+                        className="
+                            text-indigo-500
+
+                            dark:text-indigo-400
+                        "
+                    />
+
+                    <span
+                        className="
+                            h-px
+                            w-12
+
+                            bg-gradient-to-l
+                            from-transparent
+                            to-indigo-400
+                        "
+                    />
                 </div>
             </div>
         </section>
     );
 };
 
-// =========================================================
-// EXPORT
-// =========================================================
-
-export default SiteUpdates;
+export default memo(SiteUpdates);

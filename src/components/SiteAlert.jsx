@@ -1,171 +1,950 @@
-import React, { useEffect } from "react";
 
-const alertStyles = {
-  success: {
-    border: "border-emerald-400/30",
-    bg: "bg-emerald-400/10",
-    glow: "shadow-emerald-500/20",
-    iconBg: "bg-emerald-400/15",
-    iconText: "text-emerald-300",
-    title: "text-emerald-300",
-    line: "bg-emerald-400",
-    icon: "fa-check",
-    code: "SUCCESS",
-  },
-  error: {
-    border: "border-red-400/30",
-    bg: "bg-red-400/10",
-    glow: "shadow-red-500/20",
-    iconBg: "bg-red-400/15",
-    iconText: "text-red-300",
-    title: "text-red-300",
-    line: "bg-red-400",
-    icon: "fa-triangle-exclamation",
-    code: "ERROR",
-  },
-  warning: {
-    border: "border-yellow-400/30",
-    bg: "bg-yellow-400/10",
-    glow: "shadow-yellow-500/20",
-    iconBg: "bg-yellow-400/15",
-    iconText: "text-yellow-300",
-    title: "text-yellow-300",
-    line: "bg-yellow-400",
-    icon: "fa-bolt",
-    code: "WARNING",
-  },
-  info: {
-    border: "border-cyan-400/30",
-    bg: "bg-cyan-400/10",
-    glow: "shadow-cyan-500/20",
-    iconBg: "bg-cyan-400/15",
-    iconText: "text-cyan-300",
-    title: "text-cyan-300",
-    line: "bg-cyan-400",
-    icon: "fa-terminal",
-    code: "INFO",
-  },
+import React, {
+    memo,
+    useEffect,
+    useRef,
+} from "react";
+
+import {
+    AlertCircle,
+    AlertTriangle,
+    CheckCircle2,
+    Info,
+    X,
+} from "lucide-react";
+
+// =========================================================
+// FSOCIETY — SITE ALERT
+//
+// Supported alert types:
+// - success
+// - error
+// - warning
+// - info
+//
+// Public props:
+// - alert
+// - onClose
+//
+// Supported alert fields:
+// - id
+// - type
+// - title
+// - message
+// - code
+// - duration
+//
+// Features:
+// - Light / Dark Mode
+// - Responsive notification layout
+// - Automatic dismissal
+// - Manual close button
+// - Animated progress indicator
+// - Accessible notifications
+// - Reduced-motion support
+// - Safe timeout cleanup
+// =========================================================
+
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const DEFAULT_DURATION = 3500;
+
+// =========================================================
+// ALERT STYLES
+// =========================================================
+
+const ALERT_STYLES = {
+    success: {
+        Icon: CheckCircle2,
+
+        border: `
+            border-emerald-200
+            dark:border-emerald-400/30
+        `,
+
+        background: `
+            bg-white/95
+            dark:bg-[#0c1918]/95
+        `,
+
+        iconBackground: `
+            border-emerald-200
+            bg-emerald-50
+
+            dark:border-emerald-400/20
+            dark:bg-emerald-400/10
+        `,
+
+        iconColor: `
+            text-emerald-700
+            dark:text-emerald-300
+        `,
+
+        codeColor: `
+            text-emerald-700
+            dark:text-emerald-300
+        `,
+
+        line: "bg-emerald-500",
+
+        glow: `
+            bg-emerald-400/10
+            dark:bg-emerald-400/10
+        `,
+
+        code: "SUCCESS",
+    },
+
+    error: {
+        Icon: AlertCircle,
+
+        border: `
+            border-rose-200
+            dark:border-rose-400/30
+        `,
+
+        background: `
+            bg-white/95
+            dark:bg-[#1b1118]/95
+        `,
+
+        iconBackground: `
+            border-rose-200
+            bg-rose-50
+
+            dark:border-rose-400/20
+            dark:bg-rose-400/10
+        `,
+
+        iconColor: `
+            text-rose-700
+            dark:text-rose-300
+        `,
+
+        codeColor: `
+            text-rose-700
+            dark:text-rose-300
+        `,
+
+        line: "bg-rose-500",
+
+        glow: `
+            bg-rose-400/10
+            dark:bg-rose-400/10
+        `,
+
+        code: "ERROR",
+    },
+
+    warning: {
+        Icon: AlertTriangle,
+
+        border: `
+            border-amber-200
+            dark:border-amber-400/30
+        `,
+
+        background: `
+            bg-white/95
+            dark:bg-[#1b1810]/95
+        `,
+
+        iconBackground: `
+            border-amber-200
+            bg-amber-50
+
+            dark:border-amber-400/20
+            dark:bg-amber-400/10
+        `,
+
+        iconColor: `
+            text-amber-700
+            dark:text-amber-300
+        `,
+
+        codeColor: `
+            text-amber-700
+            dark:text-amber-300
+        `,
+
+        line: "bg-amber-500",
+
+        glow: `
+            bg-amber-400/10
+            dark:bg-amber-400/10
+        `,
+
+        code: "WARNING",
+    },
+
+    info: {
+        Icon: Info,
+
+        border: `
+            border-cyan-200
+            dark:border-cyan-400/30
+        `,
+
+        background: `
+            bg-white/95
+            dark:bg-[#0b1720]/95
+        `,
+
+        iconBackground: `
+            border-cyan-200
+            bg-cyan-50
+
+            dark:border-cyan-400/20
+            dark:bg-cyan-400/10
+        `,
+
+        iconColor: `
+            text-cyan-700
+            dark:text-cyan-300
+        `,
+
+        codeColor: `
+            text-cyan-700
+            dark:text-cyan-300
+        `,
+
+        line: "bg-cyan-500",
+
+        glow: `
+            bg-cyan-400/10
+            dark:bg-cyan-400/10
+        `,
+
+        code: "INFO",
+    },
 };
 
-const SiteAlert = ({ alert, onClose }) => {
-  const duration = alert?.duration || 3500;
-  const type = alert?.type || "info";
-  const style = alertStyles[type] || alertStyles.info;
+// =========================================================
+// HELPERS
+// =========================================================
 
-  useEffect(() => {
-    if (!alert) return;
+const getAlertDuration = (value) => {
+    // duration={0} means the alert stays open
+    // until the user closes it.
 
-    const timer = setTimeout(() => {
-      onClose();
-    }, duration);
+    if (value === 0) {
+        return 0;
+    }
 
-    return () => clearTimeout(timer);
-  }, [alert, duration, onClose]);
+    const duration = Number(value);
 
-  if (!alert) return null;
+    if (
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        Number.isFinite(duration) &&
+        duration > 0
+    ) {
+        return duration;
+    }
 
-  return (
-    <>
-      <style>
-        {`
-          @keyframes fsociety-alert-in {
-            from {
-              opacity: 0;
-              transform: translateY(-14px) scale(0.96);
+    return DEFAULT_DURATION;
+};
+
+const getAlertType = (value) => {
+    const type = String(
+        value ?? "info"
+    ).trim().toLowerCase();
+
+    return Object.prototype.hasOwnProperty.call(
+        ALERT_STYLES,
+        type
+    )
+        ? type
+        : "info";
+};
+
+const getAlertText = (value, fallback = "") => {
+    if (value === null || value === undefined) {
+        return fallback;
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (
+        typeof value === "number" ||
+        typeof value === "boolean"
+    ) {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => getAlertText(item))
+            .filter(Boolean)
+            .join(", ");
+    }
+
+    if (typeof value === "object") {
+        const detail =
+            value.detail ??
+            value.message ??
+            value.error;
+
+        if (detail !== undefined) {
+            return getAlertText(detail, fallback);
+        }
+    }
+
+    return fallback;
+};
+
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
+
+const SiteAlert = ({
+    alert,
+    onClose,
+}) => {
+    // =====================================================
+    // CLOSE CALLBACK REFERENCE
+    //
+    // Updating onClose should not restart
+    // the dismissal timeout.
+    // =====================================================
+
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    // =====================================================
+    // ALERT CONFIGURATION
+    // =====================================================
+
+    const type = getAlertType(
+        alert?.type
+    );
+
+    const style = ALERT_STYLES[type];
+
+    const Icon = style.Icon;
+
+    const duration = getAlertDuration(
+        alert?.duration
+    );
+
+    const title = getAlertText(
+        alert?.title,
+        "FSociety Alert"
+    );
+
+    const message = getAlertText(
+        alert?.message
+    );
+
+    const code = getAlertText(
+        alert?.code,
+        style.code
+    );
+
+    const isImportant =
+        type === "error" ||
+        type === "warning";
+
+    const hasCloseHandler =
+        typeof onClose === "function";
+
+    const showProgress =
+        duration > 0 &&
+        hasCloseHandler;
+
+    // =====================================================
+    // ALERT IDENTITY
+    //
+    // New alerts should restart their
+    // entry / progress animations.
+    // =====================================================
+
+    const alertKey = [
+        alert?.id ?? "",
+        type,
+        title,
+        message,
+        code,
+        duration,
+    ].join("|");
+
+    // =====================================================
+    // AUTOMATIC DISMISSAL
+    //
+    // - Cleanup old timeout
+    // - Create a new timeout for a new alert
+    // - Avoid stale onClose callbacks
+    // - duration={0}: persistent alert
+    // =====================================================
+
+    useEffect(() => {
+        if (
+            !alert ||
+            duration === 0
+        ) {
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => {
+            if (
+                typeof onCloseRef.current === "function"
+            ) {
+                onCloseRef.current();
             }
-            to {
-              opacity: 1;
-              transform: translateY(0) scale(1);
-            }
-          }
+        }, duration);
 
-          @keyframes fsociety-alert-progress {
-            from {
-              transform: scaleX(1);
-            }
-            to {
-              transform: scaleX(0);
-            }
-          }
-        `}
-      </style>
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [
+        alert,
+        duration,
+    ]);
 
-      <div className="fixed right-4 top-24 z-[9999] w-[calc(100%-32px)] max-w-md sm:right-6">
-        <div
-          className={`
-            relative overflow-hidden rounded-2xl border ${style.border}
-            ${style.bg} shadow-2xl ${style.glow} backdrop-blur-xl
-          `}
-          style={{ animation: "fsociety-alert-in 260ms ease-out forwards" }}
-        >
-          {/* Glow */}
-          <div className="absolute -right-14 -top-14 h-28 w-28 rounded-full bg-white/10 blur-3xl" />
+    // =====================================================
+    // NOTHING TO RENDER
+    // =====================================================
 
-          <div className="relative flex gap-4 p-4">
-            {/* Icon */}
+    if (!alert) {
+        return null;
+    }
+
+    // =====================================================
+    // RENDER
+    // =====================================================
+
+    return (
+        <>
+            {/* ======================================
+                ALERT ANIMATIONS
+            ====================================== */}
+
+            <style>
+                {`
+                    @keyframes fsociety-alert-in {
+                        from {
+                            opacity: 0;
+                            transform:
+                                translateY(-14px)
+                                scale(0.97);
+                        }
+
+                        to {
+                            opacity: 1;
+                            transform:
+                                translateY(0)
+                                scale(1);
+                        }
+                    }
+
+                    @keyframes fsociety-alert-progress {
+                        from {
+                            transform: scaleX(1);
+                        }
+
+                        to {
+                            transform: scaleX(0);
+                        }
+                    }
+
+                    .fsociety-alert-enter {
+                        animation:
+                            fsociety-alert-in
+                            260ms
+                            cubic-bezier(0.16, 1, 0.3, 1)
+                            both;
+                    }
+
+                    .fsociety-alert-progress {
+                        transform-origin: left center;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .fsociety-alert-enter {
+                            animation: none !important;
+                        }
+
+                        .fsociety-alert-progress {
+                            animation: none !important;
+                            transform: scaleX(1);
+                        }
+
+                        .fsociety-alert-cursor {
+                            animation: none !important;
+                        }
+                    }
+                `}
+            </style>
+
+            {/* ======================================
+                RESPONSIVE FIXED CONTAINER
+
+                Mobile:
+                - Full available width
+                - Safe horizontal spacing
+
+                Desktop:
+                - Top-right notification
+                - Maximum 420px width
+            ====================================== */}
+
             <div
-              className={`
-                flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl
-                ${style.iconBg} ${style.iconText}
-              `}
-            >
-              <i className={`fa-solid ${style.icon} text-xl`}></i>
-            </div>
+                className="
+                    pointer-events-none
 
-            {/* Text */}
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex items-center gap-2">
-                <span
-                  className={`
-                    font-mono text-[11px] font-black uppercase tracking-[0.25em]
-                    ${style.title}
-                  `}
+                    fixed
+                    inset-x-3
+                    top-20
+
+                    z-[9999]
+
+                    sm:inset-x-auto
+                    sm:right-6
+                    sm:top-24
+                    sm:w-[420px]
+                    sm:max-w-[calc(100vw-3rem)]
+                "
+            >
+                {/* ==================================
+                    ALERT PANEL
+                ================================== */}
+
+                <div
+                    key={alertKey}
+
+                    role={
+                        isImportant
+                            ? "alert"
+                            : "status"
+                    }
+
+                    aria-live={
+                        isImportant
+                            ? "assertive"
+                            : "polite"
+                    }
+
+                    aria-atomic="true"
+
+                    className={`
+                        fsociety-alert-enter
+
+                        pointer-events-auto
+
+                        relative
+
+                        w-full
+                        min-w-0
+
+                        overflow-hidden
+
+                        rounded-2xl
+
+                        border
+
+                        ${style.border}
+                        ${style.background}
+
+                        shadow-[0_20px_55px_rgba(15,23,42,0.16)]
+
+                        backdrop-blur-xl
+
+                        sm:rounded-[22px]
+
+                        dark:shadow-[0_24px_65px_rgba(0,0,0,0.42)]
+                    `}
                 >
-                  fsociety::{alert.code || style.code}
-                </span>
+                    {/* ==================================
+                        DECORATIVE GLOW
+                    ================================== */}
 
-                <span className="h-1 w-1 rounded-full bg-gray-500" />
+                    <div
+                        aria-hidden="true"
 
-                <span className="font-mono text-[11px] text-gray-500">
-                  now
-                </span>
-              </div>
+                        className={`
+                            pointer-events-none
 
-              <h3 className="text-base font-black text-white">
-                {alert.title || "FSociety Alert"}
-                <span className="ml-1 animate-pulse text-gray-500">_</span>
-              </h3>
+                            absolute
+                            -right-10
+                            -top-12
 
-              {alert.message && (
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-300">
-                  {alert.message}
-                </p>
-              )}
+                            h-36
+                            w-36
+
+                            rounded-full
+
+                            blur-3xl
+
+                            ${style.glow}
+                        `}
+                    />
+
+                    {/* ==================================
+                        LEFT ACCENT
+                    ================================== */}
+
+                    <div
+                        aria-hidden="true"
+
+                        className={`
+                            absolute
+                            inset-y-0
+                            left-0
+
+                            w-[3px]
+
+                            ${style.line}
+                        `}
+                    />
+
+                    {/* ==================================
+                        ALERT CONTENT
+                    ================================== */}
+
+                    <div
+                        className="
+                            relative
+
+                            flex
+                            min-w-0
+
+                            items-start
+
+                            gap-3
+
+                            p-3.5
+                            pl-4
+
+                            sm:gap-4
+                            sm:p-4
+                            sm:pl-5
+                        "
+                    >
+                        {/* ==========================
+                            ICON
+                        ========================== */}
+
+                        <div
+                            aria-hidden="true"
+
+                            className={`
+                                flex
+
+                                h-10
+                                w-10
+
+                                shrink-0
+
+                                items-center
+                                justify-center
+
+                                rounded-xl
+
+                                border
+
+                                ${style.iconBackground}
+                                ${style.iconColor}
+
+                                sm:h-12
+                                sm:w-12
+                                sm:rounded-2xl
+                            `}
+                        >
+                            <Icon
+                                size={21}
+                                strokeWidth={2}
+
+                                className="
+                                    sm:h-6
+                                    sm:w-6
+                                "
+                            />
+                        </div>
+
+                        {/* ==========================
+                            MESSAGE CONTENT
+                        ========================== */}
+
+                        <div
+                            className="
+                                min-w-0
+                                flex-1
+
+                                pt-0.5
+                            "
+                        >
+                            {/* SYSTEM INFORMATION */}
+
+                            <div
+                                className="
+                                    mb-1.5
+
+                                    flex
+                                    min-w-0
+
+                                    flex-wrap
+
+                                    items-center
+                                    gap-x-2
+                                    gap-y-1
+                                "
+                            >
+                                {/* CODE */}
+
+                                <span
+                                    className={`
+                                        min-w-0
+
+                                        break-all
+
+                                        font-mono
+                                        text-[10px]
+                                        font-black
+
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        sm:text-[11px]
+
+                                        ${style.codeColor}
+                                    `}
+                                >
+                                    fsociety::{code}
+                                </span>
+
+                                {/* SEPARATOR */}
+
+                                <span
+                                    aria-hidden="true"
+
+                                    className="
+                                        h-1
+                                        w-1
+
+                                        shrink-0
+
+                                        rounded-full
+
+                                        bg-slate-400
+
+                                        dark:bg-slate-600
+                                    "
+                                />
+
+                                {/* TIME LABEL */}
+
+                                <span
+                                    className="
+                                        shrink-0
+
+                                        font-mono
+                                        text-[10px]
+
+                                        text-slate-500
+
+                                        dark:text-slate-400
+                                    "
+                                >
+                                    now
+                                </span>
+                            </div>
+
+                            {/* TITLE */}
+
+                            <h3
+                                className="
+                                    break-words
+
+                                    text-sm
+                                    font-black
+
+                                    leading-5
+
+                                    text-slate-900
+
+                                    sm:text-base
+
+                                    dark:text-white
+
+                                    [overflow-wrap:anywhere]
+                                "
+                            >
+                                {title}
+
+                                <span
+                                    aria-hidden="true"
+
+                                    className="
+                                        fsociety-alert-cursor
+
+                                        ml-1
+
+                                        animate-pulse
+
+                                        text-slate-400
+
+                                        dark:text-slate-500
+
+                                        motion-reduce:animate-none
+                                    "
+                                >
+                                    _
+                                </span>
+                            </h3>
+
+                            {/* MESSAGE */}
+
+                            {message && (
+                                <p
+                                    className="
+                                        mt-2
+
+                                        whitespace-pre-wrap
+
+                                        break-words
+
+                                        text-xs
+                                        font-medium
+
+                                        leading-5
+
+                                        text-slate-600
+
+                                        sm:text-[13px]
+                                        sm:leading-6
+
+                                        dark:text-slate-300
+
+                                        [overflow-wrap:anywhere]
+                                    "
+                                >
+                                    {message}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* ==========================
+                            CLOSE BUTTON
+                        ========================== */}
+
+                        {hasCloseHandler && (
+                            <button
+                                type="button"
+
+                                onClick={onClose}
+
+                                aria-label="Xabarni yopish"
+
+                                title="Xabarni yopish"
+
+                                className="
+                                    flex
+
+                                    h-10
+                                    w-10
+
+                                    shrink-0
+
+                                    items-center
+                                    justify-center
+
+                                    rounded-xl
+
+                                    border
+                                    border-transparent
+
+                                    text-slate-500
+
+                                    transition-colors
+
+                                    hover:border-slate-200
+                                    hover:bg-slate-100
+                                    hover:text-slate-900
+
+                                    focus-visible:outline-none
+                                    focus-visible:ring-2
+                                    focus-visible:ring-indigo-500
+
+                                    active:bg-slate-200
+
+                                    dark:text-slate-400
+
+                                    dark:hover:border-white/10
+                                    dark:hover:bg-white/[0.08]
+                                    dark:hover:text-white
+
+                                    dark:active:bg-white/[0.12]
+
+                                    motion-reduce:transition-none
+                                "
+                            >
+                                <X
+                                    size={18}
+                                    strokeWidth={2.2}
+
+                                    aria-hidden="true"
+                                />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* ==================================
+                        PROGRESS BACKGROUND
+                    ================================== */}
+
+                    {showProgress && (
+                        <div
+                            aria-hidden="true"
+
+                            className="
+                                h-1
+                                w-full
+
+                                overflow-hidden
+
+                                bg-slate-200/80
+
+                                dark:bg-white/[0.10]
+                            "
+                        >
+                            {/* ======================
+                                ANIMATED PROGRESS BAR
+                            ====================== */}
+
+                            <div
+                                className={`
+                                    fsociety-alert-progress
+
+                                    h-full
+                                    w-full
+
+                                    ${style.line}
+                                `}
+
+                                style={{
+                                    animation:
+                                        `fsociety-alert-progress ` +
+                                        `${duration}ms linear forwards`,
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
-
-            {/* Close */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-white/10 hover:text-white"
-            >
-              <i className="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-1 w-full bg-white/10">
-            <div
-              className={`h-full origin-left ${style.line}`}
-              style={{
-                animation: `fsociety-alert-progress ${duration}ms linear forwards`,
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </>
-  );
+        </>
+    );
 };
 
-export default SiteAlert;
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default memo(SiteAlert);
