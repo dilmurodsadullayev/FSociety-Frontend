@@ -1,4 +1,3 @@
-// src/components/feedback/feedbackHelpers.js
 
 import {
     CheckCircle2,
@@ -8,6 +7,16 @@ import {
     XCircle,
 } from "lucide-react";
 
+// =========================================================
+// FSOCIETY — FEEDBACK HELPERS
+//
+// - Existing exports preserved
+// - Dark / Light status colors
+// - Safe status lookup
+// - Backend permission contract preserved
+// - Reward and screenshot normalization
+// - DRF error handling
+// =========================================================
 
 // =========================================================
 // STATUS FILTERS
@@ -36,12 +45,23 @@ export const FEEDBACK_STATUS_FILTERS = [
     },
 ];
 
-
 // =========================================================
 // STATUS CONFIG
+//
+// Keep the existing object shape:
+// - value
+// - label
+// - shortLabel
+// - description
+// - Icon
+// - className
 // =========================================================
 
 export const FEEDBACK_STATUS_CONFIG = {
+    // =====================================================
+    // PENDING
+    // =====================================================
+
     pending: {
         value: "pending",
 
@@ -54,13 +74,20 @@ export const FEEDBACK_STATUS_CONFIG = {
 
         Icon: Clock3,
 
-        className:
-            "border-amber-400/20 "
-            +
-            "bg-amber-500/[0.07] "
-            +
-            "text-amber-300",
+        className: `
+            border-amber-400/40
+            bg-amber-500/[0.09]
+            text-amber-800
+
+            dark:border-amber-400/20
+            dark:bg-amber-500/[0.07]
+            dark:text-amber-300
+        `,
     },
+
+    // =====================================================
+    // IN PROGRESS
+    // =====================================================
 
     in_progress: {
         value: "in_progress",
@@ -74,13 +101,20 @@ export const FEEDBACK_STATUS_CONFIG = {
 
         Icon: Wrench,
 
-        className:
-            "border-blue-400/20 "
-            +
-            "bg-blue-500/[0.07] "
-            +
-            "text-blue-300",
+        className: `
+            border-blue-400/40
+            bg-blue-500/[0.09]
+            text-blue-800
+
+            dark:border-blue-400/20
+            dark:bg-blue-500/[0.07]
+            dark:text-blue-300
+        `,
     },
+
+    // =====================================================
+    // APPROVED
+    // =====================================================
 
     approved: {
         value: "approved",
@@ -94,13 +128,20 @@ export const FEEDBACK_STATUS_CONFIG = {
 
         Icon: CheckCircle2,
 
-        className:
-            "border-emerald-400/20 "
-            +
-            "bg-emerald-500/[0.07] "
-            +
-            "text-emerald-300",
+        className: `
+            border-emerald-400/40
+            bg-emerald-500/[0.09]
+            text-emerald-800
+
+            dark:border-emerald-400/20
+            dark:bg-emerald-500/[0.07]
+            dark:text-emerald-300
+        `,
     },
+
+    // =====================================================
+    // REJECTED
+    // =====================================================
 
     rejected: {
         value: "rejected",
@@ -114,15 +155,17 @@ export const FEEDBACK_STATUS_CONFIG = {
 
         Icon: XCircle,
 
-        className:
-            "border-red-400/20 "
-            +
-            "bg-red-500/[0.07] "
-            +
-            "text-red-300",
+        className: `
+            border-red-400/40
+            bg-red-500/[0.09]
+            text-red-800
+
+            dark:border-red-400/20
+            dark:bg-red-500/[0.07]
+            dark:text-red-300
+        `,
     },
 };
-
 
 // =========================================================
 // FALLBACK STATUS
@@ -140,14 +183,16 @@ const FALLBACK_STATUS_CONFIG = {
 
     Icon: CircleHelp,
 
-    className:
-        "border-gray-400/20 "
-        +
-        "bg-gray-500/[0.07] "
-        +
-        "text-gray-400",
-};
+    className: `
+        border-slate-300
+        bg-slate-100
+        text-slate-700
 
+        dark:border-gray-400/20
+        dark:bg-gray-500/[0.07]
+        dark:text-gray-400
+    `,
+};
 
 // =========================================================
 // SAFE NUMBER
@@ -157,37 +202,50 @@ const toSafeNumber = (
     value,
     fallback = 0
 ) => {
-    const number =
-        Number(
-            value
-        );
+    const number = Number(value);
 
-    return Number.isFinite(
-        number
-    )
+    return Number.isFinite(number)
         ? number
         : fallback;
 };
 
-
 // =========================================================
-// SAFE NON-NEGATIVE INTEGER
+// SAFE COUNT
 // =========================================================
 
-const toSafeCount = (
-    value
-) => {
+const toSafeCount = (value) => {
     return Math.max(
         0,
         Math.trunc(
-            toSafeNumber(
-                value,
-                0
-            )
+            toSafeNumber(value, 0)
         )
     );
 };
 
+// =========================================================
+// NORMALIZE STATUS
+// =========================================================
+
+const normalizeStatus = (value) => {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase();
+};
+
+// =========================================================
+// SAFE CONFIG LOOKUP
+//
+// Avoid inherited object properties such as
+// "constructor" or "toString" being interpreted
+// as valid status configurations.
+// =========================================================
+
+const hasStatusConfig = (status) => {
+    return Object.prototype.hasOwnProperty.call(
+        FEEDBACK_STATUS_CONFIG,
+        status
+    );
+};
 
 // =========================================================
 // GET STATUS CONFIG
@@ -197,23 +255,12 @@ export const getFeedbackStatusConfig = (
     status
 ) => {
     const normalizedStatus =
-        String(
-            status
-            ??
-            ""
-        )
-            .trim()
-            .toLowerCase();
+        normalizeStatus(status);
 
-    return (
-        FEEDBACK_STATUS_CONFIG[
-            normalizedStatus
-        ]
-        ||
-        FALLBACK_STATUS_CONFIG
-    );
+    return hasStatusConfig(normalizedStatus)
+        ? FEEDBACK_STATUS_CONFIG[normalizedStatus]
+        : FALLBACK_STATUS_CONFIG;
 };
-
 
 // =========================================================
 // VALID STATUS
@@ -222,26 +269,15 @@ export const getFeedbackStatusConfig = (
 export const isValidFeedbackStatus = (
     status
 ) => {
-    if (
-        status ===
-        "all"
-    ) {
+    const normalizedStatus =
+        normalizeStatus(status);
+
+    if (normalizedStatus === "all") {
         return true;
     }
 
-    return Boolean(
-        FEEDBACK_STATUS_CONFIG[
-            String(
-                status
-                ??
-                ""
-            )
-                .trim()
-                .toLowerCase()
-        ]
-    );
+    return hasStatusConfig(normalizedStatus);
 };
-
 
 // =========================================================
 // STATUS HELPERS
@@ -250,217 +286,214 @@ export const isValidFeedbackStatus = (
 export const isFeedbackPending = (
     feedback
 ) => {
-    return (
-        feedback?.status ===
-        "pending"
-    );
+    return feedback?.status === "pending";
 };
-
 
 export const isFeedbackInProgress = (
     feedback
 ) => {
-    return (
-        feedback?.status ===
-        "in_progress"
-    );
+    return feedback?.status === "in_progress";
 };
-
 
 export const isFeedbackApproved = (
     feedback
 ) => {
-    return (
-        feedback?.status ===
-        "approved"
-    );
+    return feedback?.status === "approved";
 };
-
 
 export const isFeedbackRejected = (
     feedback
 ) => {
-    return (
-        feedback?.status ===
-        "rejected"
-    );
+    return feedback?.status === "rejected";
 };
-
 
 export const isFeedbackFinal = (
     feedback
 ) => {
     return (
-        isFeedbackApproved(
-            feedback
-        )
-        ||
-        isFeedbackRejected(
-            feedback
-        )
+        isFeedbackApproved(feedback) ||
+        isFeedbackRejected(feedback)
     );
 };
 
-
 // =========================================================
 // CAN USER MODIFY
+//
+// Backend source of truth:
+//   can_user_modify
+//
+// Only when that field is absent do we use
+// the frontend pending-status fallback.
+//
+// Backend must independently enforce permissions.
 // =========================================================
 
 export const canModifyFeedback = (
     feedback
 ) => {
     if (
-        !feedback
-        ||
-        typeof feedback !==
-            "object"
+        !feedback ||
+        typeof feedback !== "object"
     ) {
         return false;
     }
 
-    // =====================================================
-    // BACKEND SOURCE OF TRUTH
-    // =====================================================
-
+    // Explicit backend permission wins.
     if (
-        typeof feedback
-            .can_user_modify ===
+        typeof feedback.can_user_modify ===
         "boolean"
     ) {
-        return (
-            feedback
-                .can_user_modify
-        );
+        return feedback.can_user_modify;
     }
 
-    // =====================================================
-    // FRONTEND FALLBACK
-    //
-    // Faqat PENDING edit/delete qilinadi.
-    //
-    // IN_PROGRESS boshlangan zahoti edit/delete yo‘q.
-    // =====================================================
-
-    return isFeedbackPending(
-        feedback
-    );
+    // Frontend fallback.
+    return isFeedbackPending(feedback);
 };
 
-
 // =========================================================
-// REWARD
+// REWARD AMOUNT
+//
+// Display only the amount returned by backend.
+//
+// Do not calculate an awarded amount from
+// feedback type alone.
 // =========================================================
 
 export const getFeedbackRewardAmount = (
     feedback
 ) => {
-    const amount =
-        toSafeNumber(
-            feedback
-                ?.reward_amount,
-            0
-        );
-
-    return Math.max(
-        0,
-        Math.trunc(
-            amount
-        )
+    return toSafeCount(
+        feedback?.reward_amount
     );
 };
 
+// =========================================================
+// IS REWARDED
+// =========================================================
 
 export const isFeedbackRewarded = (
     feedback
 ) => {
-    if (
-        !feedback
-    ) {
+    if (!feedback) {
         return false;
     }
 
-    return Boolean(
-        feedback.rewarded_at
-    )
-    ||
-    getFeedbackRewardAmount(
-        feedback
-    ) > 0;
+    return (
+        Boolean(feedback.rewarded_at) ||
+        getFeedbackRewardAmount(feedback) > 0
+    );
 };
 
+// =========================================================
+// SCREENSHOT URL VALIDATION
+//
+// Feedback screenshots may originate from
+// Django media URLs or external image storage.
+//
+// Reject dangerous executable URL schemes.
+// =========================================================
+
+const normalizeScreenshotUrl = (value) => {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const url = value.trim();
+
+    if (!url) {
+        return null;
+    }
+
+    // Reject control characters.
+    if (/[\u0000-\u001f\u007f]/.test(url)) {
+        return null;
+    }
+
+    // Reject executable or unsafe inline content.
+    if (
+        /^(javascript|vbscript|data):/i.test(url)
+    ) {
+        return null;
+    }
+
+    // Permit HTTP(S), blob previews, and
+    // relative URLs without a scheme.
+    const schemeMatch = url.match(
+        /^([a-z][a-z0-9+.-]*):/i
+    );
+
+    if (schemeMatch) {
+        const scheme =
+            schemeMatch[1].toLowerCase();
+
+        if (
+            scheme !== "http" &&
+            scheme !== "https" &&
+            scheme !== "blob"
+        ) {
+            return null;
+        }
+    }
+
+    return url;
+};
 
 // =========================================================
-// SCREENSHOT
+// GET SCREENSHOT
+//
+// Supported response formats:
+//
+// screenshot_url: "/media/file.webp"
+// screenshot: "/media/file.webp"
+// screenshot: { url: "..." }
+// screenshot: { src: "..." }
 // =========================================================
 
 export const getFeedbackScreenshot = (
     feedback
 ) => {
     if (
-        !feedback
-        ||
-        typeof feedback !==
-            "object"
+        !feedback ||
+        typeof feedback !== "object"
     ) {
         return null;
     }
 
-    const value =
-        feedback.screenshot_url
-        ??
-        feedback.screenshot
-        ??
-        null;
+    const candidates = [
+        feedback.screenshot_url,
+        feedback.screenshot,
+    ];
 
-    if (
-        !value
-    ) {
-        return null;
-    }
+    for (const candidate of candidates) {
+        if (typeof candidate === "string") {
+            const url =
+                normalizeScreenshotUrl(candidate);
 
-    if (
-        typeof value ===
-        "string"
-    ) {
-        const trimmed =
-            value.trim();
-
-        return (
-            trimmed
-            ||
-            null
-        );
-    }
-
-    if (
-        typeof value ===
-        "object"
-    ) {
-        const url =
-            value.url
-            ??
-            value.src
-            ??
-            null;
+            if (url) {
+                return url;
+            }
+        }
 
         if (
-            typeof url ===
-            "string"
+            candidate &&
+            typeof candidate === "object"
         ) {
-            const trimmed =
-                url.trim();
+            const url =
+                normalizeScreenshotUrl(
+                    candidate.url
+                ) ||
+                normalizeScreenshotUrl(
+                    candidate.src
+                );
 
-            return (
-                trimmed
-                ||
-                null
-            );
+            if (url) {
+                return url;
+            }
         }
     }
 
     return null;
 };
-
 
 // =========================================================
 // USERNAME
@@ -470,187 +503,144 @@ export const getFeedbackUsername = (
     feedback
 ) => {
     if (
-        !feedback
-        ||
-        typeof feedback !==
-            "object"
+        !feedback ||
+        typeof feedback !== "object"
     ) {
         return "unknown";
     }
 
     const username =
-        feedback
-            ?.user
-            ?.username
-        ??
-        feedback
-            ?.username
-        ??
-        feedback
-            ?.user_username
-        ??
+        feedback?.user?.username ??
+        feedback?.username ??
+        feedback?.user_username ??
         "unknown";
 
-    const normalized =
-        String(
-            username
-        ).trim();
-
     return (
-        normalized
-        ||
+        String(username).trim() ||
         "unknown"
     );
 };
 
-
 // =========================================================
-// NORMALIZE LIST
+// NORMALIZE FEEDBACK LIST
+//
+// Supported formats:
+//
+// []
+// { results: [] }
+// { data: [] }
+// { data: { results: [] } }
 // =========================================================
 
 export const normalizeFeedbackList = (
     payload
 ) => {
-    if (
-        Array.isArray(
-            payload
-        )
-    ) {
+    if (Array.isArray(payload)) {
         return payload;
     }
 
-    if (
-        Array.isArray(
-            payload?.results
-        )
-    ) {
+    if (Array.isArray(payload?.results)) {
         return payload.results;
     }
 
-    if (
-        Array.isArray(
-            payload?.data
-        )
-    ) {
+    if (Array.isArray(payload?.data)) {
         return payload.data;
     }
 
     if (
-        Array.isArray(
-            payload?.data?.results
-        )
+        Array.isArray(payload?.data?.results)
     ) {
-        return payload
-            .data
-            .results;
+        return payload.data.results;
     }
 
     return [];
 };
 
-
 // =========================================================
 // NORMALIZE STATS
+//
+// Preserve all existing backend stat keys.
 // =========================================================
 
 export const normalizeFeedbackStats = (
     payload
 ) => {
     const source =
-        payload
-        &&
-        typeof payload ===
-            "object"
+        payload &&
+        typeof payload === "object"
             ? payload
             : {};
 
     return {
-        total:
-            toSafeCount(
-                source.total
-            ),
+        total: toSafeCount(
+            source.total
+        ),
 
-        pending:
-            toSafeCount(
-                source.pending
-            ),
+        pending: toSafeCount(
+            source.pending
+        ),
 
-        in_progress:
-            toSafeCount(
-                source.in_progress
-            ),
+        in_progress: toSafeCount(
+            source.in_progress
+        ),
 
-        approved:
-            toSafeCount(
-                source.approved
-            ),
+        approved: toSafeCount(
+            source.approved
+        ),
 
-        rejected:
-            toSafeCount(
-                source.rejected
-            ),
+        rejected: toSafeCount(
+            source.rejected
+        ),
 
-        earned_fcoin:
-            toSafeCount(
-                source.earned_fcoin
-            ),
+        earned_fcoin: toSafeCount(
+            source.earned_fcoin
+        ),
 
-        approved_bugs:
-            toSafeCount(
-                source.approved_bugs
-            ),
+        approved_bugs: toSafeCount(
+            source.approved_bugs
+        ),
     };
 };
 
-
 // =========================================================
-// DRF ERROR VALUE
+// FIRST DRF ERROR
+//
+// Supports nested serializer field errors.
+//
+// Depth is limited to avoid excessive recursion.
 // =========================================================
 
 const getFirstErrorValue = (
-    value
+    value,
+    depth = 0
 ) => {
     if (
-        value ===
-        null
-        ||
-        value ===
-        undefined
+        value == null ||
+        depth > 6
     ) {
         return null;
     }
 
-    if (
-        typeof value ===
-        "string"
-    ) {
-        const text =
-            value.trim();
-
-        return (
-            text
-            ||
-            null
-        );
+    if (typeof value === "string") {
+        return value.trim() || null;
     }
 
     if (
-        Array.isArray(
-            value
-        )
+        typeof value === "number" ||
+        typeof value === "boolean"
     ) {
-        for (
-            const item
-            of value
-        ) {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
             const message =
                 getFirstErrorValue(
-                    item
+                    item,
+                    depth + 1
                 );
 
-            if (
-                message
-            ) {
+            if (message) {
                 return message;
             }
         }
@@ -658,24 +648,45 @@ const getFirstErrorValue = (
         return null;
     }
 
-    if (
-        typeof value ===
-        "object"
-    ) {
-        for (
-            const item
-            of Object.values(
-                value
-            )
-        ) {
+    if (typeof value === "object") {
+        const preferredKeys = [
+            "detail",
+            "message",
+            "error",
+            "non_field_errors",
+        ];
+
+        for (const key of preferredKeys) {
+            if (value[key] == null) {
+                continue;
+            }
+
             const message =
                 getFirstErrorValue(
-                    item
+                    value[key],
+                    depth + 1
                 );
 
-            if (
-                message
-            ) {
+            if (message) {
+                return message;
+            }
+        }
+
+        for (
+            const [key, item]
+            of Object.entries(value)
+        ) {
+            if (preferredKeys.includes(key)) {
+                continue;
+            }
+
+            const message =
+                getFirstErrorValue(
+                    item,
+                    depth + 1
+                );
+
+            if (message) {
                 return message;
             }
         }
@@ -684,85 +695,67 @@ const getFirstErrorValue = (
     return null;
 };
 
-
 // =========================================================
-// ERROR MESSAGE
+// GET ERROR MESSAGE
+//
+// Supports:
+// - Plain error strings
+// - Axios errors
+// - DRF detail / message / error
+// - DRF field errors
+// - Generic JavaScript errors
 // =========================================================
 
 export const getFeedbackErrorMessage = (
     error,
-    fallback = "Feedback bilan ishlashda xatolik yuz berdi."
+    fallback =
+        "Feedback bilan ishlashda xatolik yuz berdi."
 ) => {
-    if (
-        !error
-    ) {
+    if (!error) {
         return fallback;
     }
 
+    // Plain string errors.
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
     const serverData =
-        error?.serverData
-        ??
-        error?.response?.data
-        ??
+        error?.serverData ??
+        error?.response?.data ??
         null;
 
-    // =====================================================
-    // COMMON DRF KEYS
-    // =====================================================
+    // Backend response.
+    const serverMessage =
+        getFirstErrorValue(serverData);
 
-    const commonMessage =
-        serverData?.detail
-        ??
-        serverData?.message
-        ??
-        serverData?.error
-        ??
-        null;
-
-    const normalizedCommon =
-        getFirstErrorValue(
-            commonMessage
-        );
-
-    if (
-        normalizedCommon
-    ) {
-        return normalizedCommon;
+    if (serverMessage) {
+        return serverMessage;
     }
 
-    // =====================================================
-    // FIELD ERRORS
-    // =====================================================
-
-    const fieldMessage =
+    // Some actions return error payloads.
+    const payloadMessage =
         getFirstErrorValue(
-            serverData
+            error?.payload
         );
 
-    if (
-        fieldMessage
-    ) {
-        return fieldMessage;
+    if (payloadMessage) {
+        return payloadMessage;
     }
 
-    // =====================================================
-    // GENERIC ERROR
-    // =====================================================
-
+    // JavaScript Error.
     if (
-        typeof error?.message ===
-            "string"
-        &&
+        typeof error?.message === "string" &&
         error.message.trim()
     ) {
-        return (
-            error.message.trim()
-        );
+        return error.message.trim();
     }
 
     return fallback;
 };
-
 
 // =========================================================
 // STATUS FILTER LABEL
@@ -772,15 +765,12 @@ export const getFeedbackStatusFilterLabel = (
     status
 ) => {
     if (
-        status ===
-        "all"
+        normalizeStatus(status) === "all"
     ) {
         return "Barchasi";
     }
 
-    return (
-        getFeedbackStatusConfig(
-            status
-        ).label
-    );
+    return getFeedbackStatusConfig(
+        status
+    ).label;
 };

@@ -1,12 +1,27 @@
-import {
-    useMemo,
-} from "react";
+
+import React, { useMemo } from "react";
+
 import {
     ChevronLeft,
     ChevronRight,
     Loader2,
     MoreHorizontal,
 } from "lucide-react";
+
+// =========================================================
+// FSOCIETY — FEEDBACK PAGINATION
+//
+// Features:
+// - Dark / Light Mode
+// - Responsive navigation
+// - Page ellipsis
+// - Accessible buttons
+// - Loading indicator
+// - Safe page normalization
+// - No duplicate page changes while loading
+//
+// Existing public props preserved.
+// =========================================================
 
 // =========================================================
 // HELPERS
@@ -16,12 +31,10 @@ const normalizePositiveInteger = (
     value,
     fallback = 1
 ) => {
-    const number =
-        Number(value);
+    const number = Number(value);
 
     if (
-        !Number.isInteger(number)
-        ||
+        !Number.isSafeInteger(number) ||
         number <= 0
     ) {
         return fallback;
@@ -30,54 +43,40 @@ const normalizePositiveInteger = (
     return number;
 };
 
+const normalizeCount = (value) => {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return 0;
+    }
+
+    return Math.max(0, Math.trunc(number));
+};
+
 // =========================================================
-// PAGE ITEMS
-//
-// Example:
-//
-// 1 2 3 4 5 ... 12
-//
-// 1 ... 4 5 6 ... 12
-//
-// 1 ... 8 9 10 11 12
+// PAGINATION ITEMS
 // =========================================================
 
 const getPaginationItems = (
     currentPage,
     totalPages
 ) => {
-    if (
-        totalPages <= 7
-    ) {
+    if (totalPages <= 7) {
         return Array.from(
-            {
-                length: totalPages,
-            },
-            (
-                _,
-                index
-            ) => index + 1
+            { length: totalPages },
+            (_, index) => index + 1
         );
     }
 
-    if (
-        currentPage <= 4
-    ) {
+    if (currentPage <= 4) {
         return [
-            1,
-            2,
-            3,
-            4,
-            5,
+            1, 2, 3, 4, 5,
             "ellipsis-right",
             totalPages,
         ];
     }
 
-    if (
-        currentPage >=
-        totalPages - 3
-    ) {
+    if (currentPage >= totalPages - 3) {
         return [
             1,
             "ellipsis-left",
@@ -104,25 +103,31 @@ const getPaginationItems = (
 // PAGE BUTTON
 // =========================================================
 
-const PageButton = ({
+const PageButton = React.memo(({
     page,
     active = false,
     disabled = false,
     onClick,
 }) => {
+    const handleClick = () => {
+        if (
+            disabled ||
+            active ||
+            typeof onClick !== "function"
+        ) {
+            return;
+        }
+
+        onClick(page);
+    };
+
     return (
         <button
             type="button"
-            onClick={() => {
-                onClick?.(page);
-            }}
-            disabled={
-                disabled
-            }
+            onClick={handleClick}
+            disabled={disabled || active}
             aria-current={
-                active
-                    ? "page"
-                    : undefined
+                active ? "page" : undefined
             }
             aria-label={
                 active
@@ -130,42 +135,61 @@ const PageButton = ({
                     : `${page}-sahifaga o‘tish`
             }
             className={`
-                flex
-                h-9
-                min-w-9
+                inline-flex
+                h-10
+                min-w-10
+                shrink-0
                 items-center
                 justify-center
+
                 rounded-xl
                 border
+
                 px-2.5
+
                 font-display
-                text-[10px]
-                font-semibold
-                transition-all
+                text-[12px]
+                font-bold
+                tabular-nums
+
+                transition-colors
+                duration-150
+
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-indigo-500
 
                 disabled:cursor-not-allowed
-                disabled:opacity-40
 
                 ${
                     active
                         ? `
-                            border-indigo-400/25
-                            bg-indigo-500/[0.12]
-                            text-indigo-300
-                            shadow-lg
-                            shadow-indigo-950/20
+                            border-indigo-400/40
+                            bg-indigo-500/[0.11]
+                            text-indigo-700
+
+                            dark:border-indigo-400/25
+                            dark:bg-indigo-400/[0.12]
+                            dark:text-indigo-300
                         `
                         : `
-                            border-white/[0.06]
-                            bg-white/[0.025]
-                            text-gray-500
+                            border-slate-200
+                            bg-white
+                            text-slate-600
 
-                            hover:-translate-y-0.5
-                            hover:border-white/[0.10]
-                            hover:bg-white/[0.06]
-                            hover:text-gray-200
+                            hover:border-indigo-400/40
+                            hover:bg-indigo-500/[0.06]
+                            hover:text-indigo-700
 
-                            active:translate-y-0
+                            disabled:opacity-50
+
+                            dark:border-white/[0.09]
+                            dark:bg-white/[0.035]
+                            dark:text-gray-400
+
+                            dark:hover:border-indigo-400/25
+                            dark:hover:bg-indigo-400/[0.07]
+                            dark:hover:text-indigo-300
                         `
                 }
             `}
@@ -173,120 +197,131 @@ const PageButton = ({
             {page}
         </button>
     );
-};
+});
 
 // =========================================================
 // ELLIPSIS
 // =========================================================
 
-const PaginationEllipsis = () => {
-    return (
-        <div
-            aria-hidden="true"
-            className="
-                flex
-                h-9
-                min-w-8
-                items-center
-                justify-center
-                text-gray-700
-            "
-        >
-            <MoreHorizontal
-                size={15}
-            />
-        </div>
-    );
-};
+const PaginationEllipsis = React.memo(() => (
+    <span
+        aria-hidden="true"
+        className="
+            inline-flex
+            h-10
+            min-w-7
+            shrink-0
+            items-center
+            justify-center
+
+            text-slate-400
+
+            dark:text-gray-500
+        "
+    >
+        <MoreHorizontal size={18} />
+    </span>
+));
 
 // =========================================================
 // NAVIGATION BUTTON
 // =========================================================
 
-const NavigationButton = ({
-    direction,
-    disabled,
+const NavigationButton = React.memo(({
+    direction = "next",
+    disabled = false,
     isLoading = false,
     onClick,
 }) => {
-    const isPrevious =
+    const previous =
         direction === "previous";
 
-    const Icon =
-        isPrevious
-            ? ChevronLeft
-            : ChevronRight;
+    const Icon = previous
+        ? ChevronLeft
+        : ChevronRight;
 
-    const label =
-        isPrevious
-            ? "Oldingi sahifa"
-            : "Keyingi sahifa";
+    const label = previous
+        ? "Oldingi sahifa"
+        : "Keyingi sahifa";
 
     return (
         <button
             type="button"
-            onClick={
-                onClick
-            }
-            disabled={
-                disabled
-            }
-            aria-label={
-                label
-            }
+            onClick={onClick}
+            disabled={disabled}
+            aria-label={label}
             className="
                 inline-flex
-                h-9
+                h-10
+                min-w-10
+                shrink-0
+
                 items-center
                 justify-center
                 gap-2
+
                 rounded-xl
                 border
-                border-white/[0.06]
-                bg-white/[0.025]
+                border-slate-200
+
+                bg-white
+
                 px-3
+
                 font-display
-                text-[10px]
-                font-semibold
-                text-gray-500
-                transition-all
+                text-[11px]
+                font-bold
 
-                hover:-translate-y-0.5
-                hover:border-indigo-400/15
+                text-slate-600
+
+                transition-colors
+                duration-150
+
+                hover:border-indigo-400/40
                 hover:bg-indigo-500/[0.06]
-                hover:text-indigo-300
+                hover:text-indigo-700
 
-                active:translate-y-0
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-indigo-500
 
                 disabled:cursor-not-allowed
-                disabled:opacity-35
+                disabled:opacity-40
+
+                dark:border-white/[0.09]
+                dark:bg-white/[0.035]
+                dark:text-gray-400
+
+                dark:hover:border-indigo-400/25
+                dark:hover:bg-indigo-400/[0.07]
+                dark:hover:text-indigo-300
             "
         >
             {isLoading ? (
                 <Loader2
-                    size={14}
-                    className="animate-spin"
+                    size={16}
+                    aria-hidden="true"
+                    className="
+                        animate-spin
+                        motion-reduce:animate-none
+                    "
                 />
             ) : (
                 <Icon
-                    size={14}
+                    size={17}
+                    aria-hidden="true"
                 />
             )}
 
-            <span
-                className="
-                    hidden
-                    md:inline
-                "
-            >
-                {label}
+            <span className="hidden lg:inline">
+                {previous ? "Oldingi" : "Keyingi"}
             </span>
         </button>
     );
-};
+});
 
 // =========================================================
-// FEEDBACK PAGINATION
+// MAIN COMPONENT
 // =========================================================
 
 const FeedbackPagination = ({
@@ -298,7 +333,6 @@ const FeedbackPagination = ({
     hasNext,
 
     isLoading = false,
-
     onPageChange,
 
     label = "Feedback sahifalari",
@@ -313,69 +347,58 @@ const FeedbackPagination = ({
             1
         );
 
-    const safePage =
-        Math.min(
-            normalizePositiveInteger(
-                page,
-                1
-            ),
-            safeTotalPages
-        );
+    const safePage = Math.min(
+        normalizePositiveInteger(page, 1),
+        safeTotalPages
+    );
 
     const safeCount =
-        Math.max(
-            0,
-            Number(count) || 0
-        );
+        normalizeCount(count);
+
+    const loading = Boolean(isLoading);
 
     // =====================================================
-    // PAGE ITEMS
+    // PAGINATION ITEMS
     // =====================================================
 
-    const paginationItems =
-        useMemo(
-            () => {
-                return getPaginationItems(
-                    safePage,
-                    safeTotalPages
-                );
-            },
-            [
-                safePage,
-                safeTotalPages,
-            ]
-        );
+    const paginationItems = useMemo(
+        () => getPaginationItems(
+            safePage,
+            safeTotalPages
+        ),
+        [safePage, safeTotalPages]
+    );
 
     // =====================================================
     // PREVIOUS / NEXT
     // =====================================================
 
     const canGoPrevious =
-        typeof hasPrevious ===
-        "boolean"
-            ? hasPrevious
-            : safePage > 1;
+        safePage > 1 &&
+        (
+            typeof hasPrevious === "boolean"
+                ? hasPrevious
+                : true
+        );
 
     const canGoNext =
-        typeof hasNext ===
-        "boolean"
-            ? hasNext
-            : safePage <
-                safeTotalPages;
+        safePage < safeTotalPages &&
+        (
+            typeof hasNext === "boolean"
+                ? hasNext
+                : true
+        );
+
+    const canNavigate =
+        !loading &&
+        typeof onPageChange === "function";
 
     // =====================================================
     // CHANGE PAGE
     // =====================================================
 
-    const handlePageChange = (
-        nextPage
-    ) => {
-        if (
-            isLoading
-            ||
-            typeof onPageChange !==
-                "function"
-        ) {
+    const handlePageChange = (nextPage) => {
+        if (!canNavigate) {
             return;
         }
 
@@ -386,27 +409,34 @@ const FeedbackPagination = ({
             );
 
         if (
-            normalizedPage ===
-                safePage
-            ||
-            normalizedPage >
-                safeTotalPages
+            normalizedPage === safePage ||
+            normalizedPage > safeTotalPages
         ) {
             return;
         }
 
-        onPageChange(
-            normalizedPage
-        );
+        if (
+            normalizedPage < safePage &&
+            !canGoPrevious
+        ) {
+            return;
+        }
+
+        if (
+            normalizedPage > safePage &&
+            !canGoNext
+        ) {
+            return;
+        }
+
+        onPageChange(normalizedPage);
     };
 
     // =====================================================
-    // HIDE WHEN NOT NEEDED
+    // HIDE SINGLE PAGE
     // =====================================================
 
-    if (
-        safeTotalPages <= 1
-    ) {
+    if (safeTotalPages <= 1) {
         return null;
     }
 
@@ -416,134 +446,180 @@ const FeedbackPagination = ({
 
     return (
         <nav
-            aria-label={
-                label
-            }
+            aria-label={label}
+            aria-busy={loading}
             className="
+                relative
                 mt-6
+
+                w-full
+                min-w-0
+
+                overflow-hidden
+
                 rounded-2xl
                 border
-                border-white/[0.06]
-                bg-white/[0.018]
+                border-slate-200
+
+                bg-white/80
+
                 p-3
+
+                shadow-[0_4px_18px_rgba(15,23,42,0.025)]
+
                 sm:p-4
+
+                dark:border-white/[0.08]
+                dark:bg-white/[0.025]
+                dark:shadow-none
             "
         >
             <div
                 className="
                     flex
-                    flex-col
-                    gap-3
+                    min-w-0
 
-                    sm:flex-row
-                    sm:items-center
-                    sm:justify-between
+                    flex-col
+                    gap-4
+
+                    lg:flex-row
+                    lg:items-center
+                    lg:justify-between
                 "
             >
-                {/* =============================
-                    INFO
-                ============================== */}
+                {/* ==================================
+                    PAGE INFO
+                ================================== */}
 
                 <div
                     className="
                         flex
+                        min-w-0
+
                         items-center
                         justify-between
-                        gap-4
+                        gap-3
 
-                        sm:block
+                        lg:flex-col
+                        lg:items-start
+                        lg:gap-2
                     "
                 >
                     <div>
                         <p
                             className="
                                 font-display
-                                text-[9px]
-                                font-semibold
+                                text-[10px]
+                                font-bold
                                 uppercase
-                                tracking-[0.12em]
-                                text-gray-600
+                                tracking-[0.10em]
+
+                                text-slate-500
+
+                                dark:text-gray-500
                             "
                         >
                             Sahifa
                         </p>
 
                         <p
+                            aria-live="polite"
                             className="
                                 mt-1
-                                text-xs
+                                text-[12px]
                                 font-medium
-                                text-gray-400
+                                tabular-nums
+
+                                text-slate-600
+
+                                dark:text-gray-400
                             "
                         >
-                            <span
+                            <strong
                                 className="
                                     font-display
-                                    font-semibold
-                                    text-white
+                                    font-black
+
+                                    text-slate-900
+
+                                    dark:text-white
                                 "
                             >
                                 {safePage}
-                            </span>
+                            </strong>
 
                             <span
                                 className="
                                     mx-1.5
-                                    text-gray-700
+                                    text-slate-400
+
+                                    dark:text-gray-600
                                 "
                             >
                                 /
                             </span>
 
-                            <span>
-                                {safeTotalPages}
-                            </span>
+                            {safeTotalPages}
                         </p>
                     </div>
 
                     <div
                         className="
+                            inline-flex
+                            shrink-0
+                            items-center
+
                             rounded-xl
                             border
-                            border-white/[0.05]
-                            bg-white/[0.025]
-                            px-3
-                            py-1.5
+                            border-slate-200
 
-                            sm:mt-2
-                            sm:inline-flex
+                            bg-slate-50
+
+                            px-3
+                            py-2
+
+                            dark:border-white/[0.08]
+                            dark:bg-white/[0.035]
                         "
                     >
                         <span
                             className="
                                 font-display
-                                text-[9px]
-                                font-semibold
-                                uppercase
-                                tracking-[0.08em]
-                                text-gray-600
+                                text-[10px]
+                                font-bold
+
+                                text-slate-600
+
+                                dark:text-gray-400
                             "
                         >
                             Jami{" "}
-
                             <span
                                 className="
-                                    text-gray-400
+                                    tabular-nums
+                                    text-slate-900
+
+                                    dark:text-gray-200
                                 "
                             >
-                                {safeCount}
+                                {safeCount.toLocaleString(
+                                    "uz-UZ"
+                                )}
                             </span>
                         </span>
                     </div>
                 </div>
 
-                {/* =============================
+                {/* ==================================
                     MOBILE CONTROLS
-                ============================== */}
+                ================================== */}
 
                 <div
                     className="
                         flex
+                        w-full
+                        min-w-0
+
                         items-center
                         justify-between
                         gap-2
@@ -554,199 +630,204 @@ const FeedbackPagination = ({
                     <NavigationButton
                         direction="previous"
                         disabled={
-                            isLoading
-                            ||
+                            !canNavigate ||
                             !canGoPrevious
                         }
-                        isLoading={
-                            false
-                        }
-                        onClick={() => {
+                        onClick={() =>
                             handlePageChange(
                                 safePage - 1
-                            );
-                        }}
+                            )
+                        }
                     />
 
                     <div
                         className="
-                            flex
-                            min-w-24
+                            inline-flex
+                            min-w-0
+                            flex-1
+
                             items-center
                             justify-center
+                            gap-2
+
                             rounded-xl
                             border
-                            border-indigo-400/10
-                            bg-indigo-500/[0.05]
+                            border-indigo-400/20
+
+                            bg-indigo-500/[0.07]
+
                             px-3
                             py-2
+
                             font-display
-                            text-[10px]
-                            font-semibold
-                            text-indigo-300
+                            text-[12px]
+                            font-bold
+                            tabular-nums
+
+                            text-indigo-700
+
+                            dark:border-indigo-400/15
+                            dark:bg-indigo-400/[0.07]
+                            dark:text-indigo-300
                         "
                     >
-                        {isLoading ? (
+                        {loading && (
                             <Loader2
-                                size={14}
+                                size={15}
+                                aria-hidden="true"
                                 className="
+                                    shrink-0
                                     animate-spin
+                                    motion-reduce:animate-none
                                 "
                             />
-                        ) : (
-                            <>
-                                {safePage}
-
-                                <span
-                                    className="
-                                        mx-1.5
-                                        text-gray-700
-                                    "
-                                >
-                                    /
-                                </span>
-
-                                {
-                                    safeTotalPages
-                                }
-                            </>
                         )}
+
+                        <span>
+                            {safePage} / {safeTotalPages}
+                        </span>
                     </div>
 
                     <NavigationButton
                         direction="next"
                         disabled={
-                            isLoading
-                            ||
+                            !canNavigate ||
                             !canGoNext
                         }
-                        isLoading={
-                            false
-                        }
-                        onClick={() => {
+                        onClick={() =>
                             handlePageChange(
                                 safePage + 1
-                            );
-                        }}
+                            )
+                        }
                     />
                 </div>
 
-                {/* =============================
-                    DESKTOP CONTROLS
-                ============================== */}
+                {/* ==================================
+                    TABLET / DESKTOP CONTROLS
+                ================================== */}
 
                 <div
                     className="
                         hidden
+                        w-full
+                        min-w-0
+
                         items-center
                         gap-2
 
                         sm:flex
+                        lg:w-auto
                     "
                 >
                     <NavigationButton
                         direction="previous"
                         disabled={
-                            isLoading
-                            ||
+                            !canNavigate ||
                             !canGoPrevious
                         }
-                        onClick={() => {
+                        onClick={() =>
                             handlePageChange(
                                 safePage - 1
-                            );
-                        }}
+                            )
+                        }
                     />
 
                     <div
                         className="
                             flex
+                            min-w-0
+                            flex-1
+
                             items-center
+                            justify-start
                             gap-1.5
+
+                            overflow-x-auto
+                            overscroll-x-contain
+
+                            py-1
+
+                            lg:flex-none
                         "
                     >
-                        {paginationItems.map(
-                            (
-                                item
-                            ) => {
-                                if (
-                                    typeof item ===
-                                    "string"
-                                ) {
-                                    return (
-                                        <PaginationEllipsis
-                                            key={
-                                                item
-                                            }
-                                        />
-                                    );
-                                }
-
+                        {paginationItems.map((item) => {
+                            if (
+                                typeof item === "string"
+                            ) {
                                 return (
-                                    <PageButton
-                                        key={
-                                            item
-                                        }
-                                        page={
-                                            item
-                                        }
-                                        active={
-                                            item ===
-                                            safePage
-                                        }
-                                        disabled={
-                                            isLoading
-                                        }
-                                        onClick={
-                                            handlePageChange
-                                        }
+                                    <PaginationEllipsis
+                                        key={item}
                                     />
                                 );
                             }
-                        )}
+
+                            return (
+                                <PageButton
+                                    key={item}
+                                    page={item}
+                                    active={
+                                        item === safePage
+                                    }
+                                    disabled={
+                                        !canNavigate
+                                    }
+                                    onClick={
+                                        handlePageChange
+                                    }
+                                />
+                            );
+                        })}
                     </div>
 
                     <NavigationButton
                         direction="next"
                         disabled={
-                            isLoading
-                            ||
+                            !canNavigate ||
                             !canGoNext
                         }
-                        onClick={() => {
+                        onClick={() =>
                             handlePageChange(
                                 safePage + 1
-                            );
-                        }}
+                            )
+                        }
                     />
                 </div>
             </div>
 
-            {/* =============================
-                LOADING BAR
-            ============================== */}
+            {/* ==================================
+                LOADING PROGRESS
+            ================================== */}
 
             <div
+                aria-hidden="true"
                 className="
                     mt-3
-                    h-px
+                    h-1
+
                     overflow-hidden
                     rounded-full
-                    bg-white/[0.04]
+
+                    bg-slate-100
+
+                    dark:bg-white/[0.05]
                 "
             >
                 <div
                     className={`
                         h-full
+
                         bg-gradient-to-r
                         from-indigo-500
                         via-cyan-400
                         to-indigo-500
+
                         transition-all
-                        duration-300
+                        duration-200
+
+                        motion-reduce:animate-none
 
                         ${
-                            isLoading
+                            loading
                                 ? `
                                     w-full
                                     animate-pulse
@@ -760,8 +841,23 @@ const FeedbackPagination = ({
                     `}
                 />
             </div>
+
+            {loading && (
+                <span
+                    role="status"
+                    className="sr-only"
+                >
+                    Feedback sahifasi yuklanmoqda.
+                </span>
+            )}
         </nav>
     );
 };
 
-export default FeedbackPagination;
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default React.memo(
+    FeedbackPagination
+);
