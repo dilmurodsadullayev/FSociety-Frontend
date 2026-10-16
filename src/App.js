@@ -1,7 +1,5 @@
 
-import React, {
-    useEffect,
-} from "react";
+import React, { useEffect } from "react";
 
 import {
     BrowserRouter as Router,
@@ -15,6 +13,10 @@ import {
     useDispatch,
     useSelector,
 } from "react-redux";
+
+// =========================================================
+// FSOCIETY — APPLICATION COMPONENTS
+// =========================================================
 
 import {
     Main,
@@ -40,7 +42,15 @@ import {
     SocialCallback,
 } from "./components";
 
+// =========================================================
+// SERVICES
+// =========================================================
+
 import AuthService from "./services/auth";
+
+// =========================================================
+// AUTH REDUX ACTIONS
+// =========================================================
 
 import {
     logoutUser,
@@ -49,343 +59,120 @@ import {
     signUserFailure,
 } from "./features/auth/Auth";
 
+// =========================================================
+// NOTIFICATION WEBSOCKET
+// =========================================================
+
 import {
     connectWebSocket,
     disconnectWebSocket,
 } from "./middleware/notificationMiddleware";
 
+// =========================================================
+// GLOBAL UI COMPONENTS
+// =========================================================
+
+// Shared loader used throughout the application.
+import AppLoader from "./components/AppLoader";
+
+// Global toast notification system.
 import AuthToast from "./components/ui/AuthToast";
-
-import {
-    motion,
-} from "framer-motion";
-
-import FSocietyLogo from "./assests/logo/f_society.png";
 
 // =========================================================
 // FSOCIETY — APP
 //
-// Theme management:
+// Global responsibilities:
+//
+// - Application routing
+// - Authentication initialization
+// - Protected routes
+// - Public authentication routes
+// - Notification WebSocket lifecycle
+// - Forced logout event
+// - Shared application layout
+// - Global toast notifications
+//
+// AppLoader is imported from:
+// src/components/AppLoader.jsx
+//
+// Theme management remains in:
 // src/context/ThemeContext.jsx
 //
-// App.js no longer manages theme state,
-// localStorage theme or document.dark class.
+// No duplicate loader markup.
+// No independent theme state.
 // =========================================================
-
-
-// =========================================================
-// APP LOADER
-// =========================================================
-
-const AppLoader = () => {
-    return (
-        <div
-            className="
-                relative
-                flex
-                min-h-screen
-                flex-col
-                items-center
-                justify-center
-                overflow-hidden
-                bg-[#05070a]
-            "
-        >
-            {/* BACKGROUND GLOW */}
-
-            <div
-                className="
-                    absolute
-                    h-[500px]
-                    w-[500px]
-                    animate-pulse
-                    rounded-full
-                    bg-indigo-600/10
-                    blur-[120px]
-                "
-            />
-
-            {/* MAIN LOADER */}
-
-            <div className="relative flex flex-col items-center">
-                <div
-                    className="
-                        relative
-                        flex
-                        h-40
-                        w-40
-                        items-center
-                        justify-center
-                        md:h-56
-                        md:w-56
-                    "
-                >
-                    {/* OUTER RING */}
-
-                    <motion.div
-                        animate={{
-                            rotate: 360,
-                        }}
-                        transition={{
-                            repeat: Infinity,
-                            duration: 4,
-                            ease: "linear",
-                        }}
-                        className="
-                            absolute
-                            inset-0
-                            rounded-full
-                            border-b-2
-                            border-t-2
-                            border-indigo-500/30
-                        "
-                    />
-
-                    {/* INNER RING */}
-
-                    <motion.div
-                        animate={{
-                            rotate: -360,
-                        }}
-                        transition={{
-                            repeat: Infinity,
-                            duration: 2,
-                            ease: "linear",
-                        }}
-                        className="
-                            absolute
-                            inset-4
-                            rounded-full
-                            border-l-2
-                            border-r-2
-                            border-indigo-400
-                            shadow-[0_0_20px_rgba(99,102,241,0.5)]
-                        "
-                    />
-
-                    {/* LOGO */}
-
-                    <motion.div
-                        initial={{
-                            scale: 0.8,
-                            opacity: 0,
-                        }}
-                        animate={{
-                            scale: [
-                                0.9,
-                                1.05,
-                                1,
-                            ],
-                            opacity: 1,
-                            filter: [
-                                "drop-shadow(0 0 10px rgba(99,102,241,0.5))",
-                                "drop-shadow(0 0 30px rgba(99,102,241,0.8))",
-                                "drop-shadow(0 0 10px rgba(99,102,241,0.5))",
-                            ],
-                        }}
-                        transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                        }}
-                        className="z-10"
-                    >
-                        <img
-                            src={FSocietyLogo}
-                            alt="F.Society Logo"
-                            className="
-                                h-32
-                                w-32
-                                object-contain
-                                md:h-44
-                                md:w-44
-                            "
-                        />
-                    </motion.div>
-
-                    {/* SCANNER LINE */}
-
-                    <motion.div
-                        animate={{
-                            top: [
-                                "0%",
-                                "100%",
-                                "0%",
-                            ],
-                        }}
-                        transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: "linear",
-                        }}
-                        className="
-                            absolute
-                            left-0
-                            right-0
-                            z-20
-                            h-[2px]
-                            bg-indigo-500/50
-                            shadow-[0_0_15px_#6366f1]
-                        "
-                    />
-                </div>
-
-                {/* TEXT */}
-
-                <div className="mt-12 text-center">
-                    <motion.h1
-                        initial={{
-                            opacity: 0,
-                            y: 20,
-                        }}
-                        animate={{
-                            opacity: 1,
-                            y: 0,
-                        }}
-                        className="
-                            text-4xl
-                            font-black
-                            uppercase
-                            italic
-                            tracking-[0.2em]
-                            text-white
-                            md:text-5xl
-                        "
-                    >
-                        F
-                        <span
-                            className="
-                                animate-pulse
-                                text-indigo-500
-                            "
-                        >
-                            Society
-                        </span>
-                    </motion.h1>
-
-                    <div
-                        className="
-                            mt-4
-                            flex
-                            items-center
-                            justify-center
-                            space-x-2
-                        "
-                    >
-                        <motion.p
-                            animate={{
-                                opacity: [
-                                    0,
-                                    1,
-                                    0,
-                                ],
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                            }}
-                            className="
-                                font-mono
-                                text-sm
-                                uppercase
-                                tracking-widest
-                                text-indigo-400
-                                md:text-base
-                            "
-                        >
-                            Initializing system scan...
-                        </motion.p>
-                    </div>
-
-                    {/* LOADING BAR */}
-
-                    <div
-                        className="
-                            mt-6
-                            h-1
-                            w-64
-                            overflow-hidden
-                            rounded-full
-                            border
-                            border-gray-800
-                            bg-gray-900
-                        "
-                    >
-                        <motion.div
-                            initial={{
-                                x: "-100%",
-                            }}
-                            animate={{
-                                x: "100%",
-                            }}
-                            transition={{
-                                repeat: Infinity,
-                                duration: 1.5,
-                                ease: "easeInOut",
-                            }}
-                            className="
-                                h-full
-                                w-full
-                                bg-gradient-to-r
-                                from-transparent
-                                via-indigo-500
-                                to-transparent
-                            "
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 // =========================================================
 // PRIVATE ROUTE
+//
+// Protects authenticated pages.
+//
+// While Redux is checking authentication,
+// display the shared AppLoader.
+//
+// Unauthorized users are redirected to /login.
 // =========================================================
 
-const PrivateRoute = ({
-    children,
-}) => {
+const PrivateRoute = ({ children }) => {
     const {
         isLoggedIn,
         isLoading,
-    } = useSelector(
-        (state) => state.auth
-    );
+    } = useSelector((state) => state.auth);
+
+    // =====================================================
+    // AUTHENTICATION LOADING
+    // =====================================================
 
     if (isLoading) {
         return <AppLoader />;
     }
 
-    return isLoggedIn
-        ? children
-        : (
+    // =====================================================
+    // AUTHENTICATED / UNAUTHENTICATED
+    // =====================================================
+
+    if (!isLoggedIn) {
+        return (
             <Navigate
                 to="/login"
                 replace
             />
         );
+    }
+
+    return children;
 };
 
-
 // =========================================================
-// PUBLIC AUTH WRAPPER
+// PUBLIC AUTH PAGE
+//
+// Used by:
+// - Login
+// - Register
+//
+// While authentication is loading,
+// display the same shared AppLoader.
+//
+// Authenticated users are redirected home.
 // =========================================================
 
-const PublicAuthPage = ({
-    children,
-}) => {
+const PublicAuthPage = ({ children }) => {
     const {
         isLoggedIn,
         isLoading,
-    } = useSelector(
-        (state) => state.auth
-    );
+    } = useSelector((state) => state.auth);
+
+    // =====================================================
+    // AUTHENTICATION LOADING
+    // =====================================================
 
     if (isLoading) {
         return <AppLoader />;
     }
+
+    // =====================================================
+    // ALREADY AUTHENTICATED
+    // =====================================================
 
     if (isLoggedIn) {
         return (
@@ -396,14 +183,34 @@ const PublicAuthPage = ({
         );
     }
 
+    // =====================================================
+    // PUBLIC AUTH LAYOUT
+    //
+    // Light and dark themes are supported.
+    // =====================================================
+
     return (
         <div
             className="
                 flex
                 min-h-screen
+                min-h-[100dvh]
+                w-full
+                min-w-0
+
                 items-center
                 justify-center
-                bg-[#0d1117]
+
+                bg-slate-50
+                text-slate-900
+
+                transition-colors
+                duration-200
+
+                dark:bg-[#0d1117]
+                dark:text-gray-100
+
+                motion-reduce:transition-none
             "
         >
             {children}
@@ -411,9 +218,16 @@ const PublicAuthPage = ({
     );
 };
 
-
 // =========================================================
 // APP LAYOUT
+//
+// All protected application pages use:
+//
+// - Navbar
+// - Main content
+// - Footer
+//
+// Protected route behavior is preserved.
 // =========================================================
 
 const AppLayout = () => {
@@ -423,30 +237,45 @@ const AppLayout = () => {
                 className="
                     flex
                     min-h-screen
+                    min-h-[100dvh]
+                    w-full
+                    min-w-0
                     flex-col
                 "
             >
-                {/* NAVBAR */}
+                {/* ======================================
+                    NAVBAR
+                ====================================== */}
 
                 <Navbar />
 
-                {/* CONTENT */}
+                {/* ======================================
+                    MAIN CONTENT
+                ====================================== */}
 
                 <div
                     className="
+                        min-w-0
                         flex-grow
+
                         bg-gray-100
                         text-gray-800
+
                         transition-colors
                         duration-150
+
                         dark:bg-[#0d1117]
                         dark:text-gray-200
+
+                        motion-reduce:transition-none
                     "
                 >
                     <Outlet />
                 </div>
 
-                {/* FOOTER */}
+                {/* ======================================
+                    FOOTER
+                ====================================== */}
 
                 <Footer />
             </div>
@@ -454,41 +283,55 @@ const AppLayout = () => {
     );
 };
 
-
 // =========================================================
 // APP CONTENT
+//
+// Handles:
+//
+// 1. Initial authentication check
+// 2. Force logout events
+// 3. WebSocket notifications
+// 4. Application routes
 // =========================================================
 
-function AppContent() {
+const AppContent = () => {
     const dispatch = useDispatch();
 
-    const {
-        isLoggedIn,
-    } = useSelector(
-        (state) => state.auth
+    // =====================================================
+    // AUTH STATE
+    // =====================================================
+
+    const isLoggedIn = useSelector(
+        (state) => Boolean(state.auth?.isLoggedIn)
     );
 
     // =====================================================
     // THEME
     //
-    // Theme state is now managed exclusively by:
-    // src/context/ThemeContext.jsx
+    // Theme is managed by ThemeContext.
     //
-    // Do not add local theme state here.
+    // Do not create a second theme state here.
     // =====================================================
 
-
     // =====================================================
-    // AUTH CHECK
+    // INITIAL AUTHENTICATION CHECK
+    //
+    // Verify current user from backend.
+    //
+    // Preserve:
+    // - signUserStart
+    // - signUserSuccess
+    // - signUserFailure
+    // - logoutUser
+    //
+    // Ignore results after unmount.
     // =====================================================
 
     useEffect(() => {
         let isMounted = true;
 
         const checkUserStatus = async () => {
-            dispatch(
-                signUserStart()
-            );
+            dispatch(signUserStart());
 
             try {
                 const response =
@@ -498,14 +341,9 @@ function AppContent() {
                     return;
                 }
 
-                if (
-                    response &&
-                    response.id
-                ) {
+                if (response && response.id) {
                     dispatch(
-                        signUserSuccess(
-                            response
-                        )
+                        signUserSuccess(response)
                     );
 
                     return;
@@ -517,10 +355,7 @@ function AppContent() {
                     )
                 );
 
-                dispatch(
-                    logoutUser()
-                );
-
+                dispatch(logoutUser());
             } catch (error) {
                 if (!isMounted) {
                     return;
@@ -533,9 +368,7 @@ function AppContent() {
                     )
                 );
 
-                dispatch(
-                    logoutUser()
-                );
+                dispatch(logoutUser());
             }
         };
 
@@ -544,20 +377,23 @@ function AppContent() {
         return () => {
             isMounted = false;
         };
-    }, [
-        dispatch,
-    ]);
-
+    }, [dispatch]);
 
     // =====================================================
     // FORCE LOGOUT EVENT
+    //
+    // Event name:
+    // auth:logout
+    //
+    // Preserve:
+    // - Redux logout
+    // - WebSocket disconnect
+    // - Event listener cleanup
     // =====================================================
 
     useEffect(() => {
         const handleForceLogout = () => {
-            dispatch(
-                logoutUser()
-            );
+            dispatch(logoutUser());
 
             dispatch(
                 disconnectWebSocket()
@@ -575,13 +411,19 @@ function AppContent() {
                 handleForceLogout
             );
         };
-    }, [
-        dispatch,
-    ]);
-
+    }, [dispatch]);
 
     // =====================================================
     // WEBSOCKET NOTIFICATIONS
+    //
+    // Authenticated:
+    // Connect WebSocket.
+    //
+    // Unauthenticated:
+    // Disconnect WebSocket.
+    //
+    // Cleanup:
+    // Disconnect on effect cleanup.
     // =====================================================
 
     useEffect(() => {
@@ -605,16 +447,16 @@ function AppContent() {
         isLoggedIn,
     ]);
 
-
     // =====================================================
-    // ROUTES
+    // APPLICATION ROUTES
+    //
+    // All existing routes preserved.
     // =====================================================
 
     return (
         <Routes>
-
             {/* ==========================================
-                PUBLIC AUTH
+                PUBLIC AUTH ROUTES
             ========================================== */}
 
             <Route
@@ -635,9 +477,8 @@ function AppContent() {
                 }
             />
 
-
             {/* ==========================================
-                SOCIAL CALLBACK
+                SOCIAL AUTH CALLBACK
             ========================================== */}
 
             <Route
@@ -647,9 +488,18 @@ function AppContent() {
                         className="
                             flex
                             min-h-screen
+                            min-h-[100dvh]
+                            w-full
+                            min-w-0
+
                             items-center
                             justify-center
-                            bg-[#0d1117]
+
+                            bg-slate-50
+                            text-slate-900
+
+                            dark:bg-[#0d1117]
+                            dark:text-gray-100
                         "
                     >
                         <SocialCallback />
@@ -657,158 +507,140 @@ function AppContent() {
                 }
             />
 
-
             {/* ==========================================
-                PRIVATE APPLICATION
+                PRIVATE APPLICATION ROUTES
             ========================================== */}
 
             <Route
                 path="/"
-                element={
-                    <AppLayout />
-                }
+                element={<AppLayout />}
             >
-
-                {/* HOME */}
+                {/* ======================================
+                    HOME
+                ====================================== */}
 
                 <Route
                     index
-                    element={
-                        <Main />
-                    }
+                    element={<Main />}
                 />
 
-
-                {/* PROBLEMS */}
+                {/* ======================================
+                    PROBLEMS
+                ====================================== */}
 
                 <Route
                     path="problems"
-                    element={
-                        <Problems />
-                    }
+                    element={<Problems />}
                 />
 
                 <Route
                     path="my-problems"
-                    element={
-                        <MyProblems />
-                    }
+                    element={<MyProblems />}
                 />
+
+                {/* CREATE PROBLEM */}
 
                 <Route
                     path="problem-create"
-                    element={
-                        <ProblemCreate />
-                    }
+                    element={<ProblemCreate />}
                 />
+
+                {/* EDIT PROBLEM */}
 
                 <Route
                     path="problem/:id/edit"
-                    element={
-                        <ProblemCreate />
-                    }
+                    element={<ProblemCreate />}
                 />
+
+                {/* EDIT SOLUTION */}
 
                 <Route
                     path="problem/:id/solution/:solutionId/edit"
-                    element={
-                        <ProblemSolutionUpdate />
-                    }
+                    element={<ProblemSolutionUpdate />}
                 />
+
+                {/* PROBLEM DETAIL */}
 
                 <Route
                     path="problem/:id/detail"
-                    element={
-                        <ProblemDetail />
-                    }
+                    element={<ProblemDetail />}
                 />
 
-
-                {/* FEEDBACK */}
+                {/* ======================================
+                    FEEDBACK
+                ====================================== */}
 
                 <Route
                     path="feedback"
-                    element={
-                        <Feedback />
-                    }
+                    element={<Feedback />}
                 />
 
-
-                {/* FCOIN */}
+                {/* ======================================
+                    FCOIN
+                ====================================== */}
 
                 <Route
                     path="fcoin"
-                    element={
-                        <FCoin />
-                    }
+                    element={<FCoin />}
                 />
 
                 <Route
                     path="fcoin-history"
-                    element={
-                        <FCoinHistory />
-                    }
+                    element={<FCoinHistory />}
                 />
 
-
-                {/* USERS */}
+                {/* ======================================
+                    USERS AND PROFILE
+                ====================================== */}
 
                 <Route
                     path="users"
-                    element={
-                        <Users />
-                    }
+                    element={<Users />}
                 />
 
                 <Route
                     path=":username/profile"
-                    element={
-                        <Profile />
-                    }
+                    element={<Profile />}
                 />
 
-
-                {/* PROJECTS */}
+                {/* ======================================
+                    PROJECTS
+                ====================================== */}
 
                 <Route
                     path="projects"
-                    element={
-                        <Projects />
-                    }
+                    element={<Projects />}
                 />
 
                 <Route
                     path="project/:projectId/detail"
-                    element={
-                        <ProjectDetail />
-                    }
+                    element={<ProjectDetail />}
                 />
 
-
-                {/* NOTIFICATIONS */}
+                {/* ======================================
+                    NOTIFICATIONS
+                ====================================== */}
 
                 <Route
                     path="notifications"
-                    element={
-                        <NotificationsPage />
-                    }
+                    element={<NotificationsPage />}
                 />
 
-
-                {/* POSTS */}
+                {/* ======================================
+                    POSTS
+                ====================================== */}
 
                 <Route
                     path=":username/post/:slug/"
-                    element={
-                        <PostDetail />
-                    }
+                    element={<PostDetail />}
                 />
-
             </Route>
-
 
             {/* ==========================================
                 NOT FOUND
+
+                Public 404 fallback.
+                Light/Dark Mode supported.
             ========================================== */}
 
             <Route
@@ -818,43 +650,57 @@ function AppContent() {
                         className="
                             flex
                             min-h-screen
+                            min-h-[100dvh]
+                            w-full
+                            min-w-0
+
                             items-center
                             justify-center
-                            bg-[#0d1117]
+
+                            bg-slate-50
+                            text-slate-900
+
+                            dark:bg-[#0d1117]
+                            dark:text-gray-100
                         "
                     >
                         <NotFound />
                     </div>
                 }
             />
-
         </Routes>
     );
-}
-
+};
 
 // =========================================================
-// APP
+// ROOT APP
+//
+// Router is mounted once.
+//
+// AuthToast remains mounted globally.
+//
+// AppLoader is rendered by authentication
+// wrappers when Redux auth is loading.
+//
+// Existing application routes are preserved.
 // =========================================================
 
-function App() {
+const App = () => {
     return (
         <Router>
-
-            {/* ==========================================
-                GLOBAL TOAST
-
-                AuthToast remains mounted globally.
-            ========================================== */}
+            {/* ======================================
+                GLOBAL TOAST SYSTEM
+            ====================================== */}
 
             <AuthToast />
 
-            {/* APPLICATION */}
+            {/* ======================================
+                APPLICATION
+            ====================================== */}
 
             <AppContent />
-
         </Router>
     );
-}
+};
 
 export default App;
