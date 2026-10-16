@@ -1,1480 +1,276 @@
-// src/components/Problems.jsx
 
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+import React from "react";
 
-import {
-    useSearchParams,
-} from "react-router-dom";
+// =========================================================
+// PROBLEM CARD
+// =========================================================
 
-import {
-    useDispatch,
-    useSelector,
-} from "react-redux";
+import ProblemCard from "./ProblemCard";
 
+// =========================================================
+// PAGE COMPONENTS
+// =========================================================
 
-import ProblemCard
-    from "./ProblemCard";
+import ProblemsHeader from "./problems-page/ProblemsHeader";
+import ProblemsToolbar from "./problems-page/ProblemsToolbar";
+import ProblemsResultsHeader from "./problems-page/ProblemsResultsHeader";
 
-import ProblemsHeader
-    from "./problems-page/ProblemsHeader";
+import ProblemCardSkeleton from "./problems-page/ProblemCardSkeleton";
+import ProblemsErrorState from "./problems-page/ProblemsErrorState";
+import ProblemsEmptyState from "./problems-page/ProblemsEmptyState";
+import ProblemsPagination from "./problems-page/ProblemsPagination";
 
-import ProblemsToolbar
-    from "./problems-page/ProblemsToolbar";
+// =========================================================
+// CONTROLLER AND CONFIG
+// =========================================================
 
-import ProblemsResultsHeader
-    from "./problems-page/ProblemsResultsHeader";
-
-import ProblemCardSkeleton
-    from "./problems-page/ProblemCardSkeleton";
-
-import ProblemsErrorState
-    from "./problems-page/ProblemsErrorState";
-
-import ProblemsEmptyState
-    from "./problems-page/ProblemsEmptyState";
-
-import ProblemsPagination
-    from "./problems-page/ProblemsPagination";
-
+import useProblemsPage from "./problems-page/useProblemsPage";
 
 import {
     PROBLEMS_PAGE_SIZE,
-    PROBLEMS_SEARCH_DEBOUNCE_MS,
-
-    buildResetProblemSearchParams,
-    buildUpdatedProblemSearchParams,
-
-    getProblemErrorMessage,
-    getProblemQueryCorrections,
-    getProblemQueryState,
-    getProblemResultRange,
-    getProblemTotalPages,
-
-    hasActiveProblemFilters,
 } from "./problems-page/problemPageHelpers";
 
-
-import {
-    getProblemFailure,
-    getProblemStart,
-    getProblemSuccess,
-
-    getLanguagesFailure,
-    getLanguagesStart,
-    getLanguagesSuccess,
-
-    getTechnologiesFailure,
-    getTechnologiesStart,
-    getTechnologiesSuccess,
-} from "../features/problems/Problems";
-
-
-import ProblemService, {
-    isProblemRequestCanceled,
-} from "../services/problems";
-
-
-import {
-    siteToast,
-} from "./ui/AuthToast";
-
-
 // =========================================================
-// SAFE COUNT
-// =========================================================
-
-const getSafeCount = (
-    value
-) => {
-
-    const number =
-        Number(
-            value
-        );
-
-
-    if (
-        !Number.isFinite(
-            number
-        )
-        ||
-        number < 0
-    ) {
-        return 0;
-    }
-
-
-    return number;
-};
-
-
-// =========================================================
-// INVALID DRF PAGE
-// =========================================================
-
-const isInvalidPaginationError = (
-    error
-) => {
-
-    const status =
-        error?.response?.status
-        ??
-        error?.status
-        ??
-        null;
-
-
-    if (
-        status !== 404
-    ) {
-        return false;
-    }
-
-
-    const data =
-        error?.serverData
-        ??
-        error?.response?.data;
-
-
-    const detail =
-        typeof data ===
-            "string"
-            ? data
-            : data?.detail;
-
-
-    if (
-        typeof detail !==
-        "string"
-    ) {
-        return false;
-    }
-
-
-    const normalized =
-        detail
-            .trim()
-            .toLowerCase();
-
-
-    return (
-        normalized.includes(
-            "invalid page"
-        )
-        ||
-        normalized.includes(
-            "page contains no results"
-        )
-    );
-};
-
-
-// =========================================================
-// PROBLEMS
+// FSOCIETY — PROBLEMS PAGE
+//
+// Responsibilities:
+// - Render page sections
+// - Connect UI with useProblemsPage
+// - Show loading, error and empty states
+// - Render problem cards and pagination
+// - Light / Dark Mode
+// - Mobile-first responsiveness
+//
+// No direct Redux or API requests.
 // =========================================================
 
 const Problems = () => {
-
     // =====================================================
-    // REDUX
+    // PAGE CONTROLLER
     // =====================================================
-
-    const dispatch =
-        useDispatch();
-
 
     const {
-        problems = [],
+        // Data
+        problemList,
+        problemCount,
 
-        count = 0,
-
-        listIsLoading,
-        isLoading,
-
-        listError,
-
-        languages = [],
-        technologies = [],
+        languages,
+        technologies,
 
         languagesIsLoading,
         technologiesIsLoading,
-    } = useSelector(
-        (
-            state
-        ) =>
-            state.problem
-    );
 
+        // Request state
+        loading,
+        currentError,
 
-    // =====================================================
-    // SAFE REDUX STATE
-    // =====================================================
-
-    const loading =
-        typeof listIsLoading ===
-            "boolean"
-            ? listIsLoading
-            : Boolean(
-                isLoading
-            );
-
-
-    const currentError =
-        listError
-        ||
-        null;
-
-
-    const problemList =
-        Array.isArray(
-            problems
-        )
-            ? problems
-            : [];
-
-
-    const problemCount =
-        getSafeCount(
-            count
-        );
-
-
-    const hasProblemData =
-        problemList.length > 0;
-
-
-    // =====================================================
-    // ROUTER QUERY
-    // =====================================================
-
-    const [
-        searchParams,
-        setSearchParams,
-    ] = useSearchParams();
-
-
-    // =====================================================
-    // NORMALIZED QUERY STATE
-    // =====================================================
-
-    const queryState =
-        useMemo(
-            () => {
-
-                return getProblemQueryState(
-                    searchParams
-                );
-
-            },
-            [
-                searchParams,
-            ]
-        );
-
-
-    const {
-        page:
-            currentPage,
-
-        search:
-            debouncedSearchTerm,
-
-        status:
-            statusFilter,
-
-        urgent:
-            urgentFilter,
-
-        language:
-            languageFilter,
-
-        technology:
-            technologyFilter,
-
-        ordering,
-    } = queryState;
-
-
-    // =====================================================
-    // CURRENT QUERY KEY
-    //
-    // Muhim:
-    //
-    // Oldingi hasLoadedProblemList boolean faqat
-    // "biror request success bo‘lganmi?"ni bilardi.
-    //
-    // Lekin qaysi query success bo‘lganini bilmasdi.
-    //
-    // Misol:
-    //
-    // old query:
-    // ?page=2
-    //
-    // keyin:
-    // ?page=999
-    //
-    // Eski success state yangi query bilan aralashishi
-    // mumkin edi.
-    //
-    // Endi har query unique keyga ega.
-    // =====================================================
-
-    const currentQueryKey =
-        useMemo(
-            () => {
-
-                return JSON.stringify([
-                    currentPage,
-                    debouncedSearchTerm,
-                    statusFilter,
-                    urgentFilter,
-                    languageFilter,
-                    technologyFilter,
-                    ordering,
-                ]);
-
-            },
-            [
-                currentPage,
-                debouncedSearchTerm,
-                languageFilter,
-                ordering,
-                statusFilter,
-                technologyFilter,
-                urgentFilter,
-            ]
-        );
-
-
-    // =====================================================
-    // SEARCH INPUT
-    // =====================================================
-
-    const [
+        // Search
         searchTerm,
         setSearchTerm,
-    ] = useState(
-        debouncedSearchTerm
-    );
+        debouncedSearchTerm,
 
+        // Filters
+        statusFilter,
+        urgentFilter,
+        languageFilter,
+        technologyFilter,
+        ordering,
+        hasActiveFilters,
 
-    // =====================================================
-    // RETRY KEY
-    // =====================================================
+        // Pagination
+        currentPage,
+        totalPages,
+        resultStart,
+        resultEnd,
 
-    const [
-        retryKey,
-        setRetryKey,
-    ] = useState(
-        0
-    );
+        // UI state
+        isCurrentQueryResolved,
+        showInitialSkeleton,
+        showCards,
+        showEmptyState,
+        showPaginationArea,
 
+        // Actions
+        handleClearSearch,
+        handleResetFilters,
+        handleRetry,
 
-    // =====================================================
-    // LAST SUCCESSFUL QUERY
-    //
-    // Faqat API success bo‘lganda update bo‘ladi.
-    // =====================================================
+        handleStatusChange,
+        handleUrgentChange,
+        handleLanguageChange,
+        handleTechnologyChange,
+        handleOrderingChange,
 
-    const [
-        lastSuccessfulQueryKey,
-        setLastSuccessfulQueryKey,
-    ] = useState(
-        null
-    );
-
-
-    // =====================================================
-    // CURRENT QUERY RESOLVED?
-    // =====================================================
-
-    const isCurrentQueryResolved =
-        lastSuccessfulQueryKey ===
-        currentQueryKey;
-
+        handlePageChange,
+    } = useProblemsPage();
 
     // =====================================================
-    // UPDATE QUERY
+    // DERIVED UI VALUES
     // =====================================================
 
-    const updateQueryParams =
-        useCallback(
-            (
-                updates,
-                {
-                    replace = false,
-                } = {}
-            ) => {
-
-                setSearchParams(
-                    (
-                        previousParams
-                    ) => {
-
-                        return buildUpdatedProblemSearchParams(
-                            previousParams,
-                            updates
-                        );
-                    },
-                    {
-                        replace,
-                    }
-                );
-
-            },
-            [
-                setSearchParams,
-            ]
-        );
-
-
-    // =====================================================
-    // URL -> SEARCH INPUT
-    //
-    // Refresh / Back / Forward.
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            setSearchTerm(
-                debouncedSearchTerm
-            );
-
-        },
-        [
-            debouncedSearchTerm,
-        ]
-    );
-
-
-    // =====================================================
-    // SEARCH DEBOUNCE
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            const cleanSearch =
-                searchTerm.trim();
-
-
-            if (
-                cleanSearch ===
-                debouncedSearchTerm
-            ) {
-                return undefined;
-            }
-
-
-            const timer =
-                window.setTimeout(
-                    () => {
-
-                        updateQueryParams(
-                            {
-                                search:
-                                    cleanSearch,
-
-                                page:
-                                    1,
-                            },
-                            {
-                                // Input har harfda browser history
-                                // yaratib yubormasin.
-                                replace:
-                                    true,
-                            }
-                        );
-
-                    },
-                    PROBLEMS_SEARCH_DEBOUNCE_MS
-                );
-
-
-            return () => {
-
-                window.clearTimeout(
-                    timer
-                );
-            };
-
-        },
-        [
-            debouncedSearchTerm,
-            searchTerm,
-            updateQueryParams,
-        ]
-    );
-
-
-    // =====================================================
-    // NORMALIZE INVALID QUERY
-    //
-    // Masalan:
-    //
-    // ?page=-5
-    // ?status=hello
-    // ?urgent=test
-    // ?ordering=random
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            const corrections =
-                getProblemQueryCorrections(
-                    searchParams
-                );
-
-
-            if (
-                Object.keys(
-                    corrections
-                ).length === 0
-            ) {
-                return;
-            }
-
-
-            updateQueryParams(
-                corrections,
-                {
-                    replace:
-                        true,
-                }
-            );
-
-        },
-        [
-            searchParams,
-            updateQueryParams,
-        ]
-    );
-
-
-    // =====================================================
-    // LOAD LANGUAGES + TECHNOLOGIES
-    //
-    // Parallel requests.
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            const controller =
-                new AbortController();
-
-
-            let mounted =
-                true;
-
-
-            const loadCatalog =
-                async () => {
-
-                    dispatch(
-                        getLanguagesStart()
-                    );
-
-
-                    dispatch(
-                        getTechnologiesStart()
-                    );
-
-
-                    const [
-                        languagesResult,
-                        technologiesResult,
-                    ] = await Promise.allSettled([
-
-                        ProblemService
-                            .getLanguagesList({
-                                signal:
-                                    controller.signal,
-                            }),
-
-                        ProblemService
-                            .getTechnologiesList({
-                                signal:
-                                    controller.signal,
-                            }),
-                    ]);
-
-
-                    if (
-                        !mounted
-                        ||
-                        controller.signal.aborted
-                    ) {
-                        return;
-                    }
-
-
-                    // =====================================
-                    // LANGUAGES
-                    // =====================================
-
-                    if (
-                        languagesResult.status ===
-                        "fulfilled"
-                    ) {
-
-                        dispatch(
-                            getLanguagesSuccess(
-                                languagesResult.value
-                            )
-                        );
-
-                    } else {
-
-                        const requestError =
-                            languagesResult.reason;
-
-
-                        if (
-                            !isProblemRequestCanceled(
-                                requestError
-                            )
-                        ) {
-
-                            const message =
-                                getProblemErrorMessage(
-                                    requestError,
-                                    "Dasturlash tillarini yuklab bo‘lmadi."
-                                );
-
-
-                            dispatch(
-                                getLanguagesFailure(
-                                    message
-                                )
-                            );
-
-
-                            siteToast.error(
-                                message,
-                                {
-                                    title:
-                                        "Tillar yuklanmadi",
-                                }
-                            );
-                        }
-                    }
-
-
-                    // =====================================
-                    // TECHNOLOGIES
-                    // =====================================
-
-                    if (
-                        technologiesResult.status ===
-                        "fulfilled"
-                    ) {
-
-                        dispatch(
-                            getTechnologiesSuccess(
-                                technologiesResult.value
-                            )
-                        );
-
-                    } else {
-
-                        const requestError =
-                            technologiesResult.reason;
-
-
-                        if (
-                            !isProblemRequestCanceled(
-                                requestError
-                            )
-                        ) {
-
-                            const message =
-                                getProblemErrorMessage(
-                                    requestError,
-                                    "Texnologiyalarni yuklab bo‘lmadi."
-                                );
-
-
-                            dispatch(
-                                getTechnologiesFailure(
-                                    message
-                                )
-                            );
-
-
-                            siteToast.error(
-                                message,
-                                {
-                                    title:
-                                        "Texnologiyalar yuklanmadi",
-                                }
-                            );
-                        }
-                    }
-                };
-
-
-            loadCatalog();
-
-
-            return () => {
-
-                mounted =
-                    false;
-
-
-                controller.abort();
-            };
-
-        },
-        [
-            dispatch,
-        ]
-    );
-
-
-    // =====================================================
-    // GET PROBLEMS
-    // =====================================================
-
-    const getProblems =
-        useCallback(
-            async (
-                signal
-            ) => {
-
-                dispatch(
-                    getProblemStart()
-                );
-
-
-                try {
-
-                    const response =
-                        await ProblemService
-                            .getProblemsList({
-
-                                page:
-                                    currentPage,
-
-                                pageSize:
-                                    PROBLEMS_PAGE_SIZE,
-
-                                search:
-                                    debouncedSearchTerm,
-
-                                status:
-                                    statusFilter,
-
-                                urgent:
-                                    urgentFilter ===
-                                        "all"
-                                        ? undefined
-                                        : urgentFilter,
-
-                                language:
-                                    languageFilter,
-
-                                technology:
-                                    technologyFilter,
-
-                                ordering,
-
-                                signal,
-                            });
-
-
-                    // =====================================
-                    // REQUEST CANCELED
-                    // =====================================
-
-                    if (
-                        signal?.aborted
-                    ) {
-                        return;
-                    }
-
-
-                    dispatch(
-                        getProblemSuccess(
-                            response
-                        )
-                    );
-
-
-                    // =====================================
-                    // IMPORTANT
-                    //
-                    // Faqat aynan shu query success bo‘ldi.
-                    // =====================================
-
-                    setLastSuccessfulQueryKey(
-                        currentQueryKey
-                    );
-
-                } catch (
-                    requestError
-                ) {
-
-                    // =====================================
-                    // ABORT NORMAL FLOW
-                    // =====================================
-
-                    if (
-                        isProblemRequestCanceled(
-                            requestError
-                        )
-                        ||
-                        signal?.aborted
-                    ) {
-                        return;
-                    }
-
-
-                    // =====================================
-                    // INVALID DRF PAGE
-                    //
-                    // /problems?page=999
-                    //
-                    // DRF:
-                    // 404 Invalid page.
-                    //
-                    // Generic error ko‘rsatmaymiz.
-                    // =====================================
-
-                    if (
-                        currentPage > 1
-                        &&
-                        isInvalidPaginationError(
-                            requestError
-                        )
-                    ) {
-
-                        updateQueryParams(
-                            {
-                                page:
-                                    1,
-                            },
-                            {
-                                replace:
-                                    true,
-                            }
-                        );
-
-
-                        return;
-                    }
-
-
-                    // =====================================
-                    // REAL API ERROR
-                    // =====================================
-
-                    const message =
-                        getProblemErrorMessage(
-                            requestError,
-                            "Muammolarni yuklashda xatolik yuz berdi."
-                        );
-
-
-                    dispatch(
-                        getProblemFailure(
-                            message
-                        )
-                    );
-                }
-
-            },
-            [
-                currentPage,
-                currentQueryKey,
-                debouncedSearchTerm,
-                dispatch,
-                languageFilter,
-                ordering,
-                statusFilter,
-                technologyFilter,
-                updateQueryParams,
-                urgentFilter,
-            ]
-        );
-
-
-    // =====================================================
-    // QUERY CHANGE / RETRY -> FETCH
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            const controller =
-                new AbortController();
-
-
-            getProblems(
-                controller.signal
-            );
-
-
-            return () => {
-
-                controller.abort();
-            };
-
-        },
-        [
-            getProblems,
-            retryKey,
-        ]
-    );
-
-
-    // =====================================================
-    // TOTAL PAGES
-    // =====================================================
-
-    const totalPages =
-        useMemo(
-            () => {
-
-                return getProblemTotalPages({
-                    count:
-                        problemCount,
-
-                    pageSize:
-                        PROBLEMS_PAGE_SIZE,
-                });
-
-            },
-            [
-                problemCount,
-            ]
-        );
-
-
-    // =====================================================
-    // INVALID PAGE AFTER SUCCESS
-    //
-    // Bu fallback himoya.
-    //
-    // Agar backend kelajakda invalid page uchun
-    // 404 emas:
-    //
-    // 200 + empty list
-    //
-    // qaytaradigan bo‘lsa ham ishlaydi.
-    //
-    // Muhim:
-    // faqat currentQueryKey muvaffaqiyatli resolve
-    // bo‘lgan bo‘lsa correction qilinadi.
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            if (
-                !isCurrentQueryResolved
-                ||
-                loading
-                ||
-                currentError
-            ) {
-                return;
-            }
-
-
-            if (
-                currentPage <=
-                totalPages
-            ) {
-                return;
-            }
-
-
-            updateQueryParams(
-                {
-                    page:
-                        totalPages,
-                },
-                {
-                    replace:
-                        true,
-                }
-            );
-
-        },
-        [
-            currentError,
-            currentPage,
-            isCurrentQueryResolved,
-            loading,
-            totalPages,
-            updateQueryParams,
-        ]
-    );
-
-
-    // =====================================================
-    // RESULT RANGE
-    // =====================================================
-
-    const {
-        start:
-            resultStart,
-
-        end:
-            resultEnd,
-    } = useMemo(
-        () => {
-
-            return getProblemResultRange({
-                count:
-                    problemCount,
-
-                page:
-                    currentPage,
-
-                pageSize:
-                    PROBLEMS_PAGE_SIZE,
-            });
-
-        },
-        [
-            currentPage,
-            problemCount,
-        ]
-    );
-
-
-    // =====================================================
-    // ACTIVE FILTERS
-    // =====================================================
-
-    const hasActiveFilters =
-        hasActiveProblemFilters({
-
-            search:
-                searchTerm,
-
-            status:
-                statusFilter,
-
-            urgent:
-                urgentFilter,
-
-            language:
-                languageFilter,
-
-            technology:
-                technologyFilter,
-
-            ordering,
-        });
-
-
-    // =====================================================
-    // CLEAR SEARCH
-    // =====================================================
-
-    const handleClearSearch =
-        useCallback(
-            () => {
-
-                setSearchTerm(
-                    ""
-                );
-
-
-                updateQueryParams({
-                    search:
-                        "",
-
-                    page:
-                        1,
-                });
-
-            },
-            [
-                updateQueryParams,
-            ]
-        );
-
-
-    // =====================================================
-    // RESET ALL
-    // =====================================================
-
-    const handleResetFilters =
-        useCallback(
-            () => {
-
-                setSearchTerm(
-                    ""
-                );
-
-
-                setSearchParams(
-                    (
-                        previousParams
-                    ) => {
-
-                        return buildResetProblemSearchParams(
-                            previousParams
-                        );
-                    }
-                );
-
-            },
-            [
-                setSearchParams,
-            ]
-        );
-
-
-    // =====================================================
-    // RETRY
-    // =====================================================
-
-    const handleRetry =
-        useCallback(
-            () => {
-
-                if (
-                    loading
-                ) {
-                    return;
-                }
-
-
-                setRetryKey(
-                    (
-                        previous
-                    ) =>
-                        previous + 1
-                );
-
-            },
-            [
-                loading,
-            ]
-        );
-
-
-    // =====================================================
-    // GENERIC FILTER UPDATE
-    //
-    // Old code:
-    //
-    // handleStatusChange
-    // handleUrgentChange
-    // handleLanguageChange
-    // ...
-    //
-    // har biri bir xil query update kodi edi.
-    //
-    // Endi core logic bitta joyda.
-    // =====================================================
-
-    const updateFilter =
-        useCallback(
-            (
-                key,
-                value
-            ) => {
-
-                updateQueryParams({
-                    [key]:
-                        value,
-
-                    page:
-                        1,
-                });
-
-            },
-            [
-                updateQueryParams,
-            ]
-        );
-
-
-    // =====================================================
-    // FILTER HANDLERS
-    // =====================================================
-
-    const handleStatusChange =
-        useCallback(
-            (
-                value
-            ) => {
-
-                updateFilter(
-                    "status",
-                    value
-                );
-
-            },
-            [
-                updateFilter,
-            ]
-        );
-
-
-    const handleUrgentChange =
-        useCallback(
-            (
-                value
-            ) => {
-
-                updateFilter(
-                    "urgent",
-                    value
-                );
-
-            },
-            [
-                updateFilter,
-            ]
-        );
-
-
-    const handleLanguageChange =
-        useCallback(
-            (
-                value
-            ) => {
-
-                updateFilter(
-                    "language",
-                    value
-                );
-
-            },
-            [
-                updateFilter,
-            ]
-        );
-
-
-    const handleTechnologyChange =
-        useCallback(
-            (
-                value
-            ) => {
-
-                updateFilter(
-                    "technology",
-                    value
-                );
-
-            },
-            [
-                updateFilter,
-            ]
-        );
-
-
-    const handleOrderingChange =
-        useCallback(
-            (
-                value
-            ) => {
-
-                updateFilter(
-                    "ordering",
-                    value
-                );
-
-            },
-            [
-                updateFilter,
-            ]
-        );
-
-
-    // =====================================================
-    // PAGE CHANGE
-    // =====================================================
-
-    const handlePageChange =
-        useCallback(
-            (
-                page
-            ) => {
-
-                if (
-                    loading
-                    ||
-                    page < 1
-                    ||
-                    page > totalPages
-                    ||
-                    page === currentPage
-                ) {
-                    return;
-                }
-
-
-                updateQueryParams({
-                    page,
-                });
-
-
-                window.scrollTo({
-                    top: 0,
-
-                    behavior:
-                        "smooth",
-                });
-
-            },
-            [
-                currentPage,
-                loading,
-                totalPages,
-                updateQueryParams,
-            ]
-        );
-
-
-    // =====================================================
-    // UI STATES
-    // =====================================================
-
-    // Initial load yoki yangi queryda eski data yo‘q.
-    const showInitialSkeleton =
-        !currentError
-        &&
-        !hasProblemData
-        &&
+    const searchPending =
+        searchTerm.trim() !==
+        debouncedSearchTerm;
+
+    const isSearching = Boolean(
+        (loading || searchPending) &&
         (
-            !isCurrentQueryResolved
-            ||
-            loading
-        );
+            searchTerm.trim() ||
+            debouncedSearchTerm
+        )
+    );
 
+    const isPageLoading =
+        loading || showInitialSkeleton;
 
-    // Empty state faqat aynan hozirgi query
-    // muvaffaqiyatli tugaganidan keyin.
-    const showEmptyState =
+    const visibleCount =
         isCurrentQueryResolved
-        &&
-        !loading
-        &&
-        !currentError
-        &&
-        !hasProblemData;
+            ? problemCount
+            : 0;
 
-
-    const showPaginationArea =
-        isCurrentQueryResolved
-        &&
-        !loading
-        &&
-        !currentError
-        &&
-        problemCount > 0;
-
+    const hasVisibleData =
+        showCards &&
+        problemList.length > 0;
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-
-        <section
+        <main
             id="problems-hero"
 
             className="
+                relative
+                isolate
+
                 min-h-screen
 
+                w-full
+                min-w-0
+
+                overflow-x-hidden
+
                 bg-gradient-to-b
-                from-gray-900
-                to-black
+                from-slate-50
+                via-white
+                to-slate-50
 
-                px-4
-                py-20
+                px-3
+                pb-20
+                pt-8
 
-                text-gray-100
+                font-sans
+                text-slate-900
+
+                transition-colors
+                duration-200
+
+                sm:px-6
+                sm:pb-24
+                sm:pt-12
+
+                lg:px-8
+
+                dark:from-gray-900
+                dark:via-[#0b0e14]
+                dark:to-black
+                dark:text-gray-100
             "
         >
+            {/* ======================================
+                BACKGROUND DECORATION
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    left-1/2
+                    top-0
+
+                    h-[420px]
+                    w-[650px]
+                    max-w-none
+
+                    -translate-x-1/2
+
+                    rounded-full
+
+                    bg-indigo-500/[0.035]
+
+                    blur-[110px]
+
+                    dark:bg-indigo-500/[0.06]
+                "
+            />
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -right-32
+                    top-[520px]
+
+                    h-[320px]
+                    w-[320px]
+
+                    rounded-full
+
+                    bg-cyan-500/[0.025]
+
+                    blur-[100px]
+
+                    dark:bg-cyan-500/[0.04]
+                "
+            />
+
+            {/* ======================================
+                CONTENT CONTAINER
+            ====================================== */}
 
             <div
                 className="
-                    container
+                    relative
+                    z-10
+
                     mx-auto
+
+                    w-full
                     max-w-7xl
+                    min-w-0
                 "
             >
-
-                {/* =========================================
-                    HEADER
-                ========================================== */}
+                {/* ==============================
+                    PAGE HEADER
+                ============================== */}
 
                 <ProblemsHeader />
 
-
-                {/* =========================================
-                    TOOLBAR
-                ========================================== */}
+                {/* ==============================
+                    SEARCH / FILTERS / SORT
+                ============================== */}
 
                 <ProblemsToolbar
-                    searchValue={
-                        searchTerm
-                    }
+                    searchValue={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    onSearchClear={handleClearSearch}
+                    isSearching={isSearching}
 
-                    onSearchChange={
-                        setSearchTerm
-                    }
+                    status={statusFilter}
+                    urgent={urgentFilter}
+                    language={languageFilter}
+                    technology={technologyFilter}
+                    ordering={ordering}
 
-                    onSearchClear={
-                        handleClearSearch
-                    }
-
-                    isSearching={
-                        Boolean(
-                            loading
-                            &&
-                            debouncedSearchTerm
-                        )
-                    }
-
-
-                    status={
-                        statusFilter
-                    }
-
-                    urgent={
-                        urgentFilter
-                    }
-
-                    language={
-                        languageFilter
-                    }
-
-                    technology={
-                        technologyFilter
-                    }
-
-                    ordering={
-                        ordering
-                    }
-
-
-                    languages={
-                        languages
-                    }
-
-                    technologies={
-                        technologies
-                    }
+                    languages={languages}
+                    technologies={technologies}
 
                     languagesIsLoading={
                         languagesIsLoading
@@ -1483,7 +279,6 @@ const Problems = () => {
                     technologiesIsLoading={
                         technologiesIsLoading
                     }
-
 
                     onStatusChange={
                         handleStatusChange
@@ -1505,7 +300,6 @@ const Problems = () => {
                         handleOrderingChange
                     }
 
-
                     hasActiveFilters={
                         hasActiveFilters
                     }
@@ -1515,187 +309,161 @@ const Problems = () => {
                     }
                 />
 
-
-                {/* =========================================
-                    RESULT HEADER
-                ========================================== */}
+                {/* ==============================
+                    RESULTS HEADER
+                ============================== */}
 
                 <ProblemsResultsHeader
-                    count={
-                        problemCount
-                    }
+                    count={visibleCount}
+                    start={resultStart}
+                    end={resultEnd}
 
-                    start={
-                        resultStart
-                    }
-
-                    end={
-                        resultEnd
-                    }
-
-                    isLoading={
-                        loading
-                    }
+                    isLoading={isPageLoading}
 
                     isResolved={
                         isCurrentQueryResolved
                     }
                 />
 
-
-                {/* =========================================
+                {/* ==============================
                     ERROR STATE
-                ========================================== */}
+                ============================== */}
 
-                {currentError &&
-                    !loading && (
-
+                {currentError && !loading && (
                     <ProblemsErrorState
-                        message={
-                            currentError
-                        }
+                        message={currentError}
 
-                        onRetry={
-                            handleRetry
-                        }
+                        onRetry={handleRetry}
 
-                        isRetrying={
-                            loading
-                        }
+                        isRetrying={loading}
 
-                        hasData={
-                            hasProblemData
-                        }
+                        hasData={hasVisibleData}
                     />
                 )}
 
-
-                {/* =========================================
+                {/* ==============================
                     PROBLEMS GRID
-                ========================================== */}
+                ============================== */}
 
                 <div
-                    aria-busy={
-                        loading
-                    }
+                    aria-busy={isPageLoading}
 
                     className="
                         grid
-                        gap-6
+                        w-full
+                        min-w-0
+
+                        grid-cols-1
+                        gap-4
+
+                        sm:gap-5
 
                         md:grid-cols-2
 
                         xl:grid-cols-3
+                        xl:gap-6
                     "
                 >
+                    {/* ==========================
+                        LOADING SKELETONS
+                    ========================== */}
 
-                    {/* =====================================
-                        SKELETON
-                    ====================================== */}
+                    {showInitialSkeleton && (
+                        <>
+                            <span
+                                role="status"
+                                className="sr-only"
+                            >
+                                Muammolar yuklanmoqda...
+                            </span>
 
-                    {showInitialSkeleton &&
-                        Array
-                            .from({
-                                length:
-                                    PROBLEMS_PAGE_SIZE,
-                            })
-                            .map(
-                                (
-                                    _,
-                                    index
-                                ) => (
-
-                                    <ProblemCardSkeleton
-                                        key={
-                                            `problem-skeleton-${index}`
-                                        }
-                                    />
-                                )
-                            )
-                    }
-
-
-                    {/* =====================================
-                        CARDS
-                    ====================================== */}
-
-                    {!showInitialSkeleton &&
-                        problemList.map(
-                            (
-                                problem,
-                                index
-                            ) => (
-
-                                <ProblemCard
+                            {Array.from({
+                                length: PROBLEMS_PAGE_SIZE,
+                            }).map((_, index) => (
+                                <ProblemCardSkeleton
                                     key={
-                                        problem?.id
-                                        ??
-                                        `problem-${index}`
-                                    }
-
-                                    problem={
-                                        problem
+                                        `problem-skeleton-${index}`
                                     }
                                 />
-                            )
-                        )
-                    }
-
-
-                    {/* =====================================
-                        EMPTY
-                    ====================================== */}
-
-                    {showEmptyState && (
-
-                        <ProblemsEmptyState
-                            hasActiveFilters={
-                                hasActiveFilters
-                            }
-
-                            onResetFilters={
-                                handleResetFilters
-                            }
-                        />
+                            ))}
+                        </>
                     )}
 
+                    {/* ==========================
+                        PROBLEM CARDS
+                    ========================== */}
+
+                    {hasVisibleData &&
+                        problemList.map((
+                            problem,
+                            index
+                        ) => (
+                            <div
+                                key={
+                                    problem?.id ??
+                                    `problem-${index}`
+                                }
+
+                                className="
+                                    h-full
+                                    min-w-0
+                                "
+                            >
+                                <ProblemCard
+                                    problem={problem}
+                                />
+                            </div>
+                        ))}
+
+                    {/* ==========================
+                        EMPTY RESULTS
+                    ========================== */}
+
+                    {showEmptyState && (
+                        <div
+                            className="
+                                col-span-full
+                                w-full
+                                min-w-0
+                            "
+                        >
+                            <ProblemsEmptyState
+                                hasActiveFilters={
+                                    hasActiveFilters
+                                }
+
+                                onResetFilters={
+                                    handleResetFilters
+                                }
+                            />
+                        </div>
+                    )}
                 </div>
 
-
-                {/* =========================================
+                {/* ==============================
                     PAGINATION
-                ========================================== */}
+                ============================== */}
 
                 {showPaginationArea && (
-
                     <ProblemsPagination
-                        currentPage={
-                            currentPage
-                        }
-
-                        totalPages={
-                            totalPages
-                        }
-
-                        count={
-                            problemCount
-                        }
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        count={problemCount}
 
                         onPageChange={
                             handlePageChange
                         }
 
-                        disabled={
-                            loading
-                        }
+                        disabled={loading}
                     />
                 )}
-
             </div>
-
-        </section>
+        </main>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default Problems;
+export default React.memo(Problems);

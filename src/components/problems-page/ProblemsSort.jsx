@@ -1,18 +1,26 @@
-// src/components/problems-page/ProblemsSort.jsx
 
-import React from "react";
+import React, { useId } from "react";
 
 import {
     ArrowDownAZ,
+    ChevronDown,
 } from "lucide-react";
 
 import {
     PROBLEM_ORDERING_OPTIONS,
 } from "./problemPageHelpers";
 
-
 // =========================================================
-// PROBLEMS SORT
+// FSOCIETY — PROBLEMS SORT
+//
+// Controlled sort selector.
+//
+// Props preserved:
+// - value
+// - onChange
+// - disabled
+//
+// Ordering values come from problemPageHelpers.
 // =========================================================
 
 const ProblemsSort = ({
@@ -20,197 +28,226 @@ const ProblemsSort = ({
     onChange,
     disabled = false,
 }) => {
+    // =====================================================
+    // ACCESSIBILITY
+    // =====================================================
+
+    const selectId = useId();
 
     // =====================================================
-    // SAFE OPTIONS
+    // OPTIONS
     // =====================================================
 
-    const options =
-        Array.isArray(
-            PROBLEM_ORDERING_OPTIONS
+    const options = Array.isArray(
+        PROBLEM_ORDERING_OPTIONS
+    )
+        ? PROBLEM_ORDERING_OPTIONS.filter(
+            (item) =>
+                item &&
+                item.value != null &&
+                String(item.value) !== ""
         )
-            ? PROBLEM_ORDERING_OPTIONS
-            : [];
-
+        : [];
 
     // =====================================================
     // SAFE VALUE
     // =====================================================
 
-    const valueExists =
-        options.some(
-            (
-                item
-            ) =>
-                item?.value === value
+    const normalizedValue = String(
+        value ?? ""
+    );
+
+    const valueExists = options.some(
+        (item) =>
+            String(item.value) === normalizedValue
+    );
+
+    const safeValue = valueExists
+        ? normalizedValue
+        : String(
+            options[0]?.value ?? "newest"
         );
 
+    const isDisabled =
+        Boolean(disabled) ||
+        typeof onChange !== "function";
 
-    const safeValue =
-        valueExists
-            ? value
-            : (
-                options[0]?.value
-                ||
-                "newest"
-            );
+    // =====================================================
+    // CHANGE
+    // =====================================================
 
+    const handleChange = (event) => {
+        if (isDisabled) {
+            return;
+        }
+
+        onChange(event.target.value);
+    };
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-
-        <label
-            className="
-                block
-                min-w-0
-            "
-        >
-
-            {/* =============================================
-                LABEL
-            ============================================== */}
+        <div className="w-full min-w-0">
+            {/* LABEL */}
 
             <div
                 className="
-                    mb-1.5
+                    mb-2
 
                     flex
-                    min-h-[16px]
+                    min-h-[18px]
+
                     items-center
                     justify-between
                     gap-2
                 "
             >
+                <label
+                    htmlFor={selectId}
 
-                <span
                     className="
-                        block
-
+                        font-display
                         text-[10px]
                         font-black
                         uppercase
-                        tracking-[0.16em]
-                        text-gray-600
+                        tracking-[0.10em]
+
+                        text-slate-600
+
+                        dark:text-gray-400
                     "
                 >
                     Saralash
-                </span>
-
+                </label>
 
                 <ArrowDownAZ
-                    size={12}
+                    size={14}
+                    strokeWidth={1.9}
+                    aria-hidden="true"
 
                     className="
-                        text-indigo-400/50
+                        shrink-0
+
+                        text-indigo-600
+
+                        dark:text-indigo-400
                     "
                 />
-
             </div>
 
+            {/* SELECT */}
 
-            {/* =============================================
-                SELECT
-            ============================================== */}
+            <div className="relative min-w-0">
+                <select
+                    id={selectId}
 
-            <select
-                value={
-                    safeValue
-                }
+                    value={safeValue}
+                    onChange={handleChange}
 
-                disabled={
-                    disabled
-                }
+                    disabled={isDisabled}
 
-                aria-label="Muammolarni saralash"
+                    className="
+                        block
 
-                onChange={(
-                    event
-                ) => {
+                        h-11
+                        w-full
+                        min-w-0
 
-                    onChange?.(
-                        event.target.value
-                    );
-                }}
+                        appearance-none
 
-                className="
-                    h-11
-                    w-full
+                        cursor-pointer
 
-                    cursor-pointer
+                        rounded-xl
 
-                    rounded-xl
+                        border
+                        border-slate-200
 
-                    border
-                    border-white/[0.08]
+                        bg-slate-50
 
-                    bg-[#0a0f18]
+                        pl-3
+                        pr-10
 
-                    px-3
+                        font-sans
+                        text-xs
+                        font-bold
 
-                    text-xs
-                    font-bold
-                    text-gray-300
+                        text-slate-800
 
-                    outline-none
+                        outline-none
 
-                    transition-all
-                    duration-200
+                        transition-colors
+                        duration-150
 
-                    hover:border-indigo-400/20
+                        hover:border-indigo-400/40
 
-                    focus:border-indigo-400/30
+                        focus:border-indigo-500/50
+                        focus:bg-white
 
-                    focus:ring-4
-                    focus:ring-indigo-500/[0.06]
+                        focus:ring-4
+                        focus:ring-indigo-500/[0.08]
 
-                    disabled:cursor-not-allowed
-                    disabled:opacity-40
-                "
-            >
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
 
-                {options.map(
-                    (
-                        item
-                    ) => {
+                        dark:border-white/[0.09]
+                        dark:bg-[#0a0f18]
 
-                        if (
-                            !item?.value
-                        ) {
-                            return null;
-                        }
+                        dark:text-gray-200
+                        dark:[color-scheme:dark]
 
+                        dark:hover:border-indigo-400/25
 
-                        return (
-
+                        dark:focus:border-indigo-400/40
+                        dark:focus:bg-[#0d1320]
+                        dark:focus:ring-indigo-400/[0.07]
+                    "
+                >
+                    {options.length === 0 ? (
+                        <option value="newest">
+                            Eng yangilari
+                        </option>
+                    ) : (
+                        options.map((item) => (
                             <option
-                                key={
-                                    item.value
-                                }
-
-                                value={
-                                    item.value
-                                }
+                                key={String(item.value)}
+                                value={String(item.value)}
                             >
-                                {
-                                    item.label
-                                    ||
-                                    item.value
-                                }
+                                {item.label || item.value}
                             </option>
-                        );
-                    }
-                )}
+                        ))
+                    )}
+                </select>
 
-            </select>
+                {/* DROPDOWN ARROW */}
 
-        </label>
+                <ChevronDown
+                    size={16}
+                    strokeWidth={1.9}
+                    aria-hidden="true"
+
+                    className="
+                        pointer-events-none
+
+                        absolute
+                        right-3
+                        top-1/2
+
+                        -translate-y-1/2
+
+                        text-slate-500
+
+                        dark:text-gray-400
+                    "
+                />
+            </div>
+        </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemsSort
-);
+export default React.memo(ProblemsSort);

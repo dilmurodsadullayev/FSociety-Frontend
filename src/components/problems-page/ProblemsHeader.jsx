@@ -1,64 +1,124 @@
-// src/components/problems-page/ProblemsHeader.jsx
 
 import React from "react";
 
+// =========================================================
+// FSOCIETY — PROBLEMS HEADER
+//
+// Features:
+// - Light / Dark Mode
+// - Mobile-first typography
+// - Responsive layout
+// - Accessible decorative elements
+// - Reduced motion support
+//
+// No props.
+// No API requests.
+// =========================================================
 
 // =========================================================
-// PROBLEMS HEADER
+// PAGE FEATURES
+// =========================================================
+
+const PAGE_FEATURES = [
+    {
+        label: "Search",
+        dotClass: "bg-cyan-500 dark:bg-cyan-400",
+    },
+    {
+        label: "Filter",
+        dotClass: "bg-indigo-500 dark:bg-indigo-400",
+    },
+    {
+        label: "Sort",
+        dotClass: "bg-purple-500 dark:bg-purple-400",
+    },
+    {
+        label: "Solve",
+        dotClass: "bg-emerald-500 dark:bg-emerald-400",
+    },
+];
+
+// =========================================================
+// MAIN COMPONENT
 // =========================================================
 
 const ProblemsHeader = () => {
-
     return (
-
         <header
+            aria-labelledby="problems-page-title"
             className="
                 relative
                 mx-auto
+
+                w-full
                 max-w-4xl
+                min-w-0
+
+                px-1
+                py-2
+
                 text-center
+
+                sm:px-4
+                sm:py-4
             "
         >
-
-            {/* =============================================
+            {/* ==========================================
                 AMBIENT GLOW
-            ============================================== */}
+            ========================================== */}
 
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
+
                     absolute
                     left-1/2
                     top-0
 
-                    h-48
-                    w-[70%]
+                    h-40
+                    w-[85%]
+                    max-w-2xl
 
                     -translate-x-1/2
 
                     rounded-full
 
                     bg-gradient-to-r
-                    from-cyan-500/[0.08]
+                    from-cyan-500/[0.07]
                     via-indigo-500/[0.08]
-                    to-purple-500/[0.08]
+                    to-purple-500/[0.07]
 
-                    blur-[90px]
+                    blur-[75px]
+
+                    sm:h-48
+                    sm:w-[70%]
+                    sm:blur-[90px]
+
+                    dark:from-cyan-400/[0.08]
+                    dark:via-indigo-500/[0.09]
+                    dark:to-purple-500/[0.08]
                 "
             />
 
+            {/* ==========================================
+                CONTENT
+            ========================================== */}
 
             <div
                 className="
                     relative
                     z-10
+
+                    min-w-0
+
                     animate-fade-in-up
+                    motion-reduce:animate-none
                 "
             >
-
-                {/* =========================================
+                {/* ======================================
                     SYSTEM BADGE
-                ========================================== */}
+                ====================================== */}
 
                 <div
                     className="
@@ -66,49 +126,69 @@ const ProblemsHeader = () => {
                         mb-4
 
                         inline-flex
+                        max-w-full
+
                         items-center
+                        justify-center
                         gap-2
 
                         rounded-full
 
                         border
-                        border-cyan-400/15
+                        border-cyan-400/35
 
-                        bg-cyan-400/[0.06]
+                        bg-cyan-500/[0.07]
 
                         px-3
-                        py-1.5
+                        py-2
 
                         font-mono
-                        text-[10px]
+                        text-[9px]
                         font-black
                         uppercase
-                        tracking-[0.22em]
-                        text-cyan-300
+                        tracking-[0.12em]
 
-                        shadow-lg
-                        shadow-cyan-950/10
+                        text-cyan-800
+
+                        shadow-sm
+
+                        sm:mb-5
+                        sm:text-[10px]
+                        sm:tracking-[0.18em]
+
+                        dark:border-cyan-400/20
+                        dark:bg-cyan-400/[0.06]
+                        dark:text-cyan-300
+
+                        dark:shadow-cyan-950/10
                     "
                 >
+                    {/* STATUS DOT */}
 
                     <span
+                        aria-hidden="true"
                         className="
                             relative
                             flex
                             h-2
                             w-2
+                            shrink-0
                         "
                     >
                         <span
                             className="
                                 absolute
-                                inline-flex
-                                h-full
-                                w-full
+                                inset-0
+
                                 animate-ping
                                 rounded-full
-                                bg-emerald-400
+
+                                bg-emerald-500
                                 opacity-30
+
+                                motion-reduce:animate-none
+
+                                dark:bg-emerald-400
                             "
                         />
 
@@ -116,35 +196,58 @@ const ProblemsHeader = () => {
                             className="
                                 relative
                                 inline-flex
+
                                 h-2
                                 w-2
-                                rounded-full
-                                bg-emerald-400
 
-                                shadow-[0_0_10px_rgba(52,211,153,0.8)]
+                                rounded-full
+
+                                bg-emerald-500
+
+                                shadow-[0_0_9px_rgba(16,185,129,0.45)]
+
+                                dark:bg-emerald-400
+                                dark:shadow-[0_0_10px_rgba(52,211,153,0.55)]
                             "
                         />
                     </span>
 
-                    fsociety://problems
+                    <span
+                        className="
+                            min-w-0
+                            break-all
+                        "
+                    >
+                        fsociety://problems
+                    </span>
                 </div>
 
-
-                {/* =========================================
-                    TITLE
-                ========================================== */}
+                {/* ======================================
+                    MAIN TITLE
+                ====================================== */}
 
                 <h1
+                    id="problems-page-title"
                     className="
-                        text-4xl
+                        mx-auto
+                        max-w-4xl
+
+                        break-words
+
+                        font-display
+                        text-[30px]
                         font-black
-                        leading-tight
+                        leading-[1.15]
                         tracking-tight
-                        text-white
+
+                        text-slate-950
 
                         sm:text-5xl
+                        sm:leading-[1.12]
 
                         lg:text-6xl
+
+                        dark:text-white
                     "
                 >
                     Muammolar{" "}
@@ -152,37 +255,48 @@ const ProblemsHeader = () => {
                     <span
                         className="
                             bg-gradient-to-r
-                            from-purple-400
-                            via-indigo-400
-                            to-cyan-400
+                            from-purple-700
+                            via-indigo-700
+                            to-cyan-700
 
                             bg-clip-text
                             text-transparent
+
+                            dark:from-purple-400
+                            dark:via-indigo-400
+                            dark:to-cyan-400
                         "
                     >
                         Markazi
                     </span>
                 </h1>
 
-
-                {/* =========================================
+                {/* ======================================
                     DESCRIPTION
-                ========================================== */}
+                ====================================== */}
 
                 <p
                     className="
                         mx-auto
                         mt-4
+
                         max-w-2xl
 
-                        text-sm
+                        break-words
+
+                        text-[13px]
                         font-medium
-                        leading-7
-                        text-gray-500
+                        leading-6
 
-                        sm:text-base
+                        text-slate-600
 
-                        lg:text-lg
+                        sm:mt-5
+                        sm:text-[15px]
+                        sm:leading-7
+
+                        lg:text-base
+
+                        dark:text-gray-400
                     "
                 >
                     Dasturchilar muammolarini ulashadi,
@@ -190,115 +304,72 @@ const ProblemsHeader = () => {
                     javoblar bilim bazasiga aylanadi.
                 </p>
 
-
-                {/* =========================================
-                    MINI STATUS
-                ========================================== */}
+                {/* ======================================
+                    PAGE FEATURES
+                ====================================== */}
 
                 <div
+                    aria-label="Sahifa imkoniyatlari"
                     className="
                         mt-5
 
                         flex
+                        min-w-0
+
                         flex-wrap
                         items-center
                         justify-center
+
                         gap-x-4
                         gap-y-2
 
                         font-mono
                         text-[9px]
-                        font-black
+                        font-bold
                         uppercase
-                        tracking-[0.16em]
-                        text-gray-700
+                        tracking-[0.12em]
+
+                        text-slate-500
+
+                        sm:mt-6
+                        sm:gap-x-5
+                        sm:text-[10px]
+
+                        dark:text-gray-400
                     "
                 >
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-1.5
-                        "
-                    >
+                    {PAGE_FEATURES.map((feature) => (
                         <span
+                            key={feature.label}
                             className="
-                                h-1
-                                w-1
-                                rounded-full
-                                bg-cyan-400
+                                inline-flex
+                                items-center
+                                gap-1.5
                             "
-                        />
+                        >
+                            <span
+                                aria-hidden="true"
+                                className={`
+                                    h-1.5
+                                    w-1.5
+                                    shrink-0
+                                    rounded-full
 
-                        Search
-                    </span>
+                                    ${feature.dotClass}
+                                `}
+                            />
 
-
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-1.5
-                        "
-                    >
-                        <span
-                            className="
-                                h-1
-                                w-1
-                                rounded-full
-                                bg-indigo-400
-                            "
-                        />
-
-                        Filter
-                    </span>
-
-
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-1.5
-                        "
-                    >
-                        <span
-                            className="
-                                h-1
-                                w-1
-                                rounded-full
-                                bg-purple-400
-                            "
-                        />
-
-                        Sort
-                    </span>
-
-
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-1.5
-                        "
-                    >
-                        <span
-                            className="
-                                h-1
-                                w-1
-                                rounded-full
-                                bg-emerald-400
-                            "
-                        />
-
-                        Solve
-                    </span>
+                            {feature.label}
+                        </span>
+                    ))}
                 </div>
             </div>
         </header>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemsHeader
-);
+export default React.memo(ProblemsHeader);

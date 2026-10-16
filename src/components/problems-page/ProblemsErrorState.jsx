@@ -1,4 +1,3 @@
-// src/components/problems-page/ProblemsErrorState.jsx
 
 import React from "react";
 
@@ -8,57 +7,265 @@ import {
     RefreshCw,
 } from "lucide-react";
 
+// =========================================================
+// FSOCIETY — PROBLEMS ERROR STATE
+//
+// Modes:
+// - Compact warning (old data available)
+// - Full error (no data available)
+//
+// Props preserved:
+// - message
+// - onRetry
+// - isRetrying
+// - hasData
+//
+// Features:
+// - Light / Dark Mode
+// - Responsive layout
+// - Safe error messages
+// - Loading / retry states
+// - Accessible announcements
+//
+// No direct API requests.
+// =========================================================
 
 // =========================================================
-// PROBLEMS ERROR STATE
+// SAFE ERROR MESSAGE
+// =========================================================
+
+const getSafeErrorMessage = (value) => {
+    const fallback =
+        "Muammolarni yuklashda xatolik yuz berdi.";
+
+    if (typeof value === "string") {
+        return value.trim() || fallback;
+    }
+
+    if (Array.isArray(value)) {
+        const firstMessage = value.find(
+            (item) =>
+                typeof item === "string" &&
+                item.trim()
+        );
+
+        return firstMessage?.trim() || fallback;
+    }
+
+    if (value && typeof value === "object") {
+        const candidates = [
+            value.detail,
+            value.message,
+            value.error,
+            value.response?.data?.detail,
+            value.response?.data?.message,
+        ];
+
+        const firstMessage = candidates.find(
+            (item) =>
+                typeof item === "string" &&
+                item.trim()
+        );
+
+        return firstMessage?.trim() || fallback;
+    }
+
+    return fallback;
+};
+
+// =========================================================
+// RETRY BUTTON
+// =========================================================
+
+const RetryButton = React.memo(({
+    onRetry,
+    isRetrying = false,
+    compact = false,
+}) => {
+    const busy = Boolean(isRetrying);
+
+    const disabled =
+        busy ||
+        typeof onRetry !== "function";
+
+    const handleRetry = () => {
+        if (disabled) {
+            return;
+        }
+
+        onRetry();
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleRetry}
+            disabled={disabled}
+            aria-busy={busy}
+
+            className={`
+                inline-flex
+                min-h-11
+                max-w-full
+
+                items-center
+                justify-center
+                gap-2
+
+                rounded-xl
+                border
+
+                px-4
+                py-2.5
+
+                font-display
+                text-xs
+                font-black
+
+                transition-colors
+
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-offset-2
+
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+
+                ${
+                    compact
+                        ? `
+                            border-amber-400/40
+                            bg-amber-500/[0.08]
+                            text-amber-900
+
+                            hover:border-amber-400/60
+                            hover:bg-amber-500/[0.14]
+
+                            focus-visible:ring-amber-500
+
+                            dark:border-amber-400/25
+                            dark:bg-amber-500/[0.07]
+                            dark:text-amber-200
+
+                            dark:hover:bg-amber-500/[0.12]
+                        `
+                        : `
+                            border-red-600
+                            bg-red-600
+                            text-white
+
+                            hover:border-red-700
+                            hover:bg-red-700
+
+                            focus-visible:ring-red-500
+
+                            dark:border-red-500/40
+                            dark:bg-red-600
+
+                            dark:hover:bg-red-500
+                        `
+                }
+
+                dark:focus-visible:ring-offset-[#0b0f18]
+            `}
+        >
+            {busy ? (
+                <Loader2
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+
+                    className="
+                        shrink-0
+                        animate-spin
+
+                        motion-reduce:animate-none
+                    "
+                />
+            ) : (
+                <RefreshCw
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    className="shrink-0"
+                />
+            )}
+
+            <span>
+                {busy
+                    ? compact
+                        ? "Yangilanmoqda..."
+                        : "Qayta yuklanmoqda..."
+                    : "Qayta urinish"}
+            </span>
+        </button>
+    );
+});
+
+// =========================================================
+// MAIN COMPONENT
 // =========================================================
 
 const ProblemsErrorState = ({
-    message = "Muammolarni yuklashda xatolik yuz berdi.",
+    message =
+        "Muammolarni yuklashda xatolik yuz berdi.",
+
     onRetry,
     isRetrying = false,
     hasData = false,
 }) => {
-
     // =====================================================
-    // STALE DATA ERROR
-    //
-    // Oldingi list mavjud.
-    // Yangi request ishlamadi.
-    //
-    // Cardlarni yo‘qotmaymiz.
-    // Compact warning ko‘rsatamiz.
+    // SAFE VALUES
     // =====================================================
 
-    if (
-        hasData
-    ) {
+    const errorText =
+        getSafeErrorMessage(message);
 
+    const compact =
+        Boolean(hasData);
+
+    const loading =
+        Boolean(isRetrying);
+
+    // =====================================================
+    // COMPACT ERROR
+    //
+    // Displayed when previously loaded cards
+    // can remain visible.
+    // =====================================================
+
+    if (compact) {
         return (
-
             <div
                 role="alert"
+                aria-busy={loading}
 
                 className="
                     mb-6
 
+                    w-full
+                    min-w-0
+
                     overflow-hidden
 
                     rounded-2xl
-
                     border
-                    border-amber-400/15
+                    border-amber-300
 
-                    bg-amber-500/[0.045]
+                    bg-amber-50/85
 
-                    shadow-lg
-                    shadow-black/10
+                    shadow-[0_8px_25px_rgba(120,53,15,0.035)]
+
+                    dark:border-amber-400/[0.18]
+                    dark:bg-amber-500/[0.055]
+                    dark:shadow-black/10
                 "
             >
-
                 <div
                     className="
                         flex
+                        min-w-0
+
                         flex-col
                         gap-4
 
@@ -67,487 +274,399 @@ const ProblemsErrorState = ({
                         sm:flex-row
                         sm:items-center
                         sm:justify-between
+                        sm:gap-5
                     "
                 >
-
-                    {/* =====================================
-                        MESSAGE
-                    ====================================== */}
+                    {/* MESSAGE */}
 
                     <div
                         className="
                             flex
                             min-w-0
+
                             items-start
                             gap-3
                         "
                     >
+                        {/* ICON */}
 
                         <div
                             className="
                                 grid
-                                h-9
-                                w-9
+                                h-10
+                                w-10
                                 shrink-0
+
                                 place-items-center
 
                                 rounded-xl
-
                                 border
-                                border-amber-400/15
+                                border-amber-400/30
 
-                                bg-amber-500/[0.08]
+                                bg-amber-500/[0.10]
 
-                                text-amber-300
+                                text-amber-800
+
+                                dark:border-amber-400/20
+                                dark:bg-amber-400/[0.08]
+                                dark:text-amber-300
                             "
                         >
-
                             <AlertTriangle
-                                size={16}
+                                size={18}
+                                strokeWidth={1.9}
+                                aria-hidden="true"
                             />
-
                         </div>
 
+                        {/* TEXT */}
 
-                        <div
-                            className="
-                                min-w-0
-                            "
-                        >
-
-                            <p
+                        <div className="min-w-0 flex-1">
+                            <h3
                                 className="
+                                    break-words
+
+                                    font-display
                                     text-sm
                                     font-black
-                                    text-amber-200
+
+                                    text-amber-950
+
+                                    dark:text-amber-200
                                 "
                             >
                                 Ma’lumotlarni yangilab bo‘lmadi
-                            </p>
-
+                            </h3>
 
                             <p
                                 className="
                                     mt-1
 
+                                    whitespace-pre-wrap
                                     break-words
+                                    [overflow-wrap:anywhere]
 
                                     text-xs
                                     font-medium
-                                    leading-5
-                                    text-amber-100/45
+                                    leading-6
+
+                                    text-amber-900
+
+                                    dark:text-amber-100/85
                                 "
                             >
-                                {message}
+                                {errorText}
                             </p>
-
 
                             <p
                                 className="
                                     mt-1
 
-                                    text-[10px]
-                                    font-bold
-                                    text-gray-700
+                                    text-[11px]
+                                    font-medium
+                                    leading-5
+
+                                    text-amber-800/80
+
+                                    dark:text-gray-400
                                 "
                             >
                                 Oldingi yuklangan natijalar
                                 vaqtincha ko‘rsatilmoqda.
                             </p>
-
                         </div>
-
                     </div>
 
+                    {/* RETRY */}
 
-                    {/* =====================================
-                        RETRY
-                    ====================================== */}
-
-                    <button
-                        type="button"
-
-                        onClick={
-                            onRetry
-                        }
-
-                        disabled={
-                            isRetrying
-                        }
-
+                    <div
                         className="
-                            inline-flex
-                            min-h-[40px]
+                            flex
+                            w-full
                             shrink-0
-                            items-center
-                            justify-center
-                            gap-2
+                            justify-start
 
-                            rounded-xl
-
-                            border
-                            border-amber-400/15
-
-                            bg-amber-500/[0.07]
-
-                            px-4
-                            py-2
-
-                            text-xs
-                            font-black
-                            text-amber-200
-
-                            transition-all
-                            duration-200
-
-                            hover:border-amber-400/25
-                            hover:bg-amber-500/[0.12]
-
-                            active:scale-[0.97]
-
-                            disabled:cursor-not-allowed
-                            disabled:opacity-50
+                            sm:w-auto
                         "
                     >
-
-                        {isRetrying ? (
-
-                            <Loader2
-                                size={14}
-
-                                className="
-                                    animate-spin
-                                "
-                            />
-
-                        ) : (
-
-                            <RefreshCw
-                                size={14}
-                            />
-                        )}
-
-
-                        {isRetrying
-                            ? "Yangilanmoqda..."
-                            : "Qayta urinish"
-                        }
-
-                    </button>
-
+                        <RetryButton
+                            onRetry={onRetry}
+                            isRetrying={loading}
+                            compact
+                        />
+                    </div>
                 </div>
-
             </div>
         );
     }
 
-
     // =====================================================
-    // FULL ERROR STATE
+    // FULL ERROR
     //
-    // Hech qanday data yo‘q.
+    // Displayed when no usable results exist.
     // =====================================================
 
     return (
-
         <div
             role="alert"
+            aria-busy={loading}
 
             className="
+                relative
+
                 mb-8
+
+                w-full
+                min-w-0
 
                 overflow-hidden
 
-                rounded-[28px]
-
+                rounded-[22px]
                 border
-                border-red-400/20
+                border-red-200
 
-                bg-[#0b0f18]
+                bg-white
 
-                shadow-2xl
-                shadow-black/20
+                shadow-[0_12px_40px_rgba(127,29,29,0.045)]
+
+                sm:rounded-[28px]
+
+                dark:border-red-400/[0.18]
+                dark:bg-[#0b0f18]
+                dark:shadow-black/20
             "
         >
+            {/* BACKGROUND GLOW */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    left-1/2
+                    top-0
+
+                    h-48
+                    w-72
+
+                    max-w-full
+
+                    -translate-x-1/2
+                    -translate-y-1/2
+
+                    rounded-full
+
+                    bg-red-500/[0.07]
+
+                    blur-[80px]
+
+                    dark:bg-red-500/[0.09]
+                "
+            />
+
+            {/* CONTENT */}
 
             <div
                 className="
                     relative
+                    z-10
 
-                    px-6
-                    py-10
+                    flex
+                    min-w-0
+
+                    flex-col
+                    items-center
+
+                    px-4
+                    py-9
 
                     text-center
 
                     sm:px-8
+                    sm:py-11
                 "
             >
-
-                {/* =========================================
-                    GLOW
-                ========================================== */}
+                {/* ICON */}
 
                 <div
                     className="
-                        pointer-events-none
-
-                        absolute
-                        left-1/2
-                        top-0
-
-                        h-48
-                        w-72
-
-                        -translate-x-1/2
-                        -translate-y-1/2
-
-                        rounded-full
-
-                        bg-red-500/[0.08]
-
-                        blur-[80px]
-                    "
-                />
-
-
-                {/* =========================================
-                    ICON
-                ========================================== */}
-
-                <div
-                    className="
-                        relative
-
-                        mx-auto
-
                         grid
                         h-16
                         w-16
+                        shrink-0
+
                         place-items-center
 
                         rounded-[20px]
-
                         border
-                        border-red-400/20
+                        border-red-400/30
 
                         bg-red-500/[0.07]
 
-                        text-red-300
+                        text-red-700
 
-                        shadow-lg
-                        shadow-red-950/20
+                        dark:border-red-400/20
+                        dark:bg-red-500/[0.08]
+                        dark:text-red-300
                     "
                 >
-
                     <AlertTriangle
                         size={27}
+                        strokeWidth={1.8}
+                        aria-hidden="true"
                     />
-
                 </div>
 
-
-                {/* =========================================
-                    CODE
-                ========================================== */}
+                {/* SYSTEM LABEL */}
 
                 <div
                     className="
-                        relative
-
                         mt-5
 
                         inline-flex
+                        max-w-full
+
                         items-center
                         gap-2
 
                         rounded-full
-
                         border
-                        border-red-400/10
+                        border-red-400/25
 
-                        bg-red-500/[0.035]
+                        bg-red-500/[0.05]
 
                         px-3
-                        py-1
+                        py-1.5
 
                         font-mono
                         text-[9px]
                         font-black
                         uppercase
-                        tracking-[0.18em]
-                        text-red-400/70
+                        tracking-[0.12em]
+
+                        text-red-700
+
+                        dark:border-red-400/15
+                        dark:text-red-300
                     "
                 >
-
                     <span
+                        aria-hidden="true"
+
                         className="
                             h-1.5
                             w-1.5
 
+                            shrink-0
+
                             rounded-full
 
-                            bg-red-400
+                            bg-red-500
+
+                            dark:bg-red-400
                         "
                     />
 
                     request.failed
-
                 </div>
 
-
-                {/* =========================================
-                    TITLE
-                ========================================== */}
+                {/* TITLE */}
 
                 <h3
                     className="
-                        relative
-
                         mt-4
 
-                        text-2xl
+                        break-words
+
+                        font-display
+                        text-xl
                         font-black
                         tracking-tight
-                        text-white
+
+                        text-slate-900
+
+                        sm:text-2xl
+
+                        dark:text-white
                     "
                 >
                     Muammolarni yuklab bo‘lmadi
                 </h3>
 
-
-                {/* =========================================
-                    MESSAGE
-                ========================================== */}
+                {/* ERROR MESSAGE */}
 
                 <p
                     className="
-                        relative
-
-                        mx-auto
                         mt-3
                         max-w-lg
 
+                        whitespace-pre-wrap
                         break-words
+                        [overflow-wrap:anywhere]
 
-                        text-sm
+                        text-[13px]
                         font-medium
                         leading-6
-                        text-red-200/55
+
+                        text-red-800
+
+                        sm:text-sm
+                        sm:leading-7
+
+                        dark:text-red-200/85
                     "
                 >
-                    {message}
+                    {errorText}
                 </p>
 
-
-                {/* =========================================
-                    HELP
-                ========================================== */}
+                {/* HELP */}
 
                 <p
                     className="
-                        relative
-
-                        mx-auto
                         mt-2
                         max-w-md
 
                         text-xs
+                        font-medium
                         leading-5
-                        text-gray-700
+
+                        text-slate-600
+
+                        dark:text-gray-400
                     "
                 >
-                    Internet aloqasini tekshirib,
-                    qayta urinib ko‘ring.
+                    Internet aloqasini yoki server
+                    holatini tekshirib, qayta urinib
+                    ko‘ring.
                 </p>
 
+                {/* RETRY */}
 
-                {/* =========================================
-                    RETRY
-                ========================================== */}
-
-                <button
-                    type="button"
-
-                    onClick={
-                        onRetry
-                    }
-
-                    disabled={
-                        isRetrying
-                    }
-
+                <div
                     className="
-                        relative
-
                         mt-6
 
-                        inline-flex
-                        min-h-[44px]
-                        items-center
+                        flex
+                        w-full
+                        min-w-0
+
                         justify-center
-                        gap-2
-
-                        rounded-xl
-
-                        border
-                        border-red-400/20
-
-                        bg-red-600
-
-                        px-5
-                        py-2.5
-
-                        text-xs
-                        font-black
-                        text-white
-
-                        shadow-lg
-                        shadow-red-950/20
-
-                        transition-all
-                        duration-200
-
-                        hover:bg-red-500
-
-                        active:scale-[0.97]
-
-                        disabled:cursor-not-allowed
-                        disabled:opacity-50
                     "
                 >
-
-                    {isRetrying ? (
-
-                        <Loader2
-                            size={15}
-
-                            className="
-                                animate-spin
-                            "
-                        />
-
-                    ) : (
-
-                        <RefreshCw
-                            size={15}
-                        />
-                    )}
-
-
-                    {isRetrying
-                        ? "Qayta yuklanmoqda..."
-                        : "Qayta urinish"
-                    }
-
-                </button>
-
+                    <RetryButton
+                        onRetry={onRetry}
+                        isRetrying={loading}
+                    />
+                </div>
             </div>
-
         </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemsErrorState
-);
+export default React.memo(ProblemsErrorState);

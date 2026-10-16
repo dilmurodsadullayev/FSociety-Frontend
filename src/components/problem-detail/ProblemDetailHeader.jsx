@@ -1,31 +1,25 @@
-// src/components/problem-detail/ProblemDetailHeader.jsx
 
 import React from "react";
+import { Link } from "react-router-dom";
 
 import {
-    Link,
-} from "react-router-dom";
-
-import {
+    ArrowLeft,
     CheckCircle2,
     Clock3,
     Code2,
     Coins,
     Eye,
     Loader2,
+    MessageCircle,
     Pencil,
-    Sparkles,
     Star,
     Trash2,
     XCircle,
     Zap,
 } from "lucide-react";
 
-import UserImage
-    from "../../assests/userImage.jpeg";
-
-import timeAgo
-    from "../../utils/timeAgo";
+import UserImage from "../../assests/userImage.jpeg";
+import timeAgo from "../../utils/timeAgo";
 
 import {
     getProblemDetailPriorityViewModel,
@@ -36,1495 +30,1400 @@ import {
     normalizeProblemDetailText,
 } from "./problemDetailHelpers";
 
+// =========================================================
+// FSOCIETY — PROBLEM DETAIL HEADER
+//
+// Sections:
+// - Breadcrumb
+// - Owner actions
+// - Status badges
+// - Problem title
+// - Programming languages
+// - Author information
+// - Views / solutions
+//
+// Light / Dark Mode
+// Mobile-first
+// Existing props and exports preserved
+// =========================================================
 
 // =========================================================
 // CONFIG
 // =========================================================
 
 const BACKEND_URL = (
-    process.env.REACT_APP_BACKEND_URL
-    ||
+    process.env.REACT_APP_BACKEND_URL ||
     "http://127.0.0.1:8000"
-).replace(
-    /\/+$/,
-    ""
-);
+).replace(/\/+$/, "");
 
-
-const DEFAULT_STACK_COLOR =
-    "#64748B";
-
+const DEFAULT_STACK_COLOR = "#64748B";
 
 // =========================================================
 // IMAGE URL
 // =========================================================
 
-const getImageUrl = (
-    image
-) => {
-
-    const value =
-        normalizeProblemDetailText(
-            image
-        );
-
-
-    if (
-        !value
-    ) {
-
+const getImageUrl = (value) => {
+    if (typeof value !== "string") {
         return UserImage;
     }
 
+    const image = value.trim();
 
-    if (
-        value.startsWith(
-            "http://"
-        )
-        ||
-        value.startsWith(
-            "https://"
-        )
-        ||
-        value.startsWith(
-            "blob:"
-        )
-        ||
-        value.startsWith(
-            "data:"
-        )
-    ) {
-
-        return value;
+    if (!image) {
+        return UserImage;
     }
 
+    if (/^https?:\/\//i.test(image)) {
+        return image;
+    }
 
-    return `${BACKEND_URL}${
-        value.startsWith(
-            "/"
-        )
-            ? value
-            : `/${value}`
-    }`;
-};
-
-
-// =========================================================
-// STACK COLOR
-// =========================================================
-
-const normalizeStackColor = (
-    value
-) => {
+    if (/^blob:/i.test(image)) {
+        return image;
+    }
 
     if (
-        typeof value !==
-            "string"
+        /^data:image\/(?:png|jpe?g|gif|webp|avif);base64,/i
+            .test(image)
     ) {
+        return image;
+    }
 
+    // Avoid unsupported URL schemes.
+    if (
+        /^[a-z][a-z0-9+.-]*:/i.test(image) ||
+        image.startsWith("//")
+    ) {
+        return UserImage;
+    }
+
+    const path = image.startsWith("/")
+        ? image
+        : `/${image}`;
+
+    return `${BACKEND_URL}${path}`;
+};
+
+// =========================================================
+// SAFE STACK COLOR
+// =========================================================
+
+const normalizeStackColor = (value) => {
+    if (typeof value !== "string") {
         return DEFAULT_STACK_COLOR;
     }
 
+    const color = value.trim();
 
-    const color =
-        value.trim();
-
-
-    if (
-        /^#[0-9A-Fa-f]{6}$/.test(
-            color
-        )
-    ) {
-
+    if (/^#[0-9a-f]{6}$/i.test(color)) {
         return color;
     }
 
-
-    if (
-        /^#[0-9A-Fa-f]{3}$/.test(
-            color
-        )
-    ) {
-
-        const [
-            r,
-            g,
-            b,
-        ] = color
-            .slice(
-                1
-            )
-            .split(
-                ""
-            );
-
+    if (/^#[0-9a-f]{3}$/i.test(color)) {
+        const [r, g, b] = color
+            .slice(1)
+            .split("");
 
         return `#${r}${r}${g}${g}${b}${b}`;
     }
 
-
     return DEFAULT_STACK_COLOR;
 };
 
-
-// =========================================================
-// COLOR WITH ALPHA
-// =========================================================
-
-const withAlpha = (
-    color,
-    alpha
-) => {
-
-    const safeColor =
-        normalizeStackColor(
-            color
-        );
-
+const withAlpha = (color, alpha = "FF") => {
+    const safeColor = normalizeStackColor(color);
 
     const safeAlpha =
-        /^[0-9A-Fa-f]{2}$/.test(
-            String(
-                alpha
-            )
-        )
-            ? String(
-                alpha
-            )
+        /^[0-9a-f]{2}$/i.test(alpha)
+            ? alpha
             : "FF";
-
 
     return `${safeColor}${safeAlpha}`;
 };
 
-
 // =========================================================
-// CREATED LABEL
+// CREATED DATE
 // =========================================================
 
-const getCreatedLabel = (
-    value
-) => {
-
-    if (
-        !value
-    ) {
-
-        return "";
+const getCreatedDate = (value) => {
+    if (!value) {
+        return null;
     }
 
+    const date = new Date(value);
 
-    const date =
-        new Date(
-            value
-        );
+    return Number.isNaN(date.getTime())
+        ? null
+        : date;
+};
 
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-
+const getCreatedLabel = (value) => {
+    if (!getCreatedDate(value)) {
         return "";
     }
-
 
     try {
-
-        return timeAgo(
-            value
+        return normalizeProblemDetailText(
+            timeAgo(value)
         );
-
     } catch {
-
         return "";
     }
 };
 
-
 // =========================================================
 // STACK TAG
+//
+// Named export preserved because other components
+// may import ProblemDetailStackTag.
 // =========================================================
 
-export const ProblemDetailStackTag = ({
+export const ProblemDetailStackTag = React.memo(({
     item,
-
     type = "language",
 }) => {
-
-    if (
-        !item
-    ) {
-
+    if (!item) {
         return null;
     }
 
-
-    // =====================================================
-    // STRING FALLBACK
-    //
-    // "Python"
-    //
-    // yoki:
-    //
-    // {
-    //     id: 1,
-    //     name: "Python",
-    //     color: "#3776AB",
-    // }
-    // =====================================================
-
-    const normalizedItem =
-        typeof item ===
-            "string"
-            ? {
-                name:
-                    item,
-            }
+    const source =
+        typeof item === "string"
+            ? { name: item }
             : item;
 
-
     if (
-        !normalizedItem
-        ||
-        typeof normalizedItem !==
-            "object"
+        !source ||
+        typeof source !== "object" ||
+        Array.isArray(source)
     ) {
-
         return null;
     }
 
+    const name = normalizeProblemDetailText(
+        source.name
+    );
 
-    const name =
-        normalizeProblemDetailText(
-            normalizedItem.name,
-            "Noma’lum"
-        );
+    if (!name) {
+        return null;
+    }
 
+    const color = normalizeStackColor(
+        source.color
+    );
 
-    const color =
-        normalizeStackColor(
-            normalizedItem.color
-        );
-
+    const category = normalizeProblemDetailText(
+        source.category_display ??
+        source.category
+    );
 
     return (
-
         <span
-            title={
-                name
-            }
-
+            title={name}
+            style={{
+                borderColor: withAlpha(color, "50"),
+            }}
             className="
-                group/tag
-
                 inline-flex
+                min-h-8
                 max-w-full
+                min-w-0
+
                 items-center
                 gap-2
 
                 rounded-full
-
                 border
+
+                bg-slate-50
 
                 px-3
                 py-1.5
 
-                text-xs
-                font-black
+                text-[11px]
+                font-bold
+                leading-5
 
-                transition-all
-                duration-300
+                text-slate-700
 
-                hover:-translate-y-0.5
+                transition-colors
+
+                hover:bg-white
+
+                dark:bg-white/[0.04]
+                dark:text-gray-200
+                dark:hover:bg-white/[0.07]
             "
-
-            style={{
-
-                color,
-
-                borderColor:
-                    withAlpha(
-                        color,
-                        "45"
-                    ),
-
-                backgroundColor:
-                    withAlpha(
-                        color,
-                        "14"
-                    ),
-
-                boxShadow:
-                    `0 8px 22px ${
-                        withAlpha(
-                            color,
-                            "0D"
-                        )
-                    }`,
-            }}
         >
+            {/* COLOR INDICATOR */}
 
             <span
                 aria-hidden="true"
-
+                style={{
+                    backgroundColor: color,
+                }}
                 className="
-                    h-2
-                    w-2
+                    h-2.5
+                    w-2.5
                     shrink-0
 
                     rounded-full
                 "
-
-                style={{
-
-                    backgroundColor:
-                        color,
-
-                    boxShadow:
-                        `0 0 9px ${
-                            withAlpha(
-                                color,
-                                "AA"
-                            )
-                        }`,
-                }}
             />
 
+            {/* NAME */}
 
             <span
                 className="
+                    min-w-0
                     truncate
                 "
             >
                 {name}
             </span>
 
+            {/* TECHNOLOGY CATEGORY */}
 
-            {type ===
-                "technology"
-                &&
-                normalizedItem
-                    ?.category && (
+            {type === "technology" &&
+                category && (
+                    <span
+                        className="
+                            hidden
 
-                <span
-                    className="
-                        hidden
+                            rounded-full
+                            border
+                            border-slate-200
 
-                        rounded-full
+                            bg-slate-100
 
-                        border
-                        border-white/[0.07]
+                            px-1.5
+                            py-0.5
 
-                        bg-black/10
+                            font-mono
+                            text-[9px]
+                            font-semibold
 
-                        px-1.5
-                        py-0.5
+                            text-slate-500
 
-                        font-mono
-                        text-[8px]
-                        uppercase
-                        tracking-wider
+                            sm:inline-flex
 
-                        opacity-60
-
-                        sm:inline
-                    "
-                >
-                    {
-                        normalizedItem
-                            .category_display
-                        ||
-                        normalizedItem
-                            .category
-                    }
-                </span>
-            )}
-
+                            dark:border-white/[0.09]
+                            dark:bg-white/[0.05]
+                            dark:text-gray-400
+                        "
+                    >
+                        {category}
+                    </span>
+                )}
         </span>
     );
+});
+
+// =========================================================
+// STATUS CONFIG
+// =========================================================
+
+const STATUS_CONFIG = {
+    pending: {
+        label: "Yechilmagan",
+        Icon: Clock3,
+        className: `
+            border-amber-300
+            bg-amber-50
+            text-amber-800
+
+            dark:border-amber-400/25
+            dark:bg-amber-400/[0.09]
+            dark:text-amber-300
+        `,
+    },
+
+    solved: {
+        label: "Yechilgan",
+        Icon: CheckCircle2,
+        className: `
+            border-emerald-300
+            bg-emerald-50
+            text-emerald-800
+
+            dark:border-emerald-400/25
+            dark:bg-emerald-400/[0.09]
+            dark:text-emerald-300
+        `,
+    },
+
+    rejected: {
+        label: "Rad etilgan",
+        Icon: XCircle,
+        className: `
+            border-rose-300
+            bg-rose-50
+            text-rose-800
+
+            dark:border-rose-400/25
+            dark:bg-rose-400/[0.09]
+            dark:text-rose-300
+        `,
+    },
 };
 
+// =========================================================
+// STATUS BADGE
+// =========================================================
+
+const StatusBadge = React.memo(({
+    config,
+}) => {
+    const Icon = config.Icon;
+
+    return (
+        <span
+            className={`
+                inline-flex
+                min-h-8
+                max-w-full
+
+                items-center
+                gap-1.5
+
+                rounded-full
+                border
+
+                px-3
+                py-1.5
+
+                text-[10px]
+                font-black
+                uppercase
+                tracking-[0.06em]
+
+                ${config.className}
+            `}
+        >
+            <Icon
+                size={14}
+                strokeWidth={2}
+                aria-hidden="true"
+                className="shrink-0"
+            />
+
+            {config.label}
+        </span>
+    );
+});
 
 // =========================================================
 // OWNER ACTIONS
 // =========================================================
 
-const OwnerActions = ({
+const OwnerActions = React.memo(({
     onEdit,
-
     onDelete,
-
     isDeleting = false,
 }) => {
-
     return (
-
         <div
+            role="group"
+            aria-label="Muammoni boshqarish"
             className="
                 inline-flex
                 max-w-full
+
+                flex-wrap
                 items-center
                 gap-1.5
 
-                rounded-2xl
-
+                rounded-xl
                 border
-                border-white/[0.07]
+                border-slate-200
 
-                bg-black/20
+                bg-white
 
                 p-1.5
 
-                shadow-lg
-                shadow-black/20
+                shadow-sm
 
-                backdrop-blur-xl
+                dark:border-white/[0.10]
+                dark:bg-white/[0.04]
+                dark:shadow-black/10
             "
         >
-
-            <div
-                className="
-                    hidden
-                    items-center
-                    gap-2
-
-                    px-3
-
-                    font-mono
-                    text-[9px]
-                    font-black
-                    uppercase
-                    tracking-[0.15em]
-                    text-gray-600
-
-                    lg:flex
-                "
-            >
-
-                <Sparkles
-                    size={13}
-
-                    aria-hidden="true"
-
-                    className="
-                        text-cyan-400
-                    "
-                />
-
-                Owner tools
-
-            </div>
-
-
-            <span
-                aria-hidden="true"
-
-                className="
-                    hidden
-                    h-6
-                    w-px
-
-                    bg-white/[0.07]
-
-                    lg:block
-                "
-            />
-
+            {/* EDIT */}
 
             <button
                 type="button"
-
-                onClick={
-                    onEdit
-                }
-
+                onClick={onEdit}
                 disabled={
-                    isDeleting
+                    isDeleting ||
+                    typeof onEdit !== "function"
                 }
-
                 aria-label="Muammoni tahrirlash"
-
                 className="
                     inline-flex
-                    min-h-[38px]
+                    min-h-10
+
                     items-center
                     justify-center
                     gap-2
 
-                    rounded-xl
+                    rounded-lg
 
-                    border
-                    border-transparent
-
-                    px-3.5
+                    px-3
                     py-2
 
                     text-xs
-                    font-black
-                    text-indigo-300
+                    font-bold
 
-                    transition-all
+                    text-indigo-700
 
-                    hover:border-indigo-400/20
-                    hover:bg-indigo-500/[0.08]
-                    hover:text-indigo-200
+                    transition-colors
 
-                    active:scale-[0.96]
+                    hover:bg-indigo-50
+
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-indigo-500
 
                     disabled:cursor-not-allowed
                     disabled:opacity-40
+
+                    dark:text-indigo-300
+                    dark:hover:bg-indigo-400/[0.10]
                 "
             >
-
                 <Pencil
                     size={15}
+                    strokeWidth={1.9}
                     aria-hidden="true"
                 />
 
                 Tahrirlash
-
             </button>
 
+            {/* DELETE */}
 
             <button
                 type="button"
-
-                onClick={
-                    onDelete
-                }
-
+                onClick={onDelete}
                 disabled={
-                    isDeleting
+                    isDeleting ||
+                    typeof onDelete !== "function"
                 }
-
                 aria-label="Muammoni o‘chirish"
-
+                aria-busy={isDeleting}
                 className="
                     inline-flex
-                    min-h-[38px]
+                    min-h-10
+
                     items-center
                     justify-center
                     gap-2
 
-                    rounded-xl
+                    rounded-lg
 
-                    border
-                    border-transparent
-
-                    px-3.5
+                    px-3
                     py-2
 
                     text-xs
-                    font-black
-                    text-red-400
+                    font-bold
 
-                    transition-all
+                    text-rose-700
 
-                    hover:border-red-400/20
-                    hover:bg-red-500/[0.08]
-                    hover:text-red-300
+                    transition-colors
 
-                    active:scale-[0.96]
+                    hover:bg-rose-50
+
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-rose-500
 
                     disabled:cursor-not-allowed
                     disabled:opacity-40
+
+                    dark:text-rose-300
+                    dark:hover:bg-rose-400/[0.10]
                 "
             >
-
                 {isDeleting ? (
-
                     <Loader2
                         size={15}
-
                         aria-hidden="true"
-
                         className="
                             animate-spin
+                            motion-reduce:animate-none
                         "
                     />
-
                 ) : (
-
                     <Trash2
                         size={15}
+                        strokeWidth={1.9}
                         aria-hidden="true"
                     />
                 )}
 
-
-                {
-                    isDeleting
-                        ? "O‘chirilmoqda"
-                        : "O‘chirish"
-                }
-
+                {isDeleting
+                    ? "O‘chirilmoqda..."
+                    : "O‘chirish"}
             </button>
-
         </div>
     );
-};
-
+});
 
 // =========================================================
-// PROBLEM DETAIL HEADER
+// AUTHOR AVATAR
+// =========================================================
+
+const AuthorAvatar = React.memo(({
+    src,
+    name,
+}) => {
+    const handleError = (event) => {
+        const image = event.currentTarget;
+
+        image.onerror = null;
+        image.src = UserImage;
+    };
+
+    return (
+        <img
+            src={src || UserImage}
+            alt={`${name} avatar`}
+            onError={handleError}
+            loading="lazy"
+            decoding="async"
+            className="
+                h-12
+                w-12
+                shrink-0
+
+                rounded-2xl
+                border-2
+                border-white
+
+                bg-slate-100
+
+                object-cover
+
+                shadow-sm
+
+                sm:h-14
+                sm:w-14
+
+                dark:border-white/[0.15]
+                dark:bg-slate-800
+            "
+        />
+    );
+});
+
+// =========================================================
+// MAIN HEADER
 // =========================================================
 
 const ProblemDetailHeader = ({
     problemDetail,
 
     problemLanguages = [],
-
     responseCount = 0,
 
     isOwner = false,
-
     isDeleting = false,
 
     onEdit,
-
     onDelete,
 }) => {
-
     // =====================================================
     // STATUS
-    //
-    // Header endi statusni o‘zicha interpretatsiya
-    // qilmaydi.
     // =====================================================
 
-    const isSolved =
-        isProblemDetailSolved(
-            problemDetail
-        );
+    const rejected = isProblemDetailRejected(
+        problemDetail
+    );
 
+    const solved = isProblemDetailSolved(
+        problemDetail
+    );
 
-    const isRejected =
-        isProblemDetailRejected(
-            problemDetail
-        );
-
-
-    // =====================================================
-    // STAR
-    //
-    // Canonical:
-    //
-    // is_starred_by_user
-    //
-    // Legacy:
-    //
-    // star_by_user
-    // =====================================================
-
-    const starredByUser =
-        hasProblemDetailStar(
-            problemDetail
-        );
-
+    const statusConfig = rejected
+        ? STATUS_CONFIG.rejected
+        : solved
+            ? STATUS_CONFIG.solved
+            : STATUS_CONFIG.pending;
 
     // =====================================================
-    // PRIORITY
-    //
-    // MUHIM:
-    //
-    // Header va ProblemDetailPriority endi
-    // aynan bitta canonical view-modeldan foydalanadi.
-    //
-    // is_urgent va offered_coins bu component ichida
-    // qayta normalize qilinmaydi.
+    // STAR / PRIORITY
     // =====================================================
+
+    const starredByUser = hasProblemDetailStar(
+        problemDetail
+    );
 
     const {
         isUrgent,
-
         offeredCoins,
     } = getProblemDetailPriorityViewModel(
         problemDetail
     );
 
-
     // =====================================================
-    // COUNTS
+    // TITLE / ID
     // =====================================================
 
-    const views =
-        normalizeProblemDetailNumber(
-            problemDetail
-                ?.total_views
+    const problemTitle =
+        normalizeProblemDetailText(
+            problemDetail?.problem,
+            "Nomsiz muammo"
         );
 
+    const problemId =
+        problemDetail?.id ?? "unknown";
 
-    const solutions =
+    // =====================================================
+    // STATISTICS
+    // =====================================================
+
+    const views = Math.floor(
+        normalizeProblemDetailNumber(
+            problemDetail?.total_views
+        )
+    );
+
+    const solutions = Math.floor(
         normalizeProblemDetailNumber(
             responseCount
-        );
+        )
+    );
 
+    const formatNumber = (number) =>
+        number.toLocaleString("uz-UZ");
 
     // =====================================================
-    // USER
+    // AUTHOR
     // =====================================================
+
+    const user = problemDetail?.user || {};
 
     const username =
         normalizeProblemDetailText(
-            problemDetail
-                ?.user
-                ?.username
+            user.username
         );
-
 
     const firstName =
         normalizeProblemDetailText(
-            problemDetail
-                ?.user
-                ?.first_name
+            user.first_name
         );
-
 
     const lastName =
         normalizeProblemDetailText(
-            problemDetail
-                ?.user
-                ?.last_name
+            user.last_name
         );
-
 
     const fullName =
-        `${firstName} ${lastName}`
-            .trim();
-
+        `${firstName} ${lastName}`.trim();
 
     const displayName =
-        username
-        ||
-        fullName
-        ||
+        fullName ||
+        username ||
         "Noma’lum foydalanuvchi";
 
+    const avatar = getImageUrl(
+        user.image
+    );
 
-    const avatar =
-        getImageUrl(
-            problemDetail
-                ?.user
-                ?.image
-        );
+    // =====================================================
+    // DATE
+    // =====================================================
 
+    const createdAt =
+        problemDetail?.created_at;
+
+    const createdDate =
+        getCreatedDate(createdAt);
 
     const createdLabel =
-        getCreatedLabel(
-            problemDetail
-                ?.created_at
-        );
-
+        getCreatedLabel(createdAt);
 
     // =====================================================
-    // STATUS UI
+    // LANGUAGES
     // =====================================================
 
-    const statusData =
-        isRejected
-            ? {
-
-                label:
-                    "Rad etilgan",
-
-                Icon:
-                    XCircle,
-
-                className:
-                    `
-                        border-gray-400/25
-                        bg-gray-500/10
-                        text-gray-400
-                    `,
-            }
-
-            : isSolved
-                ? {
-
-                    label:
-                        "Yechilgan",
-
-                    Icon:
-                        CheckCircle2,
-
-                    className:
-                        `
-                            border-green-400/30
-                            bg-green-500/10
-                            text-green-300
-                        `,
-                }
-
-                : {
-
-                    label:
-                        "Yechilmagan",
-
-                    Icon:
-                        Clock3,
-
-                    className:
-                        `
-                            border-red-400/30
-                            bg-red-500/10
-                            text-red-300
-                        `,
-                };
-
-
-    const StatusIcon =
-        statusData.Icon;
-
+    const languages = Array.isArray(
+        problemLanguages
+    )
+        ? problemLanguages
+        : [];
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-
-        <header>
-
-            {/* =============================================
-                STATUS BADGES
-            ============================================== */}
-
-            <div
-                className="
-                    mb-5
-
-                    flex
-                    flex-wrap
-                    items-center
-                    gap-2
-                "
-            >
-
-                {/* =========================================
-                    PROBLEM STATUS
-                ========================================== */}
-
-                <span
-                    className={`
-                        inline-flex
-                        items-center
-                        gap-2
-
-                        rounded-full
-
-                        border
-
-                        px-4
-                        py-2
-
-                        text-xs
-                        font-black
-                        uppercase
-                        tracking-[0.14em]
-
-                        ${statusData.className}
-                    `}
-                >
-
-                    <StatusIcon
-                        size={14}
-                        aria-hidden="true"
-                    />
-
-                    {
-                        statusData.label
-                    }
-
-                </span>
-
-
-                {/* =========================================
-                    CURRENT USER STAR
-                ========================================== */}
-
-                {starredByUser && (
-
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-2
-
-                            rounded-full
-
-                            border
-                            border-yellow-400/30
-
-                            bg-yellow-400/10
-
-                            px-4
-                            py-2
-
-                            text-xs
-                            font-black
-                            uppercase
-                            tracking-[0.14em]
-                            text-yellow-300
-                        "
-                    >
-
-                        <Star
-                            size={13}
-
-                            aria-hidden="true"
-
-                            className="
-                                fill-yellow-300
-                            "
-                        />
-
-                        Siz star berdingiz
-
-                    </span>
-                )}
-
-
-                {/* =========================================
-                    URGENT
-                ========================================== */}
-
-                {isUrgent && (
-
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-2
-
-                            rounded-full
-
-                            border
-                            border-amber-400/30
-
-                            bg-amber-500/10
-
-                            px-4
-                            py-2
-
-                            text-xs
-                            font-black
-                            uppercase
-                            tracking-[0.14em]
-                            text-amber-300
-                        "
-                    >
-
-                        <Zap
-                            size={13}
-                            aria-hidden="true"
-                        />
-
-                        Tezkor
-
-                    </span>
-                )}
-
-
-                {/* =========================================
-                    FCOIN BOUNTY
-                ========================================== */}
-
-                {offeredCoins > 0 && (
-
-                    <span
-                        className="
-                            inline-flex
-                            items-center
-                            gap-2
-
-                            rounded-full
-
-                            border
-                            border-yellow-400/30
-
-                            bg-yellow-400/10
-
-                            px-4
-                            py-2
-
-                            text-xs
-                            font-black
-                            uppercase
-                            tracking-[0.14em]
-                            text-yellow-300
-                        "
-                    >
-
-                        <Coins
-                            size={14}
-                            aria-hidden="true"
-                        />
-
-                        {offeredCoins} FCoin
-
-                    </span>
-                )}
-
-            </div>
-
-
-            {/* =============================================
-                LANGUAGES
-            ============================================== */}
-
-            <div
-                className="
-                    mb-4
-
-                    flex
-                    flex-wrap
-                    items-center
-                    gap-2
-                "
-            >
-
-                <span
-                    className="
-                        inline-flex
-                        items-center
-                        gap-1.5
-
-                        rounded-full
-
-                        border
-                        border-white/[0.06]
-
-                        bg-white/[0.025]
-
-                        px-2.5
-                        py-1.5
-
-                        font-mono
-                        text-[9px]
-                        font-black
-                        uppercase
-                        tracking-[0.16em]
-                        text-gray-600
-                    "
-                >
-
-                    <Code2
-                        size={12}
-                        aria-hidden="true"
-                    />
-
-                    Til
-
-                </span>
-
-
-                {Array.isArray(
-                    problemLanguages
-                )
-                &&
-                problemLanguages.length > 0 ? (
-
-                    problemLanguages.map(
-                        (
-                            language,
-                            index
-                        ) => (
-
-                            <ProblemDetailStackTag
-                                key={
-                                    language?.id
-                                    ??
-                                    language?.name
-                                    ??
-                                    (
-                                        typeof language ===
-                                            "string"
-                                            ? language
-                                            : `language-${index}`
-                                    )
-                                }
-
-                                item={
-                                    language
-                                }
-
-                                type="language"
-                            />
-                        )
-                    )
-
-                ) : (
-
-                    <span
-                        className="
-                            rounded-full
-
-                            border
-                            border-white/[0.06]
-
-                            bg-white/[0.025]
-
-                            px-3
-                            py-1.5
-
-                            text-xs
-                            font-bold
-                            text-gray-600
-                        "
-                    >
-                        Til belgilanmagan
-                    </span>
-                )}
-
-            </div>
-
-
-            {/* =============================================
-                TITLE + OWNER
-            ============================================== */}
+        <header
+            className="
+                w-full
+                min-w-0
+            "
+        >
+            {/* ======================================
+                TOP BAR
+            ====================================== */}
 
             <div
                 className="
                     mb-6
 
                     flex
-                    flex-col
-                    gap-5
+                    min-w-0
 
-                    xl:flex-row
-                    xl:items-start
-                    xl:justify-between
-                "
-            >
-
-                <div
-                    className="
-                        min-w-0
-                        flex-1
-                    "
-                >
-
-                    <p
-                        className="
-                            mb-2
-
-                            font-mono
-                            text-[11px]
-                            font-black
-                            uppercase
-                            tracking-[0.3em]
-                            text-gray-600
-                        "
-                    >
-                        fsociety://problem/
-                        {
-                            problemDetail?.id
-                            ??
-                            "unknown"
-                        }
-                    </p>
-
-
-                    <h1
-                        className="
-                            break-words
-
-                            text-3xl
-                            font-black
-                            leading-tight
-                            text-white
-
-                            md:text-4xl
-
-                            lg:text-5xl
-                        "
-                    >
-                        {
-                            normalizeProblemDetailText(
-                                problemDetail?.problem,
-                                "Nomsiz muammo"
-                            )
-                        }
-                    </h1>
-
-                </div>
-
-
-                {isOwner && (
-
-                    <div
-                        className="
-                            shrink-0
-                        "
-                    >
-
-                        <OwnerActions
-                            onEdit={
-                                onEdit
-                            }
-
-                            onDelete={
-                                onDelete
-                            }
-
-                            isDeleting={
-                                isDeleting
-                            }
-                        />
-
-                    </div>
-                )}
-
-            </div>
-
-
-            {/* =============================================
-                AUTHOR
-            ============================================== */}
-
-            <div
-                className="
-                    mb-7
-
-                    flex
                     flex-col
                     gap-4
 
-                    rounded-3xl
-
-                    border
-                    border-white/10
-
-                    bg-white/[0.035]
-
-                    p-4
-
-                    text-sm
-                    text-gray-400
-
                     sm:flex-row
                     sm:items-center
+                    sm:justify-between
                 "
             >
-
-                {/* =========================================
-                    AVATAR
-                ========================================== */}
-
-                <img
-                    src={
-                        avatar
-                    }
-
-                    loading="lazy"
-
-                    decoding="async"
-
-                    onError={(
-                        event
-                    ) => {
-
-                        event
-                            .currentTarget
-                            .onerror =
-                            null;
-
-
-                        event
-                            .currentTarget
-                            .src =
-                            UserImage;
-                    }}
-
-                    className="
-                        h-12
-                        w-12
-                        shrink-0
-
-                        rounded-2xl
-
-                        border
-                        border-cyan-400/20
-
-                        object-cover
-                    "
-
-                    alt={
-                        `${displayName} avatar`
-                    }
-                />
-
-
-                {/* =========================================
-                    AUTHOR CONTENT
-                ========================================== */}
+                {/* BREADCRUMB */}
 
                 <div
                     className="
+                        flex
                         min-w-0
-                        flex-1
+
+                        flex-wrap
+                        items-center
+                        gap-2
                     "
                 >
+                    <Link
+                        to="/problems"
+                        aria-label="Muammolar ro‘yxatiga qaytish"
+                        className="
+                            inline-flex
+                            min-h-9
 
-                    {username ? (
+                            items-center
+                            gap-1.5
 
-                        <Link
-                            to={`/${username}/profile/`}
+                            rounded-lg
 
+                            px-2
+                            py-1.5
+
+                            text-[11px]
+                            font-bold
+
+                            text-slate-600
+
+                            transition-colors
+
+                            hover:bg-slate-100
+                            hover:text-cyan-700
+
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-cyan-500
+
+                            dark:text-gray-400
+                            dark:hover:bg-white/[0.06]
+                            dark:hover:text-cyan-300
+                        "
+                    >
+                        <ArrowLeft
+                            size={15}
+                            aria-hidden="true"
+                        />
+
+                        Muammolar
+                    </Link>
+
+                    <span
+                        aria-hidden="true"
+                        className="
+                            text-slate-300
+                            dark:text-gray-600
+                        "
+                    >
+                        /
+                    </span>
+
+                    <span
+                        title={`Muammo ID: ${problemId}`}
+                        className="
+                            min-w-0
+                            max-w-[180px]
+
+                            truncate
+
+                            font-mono
+                            text-[10px]
+                            font-bold
+
+                            text-cyan-700
+
+                            sm:max-w-[260px]
+
+                            dark:text-cyan-400
+                        "
+                    >
+                        fsociety://problem/{problemId}
+                    </span>
+                </div>
+
+                {/* OWNER ACTIONS */}
+
+                {isOwner && (
+                    <OwnerActions
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        isDeleting={isDeleting}
+                    />
+                )}
+            </div>
+
+            {/* ======================================
+                PROBLEM TITLE
+            ====================================== */}
+
+            <div
+                className="
+                    mb-5
+                    min-w-0
+                "
+            >
+                <h1
+                    title={problemTitle}
+                    className="
+                        break-words
+                        [overflow-wrap:anywhere]
+
+                        font-display
+                        text-[27px]
+                        font-black
+                        leading-[1.25]
+                        tracking-tight
+
+                        text-slate-950
+
+                        sm:text-3xl
+
+                        lg:text-4xl
+
+                        2xl:text-[42px]
+
+                        dark:text-white
+                    "
+                >
+                    {problemTitle}
+                </h1>
+            </div>
+
+            {/* ======================================
+                STATUS / META BADGES
+            ====================================== */}
+
+            <div
+                aria-label="Muammo holati"
+                className="
+                    mb-5
+
+                    flex
+                    min-w-0
+
+                    flex-wrap
+                    items-center
+                    gap-2
+                "
+            >
+                {/* STATUS */}
+
+                <StatusBadge
+                    config={statusConfig}
+                />
+
+                {/* STARRED */}
+
+                {starredByUser && (
+                    <span
+                        className="
+                            inline-flex
+                            min-h-8
+
+                            items-center
+                            gap-1.5
+
+                            rounded-full
+                            border
+                            border-amber-300
+
+                            bg-amber-50
+
+                            px-3
+                            py-1.5
+
+                            text-[10px]
+                            font-black
+
+                            text-amber-800
+
+                            dark:border-amber-400/25
+                            dark:bg-amber-400/[0.09]
+                            dark:text-amber-300
+                        "
+                    >
+                        <Star
+                            size={13}
+                            aria-hidden="true"
                             className="
-                                block
-                                truncate
-
-                                text-base
-                                font-black
-                                text-white
-
-                                transition
-
-                                hover:text-cyan-300
+                                fill-current
                             "
-                        >
-                            @{username}
-                        </Link>
+                        />
 
-                    ) : (
+                        Star berilgan
+                    </span>
+                )}
 
-                        <p
-                            className="
-                                text-base
-                                font-black
-                                text-white
-                            "
-                        >
-                            {
-                                fullName
-                                ||
-                                "Noma’lum foydalanuvchi"
+                {/* URGENT */}
+
+                {isUrgent && (
+                    <span
+                        className="
+                            inline-flex
+                            min-h-8
+
+                            items-center
+                            gap-1.5
+
+                            rounded-full
+                            border
+                            border-orange-300
+
+                            bg-orange-50
+
+                            px-3
+                            py-1.5
+
+                            text-[10px]
+                            font-black
+
+                            text-orange-800
+
+                            dark:border-orange-400/25
+                            dark:bg-orange-400/[0.09]
+                            dark:text-orange-300
+                        "
+                    >
+                        <Zap
+                            size={13}
+                            aria-hidden="true"
+                        />
+
+                        Tezkor
+                    </span>
+                )}
+
+                {/* FCOIN */}
+
+                {offeredCoins > 0 && (
+                    <span
+                        className="
+                            inline-flex
+                            min-h-8
+
+                            items-center
+                            gap-1.5
+
+                            rounded-full
+                            border
+                            border-yellow-300
+
+                            bg-yellow-50
+
+                            px-3
+                            py-1.5
+
+                            text-[10px]
+                            font-black
+
+                            text-yellow-800
+
+                            dark:border-yellow-400/25
+                            dark:bg-yellow-400/[0.09]
+                            dark:text-yellow-300
+                        "
+                    >
+                        <Coins
+                            size={13}
+                            aria-hidden="true"
+                        />
+
+                        {formatNumber(offeredCoins)} FCoin
+                    </span>
+                )}
+            </div>
+
+            {/* ======================================
+                PROGRAMMING LANGUAGES
+            ====================================== */}
+
+            <div
+                className="
+                    mb-6
+
+                    flex
+                    min-w-0
+
+                    flex-wrap
+                    items-center
+                    gap-2
+                "
+            >
+                <span
+                    className="
+                        inline-flex
+                        min-h-8
+
+                        items-center
+                        gap-1.5
+
+                        rounded-full
+                        border
+                        border-slate-200
+
+                        bg-slate-100
+
+                        px-3
+                        py-1.5
+
+                        font-mono
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        tracking-[0.08em]
+
+                        text-slate-600
+
+                        dark:border-white/[0.10]
+                        dark:bg-white/[0.04]
+                        dark:text-gray-400
+                    "
+                >
+                    <Code2
+                        size={13}
+                        aria-hidden="true"
+                    />
+
+                    Til
+                </span>
+
+                {languages.length > 0 ? (
+                    languages.map((language, index) => (
+                        <ProblemDetailStackTag
+                            key={
+                                `language-${
+                                    language?.id ??
+                                    language?.name ??
+                                    index
+                                }-${index}`
                             }
-                        </p>
-                    )}
+                            item={language}
+                            type="language"
+                        />
+                    ))
+                ) : (
+                    <span
+                        className="
+                            text-xs
+                            font-medium
 
+                            text-slate-500
 
-                    {fullName
-                        &&
-                        username && (
+                            dark:text-gray-500
+                        "
+                    >
+                        Til belgilanmagan
+                    </span>
+                )}
+            </div>
 
-                        <p
-                            className="
-                                mt-0.5
-                                truncate
+            {/* ======================================
+                AUTHOR / STATS CARD
+            ====================================== */}
 
-                                text-[11px]
-                                font-semibold
-                                text-gray-600
-                            "
-                        >
-                            {fullName}
-                        </p>
-                    )}
+            <div
+                className="
+                    flex
+                    w-full
+                    min-w-0
 
+                    flex-col
+                    gap-4
 
-                    {/* =====================================
-                        META
-                    ====================================== */}
+                    rounded-2xl
+
+                    border
+                    border-slate-200
+
+                    bg-slate-50/90
+
+                    p-4
+
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+
+                    dark:border-white/[0.09]
+                    dark:bg-white/[0.035]
+                "
+            >
+                {/* AUTHOR */}
+
+                <div
+                    className="
+                        flex
+                        min-w-0
+
+                        items-center
+                        gap-3
+                    "
+                >
+                    <AuthorAvatar
+                        src={avatar}
+                        name={displayName}
+                    />
 
                     <div
                         className="
-                            mt-1
+                            min-w-0
+                            flex-1
+                        "
+                    >
+                        {/* DISPLAY NAME */}
 
-                            flex
-                            flex-wrap
+                        {username ? (
+                            <Link
+                                to={`/${encodeURIComponent(
+                                    username
+                                )}/profile/`}
+                                title={`@${username}`}
+                                className="
+                                    block
+                                    max-w-full
+
+                                    truncate
+
+                                    font-display
+                                    text-sm
+                                    font-black
+
+                                    text-slate-900
+
+                                    transition-colors
+
+                                    hover:text-cyan-700
+
+                                    focus-visible:outline-none
+                                    focus-visible:underline
+
+                                    dark:text-white
+                                    dark:hover:text-cyan-300
+                                "
+                            >
+                                @{username}
+                            </Link>
+                        ) : (
+                            <p
+                                className="
+                                    truncate
+
+                                    font-display
+                                    text-sm
+                                    font-black
+
+                                    text-slate-900
+
+                                    dark:text-white
+                                "
+                            >
+                                {displayName}
+                            </p>
+                        )}
+
+                        {/* FULL NAME */}
+
+                        {fullName && username && (
+                            <p
+                                className="
+                                    mt-0.5
+                                    truncate
+
+                                    text-[11px]
+                                    font-medium
+
+                                    text-slate-500
+
+                                    dark:text-gray-400
+                                "
+                            >
+                                {fullName}
+                            </p>
+                        )}
+
+                        {/* CREATION DATE */}
+
+                        {createdLabel && (
+                            <time
+                                dateTime={
+                                    createdDate?.toISOString()
+                                }
+                                title={
+                                    createdDate?.toLocaleString(
+                                        "uz-UZ"
+                                    )
+                                }
+                                className="
+                                    mt-1
+
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+
+                                    text-[11px]
+                                    font-medium
+
+                                    text-slate-500
+
+                                    dark:text-gray-400
+                                "
+                            >
+                                <Clock3
+                                    size={12}
+                                    aria-hidden="true"
+                                />
+
+                                {createdLabel} so‘ralgan
+                            </time>
+                        )}
+                    </div>
+                </div>
+
+                {/* STATISTICS */}
+
+                <div
+                    role="group"
+                    aria-label="Muammo statistikasi"
+                    className="
+                        flex
+                        min-w-0
+
+                        flex-wrap
+                        items-center
+                        gap-2
+
+                        sm:justify-end
+                    "
+                >
+                    {/* VIEWS */}
+
+                    <span
+                        title="Ko‘rishlar"
+                        className="
+                            inline-flex
+                            min-h-9
+
                             items-center
-                            gap-x-3
-                            gap-y-1
+                            gap-2
+
+                            rounded-xl
+
+                            border
+                            border-slate-200
+
+                            bg-white
+
+                            px-3
+                            py-2
 
                             text-xs
                             font-bold
-                            text-gray-500
+                            tabular-nums
+
+                            text-slate-600
+
+                            dark:border-white/[0.09]
+                            dark:bg-white/[0.04]
+                            dark:text-gray-300
                         "
                     >
-
-                        {createdLabel && (
-
-                            <span>
-                                {createdLabel}
-                                {" "}so‘ralgan
-                            </span>
-                        )}
-
-
-                        {createdLabel && (
-
-                            <span
-                                aria-hidden="true"
-
-                                className="
-                                    hidden
-                                    text-gray-700
-
-                                    sm:inline
-                                "
-                            >
-                                /
-                            </span>
-                        )}
-
-
-                        <span
-                            className="
-                                inline-flex
-                                items-center
-                                gap-1
-                            "
-                        >
-
-                            <Eye
-                                size={12}
-                                aria-hidden="true"
-                            />
-
-                            {views}
-
-                            {" "}marta ko‘rilgan
-
-                        </span>
-
-
-                        <span
+                        <Eye
+                            size={15}
                             aria-hidden="true"
-
                             className="
-                                hidden
-                                text-gray-700
-
-                                sm:inline
+                                text-cyan-600
+                                dark:text-cyan-400
                             "
-                        >
-                            /
+                        />
+
+                        {formatNumber(views)}
+
+                        <span className="sr-only">
+                            {" "}marta ko‘rilgan
                         </span>
+                    </span>
 
+                    {/* SOLUTIONS */}
 
-                        <span
+                    <span
+                        title="Yechimlar"
+                        className="
+                            inline-flex
+                            min-h-9
+
+                            items-center
+                            gap-2
+
+                            rounded-xl
+
+                            border
+                            border-slate-200
+
+                            bg-white
+
+                            px-3
+                            py-2
+
+                            text-xs
+                            font-bold
+                            tabular-nums
+
+                            text-slate-600
+
+                            dark:border-white/[0.09]
+                            dark:bg-white/[0.04]
+                            dark:text-gray-300
+                        "
+                    >
+                        <MessageCircle
+                            size={15}
+                            aria-hidden="true"
                             className="
-                                text-cyan-400
+                                text-indigo-600
+                                dark:text-indigo-400
                             "
-                        >
-                            {solutions}
+                        />
+
+                        {formatNumber(solutions)}
+
+                        <span className="sr-only">
                             {" "}ta yechim
                         </span>
-
-                    </div>
-
+                    </span>
                 </div>
-
             </div>
-
         </header>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemDetailHeader
-);
+export default React.memo(ProblemDetailHeader);

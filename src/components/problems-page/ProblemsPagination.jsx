@@ -1,184 +1,123 @@
-// src/components/problems-page/ProblemsPagination.jsx
 
-import React, {
-    useMemo,
-} from "react";
+import React, { useMemo } from "react";
 
 import {
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
 
+// =========================================================
+// FSOCIETY — PROBLEMS PAGINATION
+//
+// Features:
+// - Light / Dark Mode
+// - Mobile and desktop navigation
+// - Ellipsis for large page counts
+// - Accessible current-page indication
+// - Safe pagination values
+// - Disabled/loading state support
+//
+// Existing props preserved:
+// - currentPage
+// - totalPages
+// - count
+// - onPageChange
+// - disabled
+// =========================================================
 
 // =========================================================
-// CONFIG
+// CONSTANTS
 // =========================================================
 
-const DOTS =
-    "dots";
-
+const DOTS_LEFT = "dots-left";
+const DOTS_RIGHT = "dots-right";
 
 // =========================================================
-// POSITIVE INTEGER
+// HELPERS
 // =========================================================
 
 const getPositiveInteger = (
     value,
     fallback = 1
 ) => {
-
-    const parsed =
-        Number.parseInt(
-            String(
-                value ?? ""
-            ),
-            10
-        );
-
+    const number = Number(value);
 
     if (
-        !Number.isInteger(
-            parsed
-        )
-        ||
-        parsed < 1
+        !Number.isSafeInteger(number) ||
+        number < 1
     ) {
         return fallback;
     }
 
-
-    return parsed;
+    return number;
 };
 
-
-// =========================================================
-// RANGE
-// =========================================================
-
-const createRange = (
-    start,
-    end
-) => {
+const getSafeCount = (value) => {
+    const number = Number(value);
 
     if (
-        end < start
+        !Number.isFinite(number) ||
+        number < 0
     ) {
+        return 0;
+    }
+
+    return Math.floor(number);
+};
+
+const createRange = (start, end) => {
+    if (end < start) {
         return [];
     }
 
-
     return Array.from(
-        {
-            length:
-                end - start + 1,
-        },
-        (
-            _,
-            index
-        ) =>
-            start + index
+        { length: end - start + 1 },
+        (_, index) => start + index
     );
 };
-
 
 // =========================================================
 // BUILD PAGINATION ITEMS
 //
-// Misollar:
-//
-// totalPages = 5
+// Small:
 // 1 2 3 4 5
 //
-// totalPages = 20, current = 1
+// Start:
 // 1 2 3 4 5 ... 20
 //
-// totalPages = 20, current = 10
+// Middle:
 // 1 ... 9 10 11 ... 20
 //
-// totalPages = 20, current = 20
+// End:
 // 1 ... 16 17 18 19 20
 //
-// Muhim:
-// totalPages 10 000 bo‘lsa ham
-// 10 000 ta element yaratmaymiz.
+// At most 7 items are generated.
 // =========================================================
 
 const buildPaginationItems = (
     currentPage,
     totalPages
 ) => {
-
-    // =====================================================
-    // NOTHING
-    // =====================================================
-
-    if (
-        totalPages <= 1
-    ) {
+    if (totalPages <= 1) {
         return [];
     }
 
-
-    // =====================================================
-    // SMALL LIST
-    //
-    // 1 2 3 4 5 6 7
-    // =====================================================
-
-    if (
-        totalPages <= 7
-    ) {
-
-        return createRange(
-            1,
-            totalPages
-        );
+    if (totalPages <= 7) {
+        return createRange(1, totalPages);
     }
 
-
-    // =====================================================
-    // START
-    //
-    // current: 1, 2, 3, 4
-    //
-    // 1 2 3 4 5 ... 20
-    // =====================================================
-
-    if (
-        currentPage <= 4
-    ) {
-
+    if (currentPage <= 4) {
         return [
-            ...createRange(
-                1,
-                5
-            ),
-
-            DOTS,
-
+            ...createRange(1, 5),
+            DOTS_RIGHT,
             totalPages,
         ];
     }
 
-
-    // =====================================================
-    // END
-    //
-    // current: 17, 18, 19, 20
-    //
-    // 1 ... 16 17 18 19 20
-    // =====================================================
-
-    if (
-        currentPage >=
-        totalPages - 3
-    ) {
-
+    if (currentPage >= totalPages - 3) {
         return [
             1,
-
-            DOTS,
-
+            DOTS_LEFT,
             ...createRange(
                 totalPages - 4,
                 totalPages
@@ -186,33 +125,176 @@ const buildPaginationItems = (
         ];
     }
 
-
-    // =====================================================
-    // MIDDLE
-    //
-    // current: 10
-    //
-    // 1 ... 9 10 11 ... 20
-    // =====================================================
-
     return [
         1,
-
-        DOTS,
-
+        DOTS_LEFT,
         currentPage - 1,
         currentPage,
         currentPage + 1,
-
-        DOTS,
-
+        DOTS_RIGHT,
         totalPages,
     ];
 };
 
+// =========================================================
+// SHARED BUTTON CLASSES
+// =========================================================
+
+const BASE_BUTTON_CLASS = `
+    inline-flex
+    h-10
+    min-w-10
+    shrink-0
+
+    items-center
+    justify-center
+
+    rounded-xl
+    border
+
+    px-2.5
+
+    font-display
+    text-xs
+    font-bold
+    tabular-nums
+
+    transition-colors
+    duration-150
+
+    focus-visible:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-cyan-500
+
+    disabled:cursor-not-allowed
+    disabled:opacity-40
+`;
+
+const NORMAL_BUTTON_CLASS = `
+    border-slate-200
+    bg-white
+    text-slate-600
+
+    hover:border-cyan-400/40
+    hover:bg-cyan-500/[0.06]
+    hover:text-cyan-700
+
+    dark:border-white/[0.09]
+    dark:bg-white/[0.035]
+    dark:text-gray-400
+
+    dark:hover:border-cyan-400/25
+    dark:hover:bg-cyan-400/[0.07]
+    dark:hover:text-cyan-300
+`;
+
+const ACTIVE_BUTTON_CLASS = `
+    border-cyan-400/50
+    bg-cyan-500/[0.10]
+    text-cyan-800
+
+    shadow-sm
+
+    dark:border-cyan-400/30
+    dark:bg-cyan-400/[0.12]
+    dark:text-cyan-300
+`;
 
 // =========================================================
-// PROBLEMS PAGINATION
+// PAGE NUMBER BUTTON
+// =========================================================
+
+const PageButton = React.memo(({
+    page,
+    isCurrent = false,
+    disabled = false,
+    onPageChange,
+}) => {
+    return (
+        <button
+            type="button"
+
+            onClick={() => {
+                if (
+                    !disabled &&
+                    !isCurrent &&
+                    typeof onPageChange === "function"
+                ) {
+                    onPageChange(page);
+                }
+            }}
+
+            disabled={disabled}
+
+            aria-current={
+                isCurrent ? "page" : undefined
+            }
+
+            aria-label={
+                isCurrent
+                    ? `${page}-sahifa, joriy sahifa`
+                    : `${page}-sahifaga o‘tish`
+            }
+
+            className={`
+                ${BASE_BUTTON_CLASS}
+
+                ${
+                    isCurrent
+                        ? ACTIVE_BUTTON_CLASS
+                        : NORMAL_BUTTON_CLASS
+                }
+            `}
+        >
+            {page}
+        </button>
+    );
+});
+
+// =========================================================
+// ARROW BUTTON
+// =========================================================
+
+const ArrowButton = React.memo(({
+    direction,
+    disabled = false,
+    onClick,
+}) => {
+    const previous = direction === "previous";
+
+    const Icon = previous
+        ? ChevronLeft
+        : ChevronRight;
+
+    const label = previous
+        ? "Oldingi sahifa"
+        : "Keyingi sahifa";
+
+    return (
+        <button
+            type="button"
+
+            onClick={onClick}
+            disabled={disabled}
+
+            aria-label={label}
+            title={label}
+
+            className={`
+                ${BASE_BUTTON_CLASS}
+                ${NORMAL_BUTTON_CLASS}
+            `}
+        >
+            <Icon
+                size={18}
+                aria-hidden="true"
+            />
+        </button>
+    );
+});
+
+// =========================================================
+// MAIN COMPONENT
 // =========================================================
 
 const ProblemsPagination = ({
@@ -224,253 +306,257 @@ const ProblemsPagination = ({
 
     disabled = false,
 }) => {
-
     // =====================================================
-    // SAFE TOTAL PAGES
+    // NORMALIZE VALUES
     // =====================================================
 
     const safeTotalPages =
-        getPositiveInteger(
-            totalPages,
-            1
-        );
-
-
-    // =====================================================
-    // SAFE CURRENT PAGE
-    // =====================================================
+        getPositiveInteger(totalPages, 1);
 
     const requestedPage =
-        getPositiveInteger(
-            currentPage,
-            1
-        );
+        getPositiveInteger(currentPage, 1);
 
+    const safeCurrentPage = Math.min(
+        requestedPage,
+        safeTotalPages
+    );
 
-    const safeCurrentPage =
-        Math.min(
-            requestedPage,
-            safeTotalPages
-        );
+    const safeCount = getSafeCount(count);
 
+    const isDisabled =
+        Boolean(disabled) ||
+        typeof onPageChange !== "function";
 
-    // =====================================================
-    // SAFE COUNT
-    // =====================================================
+    const canGoPrevious =
+        !isDisabled &&
+        safeCurrentPage > 1;
 
-    const safeCount =
-        Math.max(
-            0,
-            Number(
-                count
-            )
-            ||
-            0
-        );
-
+    const canGoNext =
+        !isDisabled &&
+        safeCurrentPage < safeTotalPages;
 
     // =====================================================
-    // ITEMS
+    // PAGE ITEMS
     // =====================================================
 
-    const items =
-        useMemo(
-            () => {
-
-                return buildPaginationItems(
-                    safeCurrentPage,
-                    safeTotalPages
-                );
-
-            },
-            [
+    const items = useMemo(
+        () =>
+            buildPaginationItems(
                 safeCurrentPage,
-                safeTotalPages,
-            ]
-        );
-
+                safeTotalPages
+            ),
+        [
+            safeCurrentPage,
+            safeTotalPages,
+        ]
+    );
 
     // =====================================================
     // PAGE CHANGE
     // =====================================================
 
-    const handlePageChange =
-        (
-            page
-        ) => {
+    const handlePageChange = (page) => {
+        if (isDisabled) {
+            return;
+        }
 
-            if (
-                disabled
-            ) {
-                return;
-            }
-
-
-            const targetPage =
-                getPositiveInteger(
-                    page,
-                    safeCurrentPage
-                );
-
-
-            if (
-                targetPage < 1
-                ||
-                targetPage >
-                    safeTotalPages
-                ||
-                targetPage ===
-                    safeCurrentPage
-            ) {
-                return;
-            }
-
-
-            onPageChange?.(
-                targetPage
+        const targetPage =
+            getPositiveInteger(
+                page,
+                safeCurrentPage
             );
-        };
 
+        if (
+            targetPage === safeCurrentPage ||
+            targetPage < 1 ||
+            targetPage > safeTotalPages
+        ) {
+            return;
+        }
+
+        onPageChange(targetPage);
+    };
 
     // =====================================================
     // NO RECORDS
     // =====================================================
 
-    if (
-        safeCount <= 0
-    ) {
+    if (safeCount <= 0) {
         return null;
     }
-
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
+        <div
+            className="
+                mt-8
+                w-full
+                min-w-0
 
-        <div>
-
-            {/* =============================================
-                PAGINATION
-            ============================================== */}
+                sm:mt-10
+                lg:mt-12
+            "
+        >
+            {/* ======================================
+                PAGINATION NAVIGATION
+            ====================================== */}
 
             {safeTotalPages > 1 && (
-
                 <nav
                     aria-label="Muammolar sahifalari"
 
-                    className="
-                        mt-14
+                    aria-busy={
+                        Boolean(disabled)
+                    }
 
-                        flex
-                        flex-wrap
-                        items-center
-                        justify-center
-                        gap-2
+                    className="
+                        mx-auto
+                        w-full
+                        max-w-3xl
+                        min-w-0
                     "
                 >
+                    {/* ==============================
+                        MOBILE NAVIGATION
+                    ============================== */}
 
-                    {/* =====================================
-                        PREVIOUS
-                    ====================================== */}
-
-                    <button
-                        type="button"
-
-                        onClick={() => {
-
-                            handlePageChange(
-                                safeCurrentPage - 1
-                            );
-                        }}
-
-                        disabled={
-                            disabled
-                            ||
-                            safeCurrentPage <= 1
-                        }
-
-                        aria-label="Oldingi sahifa"
-
+                    <div
                         className="
-                            grid
-                            h-10
-                            w-10
-                            place-items-center
+                            flex
+                            w-full
+                            min-w-0
 
-                            rounded-xl
+                            items-center
+                            justify-between
+                            gap-2
 
-                            border
-                            border-white/[0.08]
-
-                            bg-[#0b1018]
-
-                            text-gray-400
-
-                            transition-all
-                            duration-200
-
-                            hover:border-cyan-400/20
-                            hover:bg-cyan-500/[0.04]
-                            hover:text-cyan-300
-
-                            active:scale-[0.95]
-
-                            disabled:cursor-not-allowed
-                            disabled:opacity-30
+                            sm:hidden
                         "
                     >
+                        <ArrowButton
+                            direction="previous"
+                            disabled={!canGoPrevious}
 
-                        <ChevronLeft
-                            size={17}
+                            onClick={() => {
+                                handlePageChange(
+                                    safeCurrentPage - 1
+                                );
+                            }}
                         />
 
-                    </button>
+                        <span
+                            aria-live="polite"
 
+                            className="
+                                inline-flex
 
-                    {/* =====================================
-                        ITEMS
-                    ====================================== */}
+                                h-10
+                                min-w-0
+                                flex-1
 
-                    {items.map(
-                        (
-                            item,
-                            index
-                        ) => {
+                                items-center
+                                justify-center
 
-                            // =================================
-                            // DOTS
-                            // =================================
+                                rounded-xl
 
+                                border
+                                border-cyan-400/30
+
+                                bg-cyan-500/[0.07]
+
+                                px-3
+
+                                font-mono
+                                text-xs
+                                font-bold
+                                tabular-nums
+
+                                text-cyan-800
+
+                                dark:border-cyan-400/20
+                                dark:bg-cyan-400/[0.07]
+                                dark:text-cyan-300
+                            "
+                        >
+                            {safeCurrentPage}
+                            {" / "}
+                            {safeTotalPages}
+                        </span>
+
+                        <ArrowButton
+                            direction="next"
+                            disabled={!canGoNext}
+
+                            onClick={() => {
+                                handlePageChange(
+                                    safeCurrentPage + 1
+                                );
+                            }}
+                        />
+                    </div>
+
+                    {/* ==============================
+                        DESKTOP NAVIGATION
+                    ============================== */}
+
+                    <div
+                        className="
+                            hidden
+                            w-full
+                            min-w-0
+
+                            items-center
+                            justify-center
+                            gap-1.5
+
+                            sm:flex
+                        "
+                    >
+                        {/* PREVIOUS */}
+
+                        <ArrowButton
+                            direction="previous"
+                            disabled={!canGoPrevious}
+
+                            onClick={() => {
+                                handlePageChange(
+                                    safeCurrentPage - 1
+                                );
+                            }}
+                        />
+
+                        {/* PAGE NUMBERS */}
+
+                        {items.map((item) => {
                             if (
-                                item === DOTS
+                                item === DOTS_LEFT ||
+                                item === DOTS_RIGHT
                             ) {
-
                                 return (
-
                                     <span
-                                        key={
-                                            `pagination-dots-${index}`
-                                        }
+                                        key={item}
 
                                         aria-hidden="true"
 
                                         className="
                                             inline-flex
+
                                             h-10
-                                            min-w-8
-                                            select-none
+                                            min-w-7
+
                                             items-center
                                             justify-center
 
-                                            px-1
-
                                             font-mono
                                             text-sm
-                                            font-black
-                                            tracking-[0.12em]
-                                            text-gray-600
+                                            font-bold
+
+                                            text-slate-400
+
+                                            dark:text-gray-500
                                         "
                                     >
                                         ...
@@ -478,230 +564,94 @@ const ProblemsPagination = ({
                                 );
                             }
 
-
-                            // =================================
-                            // PAGE
-                            // =================================
-
-                            const isCurrent =
-                                item ===
-                                safeCurrentPage;
-
-
                             return (
+                                <PageButton
+                                    key={item}
+                                    page={item}
 
-                                <button
-                                    key={
-                                        `pagination-page-${item}`
+                                    isCurrent={
+                                        item === safeCurrentPage
                                     }
 
-                                    type="button"
+                                    disabled={isDisabled}
 
-                                    onClick={() => {
-
-                                        handlePageChange(
-                                            item
-                                        );
-                                    }}
-
-                                    disabled={
-                                        disabled
+                                    onPageChange={
+                                        handlePageChange
                                     }
-
-                                    aria-label={
-                                        isCurrent
-                                            ? `${item}-sahifa, joriy sahifa`
-                                            : `${item}-sahifaga o‘tish`
-                                    }
-
-                                    aria-current={
-                                        isCurrent
-                                            ? "page"
-                                            : undefined
-                                    }
-
-                                    className={`
-                                        relative
-
-                                        h-10
-                                        min-w-10
-
-                                        rounded-xl
-
-                                        border
-
-                                        px-3
-
-                                        text-xs
-                                        font-black
-
-                                        transition-all
-                                        duration-200
-
-                                        active:scale-[0.95]
-
-                                        disabled:cursor-not-allowed
-                                        disabled:opacity-50
-
-                                        ${
-                                            isCurrent
-
-                                                ? `
-                                                    border-cyan-400/30
-
-                                                    bg-cyan-400/10
-
-                                                    text-cyan-300
-
-                                                    shadow-lg
-                                                    shadow-cyan-500/[0.06]
-                                                `
-
-                                                : `
-                                                    border-white/[0.08]
-
-                                                    bg-[#0b1018]
-
-                                                    text-gray-500
-
-                                                    hover:border-white/[0.15]
-                                                    hover:bg-white/[0.025]
-                                                    hover:text-white
-                                                `
-                                        }
-                                    `}
-                                >
-
-                                    {item}
-
-
-                                    {/* CURRENT DOT */}
-
-                                    {isCurrent && (
-
-                                        <span
-                                            aria-hidden="true"
-
-                                            className="
-                                                absolute
-                                                -bottom-1
-                                                left-1/2
-
-                                                h-1
-                                                w-1
-
-                                                -translate-x-1/2
-
-                                                rounded-full
-
-                                                bg-cyan-400
-
-                                                shadow-[0_0_7px_rgba(34,211,238,0.9)]
-                                            "
-                                        />
-                                    )}
-
-                                </button>
+                                />
                             );
-                        }
-                    )}
+                        })}
 
+                        {/* NEXT */}
 
-                    {/* =====================================
-                        NEXT
-                    ====================================== */}
+                        <ArrowButton
+                            direction="next"
+                            disabled={!canGoNext}
 
-                    <button
-                        type="button"
-
-                        onClick={() => {
-
-                            handlePageChange(
-                                safeCurrentPage + 1
-                            );
-                        }}
-
-                        disabled={
-                            disabled
-                            ||
-                            safeCurrentPage >=
-                                safeTotalPages
-                        }
-
-                        aria-label="Keyingi sahifa"
-
-                        className="
-                            grid
-                            h-10
-                            w-10
-                            place-items-center
-
-                            rounded-xl
-
-                            border
-                            border-white/[0.08]
-
-                            bg-[#0b1018]
-
-                            text-gray-400
-
-                            transition-all
-                            duration-200
-
-                            hover:border-cyan-400/20
-                            hover:bg-cyan-500/[0.04]
-                            hover:text-cyan-300
-
-                            active:scale-[0.95]
-
-                            disabled:cursor-not-allowed
-                            disabled:opacity-30
-                        "
-                    >
-
-                        <ChevronRight
-                            size={17}
+                            onClick={() => {
+                                handlePageChange(
+                                    safeCurrentPage + 1
+                                );
+                            }}
                         />
-
-                    </button>
-
+                    </div>
                 </nav>
             )}
 
-
-            {/* =============================================
-                PAGE INFO
-            ============================================== */}
+            {/* ======================================
+                PAGE INFORMATION
+            ====================================== */}
 
             <p
-                className={`
+                aria-live="polite"
+
+                className="
+                    mt-5
+
+                    break-words
+
                     text-center
 
                     font-mono
                     text-[10px]
                     font-bold
                     uppercase
-                    tracking-[0.16em]
-                    text-gray-800
+                    tracking-[0.08em]
+                    tabular-nums
 
-                    ${
-                        safeTotalPages > 1
-                            ? "mt-5"
-                            : "mt-8"
-                    }
-                `}
+                    text-slate-500
+
+                    dark:text-gray-400
+                "
             >
-                page {safeCurrentPage}
-                {" / "}
-                {safeTotalPages}
-                {" · "}
-                {safeCount} records
-            </p>
+                Sahifa{" "}
+                <strong
+                    className="
+                        font-black
 
+                        text-slate-800
+
+                        dark:text-gray-200
+                    "
+                >
+                    {safeCurrentPage}
+                </strong>
+
+                {" / "}
+
+                {safeTotalPages}
+
+                {" · "}
+
+                Jami {safeCount.toLocaleString("uz-UZ")} ta muammo
+            </p>
         </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default React.memo(
     ProblemsPagination

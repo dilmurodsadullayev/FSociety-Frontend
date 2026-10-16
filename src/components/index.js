@@ -61,14 +61,6 @@ export {
 } from "./ProblemDetail";
 
 export {
-    default as ProblemResponse,
-} from "./ProblemResponse";
-
-export {
-    default as ProblemResponseForm,
-} from "./ProblemResponseForm";
-
-export {
     default as ProblemCard,
 } from "./ProblemCard";
 

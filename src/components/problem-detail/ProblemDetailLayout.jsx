@@ -1,31 +1,50 @@
-// src/components/problem-detail/ProblemDetailLayout.jsx
 
 import React from "react";
 
-import SimilarProblems
-    from "../SimilarProblems";
+// =========================================================
+// SHARED COMPONENTS
+// =========================================================
 
-import DeleteConfirmationModal
-    from "../DeleteConfirmationModal";
+import SimilarProblems from "../SimilarProblems";
 
-import ProblemDetailHeader
-    from "./ProblemDetailHeader";
-
-import ProblemDetailPriority
-    from "./ProblemDetailPriority";
-
-import ProblemDetailContent
-    from "./ProblemDetailContent";
-
-import ProblemDetailSolutions
-    from "./ProblemDetailSolutions";
-
-import AcceptSolutionModal
-    from "./AcceptSolutionModal";
-
+import DeleteConfirmationModal from "../DeleteConfirmationModal";
 
 // =========================================================
-// PROBLEM DETAIL LAYOUT
+// PROBLEM DETAIL COMPONENTS
+// =========================================================
+
+import ProblemDetailHeader from "./ProblemDetailHeader";
+
+import ProblemDetailPriority from "./ProblemDetailPriority";
+
+import ProblemDetailContent from "./ProblemDetailContent";
+
+import ProblemDetailSolutions from "./ProblemDetailSolutions";
+
+import AcceptSolutionModal from "./AcceptSolutionModal";
+
+// =========================================================
+// FSOCIETY — PROBLEM DETAIL LAYOUT
+//
+// Responsibilities:
+// - Main page layout
+// - Problem details surface
+// - Solutions placement
+// - Similar problems sidebar
+// - Delete confirmation modal
+// - Accept solution modal
+//
+// Features:
+// - Light / Dark Mode
+// - Mobile-first layout
+// - Responsive main/sidebar columns
+// - Sticky sidebar on wide screens
+// - Accessible sections
+// - Decorative background effects
+//
+// No direct API calls.
+// No Redux logic.
+// Existing props and callbacks preserved.
 // =========================================================
 
 const ProblemDetailLayout = ({
@@ -38,192 +57,248 @@ const ProblemDetailLayout = ({
     problemDetail,
 
     problemLanguages = [],
-
     problemTechnologies = [],
 
     responseCount = 0,
-
     responsesRefreshKey = 0,
-
 
     // =====================================================
     // DERIVED STATE
     // =====================================================
 
     isOwner = false,
-
     isSolved = false,
-
     hasStarredProblem = false,
-
 
     // =====================================================
     // LOADING
     // =====================================================
 
     starIsLoading = false,
-
     isDeleting = false,
-
     acceptSolutionIsLoading = false,
-
 
     // =====================================================
     // MODALS
     // =====================================================
 
     isDeleteModalOpen = false,
-
     isAcceptModalOpen = false,
-
 
     // =====================================================
     // REFS
     // =====================================================
 
     responsesSectionRef,
-
     responseFormRef,
-
 
     // =====================================================
     // OWNER ACTIONS
     // =====================================================
 
     onEdit,
-
     onOpenDelete,
-
     onCloseDelete,
-
     onConfirmDelete,
-
 
     // =====================================================
     // STAR ACTIONS
     // =====================================================
 
     onAddStar,
-
     onRemoveStar,
-
 
     // =====================================================
     // SOLUTION ACTIONS
     // =====================================================
 
     onWork,
-
     onSolutionCreated,
-
     onAcceptSolution,
-
     onCloseAccept,
-
     onConfirmAccept,
 }) => {
+    // =====================================================
+    // SAFE VALUES
+    // =====================================================
+
+    const safeLanguages = Array.isArray(
+        problemLanguages
+    )
+        ? problemLanguages
+        : [];
+
+    const safeTechnologies = Array.isArray(
+        problemTechnologies
+    )
+        ? problemTechnologies
+        : [];
+
+    const problemTitle =
+        typeof problemDetail?.problem === "string" &&
+        problemDetail.problem.trim()
+            ? problemDetail.problem.trim()
+            : "Muammo";
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-
         <>
+            {/* ==========================================
+                PAGE ROOT
+            ========================================== */}
 
             <main
+                id="problem-detail-page"
                 className="
                     relative
+                    isolate
 
                     min-h-screen
-                    overflow-hidden
+                    w-full
+                    min-w-0
 
-                    bg-[#050816]
+                    bg-gradient-to-b
+                    from-slate-50
+                    via-white
+                    to-slate-100
 
-                    px-4
-                    py-8
+                    font-sans
+                    text-slate-900
 
-                    text-white
-
-                    lg:py-12
+                    dark:from-[#070b14]
+                    dark:via-[#080e19]
+                    dark:to-[#050816]
+                    dark:text-gray-100
                 "
             >
+                {/* ======================================
+                    DECORATIVE BACKGROUND
 
-                {/* =========================================
-                    GRID BACKGROUND
-                ========================================== */}
+                    Overflow is clipped here only,
+                    NOT on main.
+
+                    This avoids creating an overflow
+                    ancestor that can interfere with
+                    the sticky sidebar.
+                ====================================== */}
 
                 <div
                     aria-hidden="true"
-
                     className="
                         pointer-events-none
+
                         absolute
                         inset-0
 
-                        bg-[linear-gradient(rgba(34,211,238,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.025)_1px,transparent_1px)]
-                        bg-[size:60px_60px]
+                        z-0
 
-                        [mask-image:radial-gradient(circle_at_center,black_0%,transparent_76%)]
+                        overflow-hidden
                     "
-                />
+                >
+                    {/* ==============================
+                        GRID PATTERN
+                    ============================== */}
 
+                    <div
+                        className="
+                            absolute
+                            inset-0
 
-                {/* =========================================
-                    BACKGROUND GLOW — CYAN
-                ========================================== */}
+                            opacity-60
 
-                <div
-                    aria-hidden="true"
+                            bg-[linear-gradient(rgba(15,23,42,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.025)_1px,transparent_1px)]
 
-                    className="
-                        pointer-events-none
+                            bg-[size:64px_64px]
 
-                        absolute
-                        -left-40
-                        top-24
+                            [mask-image:radial-gradient(ellipse_at_top,black_0%,transparent_80%)]
 
-                        h-[420px]
-                        w-[420px]
+                            dark:opacity-100
 
-                        rounded-full
+                            dark:bg-[linear-gradient(rgba(34,211,238,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.025)_1px,transparent_1px)]
+                        "
+                    />
 
-                        bg-cyan-500/[0.06]
+                    {/* ==============================
+                        CYAN GLOW
+                    ============================== */}
 
-                        blur-[130px]
-                    "
-                />
+                    <div
+                        className="
+                            absolute
+                            -left-40
+                            top-16
 
+                            h-[360px]
+                            w-[360px]
 
-                {/* =========================================
-                    BACKGROUND GLOW — INDIGO
-                ========================================== */}
+                            rounded-full
 
-                <div
-                    aria-hidden="true"
+                            bg-cyan-500/[0.045]
 
-                    className="
-                        pointer-events-none
+                            blur-[100px]
 
-                        absolute
-                        -right-40
-                        top-[30%]
+                            sm:h-[440px]
+                            sm:w-[440px]
 
-                        h-[420px]
-                        w-[420px]
+                            dark:bg-cyan-500/[0.065]
+                        "
+                    />
 
-                        rounded-full
+                    {/* ==============================
+                        INDIGO GLOW
+                    ============================== */}
 
-                        bg-indigo-500/[0.08]
+                    <div
+                        className="
+                            absolute
+                            -right-40
+                            top-[32%]
 
-                        blur-[130px]
-                    "
-                />
+                            h-[400px]
+                            w-[400px]
 
+                            rounded-full
 
-                {/* =========================================
+                            bg-indigo-500/[0.045]
+
+                            blur-[110px]
+
+                            dark:bg-indigo-500/[0.075]
+                        "
+                    />
+
+                    {/* ==============================
+                        BOTTOM GLOW
+                    ============================== */}
+
+                    <div
+                        className="
+                            absolute
+                            bottom-0
+                            left-1/2
+
+                            h-[300px]
+                            w-[600px]
+
+                            -translate-x-1/2
+
+                            rounded-full
+
+                            bg-purple-500/[0.025]
+
+                            blur-[120px]
+
+                            dark:bg-purple-500/[0.04]
+                        "
+                    />
+                </div>
+
+                {/* ======================================
                     PAGE CONTAINER
-                ========================================== */}
+                ====================================== */}
 
                 <div
                     className="
@@ -234,93 +309,162 @@ const ProblemDetailLayout = ({
 
                         w-full
                         max-w-[1500px]
+                        min-w-0
+
+                        px-3
+                        py-6
+
+                        sm:px-5
+                        sm:py-8
+
+                        md:px-6
+
+                        lg:px-8
+                        lg:py-10
+
+                        xl:py-12
                     "
                 >
+                    {/* ==================================
+                        PAGE GRID
+
+                        Below XL:
+                        Single column for better
+                        content readability.
+
+                        XL and above:
+                        Main 8 / Sidebar 4.
+                    ================================== */}
 
                     <div
                         className="
                             grid
-                            gap-8
+                            w-full
+                            min-w-0
 
-                            lg:grid-cols-12
-                            lg:gap-10
+                            grid-cols-1
+                            items-start
+
+                            gap-6
+
+                            sm:gap-8
+
+                            xl:grid-cols-12
+                            xl:gap-8
+
+                            2xl:gap-10
                         "
                     >
-
-                        {/* =================================
+                        {/* ==============================
                             MAIN COLUMN
-                        ================================== */}
+                        ============================== */}
 
                         <div
                             className="
+                                flex
                                 min-w-0
 
-                                lg:col-span-8
+                                flex-col
+                                gap-6
+
+                                sm:gap-8
+
+                                xl:col-span-8
                             "
                         >
-
-                            {/* =============================
-                                PROBLEM CARD
-                            ============================== */}
+                            {/* ==========================
+                                PROBLEM DETAILS CARD
+                            ========================== */}
 
                             <section
                                 aria-label="Muammo tafsilotlari"
-
                                 className="
                                     relative
+
+                                    w-full
+                                    min-w-0
+
                                     overflow-hidden
 
-                                    rounded-[2rem]
+                                    rounded-[22px]
 
                                     border
-                                    border-white/10
+                                    border-slate-200
 
-                                    bg-[#0d1117]
+                                    bg-white/95
 
-                                    p-5
+                                    p-4
 
-                                    shadow-2xl
-                                    shadow-black/30
+                                    shadow-[0_16px_45px_rgba(15,23,42,0.055)]
 
-                                    md:p-7
+                                    backdrop-blur-sm
 
-                                    lg:p-8
+                                    sm:rounded-[28px]
+                                    sm:p-6
+
+                                    lg:p-7
+
+                                    2xl:p-8
+
+                                    dark:border-white/[0.09]
+                                    dark:bg-[#0e1421]/95
+
+                                    dark:shadow-[0_22px_65px_rgba(0,0,0,0.24)]
                                 "
                             >
-
-                                {/* =========================
-                                    CARD CYAN GLOW
-                                ========================== */}
+                                {/* ======================
+                                    TOP ACCENT
+                                ====================== */}
 
                                 <div
                                     aria-hidden="true"
-
                                     className="
                                         pointer-events-none
 
                                         absolute
-                                        -right-24
-                                        -top-24
+                                        inset-x-0
+                                        top-0
 
-                                        h-72
-                                        w-72
+                                        h-[2px]
 
-                                        rounded-full
+                                        bg-gradient-to-r
+                                        from-cyan-500/70
+                                        via-indigo-500/60
+                                        to-transparent
 
-                                        bg-cyan-500/10
-
-                                        blur-[100px]
+                                        dark:from-cyan-400/65
+                                        dark:via-indigo-400/50
                                     "
                                 />
 
-
-                                {/* =========================
-                                    CARD INDIGO GLOW
-                                ========================== */}
+                                {/* ======================
+                                    CARD DECORATIONS
+                                ====================== */}
 
                                 <div
                                     aria-hidden="true"
+                                    className="
+                                        pointer-events-none
 
+                                        absolute
+                                        -right-28
+                                        -top-28
+
+                                        h-64
+                                        w-64
+
+                                        rounded-full
+
+                                        bg-cyan-500/[0.045]
+
+                                        blur-[90px]
+
+                                        dark:bg-cyan-400/[0.075]
+                                    "
+                                />
+
+                                <div
+                                    aria-hidden="true"
                                     className="
                                         pointer-events-none
 
@@ -328,32 +472,33 @@ const ProblemDetailLayout = ({
                                         -bottom-28
                                         -left-28
 
-                                        h-72
-                                        w-72
+                                        h-64
+                                        w-64
 
                                         rounded-full
 
-                                        bg-indigo-500/10
+                                        bg-indigo-500/[0.04]
 
-                                        blur-[100px]
+                                        blur-[90px]
+
+                                        dark:bg-indigo-400/[0.065]
                                     "
                                 />
 
-
-                                {/* =========================
+                                {/* ======================
                                     CARD CONTENT
-                                ========================== */}
+                                ====================== */}
 
                                 <div
                                     className="
                                         relative
                                         z-10
+
+                                        w-full
+                                        min-w-0
                                     "
                                 >
-
-                                    {/* =================================
-                                        HEADER
-                                    ================================== */}
+                                    {/* HEADER */}
 
                                     <ProblemDetailHeader
                                         problemDetail={
@@ -361,7 +506,7 @@ const ProblemDetailLayout = ({
                                         }
 
                                         problemLanguages={
-                                            problemLanguages
+                                            safeLanguages
                                         }
 
                                         responseCount={
@@ -385,10 +530,7 @@ const ProblemDetailLayout = ({
                                         }
                                     />
 
-
-                                    {/* =================================
-                                        PRIORITY
-                                    ================================== */}
+                                    {/* PRIORITY */}
 
                                     <ProblemDetailPriority
                                         problemDetail={
@@ -404,10 +546,7 @@ const ProblemDetailLayout = ({
                                         }
                                     />
 
-
-                                    {/* =================================
-                                        MAIN PROBLEM CONTENT
-                                    ================================== */}
+                                    {/* DESCRIPTION / CODE */}
 
                                     <ProblemDetailContent
                                         problemDetail={
@@ -415,7 +554,7 @@ const ProblemDetailLayout = ({
                                         }
 
                                         problemTechnologies={
-                                            problemTechnologies
+                                            safeTechnologies
                                         }
 
                                         hasStarredProblem={
@@ -434,109 +573,117 @@ const ProblemDetailLayout = ({
                                             onRemoveStar
                                         }
                                     />
-
                                 </div>
-
                             </section>
 
+                            {/* ==========================
+                                SOLUTIONS SECTION
+                            ========================== */}
 
-                            {/* =============================
-                                SOLUTIONS
-                            ============================== */}
+                            <section
+                                aria-label="Muammo yechimlari"
+                                className="
+                                    w-full
+                                    min-w-0
+                                "
+                            >
+                                <ProblemDetailSolutions
+                                    problemId={
+                                        problemId
+                                    }
 
-                            <ProblemDetailSolutions
-                                problemId={
-                                    problemId
-                                }
+                                    responseCount={
+                                        responseCount
+                                    }
 
-                                responseCount={
-                                    responseCount
-                                }
+                                    responsesRefreshKey={
+                                        responsesRefreshKey
+                                    }
 
-                                responsesRefreshKey={
-                                    responsesRefreshKey
-                                }
+                                    problemLanguages={
+                                        safeLanguages
+                                    }
 
-                                problemLanguages={
-                                    problemLanguages
-                                }
+                                    isOwner={
+                                        isOwner
+                                    }
 
-                                isOwner={
-                                    isOwner
-                                }
+                                    isSolved={
+                                        isSolved
+                                    }
 
-                                isSolved={
-                                    isSolved
-                                }
+                                    responsesSectionRef={
+                                        responsesSectionRef
+                                    }
 
-                                responsesSectionRef={
-                                    responsesSectionRef
-                                }
+                                    responseFormRef={
+                                        responseFormRef
+                                    }
 
-                                responseFormRef={
-                                    responseFormRef
-                                }
+                                    onWork={
+                                        onWork
+                                    }
 
-                                onWork={
-                                    onWork
-                                }
+                                    onSolutionCreated={
+                                        onSolutionCreated
+                                    }
 
-                                onSolutionCreated={
-                                    onSolutionCreated
-                                }
-
-                                onAcceptSolution={
-                                    onAcceptSolution
-                                }
-                            />
-
+                                    onAcceptSolution={
+                                        onAcceptSolution
+                                    }
+                                />
+                            </section>
                         </div>
 
-
-                        {/* =================================
-                            RIGHT SIDEBAR
-                        ================================== */}
+                        {/* ==============================
+                            SIDEBAR
+                        ============================== */}
 
                         <aside
                             aria-label="O‘xshash muammolar"
-
                             className="
+                                w-full
                                 min-w-0
 
-                                lg:col-span-4
+                                xl:col-span-4
                             "
                         >
+                            {/* ======================
+                                STICKY CONTAINER
+
+                                Sticky only on wide
+                                screens to prevent
+                                narrow two-column UI.
+                            ====================== */}
 
                             <div
                                 className="
-                                    lg:sticky
-                                    lg:top-28
+                                    w-full
+                                    min-w-0
+
+                                    xl:sticky
+                                    xl:top-24
                                 "
                             >
-
                                 <SimilarProblems
                                     problemId={
                                         problemId
                                     }
                                 />
-
                             </div>
-
                         </aside>
-
                     </div>
-
                 </div>
-
             </main>
 
+            {/* ==========================================
+                DELETE CONFIRMATION MODAL
 
-            {/* =============================================
-                DELETE MODAL
-            ============================================== */}
+                Preserve owner permission and
+                original callback contract.
+            ========================================== */}
 
             {isOwner && (
-
                 <DeleteConfirmationModal
                     isOpen={
                         isDeleteModalOpen
@@ -551,10 +698,7 @@ const ProblemDetailLayout = ({
                     }
 
                     itemTitle={
-                        problemDetail
-                            ?.problem
-                        ||
-                        "Muammo"
+                        problemTitle
                     }
 
                     isProcessing={
@@ -563,10 +707,11 @@ const ProblemDetailLayout = ({
                 />
             )}
 
-
-            {/* =============================================
+            {/* ==========================================
                 ACCEPT SOLUTION MODAL
-            ============================================== */}
+
+                Existing props preserved.
+            ========================================== */}
 
             <AcceptSolutionModal
                 isOpen={
@@ -585,12 +730,12 @@ const ProblemDetailLayout = ({
                     acceptSolutionIsLoading
                 }
             />
-
         </>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemDetailLayout
-);
+export default React.memo(ProblemDetailLayout);

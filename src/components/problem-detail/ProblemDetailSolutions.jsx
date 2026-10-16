@@ -1,623 +1,1274 @@
-// src/components/problem-detail/ProblemDetailSolutions.jsx
 
-import React from "react";
+import React, { memo } from "react";
 
 import {
     CheckCircle2,
+    MessageCircleCode,
     Pencil,
+    ShieldCheck,
 } from "lucide-react";
 
-import ProblemResponse
-    from "../ProblemResponse";
-
-import ProblemResponseForm
-    from "../ProblemResponseForm";
-
-
 // =========================================================
-// SAFE NUMBER
+// FSOCIETY — SOLUTIONS COMPONENTS
 // =========================================================
 
-const safeNumber = (
-    value,
-    fallback = 0
-) => {
+import ProblemSolutions
+    from "../problem-solutions/ProblemSolutions";
 
-    const number =
-        Number(
-            value
-        );
+import ProblemSolutionForm
+    from "../problem-solution-form/ProblemSolutionForm";
 
+// =========================================================
+// FSOCIETY — PROBLEM DETAIL SOLUTIONS
+//
+// Responsibilities:
+//
+// 1. Display all problem solutions
+// 2. Refresh solutions after submission
+// 3. Support owner accepting a solution
+// 4. Render new solution form
+// 5. Render solved problem state
+// 6. Preserve scrolling references
+// 7. Support light and dark themes
+//
+// Existing public props:
+//
+// - problemId
+// - responseCount
+// - responsesRefreshKey
+// - problemLanguages
+// - isOwner
+// - isSolved
+// - responsesSectionRef
+// - responseFormRef
+// - onWork
+// - onSolutionCreated
+// - onAcceptSolution
+//
+// IMPORTANT:
+//
+// The actual solutions API and Star actions
+// are handled by ProblemSolutions.
+//
+// The submit API and form validation are
+// handled by ProblemSolutionForm.
+//
+// No API logic is duplicated here.
+// =========================================================
 
+// =========================================================
+// SHARED STYLES
+// =========================================================
+
+const CARD_CLASS = `
+    relative
+    w-full
+    min-w-0
+
+    overflow-hidden
+
+    rounded-[22px]
+
+    border
+    border-slate-200
+
+    bg-white/95
+
+    shadow-[0_12px_40px_rgba(15,23,42,0.045)]
+
+    backdrop-blur-sm
+
+    sm:rounded-[28px]
+
+    dark:border-white/[0.09]
+    dark:bg-[#0e1421]/95
+
+    dark:shadow-[0_18px_50px_rgba(0,0,0,0.18)]
+`;
+
+const SYSTEM_LABEL_CLASS = `
+    font-mono
+    text-[10px]
+    font-black
+    uppercase
+    tracking-[0.12em]
+
+    text-cyan-700
+
+    dark:text-cyan-400/80
+`;
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+const getSafeCount = (value) => {
     if (
-        !Number.isFinite(
-            number
-        )
+        value === null ||
+        value === undefined ||
+        value === ""
     ) {
-        return fallback;
+        return 0;
     }
 
+    const number = Number(value);
 
-    return Math.max(
-        0,
-        number
+    if (
+        !Number.isFinite(number) ||
+        number < 0
+    ) {
+        return 0;
+    }
+
+    return Math.floor(number);
+};
+
+const hasValidProblemId = (value) => {
+    return (
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ""
     );
 };
 
+// =========================================================
+// MISSING PROBLEM ID
+//
+// Shared fallback for:
+//
+// - Solutions list
+// - New solution form
+// =========================================================
+
+const MissingProblemId = memo(({
+    message = "Muammo identifikatori topilmadi.",
+}) => {
+    return (
+        <div
+            role="status"
+
+            className="
+                flex
+                min-h-[160px]
+                w-full
+                min-w-0
+
+                items-center
+                justify-center
+
+                rounded-2xl
+
+                border
+                border-dashed
+                border-slate-300
+
+                bg-slate-50
+
+                px-4
+                py-8
+
+                text-center
+                text-sm
+                font-medium
+                leading-6
+
+                text-slate-600
+
+                dark:border-white/[0.12]
+                dark:bg-white/[0.025]
+                dark:text-gray-400
+            "
+        >
+            <p className="max-w-md">
+                {message}
+            </p>
+        </div>
+    );
+});
 
 // =========================================================
-// PROBLEM DETAIL SOLUTIONS
+// SOLUTIONS HEADER
+//
+// Contains:
+//
+// - Section label
+// - Solutions title
+// - Response count
+// - Solved indicator
+// - Description
+// - Write solution button
 // =========================================================
 
-const ProblemDetailSolutions = ({
-    problemId,
-
+const SolutionsHeader = memo(({
     responseCount = 0,
 
-    responsesRefreshKey = 0,
-
-    problemLanguages = [],
-
-    isOwner = false,
-
     isSolved = false,
-
-    responsesSectionRef,
-    responseFormRef,
+    canWrite = false,
 
     onWork,
-    onSolutionCreated,
-    onAcceptSolution,
 }) => {
+    // =====================================================
+    // SAFE RESPONSE COUNT
+    // =====================================================
+
+    const count = getSafeCount(
+        responseCount
+    );
+
+    const formattedCount = count.toLocaleString(
+        "uz-UZ"
+    );
 
     // =====================================================
-    // SAFE DATA
+    // ACTION STATE
     // =====================================================
 
-    const safeResponseCount =
-        safeNumber(
-            responseCount
-        );
-
-
-    const safeLanguages =
-        Array.isArray(
-            problemLanguages
-        )
-            ? problemLanguages
-                .filter(
-                    Boolean
-                )
-            : [];
-
-
-    const hasProblemId =
-        problemId !==
-            null
-        &&
-        problemId !==
-            undefined
-        &&
-        String(
-            problemId
-        ).trim() !==
-            "";
-
+    const isWriteDisabled =
+        isSolved ||
+        !canWrite ||
+        typeof onWork !== "function";
 
     // =====================================================
     // JSX
     // =====================================================
 
     return (
+        <div
+            className="
+                relative
+                w-full
+                min-w-0
 
-        <>
+                border-b
+                border-slate-200
 
-            {/* =============================================
-                RESPONSES
-            ============================================== */}
+                bg-slate-50/65
 
-            <section
-                ref={
-                    responsesSectionRef
-                }
+                px-4
+                py-5
 
-                aria-labelledby="problem-solutions-title"
+                sm:px-6
+                sm:py-6
 
+                dark:border-white/[0.08]
+                dark:bg-white/[0.025]
+            "
+        >
+            <div
                 className="
-                    mt-8
-                    scroll-mt-28
+                    flex
+                    w-full
+                    min-w-0
 
-                    overflow-hidden
+                    flex-col
+                    gap-4
 
-                    rounded-[2rem]
-
-                    border
-                    border-white/10
-
-                    bg-[#0d1117]
-
-                    shadow-2xl
-                    shadow-black/30
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                    sm:gap-5
                 "
             >
-
-                {/* =========================================
-                    HEADER
-                ========================================== */}
+                {/* ==================================
+                    TITLE GROUP
+                ================================== */}
 
                 <div
                     className="
-                        border-b
-                        border-white/10
-
-                        bg-[#0d1117]/95
-
-                        px-5
-                        py-5
-
-                        backdrop-blur
-
-                        md:px-7
+                        min-w-0
+                        flex-1
                     "
                 >
+                    {/* SYSTEM LABEL */}
+
+                    <p
+                        className={SYSTEM_LABEL_CLASS}
+                    >
+                        fsociety://solutions
+                    </p>
+
+                    {/* TITLE / COUNT / STATUS */}
 
                     <div
                         className="
+                            mt-1
+
                             flex
-                            flex-col
-                            gap-4
+                            min-w-0
 
-                            md:flex-row
-                            md:items-center
-                            md:justify-between
+                            flex-wrap
+                            items-center
+                            gap-3
                         "
                     >
-
-                        <div>
-
-                            <p
-                                className="
-                                    font-mono
-                                    text-[11px]
-                                    font-black
-                                    uppercase
-                                    tracking-[0.28em]
-                                    text-gray-600
-                                "
-                            >
-                                fsociety://solutions
-                            </p>
-
-
-                            <h2
-                                id="problem-solutions-title"
-
-                                className="
-                                    mt-1
-
-                                    flex
-                                    flex-wrap
-                                    items-center
-                                    gap-2
-
-                                    text-2xl
-                                    font-black
-                                    text-white
-                                "
-                            >
-                                Yechimlar
-
-
-                                <span
-                                    aria-label={
-                                        `${safeResponseCount} ta yechim`
-                                    }
-
-                                    className="
-                                        inline-flex
-                                        h-7
-                                        min-w-7
-                                        items-center
-                                        justify-center
-
-                                        rounded-full
-
-                                        border
-                                        border-cyan-400/20
-
-                                        bg-cyan-400/10
-
-                                        px-2
-
-                                        text-xs
-                                        text-cyan-300
-                                    "
-                                >
-                                    {safeResponseCount}
-                                </span>
-
-                            </h2>
-
-
-                            <p
-                                className="
-                                    mt-2
-
-                                    text-sm
-                                    leading-6
-                                    text-gray-500
-                                "
-                            >
-                                Community tomonidan yozilgan
-                                barcha yechimlar.
-                            </p>
-
-                        </div>
-
-
-                        {!isSolved && (
-
-                            <button
-                                type="button"
-
-                                onClick={
-                                    onWork
-                                }
-
-                                disabled={
-                                    !hasProblemId
-                                }
-
-                                className="
-                                    inline-flex
-                                    items-center
-                                    justify-center
-                                    gap-2
-
-                                    rounded-xl
-
-                                    border
-                                    border-cyan-400/30
-
-                                    bg-cyan-400/10
-
-                                    px-5
-                                    py-3
-
-                                    text-sm
-                                    font-black
-                                    text-cyan-300
-
-                                    transition-all
-                                    duration-200
-
-                                    hover:bg-cyan-400/20
-
-                                    active:scale-[0.98]
-
-                                    disabled:cursor-not-allowed
-                                    disabled:opacity-40
-                                "
-                            >
-
-                                <Pencil
-                                    size={15}
-                                    aria-hidden="true"
-                                />
-
-                                Yechim yozish
-
-                            </button>
-                        )}
-
-                    </div>
-
-                </div>
-
-
-                {/* =========================================
-                    RESPONSE LIST
-                ========================================== */}
-
-                <div
-                    className="
-                        max-h-[780px]
-
-                        overflow-y-auto
-
-                        px-4
-                        py-5
-
-                        md:px-6
-
-                        lg:max-h-[850px]
-                    "
-                >
-
-                    {hasProblemId ? (
-
-                        <ProblemResponse
-                            key={
-                                `problem-responses-${problemId}-${responsesRefreshKey}`
-                            }
-
-                            id={
-                                problemId
-                            }
-
-                            isOwner={
-                                isOwner
-                            }
-
-                            isSolved={
-                                isSolved
-                            }
-
-                            onAcceptSolution={
-                                onAcceptSolution
-                            }
-                        />
-
-                    ) : (
-
-                        <div
-                            className="
-                                rounded-2xl
-
-                                border
-                                border-white/[0.06]
-
-                                bg-white/[0.025]
-
-                                p-5
-
-                                text-center
-                            "
-                        >
-
-                            <p
-                                className="
-                                    text-sm
-                                    font-medium
-                                    text-gray-600
-                                "
-                            >
-                                Muammo identifikatori topilmadi.
-                            </p>
-
-                        </div>
-                    )}
-
-                </div>
-
-            </section>
-
-
-            {/* =============================================
-                NEW SOLUTION FORM
-            ============================================== */}
-
-            {!isSolved ? (
-
-                <section
-                    ref={
-                        responseFormRef
-                    }
-
-                    aria-labelledby="new-solution-title"
-
-                    className="
-                        mt-8
-                        scroll-mt-28
-
-                        overflow-hidden
-
-                        rounded-[2rem]
-
-                        border
-                        border-cyan-400/20
-
-                        bg-[#0d1117]
-
-                        p-5
-
-                        shadow-2xl
-                        shadow-cyan-500/5
-
-                        md:p-7
-                    "
-                >
-
-                    <div
-                        className="
-                            mb-5
-                        "
-                    >
-
-                        <p
-                            className="
-                                font-mono
-                                text-[11px]
-                                font-black
-                                uppercase
-                                tracking-[0.28em]
-                                text-gray-600
-                            "
-                        >
-                            fsociety://new-solution
-                        </p>
-
+                        {/* TITLE */}
 
                         <h2
-                            id="new-solution-title"
+                            id="problem-solutions-title"
 
                             className="
-                                mt-1
-
-                                text-2xl
+                                font-display
+                                text-xl
                                 font-black
-                                text-white
+                                tracking-tight
+
+                                text-slate-900
+
+                                sm:text-2xl
+
+                                dark:text-white
                             "
                         >
-                            O‘z yechimingizni yozing
+                            Yechimlar
                         </h2>
 
+                        {/* RESPONSE COUNT */}
 
-                        <p
+                        <span
+                            aria-label={
+                                `${formattedCount} ta yechim`
+                            }
+
+                            title={
+                                `${formattedCount} ta yechim`
+                            }
+
                             className="
-                                mt-2
+                                inline-flex
+                                min-h-8
+                                min-w-8
 
-                                text-sm
-                                leading-6
-                                text-gray-500
-                            "
-                        >
-                            Kodingizni, tushuntirishingizni
-                            va xatoni qanday tuzatganingizni
-                            aniq yozing.
-                        </p>
+                                shrink-0
 
-                    </div>
+                                items-center
+                                justify-center
 
-
-                    {hasProblemId ? (
-
-                        <ProblemResponseForm
-                            id={
-                                problemId
-                            }
-
-                            problemLanguages={
-                                safeLanguages
-                            }
-
-                            onSuccess={
-                                onSolutionCreated
-                            }
-                        />
-
-                    ) : (
-
-                        <div
-                            className="
-                                rounded-2xl
+                                rounded-full
 
                                 border
-                                border-white/[0.06]
+                                border-cyan-300/60
 
-                                bg-white/[0.025]
+                                bg-cyan-50
 
-                                p-5
+                                px-2.5
+                                py-1.5
 
-                                text-center
+                                font-mono
+                                text-xs
+                                font-black
+                                tabular-nums
+
+                                text-cyan-800
+
+                                dark:border-cyan-400/25
+                                dark:bg-cyan-400/[0.08]
+                                dark:text-cyan-300
                             "
                         >
+                            {formattedCount}
+                        </span>
 
-                            <p
+                        {/* SOLVED INDICATOR */}
+
+                        {isSolved && (
+                            <span
                                 className="
-                                    text-sm
-                                    font-medium
-                                    text-gray-600
+                                    inline-flex
+                                    min-h-8
+
+                                    items-center
+                                    gap-1.5
+
+                                    rounded-full
+
+                                    border
+                                    border-emerald-300
+
+                                    bg-emerald-50
+
+                                    px-2.5
+                                    py-1.5
+
+                                    text-[10px]
+                                    font-bold
+
+                                    text-emerald-800
+
+                                    dark:border-emerald-400/25
+                                    dark:bg-emerald-400/[0.08]
+                                    dark:text-emerald-300
                                 "
                             >
-                                Yechim yuborish uchun muammo ID mavjud emas.
-                            </p>
+                                <CheckCircle2
+                                    size={13}
+                                    strokeWidth={2}
 
-                        </div>
-                    )}
+                                    aria-hidden="true"
 
-                </section>
+                                    className="shrink-0"
+                                />
 
-            ) : (
-
-                // =========================================
-                // SOLVED STATE
-                // =========================================
-
-                <section
-                    aria-label="Muammo yechilgan"
-
-                    className="
-                        mt-8
-
-                        rounded-[2rem]
-
-                        border
-                        border-green-400/20
-
-                        bg-green-500/[0.07]
-
-                        p-6
-
-                        text-center
-                    "
-                >
-
-                    <div
-                        className="
-                            mx-auto
-                            mb-3
-
-                            flex
-                            h-14
-                            w-14
-                            items-center
-                            justify-center
-
-                            rounded-2xl
-
-                            border
-                            border-green-400/15
-
-                            bg-green-500/10
-
-                            text-green-300
-                        "
-                    >
-
-                        <CheckCircle2
-                            size={25}
-                            aria-hidden="true"
-                        />
-
+                                Yechilgan
+                            </span>
+                        )}
                     </div>
 
-
-                    <h3
-                        className="
-                            text-xl
-                            font-black
-                            text-white
-                        "
-                    >
-                        Bu muammo yechilgan
-                    </h3>
-
+                    {/* DESCRIPTION */}
 
                     <p
                         className="
-                            mx-auto
                             mt-2
-                            max-w-lg
 
-                            text-sm
+                            max-w-xl
+
+                            text-[13px]
+                            font-medium
                             leading-6
-                            text-gray-400
+
+                            text-slate-600
+
+                            dark:text-gray-400
                         "
                     >
-                        Yangi yechim yozish yopilgan.
-                        Mavjud yechimlarni yuqoridagi
-                        blokda ko‘rishingiz mumkin.
+                        Community tomonidan yozilgan
+                        barcha yechimlar.
+                    </p>
+                </div>
+
+                {/* ==================================
+                    WRITE SOLUTION ACTION
+
+                    The parent hook handles:
+                    - Scrolling
+                    - Authentication checks
+                    - Form focus
+                ================================== */}
+
+                {!isSolved && (
+                    <button
+                        type="button"
+
+                        onClick={onWork}
+
+                        disabled={isWriteDisabled}
+
+                        aria-label="Yangi yechim yozish"
+
+                        className="
+                            inline-flex
+                            min-h-11
+                            w-full
+                            shrink-0
+
+                            items-center
+                            justify-center
+                            gap-2
+
+                            self-start
+
+                            rounded-xl
+
+                            border
+                            border-cyan-300/70
+
+                            bg-cyan-50
+
+                            px-4
+                            py-2.5
+
+                            font-display
+                            text-xs
+                            font-black
+
+                            text-cyan-800
+
+                            transition-colors
+                            duration-200
+
+                            hover:border-cyan-400
+                            hover:bg-cyan-100
+
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-cyan-500
+
+                            disabled:cursor-not-allowed
+                            disabled:opacity-40
+
+                            sm:w-auto
+                            sm:self-auto
+
+                            dark:border-cyan-400/25
+                            dark:bg-cyan-400/[0.08]
+                            dark:text-cyan-300
+
+                            dark:hover:bg-cyan-400/[0.14]
+
+                            motion-reduce:transition-none
+                        "
+                    >
+                        <Pencil
+                            size={16}
+                            strokeWidth={1.9}
+
+                            aria-hidden="true"
+
+                            className="shrink-0"
+                        />
+
+                        Yechim yozish
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+});
+
+// =========================================================
+// SOLUTIONS LIST
+//
+// IMPORTANT:
+//
+// ProblemSolutions receives the refreshKey prop
+// directly.
+//
+// Do not use responsesRefreshKey in the React key,
+// otherwise the entire component remounts and
+// loses its existing local state.
+//
+// It may remount when the problem ID changes,
+// which is intentional.
+// =========================================================
+
+const SolutionsList = memo(({
+    problemId,
+
+    responsesRefreshKey = 0,
+
+    isOwner = false,
+    isSolved = false,
+
+    onAcceptSolution,
+}) => {
+    // =====================================================
+    // VALIDATE PROBLEM ID
+    // =====================================================
+
+    const validProblemId =
+        hasValidProblemId(problemId);
+
+    // =====================================================
+    // JSX
+    // =====================================================
+
+    return (
+        <div
+            className="
+                w-full
+                min-w-0
+
+                max-h-[780px]
+
+                overflow-y-auto
+                overscroll-contain
+
+                px-3
+                py-5
+
+                sm:px-5
+
+                lg:max-h-[850px]
+                lg:px-6
+
+                [scrollbar-width:thin]
+                [scrollbar-color:rgba(100,116,139,0.35)_transparent]
+            "
+        >
+            {validProblemId ? (
+                <ProblemSolutions
+                    key={
+                        `problem-solutions-${problemId}`
+                    }
+
+                    id={problemId}
+
+                    isOwner={isOwner}
+                    isSolved={isSolved}
+
+                    refreshKey={
+                        responsesRefreshKey
+                    }
+
+                    onAcceptSolution={
+                        onAcceptSolution
+                    }
+                />
+            ) : (
+                <MissingProblemId
+                    message={
+                        "Muammo identifikatori " +
+                        "topilmadi."
+                    }
+                />
+            )}
+        </div>
+    );
+});
+
+// =========================================================
+// SOLUTIONS LIST SECTION
+//
+// Preserves responsesSectionRef.
+//
+// Used by:
+//
+// - onWork navigation
+// - Solution created scroll
+// - Problem detail solution controller
+// =========================================================
+
+const SolutionsListSection = memo(({
+    problemId,
+
+    responseCount = 0,
+    responsesRefreshKey = 0,
+
+    isOwner = false,
+    isSolved = false,
+
+    responsesSectionRef,
+
+    onWork,
+    onAcceptSolution,
+}) => {
+    // =====================================================
+    // ID AND ACTION STATE
+    // =====================================================
+
+    const validProblemId =
+        hasValidProblemId(problemId);
+
+    const canWrite =
+        validProblemId &&
+        !isSolved &&
+        typeof onWork === "function";
+
+    // =====================================================
+    // JSX
+    // =====================================================
+
+    return (
+        <section
+            ref={responsesSectionRef}
+
+            aria-labelledby="problem-solutions-title"
+
+            className={`
+                ${CARD_CLASS}
+
+                scroll-mt-28
+            `}
+        >
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    inset-x-0
+                    top-0
+
+                    h-[2px]
+
+                    bg-gradient-to-r
+                    from-cyan-500/70
+                    via-indigo-500/60
+                    to-transparent
+
+                    dark:from-cyan-400/65
+                    dark:via-indigo-400/50
+                "
+            />
+
+            {/* ======================================
+                SOLUTIONS HEADER
+            ====================================== */}
+
+            <SolutionsHeader
+                responseCount={responseCount}
+
+                isSolved={isSolved}
+
+                canWrite={canWrite}
+
+                onWork={onWork}
+            />
+
+            {/* ======================================
+                SOLUTIONS LIST
+
+                Loading, empty and error states
+                are handled by ProblemSolutions.
+            ====================================== */}
+
+            <SolutionsList
+                problemId={problemId}
+
+                responsesRefreshKey={
+                    responsesRefreshKey
+                }
+
+                isOwner={isOwner}
+                isSolved={isSolved}
+
+                onAcceptSolution={
+                    onAcceptSolution
+                }
+            />
+        </section>
+    );
+});
+
+// =========================================================
+// NEW SOLUTION FORM SECTION
+//
+// Responsibilities:
+//
+// - Preserve responseFormRef
+// - Show form title and description
+// - Render ProblemSolutionForm
+// - Preserve the original API callback contract
+// =========================================================
+
+const NewSolutionFormSection = memo(({
+    problemId,
+
+    problemLanguages = [],
+
+    responseFormRef,
+
+    onSolutionCreated,
+}) => {
+    // =====================================================
+    // VALIDATE ID
+    // =====================================================
+
+    const validProblemId =
+        hasValidProblemId(problemId);
+
+    // =====================================================
+    // SAFE LANGUAGE DATA
+    // =====================================================
+
+    const safeLanguages =
+        Array.isArray(problemLanguages)
+            ? problemLanguages
+            : [];
+
+    // =====================================================
+    // JSX
+    // =====================================================
+
+    return (
+        <section
+            ref={responseFormRef}
+
+            aria-labelledby="new-solution-title"
+
+            className={`
+                ${CARD_CLASS}
+
+                scroll-mt-28
+
+                border-cyan-200
+
+                dark:border-cyan-400/20
+            `}
+        >
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    inset-x-0
+                    top-0
+
+                    h-[2px]
+
+                    bg-gradient-to-r
+                    from-cyan-500
+                    via-indigo-500/70
+                    to-transparent
+                "
+            />
+
+            {/* ======================================
+                SECTION BODY
+            ====================================== */}
+
+            <div
+                className="
+                    relative
+
+                    w-full
+                    min-w-0
+
+                    p-4
+
+                    sm:p-6
+                    lg:p-7
+                "
+            >
+                {/* ==================================
+                    SECTION HEADER
+                ================================== */}
+
+                <div className="mb-6">
+                    {/* ICON */}
+
+                    <div
+                        aria-hidden="true"
+
+                        className="
+                            mb-3
+
+                            flex
+                            h-10
+                            w-10
+
+                            items-center
+                            justify-center
+
+                            rounded-xl
+
+                            border
+                            border-cyan-200
+
+                            bg-cyan-50
+
+                            text-cyan-700
+
+                            dark:border-cyan-400/20
+                            dark:bg-cyan-400/[0.08]
+                            dark:text-cyan-300
+                        "
+                    >
+                        <MessageCircleCode
+                            size={19}
+                            strokeWidth={1.9}
+                        />
+                    </div>
+
+                    {/* SYSTEM LABEL */}
+
+                    <p className={SYSTEM_LABEL_CLASS}>
+                        fsociety://new-solution
                     </p>
 
-                </section>
-            )}
+                    {/* TITLE */}
 
-        </>
+                    <h2
+                        id="new-solution-title"
+
+                        className="
+                            mt-1
+
+                            font-display
+                            text-xl
+                            font-black
+                            tracking-tight
+
+                            text-slate-900
+
+                            sm:text-2xl
+
+                            dark:text-white
+                        "
+                    >
+                        O‘z yechimingizni yozing
+                    </h2>
+
+                    {/* DESCRIPTION */}
+
+                    <p
+                        className="
+                            mt-2
+
+                            max-w-2xl
+
+                            text-[13px]
+                            font-medium
+                            leading-6
+
+                            text-slate-600
+
+                            dark:text-gray-400
+                        "
+                    >
+                        Kodingizni, tushuntirishingizni
+                        va xatoni qanday tuzatganingizni
+                        aniq yozing.
+                    </p>
+                </div>
+
+                {/* ==================================
+                    NEW SOLUTION FORM
+
+                    Public props:
+                    - id
+                    - problemLanguages
+                    - onSuccess
+
+                    The POST request and validation
+                    remain inside ProblemSolutionForm.
+                ================================== */}
+
+                {validProblemId ? (
+                    <ProblemSolutionForm
+                        key={
+                            `solution-form-${problemId}`
+                        }
+
+                        id={problemId}
+
+                        problemLanguages={
+                            safeLanguages
+                        }
+
+                        onSuccess={
+                            onSolutionCreated
+                        }
+                    />
+                ) : (
+                    <MissingProblemId
+                        message={
+                            "Yechim yuborish uchun " +
+                            "muammo ID mavjud emas."
+                        }
+                    />
+                )}
+            </div>
+        </section>
+    );
+});
+
+// =========================================================
+// SOLVED PROBLEM INFORMATION
+//
+// Preserve the solved state UI.
+//
+// Existing solutions remain visible.
+//
+// The new solution form must not be rendered
+// for an already solved problem.
+// =========================================================
+
+const SolvedProblemInformation = memo(() => {
+    return (
+        <section
+            aria-label="Muammo yechilgan"
+
+            className="
+                relative
+
+                w-full
+                min-w-0
+
+                overflow-hidden
+
+                rounded-[22px]
+
+                border
+                border-emerald-200
+
+                bg-gradient-to-br
+                from-emerald-50
+                to-white
+
+                px-4
+                py-8
+
+                text-center
+
+                sm:rounded-[28px]
+                sm:px-6
+                sm:py-10
+
+                dark:border-emerald-400/20
+                dark:from-emerald-400/[0.08]
+                dark:to-[#0e1421]
+            "
+        >
+            {/* ======================================
+                DECORATIVE ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -right-16
+                    -top-16
+
+                    h-48
+                    w-48
+
+                    rounded-full
+
+                    bg-emerald-400/[0.08]
+
+                    blur-3xl
+
+                    dark:bg-emerald-400/[0.05]
+                "
+            />
+
+            {/* ======================================
+                CONTENT
+            ====================================== */}
+
+            <div className="relative">
+                {/* ICON */}
+
+                <div
+                    aria-hidden="true"
+
+                    className="
+                        mx-auto
+                        mb-4
+
+                        flex
+                        h-14
+                        w-14
+
+                        items-center
+                        justify-center
+
+                        rounded-2xl
+
+                        border
+                        border-emerald-300
+
+                        bg-emerald-100
+
+                        text-emerald-700
+
+                        dark:border-emerald-400/20
+                        dark:bg-emerald-400/[0.10]
+                        dark:text-emerald-300
+                    "
+                >
+                    <ShieldCheck
+                        size={26}
+                        strokeWidth={1.8}
+                    />
+                </div>
+
+                {/* TITLE */}
+
+                <h3
+                    className="
+                        font-display
+                        text-xl
+                        font-black
+
+                        text-slate-900
+
+                        dark:text-white
+                    "
+                >
+                    Bu muammo yechilgan
+                </h3>
+
+                {/* DESCRIPTION */}
+
+                <p
+                    className="
+                        mx-auto
+                        mt-3
+
+                        max-w-lg
+
+                        text-[13px]
+                        font-medium
+                        leading-6
+
+                        text-slate-600
+
+                        sm:text-sm
+
+                        dark:text-gray-400
+                    "
+                >
+                    Yangi yechim yozish yopilgan.
+                    Mavjud yechimlarni yuqoridagi
+                    blokda ko‘rishingiz mumkin.
+                </p>
+            </div>
+        </section>
+    );
+});
+
+// =========================================================
+// MAIN COMPONENT
+//
+// Existing ProblemDetailLayout contract preserved.
+// =========================================================
+
+const ProblemDetailSolutions = ({
+    // =====================================================
+    // PROBLEM
+    // =====================================================
+
+    problemId,
+
+    // =====================================================
+    // RESPONSES
+    // =====================================================
+
+    responseCount = 0,
+    responsesRefreshKey = 0,
+
+    // =====================================================
+    // LANGUAGES
+    // =====================================================
+
+    problemLanguages = [],
+
+    // =====================================================
+    // PERMISSIONS / STATUS
+    // =====================================================
+
+    isOwner = false,
+    isSolved = false,
+
+    // =====================================================
+    // SCROLL REFERENCES
+    // =====================================================
+
+    responsesSectionRef,
+    responseFormRef,
+
+    // =====================================================
+    // ACTIONS
+    // =====================================================
+
+    onWork,
+
+    onSolutionCreated,
+
+    onAcceptSolution,
+}) => {
+    // =====================================================
+    // SAFE LANGUAGE DATA
+    // =====================================================
+
+    const safeLanguages =
+        Array.isArray(problemLanguages)
+            ? problemLanguages.filter(Boolean)
+            : [];
+
+    // =====================================================
+    // JSX
+    // =====================================================
+
+    return (
+        <div
+            className="
+                flex
+                w-full
+                min-w-0
+
+                flex-col
+
+                gap-6
+
+                sm:gap-8
+            "
+        >
+            {/* ======================================
+                EXISTING SOLUTIONS
+
+                Always visible for both:
+                - Pending problems
+                - Solved problems
+            ====================================== */}
+
+            <SolutionsListSection
+                problemId={problemId}
+
+                responseCount={responseCount}
+
+                responsesRefreshKey={
+                    responsesRefreshKey
+                }
+
+                isOwner={isOwner}
+                isSolved={isSolved}
+
+                responsesSectionRef={
+                    responsesSectionRef
+                }
+
+                onWork={onWork}
+
+                onAcceptSolution={
+                    onAcceptSolution
+                }
+            />
+
+            {/* ======================================
+                NEW SOLUTION FORM
+
+                Only for unsolved problems.
+            ====================================== */}
+
+            {!isSolved ? (
+                <NewSolutionFormSection
+                    problemId={problemId}
+
+                    problemLanguages={
+                        safeLanguages
+                    }
+
+                    responseFormRef={
+                        responseFormRef
+                    }
+
+                    onSolutionCreated={
+                        onSolutionCreated
+                    }
+                />
+            ) : (
+                /* ==================================
+                    SOLVED STATE
+
+                    Hide the solution form, but keep
+                    the solutions list accessible.
+                ================================== */
+
+                <SolvedProblemInformation />
+            )}
+        </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemDetailSolutions
-);
+export default memo(ProblemDetailSolutions);

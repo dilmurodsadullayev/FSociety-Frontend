@@ -1,13 +1,37 @@
-// src/components/problems-page/ProblemsFilters.jsx
 
-import React from "react";
+import React, { useId } from "react";
 
+import {
+    ChevronDown,
+    Loader2,
+} from "lucide-react";
 
 // =========================================================
-// FILTER SELECT
+// FSOCIETY — PROBLEMS FILTERS
+//
+// Filters:
+// - Problem status
+// - Urgent / normal problems
+// - Programming language
+// - Technology
+//
+// Features:
+// - Dark / Light Mode
+// - Native accessible selects
+// - Responsive grid compatibility
+// - Loading states
+// - Controlled values
+// - Existing API values preserved
+//
+// No Redux.
+// No direct API requests.
 // =========================================================
 
-const FilterSelect = ({
+// =========================================================
+// SHARED FILTER SELECT
+// =========================================================
+
+const FilterSelect = React.memo(({
     label,
     value = "",
     onChange,
@@ -15,145 +39,227 @@ const FilterSelect = ({
     disabled = false,
     isLoading = false,
 }) => {
+    // =====================================================
+    // ACCESSIBILITY
+    // =====================================================
+
+    const selectId = useId();
+
+    // =====================================================
+    // VALUES
+    // =====================================================
+
+    const loading = Boolean(isLoading);
+
+    const isDisabled =
+        Boolean(disabled) ||
+        loading ||
+        typeof onChange !== "function";
+
+    // =====================================================
+    // CHANGE
+    // =====================================================
+
+    const handleChange = (event) => {
+        if (isDisabled) {
+            return;
+        }
+
+        onChange(event.target.value);
+    };
+
+    // =====================================================
+    // JSX
+    // =====================================================
 
     return (
-
-        <label
-            className="
-                block
-                min-w-0
-            "
-        >
-
-            {/* =============================================
+        <div className="w-full min-w-0">
+            {/* ======================================
                 LABEL
-            ============================================== */}
+            ====================================== */}
 
             <div
                 className="
-                    mb-1.5
+                    mb-2
 
                     flex
-                    min-h-[16px]
+                    min-h-[18px]
+
                     items-center
                     justify-between
                     gap-2
                 "
             >
+                <label
+                    htmlFor={selectId}
 
-                <span
                     className="
-                        block
-
+                        font-display
                         text-[10px]
                         font-black
                         uppercase
-                        tracking-[0.16em]
-                        text-gray-600
+                        tracking-[0.10em]
+
+                        text-slate-600
+
+                        dark:text-gray-400
                     "
                 >
                     {label}
-                </span>
+                </label>
 
+                {/* LOADING LABEL */}
 
-                {isLoading && (
-
+                {loading && (
                     <span
+                        role="status"
+
                         className="
+                            inline-flex
+                            items-center
+                            gap-1
+
                             font-mono
-                            text-[8px]
-                            font-black
-                            uppercase
-                            tracking-[0.12em]
-                            text-cyan-400/50
+                            text-[9px]
+                            font-semibold
+
+                            text-cyan-700
+
+                            dark:text-cyan-400
                         "
                     >
-                        loading
+                        <Loader2
+                            size={12}
+                            aria-hidden="true"
+
+                            className="
+                                animate-spin
+                                motion-reduce:animate-none
+                            "
+                        />
+
+                        Yuklanmoqda
                     </span>
                 )}
-
             </div>
 
-
-            {/* =============================================
+            {/* ======================================
                 SELECT
-            ============================================== */}
+            ====================================== */}
 
-            <select
-                value={
-                    String(
-                        value ?? ""
-                    )
-                }
+            <div className="relative min-w-0">
+                <select
+                    id={selectId}
 
-                onChange={(
-                    event
-                ) => {
+                    value={String(value ?? "")}
+                    onChange={handleChange}
 
-                    onChange?.(
-                        event.target.value
-                    );
-                }}
+                    disabled={isDisabled}
+                    aria-busy={loading}
 
-                disabled={
-                    disabled
-                    ||
-                    isLoading
-                }
+                    className="
+                        block
 
-                className="
-                    h-11
-                    w-full
+                        h-11
+                        w-full
+                        min-w-0
 
-                    cursor-pointer
+                        appearance-none
 
-                    rounded-xl
+                        cursor-pointer
 
-                    border
-                    border-white/[0.08]
+                        rounded-xl
 
-                    bg-[#0a0f18]
+                        border
+                        border-slate-200
 
-                    px-3
+                        bg-slate-50
 
-                    text-xs
-                    font-bold
-                    text-gray-300
+                        pl-3
+                        pr-10
 
-                    outline-none
+                        font-sans
+                        text-xs
+                        font-bold
 
-                    transition-all
-                    duration-200
+                        text-slate-800
 
-                    hover:border-white/[0.14]
+                        outline-none
 
-                    focus:border-cyan-400/30
+                        transition-colors
+                        duration-150
 
-                    focus:ring-4
-                    focus:ring-cyan-500/[0.06]
+                        hover:border-cyan-400/40
 
-                    disabled:cursor-not-allowed
-                    disabled:opacity-40
-                "
-            >
-                {children}
-            </select>
+                        focus:border-cyan-500/50
+                        focus:bg-white
 
-        </label>
+                        focus:ring-4
+                        focus:ring-cyan-500/[0.08]
+
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
+
+                        dark:border-white/[0.09]
+                        dark:bg-[#0a0f18]
+
+                        dark:text-gray-200
+                        dark:[color-scheme:dark]
+
+                        dark:hover:border-cyan-400/25
+
+                        dark:focus:border-cyan-400/40
+                        dark:focus:bg-[#0d1320]
+                        dark:focus:ring-cyan-400/[0.07]
+                    "
+                >
+                    {children}
+                </select>
+
+                {/* DROPDOWN ARROW */}
+
+                <ChevronDown
+                    size={16}
+                    strokeWidth={1.9}
+                    aria-hidden="true"
+
+                    className="
+                        pointer-events-none
+
+                        absolute
+                        right-3
+                        top-1/2
+
+                        -translate-y-1/2
+
+                        text-slate-500
+
+                        dark:text-gray-400
+                    "
+                />
+            </div>
+        </div>
     );
-};
-
+});
 
 // =========================================================
-// PROBLEMS FILTERS
+// MAIN FILTERS COMPONENT
 // =========================================================
 
 const ProblemsFilters = ({
+    // =====================================================
+    // SELECTED VALUES
+    // =====================================================
+
     status = "all",
     urgent = "all",
 
     language = "",
     technology = "",
+
+    // =====================================================
+    // CATALOG DATA
+    // =====================================================
 
     languages = [],
     technologies = [],
@@ -161,128 +267,102 @@ const ProblemsFilters = ({
     languagesIsLoading = false,
     technologiesIsLoading = false,
 
+    // =====================================================
+    // CALLBACKS
+    // =====================================================
+
     onStatusChange,
     onUrgentChange,
+
     onLanguageChange,
     onTechnologyChange,
 }) => {
-
     // =====================================================
     // SAFE ARRAYS
     // =====================================================
 
-    const safeLanguages =
-        Array.isArray(
-            languages
-        )
-            ? languages
-            : [];
+    const safeLanguages = Array.isArray(languages)
+        ? languages
+        : [];
 
-
-    const safeTechnologies =
-        Array.isArray(
-            technologies
-        )
-            ? technologies
-            : [];
-
+    const safeTechnologies = Array.isArray(technologies)
+        ? technologies
+        : [];
 
     // =====================================================
     // JSX
     //
-    // "contents" sababli parent grid layout buzilmaydi.
-    // Har bir select to‘g‘ridan-to‘g‘ri grid item bo‘ladi.
+    // "contents" is important:
+    // the four selects become direct layout items
+    // in ProblemsToolbar's parent grid.
     // =====================================================
 
     return (
-
-        <div
-            className="
-                contents
-            "
-        >
-
-            {/* =============================================
+        <div className="contents">
+            {/* ======================================
                 STATUS
-            ============================================== */}
+            ====================================== */}
 
             <FilterSelect
                 label="Holat"
 
-                value={
-                    status
-                }
+                value={status}
 
                 onChange={
                     onStatusChange
                 }
             >
-
                 <option value="all">
                     Barcha holatlar
                 </option>
-
 
                 <option value="pending">
                     Jarayonda
                 </option>
 
-
                 <option value="solved">
                     Yechilgan
                 </option>
 
-
                 <option value="rejected">
                     Rad etilgan
                 </option>
-
             </FilterSelect>
 
-
-            {/* =============================================
+            {/* ======================================
                 URGENT
-            ============================================== */}
+            ====================================== */}
 
             <FilterSelect
                 label="Turi"
 
-                value={
-                    urgent
-                }
+                value={urgent}
 
                 onChange={
                     onUrgentChange
                 }
             >
-
                 <option value="all">
                     Barcha muammolar
                 </option>
-
 
                 <option value="true">
                     Faqat tezkor
                 </option>
 
-
                 <option value="false">
                     Oddiy muammolar
                 </option>
-
             </FilterSelect>
 
-
-            {/* =============================================
-                LANGUAGE
-            ============================================== */}
+            {/* ======================================
+                PROGRAMMING LANGUAGE
+            ====================================== */}
 
             <FilterSelect
                 label="Dasturlash tili"
 
-                value={
-                    language
-                }
+                value={language}
 
                 isLoading={
                     languagesIsLoading
@@ -292,60 +372,40 @@ const ProblemsFilters = ({
                     onLanguageChange
                 }
             >
-
                 <option value="">
                     Barcha tillar
                 </option>
 
-
-                {safeLanguages.map(
-                    (
-                        item
-                    ) => {
-
-                        if (
-                            !item?.id
-                        ) {
-                            return null;
-                        }
-
-
-                        return (
-
-                            <option
-                                key={
-                                    item.id
-                                }
-
-                                value={
-                                    String(
-                                        item.id
-                                    )
-                                }
-                            >
-                                {
-                                    item.name
-                                    ||
-                                    `Til #${item.id}`
-                                }
-                            </option>
-                        );
+                {safeLanguages.map((item) => {
+                    if (
+                        !item ||
+                        item.id == null ||
+                        String(item.id).trim() === ""
+                    ) {
+                        return null;
                     }
-                )}
 
+                    const id = String(item.id);
+
+                    return (
+                        <option
+                            key={id}
+                            value={id}
+                        >
+                            {item.name || `Til #${id}`}
+                        </option>
+                    );
+                })}
             </FilterSelect>
 
-
-            {/* =============================================
+            {/* ======================================
                 TECHNOLOGY
-            ============================================== */}
+            ====================================== */}
 
             <FilterSelect
                 label="Texnologiya"
 
-                value={
-                    technology
-                }
+                value={technology}
 
                 isLoading={
                     technologiesIsLoading
@@ -355,54 +415,40 @@ const ProblemsFilters = ({
                     onTechnologyChange
                 }
             >
-
                 <option value="">
                     Barcha texnologiyalar
                 </option>
 
-
-                {safeTechnologies.map(
-                    (
-                        item
-                    ) => {
-
-                        if (
-                            !item?.id
-                        ) {
-                            return null;
-                        }
-
-
-                        return (
-
-                            <option
-                                key={
-                                    item.id
-                                }
-
-                                value={
-                                    String(
-                                        item.id
-                                    )
-                                }
-                            >
-                                {
-                                    item.name
-                                    ||
-                                    `Technology #${item.id}`
-                                }
-                            </option>
-                        );
+                {safeTechnologies.map((item) => {
+                    if (
+                        !item ||
+                        item.id == null ||
+                        String(item.id).trim() === ""
+                    ) {
+                        return null;
                     }
-                )}
 
+                    const id = String(item.id);
+
+                    return (
+                        <option
+                            key={id}
+                            value={id}
+                        >
+                            {
+                                item.name ||
+                                `Technology #${id}`
+                            }
+                        </option>
+                    );
+                })}
             </FilterSelect>
-
         </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemsFilters
-);
+export default React.memo(ProblemsFilters);

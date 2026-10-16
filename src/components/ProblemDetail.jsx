@@ -1,22 +1,28 @@
-// src/components/ProblemDetail.jsx
 
-import React, {
-    useMemo,
-} from "react";
+import React, { useMemo } from "react";
 
-import {
-    useSelector,
-} from "react-redux";
+import { useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 
-import {
-    useParams,
-} from "react-router-dom";
+// =========================================================
+// FSOCIETY — PROBLEM DETAIL COMPONENTS
+// =========================================================
 
+// New skeleton loading component
+import ProblemDetailSkeleton
+    from "./problem-detail/ProblemDetailSkeleton";
+
+// Error and retry states
 import ProblemDetailState
     from "./problem-detail/ProblemDetailState";
 
+// Main detail layout
 import ProblemDetailLayout
     from "./problem-detail/ProblemDetailLayout";
+
+// =========================================================
+// HOOKS
+// =========================================================
 
 import useProblemDetail
     from "./problem-detail/useProblemDetail";
@@ -27,36 +33,58 @@ import useProblemDetailActions
 import useProblemDetailSolutions
     from "./problem-detail/useProblemDetailSolutions";
 
+// =========================================================
+// HELPERS
+// =========================================================
+
 import {
     getProblemDetailViewModel,
 } from "./problem-detail/problemDetailHelpers";
 
-
 // =========================================================
-// PROBLEM DETAIL
+// FSOCIETY — PROBLEM DETAIL
+//
+// Responsibilities:
+//
+// - Read route problem ID
+// - Fetch detail data
+// - Show skeleton while loading
+// - Protect against stale route data
+// - Handle typed errors and retry
+// - Normalize detail data
+// - Manage solution flow
+// - Manage star, edit, delete and accept actions
+// - Render main detail layout
+//
+// Loading:
+// ProblemDetailSkeleton
+//
+// Error:
+// ProblemDetailState
+//
+// Success:
+// ProblemDetailLayout
 // =========================================================
 
 const ProblemDetail = () => {
-
     // =====================================================
     // ROUTER
     // =====================================================
 
-    const {
-        id,
-    } = useParams();
-
+    const { id } = useParams();
 
     // =====================================================
     // DETAIL REQUEST LIFECYCLE
     //
-    // GET
-    // AbortController
-    // typed error
-    // retry
-    // cleanup
-    // background refresh
-    // current-route protection
+    // Existing hook preserves:
+    //
+    // - GET request
+    // - AbortController
+    // - Typed errors
+    // - Retry
+    // - Request cleanup
+    // - Background refresh
+    // - Current route protection
     // =====================================================
 
     const {
@@ -72,10 +100,8 @@ const ProblemDetail = () => {
 
         refreshProblemDetail,
     } = useProblemDetail({
-        problemId:
-            id,
+        problemId: id,
     });
-
 
     // =====================================================
     // AUTH
@@ -85,71 +111,60 @@ const ProblemDetail = () => {
         user,
         isLoggedIn,
     } = useSelector(
-        (
-            state
-        ) =>
-            state.auth
+        (state) => state.auth
     );
-
 
     // =====================================================
     // VIEW MODEL
     //
-    // Business-data normalization helper ichida:
+    // Normalize:
     //
-    // solved
-    // rejected
-    // starred
-    // owner
-    // responseCount
-    // languages
-    // technologies
+    // - Solved / rejected state
+    // - Star status
+    // - Ownership
+    // - Response count
+    // - Languages
+    // - Technologies
     // =====================================================
 
-    const detailView =
-        useMemo(
-            () => {
-
-                return getProblemDetailViewModel(
-                    problemDetail,
-                    user
-                );
-
-            },
-            [
+    const detailView = useMemo(
+        () => {
+            return getProblemDetailViewModel(
                 problemDetail,
-                user,
-            ]
-        );
-
+                user
+            );
+        },
+        [
+            problemDetail,
+            user,
+        ]
+    );
 
     const {
-        isSolved:
-            isProblemSolved,
+        isSolved: isProblemSolved,
 
-        hasStarred:
-            hasStarredProblem,
+        hasStarred: hasStarredProblem,
 
         isOwner,
 
         responseCount,
 
-        languages:
-            problemLanguages,
+        languages: problemLanguages,
 
-        technologies:
-            problemTechnologies,
+        technologies: problemTechnologies,
     } = detailView;
-
 
     // =====================================================
     // SOLUTION FLOW
     //
-    // refs
-    // response refresh key
-    // write-solution scroll
-    // new solution refresh
-    // accepted solution refresh
+    // Preserve:
+    //
+    // - Form scroll ref
+    // - Solutions scroll ref
+    // - Responses refresh key
+    // - Work action
+    // - Solution created callback
+    // - Solution accepted callback
     // =====================================================
 
     const {
@@ -165,22 +180,22 @@ const ProblemDetail = () => {
 
         handleSolutionAccepted,
     } = useProblemDetailSolutions({
-
-        isSolved:
-            isProblemSolved,
+        isSolved: isProblemSolved,
 
         refreshProblemDetail,
     });
 
-
     // =====================================================
     // MUTATION ACTIONS
     //
-    // STAR
-    // UNSTAR
-    // EDIT
-    // DELETE
-    // ACCEPT SOLUTION
+    // Preserve:
+    //
+    // - Star / Unstar
+    // - Edit
+    // - Delete
+    // - Accept solution
+    // - Modal states
+    // - Loading states
     // =====================================================
 
     const {
@@ -206,134 +221,115 @@ const ProblemDetail = () => {
         handleCloseAcceptModal,
         handleConfirmAcceptSolution,
     } = useProblemDetailActions({
+        problemId: id,
 
-        problemId:
-            id,
+        problemTitle: problemDetail?.problem,
 
-        problemTitle:
-            problemDetail
-                ?.problem,
-
-        currentUser:
-            user,
+        currentUser: user,
 
         isLoggedIn,
 
         isOwner,
 
-        isSolved:
-            isProblemSolved,
+        isSolved: isProblemSolved,
 
         hasStarredProblem,
 
-        onSolutionAccepted:
-            handleSolutionAccepted,
+        onSolutionAccepted: handleSolutionAccepted,
     });
 
-
     // =====================================================
-    // LOADING
+    // INITIAL LOADING
     //
-    // Current route uchun detail hali yo‘q.
+    // FIX 1:
+    //
+    // Replace old:
+    // <ProblemDetailState variant="loading" />
+    //
+    // with:
+    // <ProblemDetailSkeleton />
+    //
+    // Only show initial skeleton when the current
+    // route has no detail data and no page error.
     // =====================================================
 
     if (
-        detailLoading
-        &&
-        !hasCurrentProblemDetail
-        &&
+        detailLoading &&
+        !hasCurrentProblemDetail &&
         !currentDetailError
     ) {
-
         return (
-
-            <ProblemDetailState
-                variant="loading"
-            />
+            <ProblemDetailSkeleton />
         );
     }
 
-
     // =====================================================
-    // ERROR
+    // DETAIL ERROR
     //
-    // Error faqat current routega tegishli bo‘lsa
-    // page error sifatida ko‘rsatiladi.
+    // Keep the existing typed error state.
+    //
+    // Do not replace error UI with the skeleton.
     // =====================================================
 
     if (
-        currentDetailError
-        &&
+        currentDetailError &&
         !hasCurrentProblemDetail
     ) {
-
         return (
-
             <ProblemDetailState
                 variant="error"
 
-                errorState={
-                    currentDetailError
-                }
+                errorState={currentDetailError}
 
-                onRetry={
-                    retryProblemDetail
-                }
+                onRetry={retryProblemDetail}
 
-                isRetrying={
-                    detailLoading
-                }
+                isRetrying={detailLoading}
 
                 backTo="/problems"
             />
         );
     }
 
-
     // =====================================================
     // STALE DETAIL PROTECTION
     //
-    // Masalan:
+    // FIX 2:
+    //
+    // When navigating:
     //
     // /problem/1/detail
-    //        ↓
+    //       ↓
     // /problem/2/detail
     //
-    // Reduxda 1-detail bir lahza turgan bo‘lsa,
-    // 2-route ichida 1-detail render qilinmaydi.
+    // Never render problem 1 on problem 2 route.
+    //
+    // Display the NEW skeleton while the correct
+    // problem is being fetched.
     // =====================================================
 
-    if (
-        !hasCurrentProblemDetail
-    ) {
-
+    if (!hasCurrentProblemDetail) {
         return (
-
-            <ProblemDetailState
-                variant="loading"
-            />
+            <ProblemDetailSkeleton />
         );
     }
 
-
     // =====================================================
-    // LAYOUT
+    // PROBLEM DETAIL LAYOUT
+    //
+    // The current route's problem is available.
+    //
+    // Keep all existing props and callbacks.
     // =====================================================
 
     return (
-
         <ProblemDetailLayout
             // =============================================
-            // PROBLEM
+            // PROBLEM DATA
             // =============================================
 
-            problemId={
-                id
-            }
+            problemId={id}
 
-            problemDetail={
-                problemDetail
-            }
+            problemDetail={problemDetail}
 
             problemLanguages={
                 problemLanguages
@@ -351,23 +347,17 @@ const ProblemDetail = () => {
                 responsesRefreshKey
             }
 
-
             // =============================================
             // DERIVED STATE
             // =============================================
 
-            isOwner={
-                isOwner
-            }
+            isOwner={isOwner}
 
-            isSolved={
-                isProblemSolved
-            }
+            isSolved={isProblemSolved}
 
             hasStarredProblem={
                 hasStarredProblem
             }
-
 
             // =============================================
             // MUTATION LOADING
@@ -377,14 +367,11 @@ const ProblemDetail = () => {
                 starIsLoading
             }
 
-            isDeleting={
-                isDeleting
-            }
+            isDeleting={isDeleting}
 
             acceptSolutionIsLoading={
                 acceptSolutionIsLoading
             }
-
 
             // =============================================
             // MODALS
@@ -398,7 +385,6 @@ const ProblemDetail = () => {
                 isAcceptModalOpen
             }
 
-
             // =============================================
             // SOLUTION REFS
             // =============================================
@@ -410,7 +396,6 @@ const ProblemDetail = () => {
             responseFormRef={
                 responseFormRef
             }
-
 
             // =============================================
             // OWNER ACTIONS
@@ -432,7 +417,6 @@ const ProblemDetail = () => {
                 handleConfirmDelete
             }
 
-
             // =============================================
             // STAR ACTIONS
             // =============================================
@@ -444,7 +428,6 @@ const ProblemDetail = () => {
             onRemoveStar={
                 handleStarDeleteClick
             }
-
 
             // =============================================
             // SOLUTION ACTIONS
@@ -473,5 +456,8 @@ const ProblemDetail = () => {
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default ProblemDetail;

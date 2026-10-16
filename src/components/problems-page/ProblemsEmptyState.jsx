@@ -1,10 +1,6 @@
-// src/components/problems-page/ProblemsEmptyState.jsx
 
 import React from "react";
-
-import {
-    Link,
-} from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
     Plus,
@@ -13,306 +9,75 @@ import {
     TerminalSquare,
 } from "lucide-react";
 
+// =========================================================
+// FSOCIETY — PROBLEMS EMPTY STATE
+//
+// Two states:
+// 1. No matching search/filter results
+// 2. No problems in the registry
+//
+// Props preserved:
+// - hasActiveFilters
+// - onResetFilters
+// - createHref
+//
+// No Redux or API requests.
+// =========================================================
 
 // =========================================================
-// PROBLEMS EMPTY STATE
+// COMMON STATE CONTAINER
 // =========================================================
 
-const ProblemsEmptyState = ({
-    hasActiveFilters = false,
-    onResetFilters,
-    createHref = "/problem-create",
+const EmptyStateLayout = ({
+    Icon,
+    variant = "indigo",
+    systemLabel,
+    title,
+    description,
+    children,
 }) => {
-
-    // =====================================================
-    // FILTERED EMPTY STATE
-    // =====================================================
-
-    if (
-        hasActiveFilters
-    ) {
-
-        return (
-
-            <div
-                className="
-                    col-span-full
-
-                    relative
-                    overflow-hidden
-
-                    rounded-[28px]
-
-                    border
-                    border-dashed
-                    border-cyan-400/15
-
-                    bg-[#090e18]/80
-
-                    px-6
-                    py-14
-
-                    text-center
-
-                    shadow-xl
-                    shadow-black/10
-                "
-            >
-
-                {/* =========================================
-                    BACKGROUND GLOW
-                ========================================== */}
-
-                <div
-                    className="
-                        pointer-events-none
-
-                        absolute
-                        left-1/2
-                        top-0
-
-                        h-48
-                        w-80
-
-                        -translate-x-1/2
-                        -translate-y-1/2
-
-                        rounded-full
-
-                        bg-cyan-500/[0.07]
-
-                        blur-[80px]
-                    "
-                />
-
-
-                {/* =========================================
-                    ICON
-                ========================================== */}
-
-                <div
-                    className="
-                        relative
-
-                        mx-auto
-
-                        grid
-                        h-16
-                        w-16
-                        place-items-center
-
-                        rounded-[20px]
-
-                        border
-                        border-cyan-400/15
-
-                        bg-cyan-500/[0.055]
-
-                        text-cyan-300
-
-                        shadow-lg
-                        shadow-cyan-950/10
-                    "
-                >
-
-                    <Search
-                        size={26}
-                    />
-
-                </div>
-
-
-                {/* =========================================
-                    SYSTEM LABEL
-                ========================================== */}
-
-                <div
-                    className="
-                        relative
-
-                        mt-5
-
-                        inline-flex
-                        items-center
-                        gap-2
-
-                        rounded-full
-
-                        border
-                        border-cyan-400/10
-
-                        bg-cyan-500/[0.035]
-
-                        px-3
-                        py-1
-
-                        font-mono
-                        text-[9px]
-                        font-black
-                        uppercase
-                        tracking-[0.18em]
-                        text-cyan-400/60
-                    "
-                >
-
-                    <span
-                        className="
-                            h-1.5
-                            w-1.5
-
-                            rounded-full
-
-                            bg-cyan-400
-                        "
-                    />
-
-                    query.empty
-
-                </div>
-
-
-                {/* =========================================
-                    TITLE
-                ========================================== */}
-
-                <h3
-                    className="
-                        relative
-
-                        mt-4
-
-                        text-xl
-                        font-black
-                        tracking-tight
-                        text-white
-
-                        sm:text-2xl
-                    "
-                >
-                    Mos muammo topilmadi
-                </h3>
-
-
-                {/* =========================================
-                    DESCRIPTION
-                ========================================== */}
-
-                <p
-                    className="
-                        relative
-
-                        mx-auto
-                        mt-3
-                        max-w-md
-
-                        text-sm
-                        font-medium
-                        leading-6
-                        text-gray-600
-                    "
-                >
-                    Qidiruv yoki tanlangan filtrlar
-                    bo‘yicha hech qanday muammo topilmadi.
-                    Boshqa parametrlarni sinab ko‘ring.
-                </p>
-
-
-                {/* =========================================
-                    RESET
-                ========================================== */}
-
-                <button
-                    type="button"
-
-                    onClick={
-                        onResetFilters
-                    }
-
-                    className="
-                        relative
-
-                        mt-6
-
-                        inline-flex
-                        min-h-[44px]
-                        items-center
-                        justify-center
-                        gap-2
-
-                        rounded-xl
-
-                        border
-                        border-cyan-400/20
-
-                        bg-cyan-400/[0.07]
-
-                        px-5
-                        py-2.5
-
-                        text-xs
-                        font-black
-                        text-cyan-300
-
-                        transition-all
-                        duration-200
-
-                        hover:border-cyan-400/30
-                        hover:bg-cyan-400/[0.12]
-
-                        active:scale-[0.97]
-                    "
-                >
-
-                    <RotateCcw
-                        size={14}
-                    />
-
-                    Filtrlarni tozalash
-
-                </button>
-
-            </div>
-        );
-    }
-
-
-    // =====================================================
-    // TRUE EMPTY DATABASE STATE
-    // =====================================================
+    const isFiltered = variant === "cyan";
 
     return (
-
         <div
+            role="status"
             className="
+                relative
                 col-span-full
 
-                relative
+                w-full
+                min-w-0
+
                 overflow-hidden
 
-                rounded-[28px]
-
+                rounded-[22px]
                 border
                 border-dashed
-                border-white/[0.10]
+                border-slate-300
 
-                bg-[#090e18]/80
+                bg-white/85
 
-                px-6
-                py-14
+                px-4
+                py-10
 
                 text-center
 
-                shadow-xl
-                shadow-black/10
+                shadow-[0_12px_35px_rgba(15,23,42,0.035)]
+
+                sm:rounded-[28px]
+                sm:px-6
+                sm:py-14
+
+                dark:border-white/[0.10]
+                dark:bg-[#090e18]/80
+                dark:shadow-black/10
             "
         >
-
-            {/* =============================================
-                BACKGROUND
-            ============================================== */}
+            {/* BACKGROUND GLOW */}
 
             <div
-                className="
+                aria-hidden="true"
+                className={`
                     pointer-events-none
 
                     absolute
@@ -322,173 +87,340 @@ const ProblemsEmptyState = ({
                     h-48
                     w-80
 
+                    max-w-full
+
                     -translate-x-1/2
                     -translate-y-1/2
 
                     rounded-full
 
-                    bg-indigo-500/[0.08]
+                    blur-[80px]
 
-                    blur-[85px]
-                "
+                    ${
+                        isFiltered
+                            ? "bg-cyan-500/[0.07]"
+                            : "bg-indigo-500/[0.08]"
+                    }
+                `}
             />
 
-
-            {/* =============================================
-                ICON
-            ============================================== */}
-
             <div
                 className="
                     relative
+                    z-10
 
                     mx-auto
+                    flex
+                    max-w-xl
+                    min-w-0
 
-                    grid
-                    h-16
-                    w-16
-                    place-items-center
-
-                    rounded-[20px]
-
-                    border
-                    border-indigo-400/15
-
-                    bg-indigo-500/[0.06]
-
-                    text-indigo-300
-
-                    shadow-lg
-                    shadow-indigo-950/10
-                "
-            >
-
-                <TerminalSquare
-                    size={27}
-                />
-
-            </div>
-
-
-            {/* =============================================
-                SYSTEM LABEL
-            ============================================== */}
-
-            <div
-                className="
-                    relative
-
-                    mt-5
-
-                    inline-flex
+                    flex-col
                     items-center
-                    gap-2
-
-                    rounded-full
-
-                    border
-                    border-indigo-400/10
-
-                    bg-indigo-500/[0.035]
-
-                    px-3
-                    py-1
-
-                    font-mono
-                    text-[9px]
-                    font-black
-                    uppercase
-                    tracking-[0.18em]
-                    text-indigo-400/60
                 "
             >
+                {/* ICON */}
 
-                <span
-                    className="
-                        h-1.5
-                        w-1.5
+                <div
+                    className={`
+                        grid
+                        h-14
+                        w-14
+                        shrink-0
+
+                        place-items-center
+
+                        rounded-[18px]
+                        border
+
+                        sm:h-16
+                        sm:w-16
+                        sm:rounded-[20px]
+
+                        ${
+                            isFiltered
+                                ? `
+                                    border-cyan-400/35
+                                    bg-cyan-500/[0.07]
+                                    text-cyan-700
+
+                                    dark:border-cyan-400/20
+                                    dark:bg-cyan-500/[0.055]
+                                    dark:text-cyan-300
+                                `
+                                : `
+                                    border-indigo-400/35
+                                    bg-indigo-500/[0.07]
+                                    text-indigo-700
+
+                                    dark:border-indigo-400/20
+                                    dark:bg-indigo-500/[0.06]
+                                    dark:text-indigo-300
+                                `
+                        }
+                    `}
+                >
+                    <Icon
+                        size={26}
+                        strokeWidth={1.8}
+                        aria-hidden="true"
+                    />
+                </div>
+
+                {/* SYSTEM LABEL */}
+
+                <div
+                    className={`
+                        mt-5
+
+                        inline-flex
+                        max-w-full
+
+                        items-center
+                        gap-2
 
                         rounded-full
+                        border
 
-                        bg-indigo-400
+                        px-3
+                        py-1.5
+
+                        font-mono
+                        text-[9px]
+                        font-black
+                        uppercase
+                        tracking-[0.12em]
+
+                        ${
+                            isFiltered
+                                ? `
+                                    border-cyan-400/25
+                                    bg-cyan-500/[0.05]
+                                    text-cyan-800
+
+                                    dark:border-cyan-400/15
+                                    dark:text-cyan-300
+                                `
+                                : `
+                                    border-indigo-400/25
+                                    bg-indigo-500/[0.05]
+                                    text-indigo-800
+
+                                    dark:border-indigo-400/15
+                                    dark:text-indigo-300
+                                `
+                        }
+                    `}
+                >
+                    <span
+                        aria-hidden="true"
+                        className={`
+                            h-1.5
+                            w-1.5
+                            shrink-0
+                            rounded-full
+
+                            ${
+                                isFiltered
+                                    ? "bg-cyan-500"
+                                    : "bg-indigo-500"
+                            }
+                        `}
+                    />
+
+                    <span className="break-all">
+                        {systemLabel}
+                    </span>
+                </div>
+
+                {/* TITLE */}
+
+                <h3
+                    className="
+                        mt-4
+
+                        break-words
+
+                        font-display
+                        text-xl
+                        font-black
+                        tracking-tight
+
+                        text-slate-900
+
+                        sm:text-2xl
+
+                        dark:text-white
                     "
-                />
+                >
+                    {title}
+                </h3>
 
-                registry.empty
+                {/* DESCRIPTION */}
 
+                <p
+                    className="
+                        mt-3
+                        max-w-lg
+
+                        whitespace-normal
+                        break-words
+
+                        text-[13px]
+                        font-medium
+                        leading-6
+
+                        text-slate-600
+
+                        sm:text-sm
+                        sm:leading-7
+
+                        dark:text-gray-400
+                    "
+                >
+                    {description}
+                </p>
+
+                {/* ACTION */}
+
+                {children && (
+                    <div
+                        className="
+                            mt-6
+
+                            flex
+                            w-full
+                            min-w-0
+
+                            flex-wrap
+                            items-center
+                            justify-center
+                            gap-3
+                        "
+                    >
+                        {children}
+                    </div>
+                )}
             </div>
+        </div>
+    );
+};
 
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
 
-            {/* =============================================
-                TITLE
-            ============================================== */}
+const ProblemsEmptyState = ({
+    hasActiveFilters = false,
+    onResetFilters,
+    createHref = "/problem-create",
+}) => {
+    // =====================================================
+    // FILTERED EMPTY RESULTS
+    // =====================================================
 
-            <h3
-                className="
-                    relative
-
-                    mt-4
-
-                    text-xl
-                    font-black
-                    tracking-tight
-                    text-white
-
-                    sm:text-2xl
-                "
-            >
-                Hozircha muammolar mavjud emas
-            </h3>
-
-
-            {/* =============================================
-                DESCRIPTION
-            ============================================== */}
-
-            <p
-                className="
-                    relative
-
-                    mx-auto
-                    mt-3
-                    max-w-lg
-
-                    text-sm
-                    font-medium
-                    leading-6
-                    text-gray-600
-                "
-            >
-                Community hali birorta muammo joylamagan.
-                Birinchi muammoni siz ulashing va
-                F.Society bilim bazasini boshlang.
-            </p>
-
-
-            {/* =============================================
-                CREATE
-            ============================================== */}
-
-            <Link
-                to={
-                    createHref
+    if (hasActiveFilters) {
+        return (
+            <EmptyStateLayout
+                Icon={Search}
+                variant="cyan"
+                systemLabel="query.empty"
+                title="Mos muammo topilmadi"
+                description={
+                    "Qidiruv yoki tanlangan filtrlar " +
+                    "bo‘yicha hech qanday muammo topilmadi. " +
+                    "Boshqa parametrlarni sinab ko‘ring."
                 }
+            >
+                {typeof onResetFilters === "function" && (
+                    <button
+                        type="button"
+                        onClick={onResetFilters}
+                        className="
+                            inline-flex
+                            min-h-11
+                            max-w-full
 
+                            items-center
+                            justify-center
+                            gap-2
+
+                            rounded-xl
+                            border
+                            border-cyan-400/35
+
+                            bg-cyan-500/[0.08]
+
+                            px-5
+                            py-2.5
+
+                            font-display
+                            text-xs
+                            font-bold
+
+                            text-cyan-800
+
+                            transition-colors
+
+                            hover:border-cyan-400/55
+                            hover:bg-cyan-500/[0.13]
+
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-cyan-500
+                            focus-visible:ring-offset-2
+
+                            dark:border-cyan-400/25
+                            dark:bg-cyan-400/[0.07]
+                            dark:text-cyan-300
+
+                            dark:hover:bg-cyan-400/[0.12]
+                            dark:focus-visible:ring-offset-[#090e18]
+                        "
+                    >
+                        <RotateCcw
+                            size={15}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                            className="shrink-0"
+                        />
+
+                        Filtrlarni tozalash
+                    </button>
+                )}
+            </EmptyStateLayout>
+        );
+    }
+
+    // =====================================================
+    // EMPTY PROBLEMS REGISTRY
+    // =====================================================
+
+    return (
+        <EmptyStateLayout
+            Icon={TerminalSquare}
+            variant="indigo"
+            systemLabel="registry.empty"
+            title="Hozircha muammolar mavjud emas"
+            description={
+                "Community hali birorta muammo joylamagan. " +
+                "Birinchi muammoni siz ulashing va " +
+                "F.Society bilim bazasini boshlang."
+            }
+        >
+            <Link
+                to={createHref}
                 className="
-                    relative
-
-                    mt-6
-
                     inline-flex
-                    min-h-[44px]
+                    min-h-11
+                    max-w-full
+
                     items-center
                     justify-center
                     gap-2
 
                     rounded-xl
-
                     border
-                    border-indigo-400/25
+                    border-indigo-500/30
 
                     bg-gradient-to-r
                     from-indigo-600
@@ -497,38 +429,47 @@ const ProblemsEmptyState = ({
                     px-5
                     py-2.5
 
+                    font-display
                     text-xs
                     font-black
+
                     text-white
 
-                    shadow-lg
-                    shadow-indigo-950/20
+                    shadow-md
+                    shadow-indigo-500/15
 
-                    transition-all
-                    duration-200
+                    transition-colors
 
-                    hover:-translate-y-0.5
                     hover:from-indigo-500
                     hover:to-purple-500
 
-                    active:translate-y-0
-                    active:scale-[0.97]
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-indigo-500
+                    focus-visible:ring-offset-2
+
+                    dark:border-indigo-400/25
+                    dark:shadow-indigo-950/20
+                    dark:focus-visible:ring-offset-[#090e18]
                 "
             >
-
                 <Plus
-                    size={15}
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    className="shrink-0"
                 />
 
-                Birinchi muammoni yarating
-
+                <span className="break-words">
+                    Birinchi muammoni yarating
+                </span>
             </Link>
-
-        </div>
+        </EmptyStateLayout>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default React.memo(
-    ProblemsEmptyState
-);
+export default React.memo(ProblemsEmptyState);
