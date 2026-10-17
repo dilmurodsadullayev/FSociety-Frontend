@@ -15,9 +15,10 @@ import {
 import { AlertCircle } from "lucide-react";
 
 // =========================================================
-// GLOBAL COMPONENTS
+// SHARED UI
 // =========================================================
 
+import PageGridBackground from "./ui/PageGridBackground";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 
 // =========================================================
@@ -37,37 +38,19 @@ import FeedbackCreateModal from "./feedback/FeedbackCreateModal";
 import FeedbackEditModal from "./feedback/FeedbackEditModal";
 
 // =========================================================
-// CONTROLLER AND HELPERS
+// CONTROLLER / HELPERS
 // =========================================================
 
 import useFeedbackPage from "./feedback/useFeedbackPage";
-
-import {
-    canModifyFeedback,
-} from "./feedback/feedbackHelpers";
+import { canModifyFeedback } from "./feedback/feedbackHelpers";
 
 // =========================================================
-// FSOCIETY — FEEDBACK PAGE
-//
-// Architecture:
-// - Stable page shell
-// - Stable Hero during initial loading
-// - Independent section loading
-// - Dark / Light Mode
-// - Responsive layout
-// - Existing Redux and API contracts preserved
-// - Create / Edit / Delete integrations
-//
-// IMPORTANT:
-// Do not replace the entire page with FeedbackSkeleton.
-// Each section displays its own loading state.
+// GLOBAL ERROR
 // =========================================================
 
-// =========================================================
-// GLOBAL ERROR COMPONENT
-// =========================================================
-
-const FeedbackError = React.memo(({ message }) => {
+const FeedbackError = React.memo(function FeedbackError({
+    message,
+}) {
     const reduceMotion = useReducedMotion();
 
     const errorText =
@@ -112,14 +95,13 @@ const FeedbackError = React.memo(({ message }) => {
 
                     className="
                         mt-6
-
                         flex
                         min-w-0
-
                         items-start
                         gap-3
 
                         rounded-2xl
+
                         border
                         border-red-200
 
@@ -159,6 +141,7 @@ const FeedbackError = React.memo(({ message }) => {
 
                             whitespace-pre-wrap
                             break-words
+
                             [overflow-wrap:anywhere]
                         "
                     >
@@ -171,7 +154,14 @@ const FeedbackError = React.memo(({ message }) => {
 });
 
 // =========================================================
-// MAIN FEEDBACK PAGE
+// FSOCIETY — FEEDBACK PAGE
+//
+// - Shared futuristic background
+// - Stable Hero, independent section loaders
+// - Public and user feedback pagination
+// - Create / Edit / Delete
+// - Existing Redux and API contracts retained
+// - Light / Dark Mode
 // =========================================================
 
 const Feedback = () => {
@@ -180,107 +170,65 @@ const Feedback = () => {
     // =====================================================
 
     const {
-        // ================================================
-        // AUTHENTICATION
-        // ================================================
-
+        // Authentication
         isLoggedIn,
 
-        // ================================================
-        // PUBLIC FEEDBACKS
-        // ================================================
-
+        // Public feedbacks
         publicFeedbacks,
         publicCount,
         publicPagination,
-
         isPublicLoading,
         hasPublicLoaded,
-
         handlePublicPageChange,
 
-        // ================================================
-        // USER FEEDBACKS
-        // ================================================
-
+        // My feedbacks
         myFeedbacks,
         myPagination,
-
         isMyLoading,
         hasMyLoaded,
-
         handleMyPageChange,
 
-        // ================================================
-        // STATISTICS
-        // ================================================
-
+        // Statistics
         stats,
         isStatsLoading,
         hasStatsLoaded,
 
-        // ================================================
-        // STATUS FILTERS
-        // ================================================
-
+        // Status filter
         activeStatus,
         statusFilters,
         setActiveStatus,
 
-        // ================================================
-        // CREATE
-        // ================================================
-
+        // Create
         isCreateModalOpen,
-
         handleOpenCreate,
         handleCloseCreate,
         handleCreated,
 
-        // ================================================
-        // EDIT
-        // ================================================
-
+        // Edit
         editingFeedback,
         isEditModalOpen,
-
         isUpdating,
         updatingId,
-
         handleOpenEdit,
         handleCloseEdit,
         handleUpdateFeedback,
 
-        // ================================================
-        // DELETE
-        // ================================================
-
+        // Delete
         isDeleting,
         deletingId,
-
         handleDeleteFeedback,
 
-        // ================================================
-        // PAGE REQUEST STATE
-        // ================================================
-
+        // Loading / refresh / errors
         isRefreshing,
-
         isInitialLoading,
         isMyInitialLoading,
         isStatsInitialLoading,
-
         error,
-
-        // ================================================
-        // REFRESH
-        // ================================================
-
         handleRefresh,
     } = useFeedbackPage();
 
     // =====================================================
-    // DELETE CONFIRMATION
+    // DELETE CONFIRMATION STATE
     // =====================================================
 
     const [
@@ -291,29 +239,24 @@ const Feedback = () => {
     const deleteLockRef = useRef(false);
 
     // =====================================================
-    // NORMALIZE DATA
+    // SAFE DATA
     // =====================================================
 
     const loggedIn = Boolean(isLoggedIn);
 
-    const publicItems =
-        Array.isArray(publicFeedbacks)
-            ? publicFeedbacks
-            : [];
+    const publicItems = Array.isArray(publicFeedbacks)
+        ? publicFeedbacks
+        : [];
 
-    const myItems =
-        Array.isArray(myFeedbacks)
-            ? myFeedbacks
-            : [];
+    const myItems = Array.isArray(myFeedbacks)
+        ? myFeedbacks
+        : [];
 
     // =====================================================
-    // INDEPENDENT LOADING STATES
+    // INDEPENDENT SECTION LOADING
     //
-    // Important:
-    // Initial loading is only for the corresponding
-    // section, never the entire page.
-    //
-    // Existing data must not disappear while refreshing.
+    // No full-page skeleton.
+    // Existing data remains visible while refreshing.
     // =====================================================
 
     const publicInitialLoading =
@@ -345,8 +288,10 @@ const Feedback = () => {
     // GLOBAL MUTATION STATE
     // =====================================================
 
-    const isMutating =
-        Boolean(isUpdating || isDeleting);
+    const isMutating = Boolean(
+        isUpdating ||
+        isDeleting
+    );
 
     // =====================================================
     // DELETE MODAL DATA
@@ -390,8 +335,7 @@ const Feedback = () => {
                 return;
             }
 
-            // The backend's permission information
-            // takes priority in the helper.
+            // Existing backend-permission-aware helper.
             if (!canModifyFeedback(feedback)) {
                 return;
             }
@@ -425,7 +369,7 @@ const Feedback = () => {
     // =====================================================
     // CONFIRM DELETE
     //
-    // A delete request is never sent until confirmed.
+    // A delete request is only sent after confirmation.
     // Duplicate requests are blocked synchronously.
     // =====================================================
 
@@ -436,8 +380,7 @@ const Feedback = () => {
                 !deleteTarget ||
                 isMutating ||
                 deleteLockRef.current ||
-                typeof handleDeleteFeedback !==
-                    "function"
+                typeof handleDeleteFeedback !== "function"
             ) {
                 return false;
             }
@@ -452,12 +395,10 @@ const Feedback = () => {
 
                 if (success === true) {
                     setDeleteTarget(null);
-
                     return true;
                 }
 
-                // Keep confirmation open if deletion
-                // did not succeed.
+                // Keep confirmation open if deletion failed.
                 return false;
             } catch (deleteError) {
                 console.error(
@@ -479,12 +420,7 @@ const Feedback = () => {
     );
 
     // =====================================================
-    // JSX
-    //
-    // The page is always rendered.
-    //
-    // No early return with FeedbackSkeleton.
-    // No duplicate Hero skeleton.
+    // RENDER
     // =====================================================
 
     return (
@@ -494,9 +430,7 @@ const Feedback = () => {
             ========================================== */}
 
             <main
-                aria-busy={
-                    Boolean(isRefreshing)
-                }
+                aria-busy={Boolean(isRefreshing)}
 
                 className="
                     relative
@@ -508,77 +442,43 @@ const Feedback = () => {
 
                     overflow-x-hidden
 
-                    bg-slate-50
-                    text-slate-900
+                    bg-[#edf4ff]
 
                     pb-20
 
                     font-sans
-
-                    transition-colors
-                    duration-200
+                    text-slate-900
 
                     sm:pb-24
 
-                    dark:bg-[#06080d]
+                    dark:bg-[#060b15]
                     dark:text-white
                 "
             >
                 {/* ======================================
-                    BACKGROUND DECORATIONS
+                    SHARED FUTURISTIC BACKGROUND
+
+                    Same background as:
+                    - Users
+                    - Problems
+
+                    Includes:
+                    - Grid
+                    - Network lines
+                    - Glowing nodes
+                    - Translucent cubes
+                    - FS watermark
+
+                    Does not intercept user interaction.
                 ====================================== */}
 
-                <div
-                    aria-hidden="true"
-
-                    className="
-                        pointer-events-none
-
-                        absolute
-                        left-1/2
-                        top-0
-
-                        h-[460px]
-                        w-[680px]
-                        max-w-none
-
-                        -translate-x-1/2
-
-                        rounded-full
-
-                        bg-indigo-500/[0.035]
-
-                        blur-[125px]
-
-                        dark:bg-indigo-600/[0.06]
-                    "
-                />
-
-                <div
-                    aria-hidden="true"
-
-                    className="
-                        pointer-events-none
-
-                        absolute
-                        -right-36
-                        top-[500px]
-
-                        h-[350px]
-                        w-[350px]
-
-                        rounded-full
-
-                        bg-cyan-500/[0.025]
-
-                        blur-[110px]
-
-                        dark:bg-cyan-500/[0.04]
-                    "
-                />
+                <PageGridBackground showMonogram />
 
                 {/* ======================================
-                    CONTENT
+                    CONTENT CONTAINER
+
+                    z-10 keeps all interactive content
+                    above the decorative background.
                 ====================================== */}
 
                 <div
@@ -603,12 +503,20 @@ const Feedback = () => {
                 >
                     {/* ==============================
                         HERO — ALWAYS VISIBLE
+
+                        No duplicate Hero skeleton.
                     ============================== */}
 
                     <FeedbackHero
                         isRefreshing={isRefreshing}
-                        onRefresh={handleRefresh}
-                        onCreate={handleOpenCreate}
+
+                        onRefresh={
+                            handleRefresh
+                        }
+
+                        onCreate={
+                            handleOpenCreate
+                        }
                     />
 
                     {/* ==============================
@@ -621,6 +529,8 @@ const Feedback = () => {
 
                     {/* ==============================
                         STATISTICS
+
+                        Independent loading state.
                     ============================== */}
 
                     {loggedIn && (
@@ -635,6 +545,13 @@ const Feedback = () => {
 
                     {/* ==============================
                         MY FEEDBACKS
+
+                        Preserved:
+                        - Status filtering
+                        - Edit
+                        - Delete
+                        - Pagination
+                        - Loading states
                     ============================== */}
 
                     {loggedIn && (
@@ -699,6 +616,13 @@ const Feedback = () => {
 
                     {/* ==============================
                         COMMUNITY FEEDBACKS
+
+                        Preserved:
+                        - Public feedbacks
+                        - Public count
+                        - Pagination
+                        - Independent skeleton
+                        - Refresh / Retry
                     ============================== */}
 
                     <FeedbackCommunitySection
@@ -735,6 +659,8 @@ const Feedback = () => {
 
             {/* ==========================================
                 CREATE MODAL
+
+                Remains outside the page stacking context.
             ========================================== */}
 
             <FeedbackCreateModal
@@ -779,6 +705,8 @@ const Feedback = () => {
 
             {/* ==========================================
                 DELETE CONFIRMATION MODAL
+
+                Only available to authenticated users.
             ========================================== */}
 
             {loggedIn && (

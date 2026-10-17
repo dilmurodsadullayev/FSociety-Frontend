@@ -6,46 +6,86 @@ import {
     useReducedMotion,
 } from "framer-motion";
 
+// =========================================================
+// FSOCIETY — SHARED BACKGROUND
+// =========================================================
+
+import PageGridBackground from "./ui/PageGridBackground";
+
+// =========================================================
+// ASSETS
+// =========================================================
+
 import FSocietyLogo from "../assests/logo/f_society.png";
 
 // =========================================================
-// FSOCIETY — GLOBAL APP LOADER
+// FSOCIETY — GLOBAL APPLICATION LOADER
 //
 // Features:
+//
+// - Shared futuristic PageGridBackground
 // - Light / Dark Mode
-// - Responsive layout
-// - Animated rotating rings
-// - Logo glow
+// - Responsive design
+// - Animated outer and inner rings
+// - Animated FSociety logo
 // - Scanning line
 // - System initialization text
 // - Indeterminate progress bar
-// - Decorative binary code
-// - Accessibility support
-// - Reduced-motion support
+// - Binary code decoration
+// - React.memo optimization
+// - Reduced-motion accessibility
 //
 // No API calls.
 // No timers.
 // No artificial loading delays.
+//
+// This component can be used in:
+// - App.js
+// - PrivateRoute
+// - PublicAuthPage
+// - Suspense fallback
 // =========================================================
 
 // =========================================================
-// ANIMATION SETTINGS
+// ANIMATION CONFIGURATION
+//
+// Static constants prevent creating unnecessary
+// animation configuration objects on every render.
 // =========================================================
+
+const OUTER_RING_ANIMATION = {
+    rotate: 360,
+};
+
+const INNER_RING_ANIMATION = {
+    rotate: -360,
+};
 
 const OUTER_RING_TRANSITION = {
-    rotate: {
-        duration: 12,
-        repeat: Infinity,
-        ease: "linear",
-    },
+    duration: 12,
+    repeat: Infinity,
+    ease: "linear",
 };
 
 const INNER_RING_TRANSITION = {
-    rotate: {
-        duration: 6,
-        repeat: Infinity,
-        ease: "linear",
-    },
+    duration: 6,
+    repeat: Infinity,
+    ease: "linear",
+};
+
+const LOGO_ANIMATION = {
+    opacity: 1,
+    scale: [1, 1.045, 1],
+};
+
+const LOGO_STATIC_ANIMATION = {
+    opacity: 1,
+    scale: 1,
+};
+
+const LOGO_INITIAL = {
+    opacity: 0,
+    scale: 0.9,
 };
 
 const LOGO_TRANSITION = {
@@ -54,6 +94,19 @@ const LOGO_TRANSITION = {
         repeat: Infinity,
         ease: "easeInOut",
     },
+
+    opacity: {
+        duration: 0.45,
+        ease: "easeOut",
+    },
+};
+
+const STATIC_TRANSITION = {
+    duration: 0,
+};
+
+const SCAN_ANIMATION = {
+    top: ["8%", "92%", "8%"],
 };
 
 const SCAN_TRANSITION = {
@@ -62,10 +115,26 @@ const SCAN_TRANSITION = {
     ease: "easeInOut",
 };
 
+const PROGRESS_INITIAL = {
+    x: "-100%",
+};
+
+const PROGRESS_ANIMATION = {
+    x: ["-100%", "100%"],
+};
+
+const PROGRESS_STATIC = {
+    x: "0%",
+};
+
 const PROGRESS_TRANSITION = {
     duration: 1.8,
     repeat: Infinity,
     ease: "easeInOut",
+};
+
+const TEXT_ANIMATION = {
+    opacity: [0.55, 1, 0.55],
 };
 
 const TEXT_TRANSITION = {
@@ -74,145 +143,36 @@ const TEXT_TRANSITION = {
     ease: "easeInOut",
 };
 
-// =========================================================
-// DECORATIVE BACKGROUND
-// =========================================================
+const TITLE_INITIAL = {
+    opacity: 0,
+    y: 12,
+};
 
-const LoaderBackground = memo(() => {
-    return (
-        <div
-            aria-hidden="true"
-            className="
-                pointer-events-none
-                absolute
-                inset-0
-                overflow-hidden
-            "
-        >
-            {/* GRID PATTERN */}
+const TITLE_ANIMATION = {
+    opacity: 1,
+    y: 0,
+};
 
-            <div
-                className="
-                    absolute
-                    inset-0
-
-                    opacity-40
-
-                    dark:opacity-25
-                "
-                style={{
-                    backgroundImage: `
-                        linear-gradient(
-                            rgba(99, 102, 241, 0.065) 1px,
-                            transparent 1px
-                        ),
-                        linear-gradient(
-                            90deg,
-                            rgba(99, 102, 241, 0.065) 1px,
-                            transparent 1px
-                        )
-                    `,
-                    backgroundSize: "36px 36px",
-                }}
-            />
-
-            {/* TOP GLOW */}
-
-            <div
-                className="
-                    absolute
-                    left-1/2
-                    top-[12%]
-
-                    h-64
-                    w-64
-
-                    -translate-x-1/2
-
-                    rounded-full
-
-                    bg-indigo-500/10
-
-                    blur-[90px]
-
-                    sm:h-96
-                    sm:w-96
-
-                    dark:bg-indigo-500/15
-                "
-            />
-
-            {/* LEFT GLOW */}
-
-            <div
-                className="
-                    absolute
-                    -left-24
-                    bottom-[15%]
-
-                    h-64
-                    w-64
-
-                    rounded-full
-
-                    bg-cyan-500/[0.06]
-
-                    blur-[100px]
-
-                    dark:bg-cyan-400/[0.07]
-                "
-            />
-
-            {/* RIGHT GLOW */}
-
-            <div
-                className="
-                    absolute
-                    -right-24
-                    top-[30%]
-
-                    h-64
-                    w-64
-
-                    rounded-full
-
-                    bg-violet-500/[0.07]
-
-                    blur-[100px]
-
-                    dark:bg-violet-400/[0.08]
-                "
-            />
-
-            {/* EDGE VIGNETTE */}
-
-            <div
-                className="
-                    absolute
-                    inset-0
-
-                    bg-gradient-to-b
-
-                    from-white/30
-                    via-transparent
-                    to-slate-100/60
-
-                    dark:from-black/10
-                    dark:via-transparent
-                    dark:to-black/30
-                "
-            />
-        </div>
-    );
-});
+const TITLE_TRANSITION = {
+    duration: 0.55,
+    ease: "easeOut",
+};
 
 // =========================================================
-// ANIMATED LOGO
+// LOADER LOGO
+//
+// Preserves:
+// - Outer rotating ring
+// - Inner rotating ring
+// - Glass background
+// - Logo pulse
+// - Scanning line
+// - Bottom system indicator
 // =========================================================
 
-const LoaderLogo = memo(({
+const LoaderLogo = memo(function LoaderLogo({
     reducedMotion = false,
-}) => {
+}) {
     return (
         <div
             className="
@@ -243,14 +203,18 @@ const LoaderLogo = memo(({
             <motion.div
                 aria-hidden="true"
 
+                initial={false}
+
                 animate={
                     reducedMotion
                         ? undefined
-                        : { rotate: 360 }
+                        : OUTER_RING_ANIMATION
                 }
 
                 transition={
-                    OUTER_RING_TRANSITION
+                    reducedMotion
+                        ? STATIC_TRANSITION
+                        : OUTER_RING_TRANSITION
                 }
 
                 className="
@@ -286,7 +250,7 @@ const LoaderLogo = memo(({
                     border
                     border-indigo-200/80
 
-                    dark:border-indigo-400/10
+                    dark:border-indigo-400/15
                 "
             />
 
@@ -297,14 +261,18 @@ const LoaderLogo = memo(({
             <motion.div
                 aria-hidden="true"
 
+                initial={false}
+
                 animate={
                     reducedMotion
                         ? undefined
-                        : { rotate: -360 }
+                        : INNER_RING_ANIMATION
                 }
 
                 transition={
-                    INNER_RING_TRANSITION
+                    reducedMotion
+                        ? STATIC_TRANSITION
+                        : INNER_RING_TRANSITION
                 }
 
                 className="
@@ -324,7 +292,7 @@ const LoaderLogo = memo(({
                     dark:border-l-indigo-400
                     dark:border-r-cyan-400
 
-                    dark:shadow-[0_0_30px_rgba(99,102,241,0.2)]
+                    dark:shadow-[0_0_30px_rgba(99,102,241,0.20)]
                 "
             />
 
@@ -358,7 +326,7 @@ const LoaderLogo = memo(({
             />
 
             {/* ======================================
-                CENTRAL LOGO
+                CENTER LOGO
             ====================================== */}
 
             <motion.img
@@ -371,27 +339,18 @@ const LoaderLogo = memo(({
                 initial={
                     reducedMotion
                         ? false
-                        : {
-                            opacity: 0,
-                            scale: 0.9,
-                        }
+                        : LOGO_INITIAL
                 }
 
                 animate={
                     reducedMotion
-                        ? {
-                            opacity: 1,
-                            scale: 1,
-                        }
-                        : {
-                            opacity: 1,
-                            scale: [1, 1.045, 1],
-                        }
+                        ? LOGO_STATIC_ANIMATION
+                        : LOGO_ANIMATION
                 }
 
                 transition={
                     reducedMotion
-                        ? { duration: 0 }
+                        ? STATIC_TRANSITION
                         : LOGO_TRANSITION
                 }
 
@@ -444,17 +403,13 @@ const LoaderLogo = memo(({
                     animate={
                         reducedMotion
                             ? undefined
-                            : {
-                                top: [
-                                    "8%",
-                                    "92%",
-                                    "8%",
-                                ],
-                            }
+                            : SCAN_ANIMATION
                     }
 
                     transition={
-                        SCAN_TRANSITION
+                        reducedMotion
+                            ? STATIC_TRANSITION
+                            : SCAN_TRANSITION
                     }
 
                     className="
@@ -479,7 +434,7 @@ const LoaderLogo = memo(({
             </div>
 
             {/* ======================================
-                CENTER BOTTOM INDICATOR
+                BOTTOM INDICATOR
             ====================================== */}
 
             <div
@@ -539,12 +494,200 @@ const LoaderLogo = memo(({
 });
 
 // =========================================================
-// LOADING PROGRESS
+// LOADER TEXT
+//
+// Preserves:
+// - FSociety system label
+// - Animated brand title
+// - Initializing system scan
+// - Loading description
 // =========================================================
 
-const LoaderProgress = memo(({
+const LoaderText = memo(function LoaderText({
     reducedMotion = false,
-}) => {
+}) {
+    return (
+        <div
+            className="
+                mt-10
+
+                w-full
+
+                text-center
+
+                sm:mt-12
+            "
+        >
+            {/* ======================================
+                SYSTEM LABEL
+            ====================================== */}
+
+            <p
+                className="
+                    mb-4
+
+                    font-mono
+                    text-[10px]
+                    font-black
+
+                    uppercase
+
+                    tracking-[0.16em]
+
+                    text-indigo-700
+
+                    sm:text-xs
+
+                    dark:text-indigo-300
+                "
+            >
+                fsociety://system.init
+            </p>
+
+            {/* ======================================
+                BRAND TITLE
+            ====================================== */}
+
+            <motion.h1
+                initial={
+                    reducedMotion
+                        ? false
+                        : TITLE_INITIAL
+                }
+
+                animate={TITLE_ANIMATION}
+
+                transition={
+                    reducedMotion
+                        ? STATIC_TRANSITION
+                        : TITLE_TRANSITION
+                }
+
+                className="
+                    font-black
+
+                    text-3xl
+
+                    uppercase
+                    italic
+
+                    tracking-[0.12em]
+
+                    text-slate-900
+
+                    sm:text-4xl
+                    sm:tracking-[0.16em]
+
+                    md:text-5xl
+
+                    dark:text-white
+                "
+            >
+                F.
+
+                <span
+                    className="
+                        bg-gradient-to-r
+
+                        from-indigo-600
+                        via-violet-600
+                        to-cyan-600
+
+                        bg-clip-text
+                        text-transparent
+
+                        dark:from-indigo-400
+                        dark:via-violet-400
+                        dark:to-cyan-400
+                    "
+                >
+                    Society
+                </span>
+            </motion.h1>
+
+            {/* ======================================
+                SYSTEM MESSAGE
+            ====================================== */}
+
+            <motion.p
+                initial={false}
+
+                animate={
+                    reducedMotion
+                        ? undefined
+                        : TEXT_ANIMATION
+                }
+
+                transition={
+                    reducedMotion
+                        ? STATIC_TRANSITION
+                        : TEXT_TRANSITION
+                }
+
+                className="
+                    mx-auto
+                    mt-5
+
+                    max-w-sm
+
+                    font-mono
+
+                    text-[11px]
+                    font-semibold
+
+                    uppercase
+
+                    tracking-[0.10em]
+
+                    text-indigo-700
+
+                    sm:text-sm
+
+                    dark:text-indigo-300
+                "
+            >
+                Initializing system scan...
+            </motion.p>
+
+            {/* ======================================
+                DESCRIPTION
+            ====================================== */}
+
+            <p
+                className="
+                    mx-auto
+                    mt-3
+
+                    max-w-xs
+
+                    text-xs
+                    leading-6
+
+                    text-slate-600
+
+                    sm:text-sm
+
+                    dark:text-slate-400
+                "
+            >
+                FSociety tizimi yuklanmoqda.
+                Iltimos, biroz kuting.
+            </p>
+        </div>
+    );
+});
+
+// =========================================================
+// LOADING PROGRESS
+//
+// This is an indeterminate progress indicator.
+//
+// It does not represent a real download percentage.
+// =========================================================
+
+const LoaderProgress = memo(function LoaderProgress({
+    reducedMotion = false,
+}) {
     return (
         <div
             className="
@@ -557,7 +700,9 @@ const LoaderProgress = memo(({
                 sm:max-w-72
             "
         >
-            {/* PROGRESS TRACK */}
+            {/* ======================================
+                PROGRESS TRACK
+            ====================================== */}
 
             <div
                 role="progressbar"
@@ -583,31 +728,26 @@ const LoaderProgress = memo(({
                     dark:bg-white/[0.06]
                 "
             >
-                {/* INDETERMINATE BAR */}
+                {/* ==================================
+                    PROGRESS ANIMATION
+                ================================== */}
 
                 <motion.div
                     initial={
                         reducedMotion
                             ? false
-                            : { x: "-100%" }
+                            : PROGRESS_INITIAL
                     }
 
                     animate={
                         reducedMotion
-                            ? {
-                                x: "0%",
-                            }
-                            : {
-                                x: [
-                                    "-100%",
-                                    "100%",
-                                ],
-                            }
+                            ? PROGRESS_STATIC
+                            : PROGRESS_ANIMATION
                     }
 
                     transition={
                         reducedMotion
-                            ? { duration: 0 }
+                            ? STATIC_TRANSITION
                             : PROGRESS_TRANSITION
                     }
 
@@ -626,7 +766,9 @@ const LoaderProgress = memo(({
                 />
             </div>
 
-            {/* PROGRESS LABELS */}
+            {/* ======================================
+                PROGRESS LABELS
+            ====================================== */}
 
             <div
                 aria-hidden="true"
@@ -668,208 +810,17 @@ const LoaderProgress = memo(({
 });
 
 // =========================================================
-// TEXT CONTENT
+// DECORATIVE BINARY CODE
 // =========================================================
 
-const LoaderText = memo(({
-    reducedMotion = false,
-}) => {
-    return (
-        <div
-            className="
-                mt-10
-
-                w-full
-
-                text-center
-
-                sm:mt-12
-            "
-        >
-            {/* ======================================
-                SYSTEM LABEL
-            ====================================== */}
-
-            <p
-                className="
-                    mb-4
-
-                    font-mono
-                    text-[10px]
-                    font-black
-
-                    uppercase
-
-                    tracking-[0.16em]
-
-                    text-indigo-600
-
-                    sm:text-xs
-
-                    dark:text-indigo-400
-                "
-            >
-                fsociety://system.init
-            </p>
-
-            {/* ======================================
-                BRAND TITLE
-            ====================================== */}
-
-            <motion.h1
-                initial={
-                    reducedMotion
-                        ? false
-                        : {
-                            opacity: 0,
-                            y: 12,
-                        }
-                }
-
-                animate={{
-                    opacity: 1,
-                    y: 0,
-                }}
-
-                transition={{
-                    duration:
-                        reducedMotion ? 0 : 0.55,
-
-                    ease: "easeOut",
-                }}
-
-                className="
-                    font-black
-
-                    text-3xl
-
-                    uppercase
-
-                    italic
-
-                    tracking-[0.12em]
-
-                    text-slate-900
-
-                    sm:text-4xl
-                    sm:tracking-[0.16em]
-
-                    md:text-5xl
-
-                    dark:text-white
-                "
-            >
-                F
-
-                <span
-                    className="
-                        bg-gradient-to-r
-
-                        from-indigo-600
-                        via-violet-600
-                        to-cyan-600
-
-                        bg-clip-text
-                        text-transparent
-
-                        dark:from-indigo-400
-                        dark:via-violet-400
-                        dark:to-cyan-400
-                    "
-                >
-                    Society
-                </span>
-            </motion.h1>
-
-            {/* ======================================
-                DESCRIPTION
-            ====================================== */}
-
-            <motion.p
-                initial={false}
-
-                animate={
-                    reducedMotion
-                        ? undefined
-                        : {
-                            opacity: [
-                                0.55,
-                                1,
-                                0.55,
-                            ],
-                        }
-                }
-
-                transition={
-                    TEXT_TRANSITION
-                }
-
-                className="
-                    mx-auto
-                    mt-5
-
-                    max-w-sm
-
-                    font-mono
-
-                    text-[11px]
-                    font-semibold
-
-                    uppercase
-
-                    tracking-[0.1em]
-
-                    text-indigo-700
-
-                    sm:text-sm
-
-                    dark:text-indigo-300
-                "
-            >
-                Initializing system scan...
-            </motion.p>
-
-            {/* ======================================
-                SUBTITLE
-            ====================================== */}
-
-            <p
-                className="
-                    mx-auto
-                    mt-3
-
-                    max-w-xs
-
-                    text-xs
-                    leading-6
-
-                    text-slate-500
-
-                    sm:text-sm
-
-                    dark:text-slate-400
-                "
-            >
-                FSociety tizimi yuklanmoqda.
-                Iltimos, biroz kuting.
-            </p>
-        </div>
-    );
-});
-
-// =========================================================
-// BINARY DECORATION
-// =========================================================
-
-const LoaderBinary = memo(() => {
+const LoaderBinary = memo(function LoaderBinary() {
     return (
         <p
             aria-hidden="true"
 
             className="
                 mx-auto
-
-                mt-14
+                mt-12
 
                 hidden
 
@@ -888,7 +839,7 @@ const LoaderBinary = memo(() => {
 
                 tracking-wider
 
-                text-indigo-300/60
+                text-indigo-600/25
 
                 sm:block
 
@@ -905,17 +856,24 @@ const LoaderBinary = memo(() => {
 });
 
 // =========================================================
-// MAIN APP LOADER
+// MAIN APPLICATION LOADER
+//
+// All visual sections use one shared background.
+//
+// PageGridBackground provides:
+// - Grid
+// - Network lines
+// - Glowing nodes
+// - 3D FS cubes
+// - FS watermark
+// - Light / Dark Mode
+//
+// No duplicate LoaderBackground needed.
 // =========================================================
 
 const AppLoader = () => {
     // =====================================================
-    // ACCESSIBILITY
-    //
-    // Respect operating system preference.
-    //
-    // Users with reduced motion enabled
-    // should not see infinite rotations.
+    // REDUCED MOTION
     // =====================================================
 
     const reducedMotion = Boolean(
@@ -938,7 +896,6 @@ const AppLoader = () => {
 
             className="
                 relative
-
                 isolate
 
                 flex
@@ -954,34 +911,43 @@ const AppLoader = () => {
 
                 overflow-x-hidden
 
-                bg-gradient-to-br
-
-                from-slate-50
-                via-white
-                to-indigo-50/60
+                bg-[#edf4ff]
 
                 px-4
-                py-12
+                py-10
 
                 text-slate-900
 
                 sm:px-6
+                sm:py-12
 
-                dark:from-[#05070a]
-                dark:via-[#080d17]
-                dark:to-[#0a1020]
-
+                dark:bg-[#060b15]
                 dark:text-white
             "
         >
             {/* ======================================
-                BACKGROUND
+                SHARED FUTURISTIC BACKGROUND
+
+                Uses the same background component
+                as the rest of FSociety.
+
+                Background must stay behind the
+                loader and not intercept clicks.
             ====================================== */}
 
-            <LoaderBackground />
+            <PageGridBackground
+                showMonogram
+                showCubes
+            />
 
             {/* ======================================
-                CONTENT
+                LOADER CONTENT
+
+                relative z-10:
+                Keeps content above background.
+
+                max-w-2xl:
+                Responsive content container.
             ====================================== */}
 
             <div
@@ -992,7 +958,9 @@ const AppLoader = () => {
                     mx-auto
 
                     flex
+
                     w-full
+                    min-w-0
                     max-w-2xl
 
                     flex-col
@@ -1001,31 +969,33 @@ const AppLoader = () => {
                     justify-center
                 "
             >
-                {/* ANIMATED LOGO */}
+                {/* ==================================
+                    ANIMATED FSOCIETY LOGO
+                ================================== */}
 
                 <LoaderLogo
-                    reducedMotion={
-                        reducedMotion
-                    }
+                    reducedMotion={reducedMotion}
                 />
 
-                {/* BRAND AND TEXT */}
+                {/* ==================================
+                    BRAND AND LOADING TEXT
+                ================================== */}
 
                 <LoaderText
-                    reducedMotion={
-                        reducedMotion
-                    }
+                    reducedMotion={reducedMotion}
                 />
 
-                {/* PROGRESS */}
+                {/* ==================================
+                    LOADING PROGRESS
+                ================================== */}
 
                 <LoaderProgress
-                    reducedMotion={
-                        reducedMotion
-                    }
+                    reducedMotion={reducedMotion}
                 />
 
-                {/* BINARY DECORATION */}
+                {/* ==================================
+                    BINARY CODE DECORATION
+                ================================== */}
 
                 <LoaderBinary />
             </div>

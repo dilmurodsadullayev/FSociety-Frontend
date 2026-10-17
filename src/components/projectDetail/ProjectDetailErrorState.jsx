@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { memo } from "react";
 
 import { Link } from "react-router-dom";
 
@@ -17,19 +17,33 @@ import {
 // =========================================================
 // FSOCIETY — PROJECT DETAIL ERROR STATE
 //
-// Features:
-// - Dark / Light Mode
-// - Responsive error screen
-// - Safe error messages
+// Used inside:
+// ProjectDetail.jsx
+//
+// Background:
+// PageGridBackground is rendered by the parent page.
+//
+// Preserved features:
+// - API error handling
+// - Project not found state
 // - Project ID display
 // - Retry functionality
-// - Loading state
-// - Back to Projects link
+// - Retry loading indicator
+// - Back to projects navigation
+// - Light / Dark Mode
+// - Responsive design
 // - Accessible error announcement
+//
+// Improvements:
+// - Removed duplicate page grid
+// - Removed opaque full-page background
+// - Shared futuristic background stays visible
+// - Better long-text handling
+// - Improved buttons and focus states
 // =========================================================
 
 // =========================================================
-// DEFAULT ERROR
+// CONSTANTS
 // =========================================================
 
 const DEFAULT_ERROR =
@@ -42,11 +56,8 @@ const DEFAULT_ERROR =
 
 const ProjectDetailErrorState = ({
     projectId,
-
     error,
-
     onRetry,
-
     isLoading = false,
 }) => {
     // =====================================================
@@ -54,34 +65,32 @@ const ProjectDetailErrorState = ({
     // =====================================================
 
     const displayId =
-        projectId == null ||
+        projectId === null ||
+        projectId === undefined ||
         String(projectId).trim() === ""
             ? "Noma’lum"
             : String(projectId);
 
     // =====================================================
-    // ERROR MESSAGE
+    // ERROR INFORMATION
     // =====================================================
 
     const hasError = Boolean(error);
 
     const errorMessage = hasError
-        ? getErrorMessage(
-            error,
-            DEFAULT_ERROR
-        )
+        ? getErrorMessage(error, DEFAULT_ERROR)
         : "";
-
-    // =====================================================
-    // TITLE
-    // =====================================================
 
     const title = hasError
         ? "Loyihani yuklab bo‘lmadi"
         : "Loyiha topilmadi";
 
+    const description = hasError
+        ? "Loyiha ma’lumotlarini olishda muammo yuz berdi."
+        : "Bu loyiha mavjud emas yoki hozirda ko‘rib bo‘lmaydi.";
+
     // =====================================================
-    // RETRY
+    // RETRY STATE
     // =====================================================
 
     const loading = Boolean(isLoading);
@@ -90,7 +99,7 @@ const ProjectDetailErrorState = ({
         typeof onRetry === "function";
 
     // =====================================================
-    // JSX
+    // RENDER
     // =====================================================
 
     return (
@@ -101,56 +110,55 @@ const ProjectDetailErrorState = ({
 
                 flex
                 min-h-screen
+                min-h-[100dvh]
+
+                w-full
                 min-w-0
 
                 items-center
                 justify-center
 
-                overflow-hidden
+                overflow-x-hidden
 
-                bg-[#edf2fa]
+                bg-transparent
 
-                px-4
+                px-3
                 pb-16
                 pt-28
 
-                sm:px-6
+                text-slate-900
 
-                dark:bg-[#05070a]
+                sm:px-6
+                sm:pb-20
+
+                dark:text-white
             "
         >
             {/* ======================================
-                BACKGROUND GRID
+                IMPORTANT: SHARED BACKGROUND
+
+                Do not render another PageGridBackground.
+
+                ProjectDetail.jsx already provides:
+                - Grid
+                - Network lines
+                - 3D cubes
+                - Glowing nodes
+                - FS watermark
+
+                This component remains transparent,
+                allowing the shared background through.
             ====================================== */}
-
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-
-                    absolute
-                    inset-0
-
-                    opacity-[0.025]
-
-                    text-slate-900
-
-                    [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
-                    [background-size:42px_42px]
-
-                    dark:opacity-[0.02]
-                    dark:text-white
-                "
-            />
 
             {/* ======================================
-                BACKGROUND GLOW
+                SUBTLE ERROR GLOW
+
+                Decorative only.
+                Does not cover the shared page grid.
             ====================================== */}
 
             <div
                 aria-hidden="true"
-
                 className="
                     pointer-events-none
 
@@ -158,19 +166,22 @@ const ProjectDetailErrorState = ({
                     left-1/2
                     top-1/2
 
-                    h-80
-                    w-80
+                    h-64
+                    w-64
 
                     -translate-x-1/2
                     -translate-y-1/2
 
                     rounded-full
 
-                    bg-red-500/[0.06]
+                    bg-rose-400/[0.08]
 
-                    blur-[100px]
+                    blur-[90px]
 
-                    dark:bg-red-500/[0.045]
+                    sm:h-96
+                    sm:w-96
+
+                    dark:bg-rose-500/[0.055]
                 "
             />
 
@@ -178,7 +189,7 @@ const ProjectDetailErrorState = ({
                 ERROR CARD
             ====================================== */}
 
-            <div
+            <section
                 role="alert"
 
                 aria-labelledby="project-detail-error-title"
@@ -194,24 +205,27 @@ const ProjectDetailErrorState = ({
                     overflow-hidden
 
                     rounded-[24px]
+
                     border
-                    border-red-200/80
+                    border-rose-200/90
 
-                    bg-white
+                    bg-white/95
 
-                    px-5
+                    px-4
                     py-9
 
                     text-center
 
-                    shadow-[0_24px_70px_rgba(15,23,42,0.08)]
+                    shadow-[0_24px_70px_rgba(15,23,42,0.10)]
+
+                    backdrop-blur-xl
 
                     sm:rounded-[28px]
                     sm:px-8
                     sm:py-10
 
-                    dark:border-red-400/20
-                    dark:bg-[#0b1018]
+                    dark:border-rose-400/20
+                    dark:bg-[#0b1018]/90
 
                     dark:shadow-[0_35px_100px_rgba(0,0,0,0.35)]
                 "
@@ -222,20 +236,46 @@ const ProjectDetailErrorState = ({
 
                 <div
                     aria-hidden="true"
-
                     className="
                         absolute
                         inset-x-0
                         top-0
 
-                        h-px
+                        h-[2px]
 
                         bg-gradient-to-r
+
                         from-transparent
-                        via-red-400/60
+                        via-rose-500/70
                         to-transparent
 
-                        dark:via-red-400/35
+                        dark:via-rose-400/40
+                    "
+                />
+
+                {/* ==================================
+                    CARD DECORATIVE GLOW
+                ================================== */}
+
+                <div
+                    aria-hidden="true"
+                    className="
+                        pointer-events-none
+
+                        absolute
+                        -right-20
+                        -top-20
+
+                        h-48
+                        w-48
+
+                        rounded-full
+
+                        bg-rose-400/[0.055]
+
+                        blur-[65px]
+
+                        dark:bg-rose-400/[0.045]
                     "
                 />
 
@@ -245,6 +285,8 @@ const ProjectDetailErrorState = ({
 
                 <div
                     className="
+                        relative
+
                         mx-auto
 
                         grid
@@ -254,16 +296,19 @@ const ProjectDetailErrorState = ({
                         place-items-center
 
                         rounded-2xl
+
                         border
-                        border-red-300/60
+                        border-rose-200
 
-                        bg-red-500/[0.07]
+                        bg-rose-50
 
-                        text-red-700
+                        text-rose-700
 
-                        dark:border-red-400/20
-                        dark:bg-red-500/[0.07]
-                        dark:text-red-300
+                        shadow-sm
+
+                        dark:border-rose-400/20
+                        dark:bg-rose-400/[0.09]
+                        dark:text-rose-300
                     "
                 >
                     <AlertTriangle
@@ -274,51 +319,58 @@ const ProjectDetailErrorState = ({
                 </div>
 
                 {/* ==================================
-                    ERROR LABEL
+                    SYSTEM ERROR LABEL
                 ================================== */}
 
                 <div
                     className="
+                        relative
+
                         mt-5
 
                         inline-flex
+                        max-w-full
+
                         items-center
                         gap-2
 
                         rounded-full
-                        border
-                        border-red-300/60
 
-                        bg-red-500/[0.06]
+                        border
+                        border-rose-200
+
+                        bg-rose-50
 
                         px-3
                         py-1.5
 
                         font-mono
-                        text-[9px]
+                        text-[10px]
                         font-bold
+
                         uppercase
                         tracking-[0.11em]
 
-                        text-red-700
+                        text-rose-700
 
-                        dark:border-red-400/15
-                        dark:bg-red-400/[0.06]
-                        dark:text-red-300
+                        dark:border-rose-400/20
+                        dark:bg-rose-400/[0.07]
+                        dark:text-rose-300
                     "
                 >
                     <span
                         aria-hidden="true"
-
                         className="
                             h-1.5
                             w-1.5
 
+                            shrink-0
+
                             rounded-full
 
-                            bg-red-500
+                            bg-rose-500
 
-                            dark:bg-red-400
+                            dark:bg-rose-400
                         "
                     />
 
@@ -333,12 +385,15 @@ const ProjectDetailErrorState = ({
                     id="project-detail-error-title"
 
                     className="
-                        mt-4
+                        relative
+
+                        mt-5
 
                         break-words
 
                         text-[22px]
                         font-black
+
                         leading-tight
                         tracking-tight
 
@@ -347,6 +402,8 @@ const ProjectDetailErrorState = ({
                         sm:text-[27px]
 
                         dark:text-white
+
+                        [overflow-wrap:anywhere]
                     "
                 >
                     {title}
@@ -358,15 +415,17 @@ const ProjectDetailErrorState = ({
 
                 <p
                     className="
+                        relative
+
                         mt-3
 
                         font-mono
-                        text-[12px]
+                        text-xs
                         font-medium
 
                         text-slate-500
 
-                        dark:text-gray-500
+                        dark:text-slate-400
                     "
                 >
                     Loyiha ID:{" "}
@@ -379,7 +438,7 @@ const ProjectDetailErrorState = ({
 
                             text-slate-700
 
-                            dark:text-gray-300
+                            dark:text-slate-200
                         "
                     >
                         {displayId}
@@ -392,61 +451,74 @@ const ProjectDetailErrorState = ({
 
                 <p
                     className="
+                        relative
+
                         mx-auto
                         mt-4
+
                         max-w-md
 
                         text-[13px]
                         font-medium
+
                         leading-7
 
                         text-slate-600
 
-                        dark:text-gray-400
+                        dark:text-slate-300
                     "
                 >
-                    {hasError
-                        ? "Loyiha ma’lumotlarini olishda muammo yuz berdi."
-                        : "Bu loyiha mavjud emas yoki hozirda ko‘rib bo‘lmaydi."}
+                    {description}
                 </p>
 
                 {/* ==================================
                     API ERROR DETAILS
+
+                    Preserves the existing
+                    projectDetailHelpers logic.
                 ================================== */}
 
                 {hasError && (
                     <div
                         className="
+                            relative
+
                             mt-5
 
                             rounded-2xl
-                            border
-                            border-red-200/80
 
-                            bg-red-50
+                            border
+                            border-rose-200
+
+                            bg-rose-50/80
 
                             p-4
 
-                            dark:border-red-400/[0.15]
-                            dark:bg-red-500/[0.055]
+                            text-left
+
+                            dark:border-rose-400/[0.15]
+                            dark:bg-rose-400/[0.065]
                         "
                     >
                         <p
                             className="
                                 whitespace-pre-wrap
-                                break-words
-                                [overflow-wrap:anywhere]
 
-                                text-[12px]
+                                break-words
+
+                                text-xs
                                 font-medium
+
                                 leading-6
 
-                                text-red-800
+                                text-rose-800
 
-                                dark:text-red-200/85
+                                dark:text-rose-200
+
+                                [overflow-wrap:anywhere]
                             "
                         >
-                            {errorMessage}
+                            {errorMessage || DEFAULT_ERROR}
                         </p>
                     </div>
                 )}
@@ -457,19 +529,25 @@ const ProjectDetailErrorState = ({
 
                 <div
                     className="
-                        mt-6
+                        relative
+
+                        mt-7
 
                         flex
                         flex-col
 
                         items-stretch
                         justify-center
+
                         gap-3
 
                         sm:flex-row
+                        sm:flex-wrap
                     "
                 >
-                    {/* RETRY */}
+                    {/* ==========================
+                        RETRY BUTTON
+                    ========================== */}
 
                     {canRetry && (
                         <button
@@ -492,51 +570,54 @@ const ProjectDetailErrorState = ({
                                 gap-2
 
                                 rounded-xl
-                                border
-                                border-red-600
 
-                                bg-red-600
+                                border
+                                border-rose-600
+
+                                bg-rose-600
 
                                 px-5
                                 py-3
 
-                                text-[12px]
-                                font-bold
+                                text-xs
+                                font-black
 
                                 text-white
 
                                 transition-colors
                                 duration-150
 
-                                hover:border-red-700
-                                hover:bg-red-700
+                                hover:border-rose-700
+                                hover:bg-rose-700
 
                                 focus-visible:outline-none
                                 focus-visible:ring-2
-                                focus-visible:ring-red-500
+                                focus-visible:ring-rose-500
                                 focus-visible:ring-offset-2
 
                                 disabled:cursor-not-allowed
                                 disabled:opacity-60
 
-                                dark:border-red-500
-                                dark:bg-red-600
+                                dark:border-rose-500
+                                dark:bg-rose-600
 
-                                dark:hover:border-red-400
-                                dark:hover:bg-red-500
+                                dark:hover:border-rose-400
+                                dark:hover:bg-rose-500
 
                                 dark:focus-visible:ring-offset-[#0b1018]
+
+                                motion-reduce:transition-none
                             "
                         >
                             {loading ? (
                                 <Loader2
                                     size={16}
                                     strokeWidth={2}
+
                                     aria-hidden="true"
 
                                     className="
                                         animate-spin
-
                                         motion-reduce:animate-none
                                     "
                                 />
@@ -554,7 +635,9 @@ const ProjectDetailErrorState = ({
                         </button>
                     )}
 
-                    {/* BACK TO PROJECTS */}
+                    {/* ==========================
+                        BACK TO PROJECTS
+                    ========================== */}
 
                     <Link
                         to="/projects"
@@ -568,37 +651,43 @@ const ProjectDetailErrorState = ({
                             gap-2
 
                             rounded-xl
-                            border
-                            border-[#dce5f0]
 
-                            bg-[#f8faff]
+                            border
+                            border-slate-200
+
+                            bg-slate-50
 
                             px-5
                             py-3
 
-                            text-[12px]
-                            font-bold
+                            text-xs
+                            font-black
 
                             text-slate-700
 
                             transition-colors
                             duration-150
 
-                            hover:border-indigo-400/40
-                            hover:bg-indigo-500/[0.06]
+                            hover:border-indigo-300
+                            hover:bg-indigo-50
                             hover:text-indigo-700
 
                             focus-visible:outline-none
                             focus-visible:ring-2
                             focus-visible:ring-indigo-500
+                            focus-visible:ring-offset-2
 
                             dark:border-white/[0.10]
                             dark:bg-white/[0.04]
-                            dark:text-gray-300
+                            dark:text-slate-300
 
                             dark:hover:border-indigo-400/25
-                            dark:hover:bg-indigo-400/[0.07]
+                            dark:hover:bg-indigo-400/[0.08]
                             dark:hover:text-indigo-300
+
+                            dark:focus-visible:ring-offset-[#0b1018]
+
+                            motion-reduce:transition-none
                         "
                     >
                         <ArrowLeft
@@ -610,7 +699,7 @@ const ProjectDetailErrorState = ({
                         Loyihalarga qaytish
                     </Link>
                 </div>
-            </div>
+            </section>
         </main>
     );
 };
@@ -619,6 +708,4 @@ const ProjectDetailErrorState = ({
 // EXPORT
 // =========================================================
 
-export default React.memo(
-    ProjectDetailErrorState
-);
+export default memo(ProjectDetailErrorState);

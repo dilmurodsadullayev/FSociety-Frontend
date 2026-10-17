@@ -1,5 +1,11 @@
 
-import React from "react";
+import React, { memo } from "react";
+
+// =========================================================
+// FSOCIETY — SHARED BACKGROUND
+// =========================================================
+
+import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // EXISTING COMPONENTS
@@ -32,41 +38,208 @@ import ProjectDetailErrorState from "./projectDetail/ProjectDetailErrorState";
 import useProjectDetailController from "./projectDetail/useProjectDetailController";
 
 // =========================================================
+// SHARED PAGE STYLES
+// =========================================================
+
+const PAGE_CLASS = `
+    relative
+    isolate
+
+    min-h-screen
+    w-full
+    min-w-0
+
+    overflow-hidden
+
+    bg-[#edf4ff]
+    text-slate-900
+
+    dark:bg-[#060b15]
+    dark:text-white
+`;
+
+const CONTENT_CLASS = `
+    relative
+    z-10
+
+    mx-auto
+
+    w-full
+    min-w-0
+    max-w-[1520px]
+
+    px-4
+    pb-16
+    pt-24
+
+    sm:px-6
+    sm:pb-20
+
+    md:pt-28
+
+    xl:px-8
+`;
+
+const PROJECT_CONTAINER_CLASS = `
+    min-w-0
+    overflow-hidden
+
+    rounded-[22px]
+
+    border
+    border-[#dce5f0]
+
+    bg-white/90
+
+    shadow-[0_24px_70px_rgba(15,23,42,0.065)]
+
+    backdrop-blur-sm
+
+    sm:rounded-[28px]
+
+    dark:border-white/[0.07]
+    dark:bg-[#0b1018]/95
+
+    dark:shadow-[0_40px_110px_rgba(0,0,0,0.35)]
+`;
+
+// =========================================================
+// PROJECT DETAIL PAGE SHELL
+//
+// Shared for:
+// - Initial loading
+// - Invalid project ID
+// - API errors
+// - Main project content
+//
+// The background remains consistent across states.
+// =========================================================
+
+const ProjectDetailPageShell = memo(
+    function ProjectDetailPageShell({
+        children,
+        className = "",
+    }) {
+        return (
+            <div className={PAGE_CLASS}>
+                {/* ======================================
+                    SHARED FUTURISTIC BACKGROUND
+
+                    Contains:
+                    - Grid
+                    - Geometric network lines
+                    - Glowing nodes
+                    - Glass-like 3D cubes
+                    - Cyan / indigo / violet lights
+                    - FS watermark
+
+                    The background is decorative and
+                    does not intercept user interactions.
+                ====================================== */}
+
+                <PageGridBackground showMonogram />
+
+                {/* ======================================
+                    FOREGROUND CONTENT
+                ====================================== */}
+
+                <div
+                    className={`
+                        relative
+                        z-10
+
+                        min-w-0
+
+                        ${className}
+                    `}
+                >
+                    {children}
+                </div>
+            </div>
+        );
+    }
+);
+
+// =========================================================
+// PROJECT DETAIL LOADING
+//
+// Keeps the existing ProjectLoadingSkeleton.
+// =========================================================
+
+const ProjectDetailLoading = memo(
+    function ProjectDetailLoading() {
+        return (
+            <ProjectDetailPageShell>
+                <div
+                    role="status"
+                    aria-label="Loyiha ma’lumotlari yuklanmoqda"
+                    className="
+                        min-h-screen
+                        min-w-0
+                    "
+                >
+                    <span className="sr-only">
+                        Loyiha ma’lumotlari yuklanmoqda.
+                    </span>
+
+                    <ProjectLoadingSkeleton />
+                </div>
+            </ProjectDetailPageShell>
+        );
+    }
+);
+
+// =========================================================
+// PROJECT DETAIL ERROR
+//
+// Keeps the existing error component and retry support.
+// =========================================================
+
+const ProjectDetailError = memo(
+    function ProjectDetailError({
+        projectId,
+        error,
+        onRetry,
+        isLoading = false,
+    }) {
+        return (
+            <ProjectDetailPageShell>
+                <ProjectDetailErrorState
+                    projectId={projectId}
+                    error={error}
+                    onRetry={onRetry}
+                    isLoading={isLoading}
+                />
+            </ProjectDetailPageShell>
+        );
+    }
+);
+
+// =========================================================
 // FSOCIETY — PROJECT DETAIL PAGE
 //
 // Architecture:
 //
 // ProjectDetail.jsx
+//     ├── ProjectDetailPageShell
+//     │     └── PageGridBackground
+//     │
 //     ├── useProjectDetailController
 //     │     ├── Redux / API
-//     │     ├── Auth / permissions
+//     │     ├── Authentication
+//     │     ├── Permissions
 //     │     ├── Star / Unstar
 //     │     ├── Edit / Delete
 //     │     └── Promotion refresh
 //     │
 //     ├── ProjectDetailHeader
-//     │     ├── PromotionBadge
-//     │     ├── ProjectDetailOwnerControls
-//     │     └── ProjectGallery
-//     │
 //     ├── ProjectDetailOverview
-//     │     └── ProjectCollaboration
-//     │
 //     ├── ProjectDetailSidebar
-//     │     ├── ProjectPromotion
-//     │     ├── Author
-//     │     ├── Technology stack
-//     │     └── External links
-//     │
 //     ├── ProjectDiscussion
 //     ├── ProjectFormModal
 //     └── DeleteConfirmationModal
 //
-// Dark / Light Mode supported.
-// =========================================================
-
-// =========================================================
-// MAIN PROJECT DETAIL
+// Existing behavior is preserved.
 // =========================================================
 
 const ProjectDetail = () => {
@@ -162,56 +335,38 @@ const ProjectDetail = () => {
 
     if (!projectId) {
         return (
-            <ProjectDetailErrorState
+            <ProjectDetailError
                 projectId={null}
-
                 error="Loyiha ID ko‘rsatilmagan."
-
                 onRetry={undefined}
-
                 isLoading={false}
             />
         );
     }
 
     // =====================================================
-    // LOADING
+    // INITIAL LOADING
     //
-    // Use existing ProjectLoadingSkeleton.
+    // Keep the existing skeleton while the project
+    // data has not been loaded.
     // =====================================================
 
     if (isLoading && !projectData) {
-        return (
-            <div
-                className="
-                    min-h-screen
-                    min-w-0
-
-                    bg-[#edf2fa]
-
-                    dark:bg-[#05070a]
-                "
-            >
-                <ProjectLoadingSkeleton />
-            </div>
-        );
+        return <ProjectDetailLoading />;
     }
 
     // =====================================================
-    // ERROR
+    // API ERROR
+    //
+    // Preserve the existing retry function.
     // =====================================================
 
     if (error) {
         return (
-            <ProjectDetailErrorState
+            <ProjectDetailError
                 projectId={projectId}
-
                 error={error}
-
-                onRetry={() => {
-                    loadProject();
-                }}
-
+                onRetry={loadProject}
                 isLoading={isLoading}
             />
         );
@@ -220,197 +375,59 @@ const ProjectDetail = () => {
     // =====================================================
     // PROJECT NOT YET AVAILABLE
     //
-    // Prevent flashing an error state before the
-    // initial asynchronous request starts.
+    // Avoid displaying an error before the initial
+    // asynchronous request has started.
     // =====================================================
 
     if (!projectData?.id) {
-        return (
-            <div
-                className="
-                    min-h-screen
-                    min-w-0
-
-                    bg-[#edf2fa]
-
-                    dark:bg-[#05070a]
-                "
-            >
-                <ProjectLoadingSkeleton />
-            </div>
-        );
+        return <ProjectDetailLoading />;
     }
 
     // =====================================================
-    // JSX
+    // MAIN PROJECT PAGE
     // =====================================================
 
     return (
-        <div
-            className="
-                relative
-                isolate
-
-                min-h-screen
-                min-w-0
-                overflow-hidden
-
-                bg-[#edf2fa]
-                text-slate-900
-
-                dark:bg-[#05070a]
-                dark:text-white
-            "
-        >
+        <div className={PAGE_CLASS}>
             {/* ======================================
-                BACKGROUND GRID
+                SHARED FUTURISTIC BACKGROUND
+
+                Same component used in:
+                - Users
+                - Problems
+                - Feedback
+                - Projects
+                - ProjectDetail
             ====================================== */}
 
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-                    absolute
-                    inset-0
-                    z-0
-
-                    opacity-[0.025]
-
-                    text-slate-900
-
-                    [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
-                    [background-size:58px_58px]
-
-                    dark:opacity-[0.018]
-                    dark:text-white
-                "
-            />
+            <PageGridBackground showMonogram />
 
             {/* ======================================
-                TOP AMBIENT GLOW
+                PROJECT CONTENT
+
+                Existing spacing and layout preserved.
+                All interactive content stays above
+                the decorative background.
             ====================================== */}
 
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-                    absolute
-
-                    left-1/2
-                    top-20
-
-                    hidden
-                    h-[450px]
-                    w-[450px]
-
-                    -translate-x-1/2
-
-                    rounded-full
-
-                    bg-indigo-500/[0.07]
-
-                    blur-[125px]
-
-                    sm:block
-
-                    dark:bg-indigo-600/[0.10]
-                "
-            />
-
-            {/* ======================================
-                RIGHT AMBIENT GLOW
-            ====================================== */}
-
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-                    absolute
-
-                    -right-40
-                    top-1/3
-
-                    hidden
-                    h-[380px]
-                    w-[380px]
-
-                    rounded-full
-
-                    bg-purple-500/[0.055]
-
-                    blur-[115px]
-
-                    sm:block
-
-                    dark:bg-purple-500/[0.07]
-                "
-            />
-
-            {/* ======================================
-                MAIN CONTENT
-            ====================================== */}
-
-            <main
-                className="
-                    relative
-                    z-10
-
-                    mx-auto
-
-                    w-full
-                    min-w-0
-                    max-w-[1520px]
-
-                    px-4
-                    pb-16
-                    pt-24
-
-                    sm:px-6
-                    sm:pb-20
-
-                    md:pt-28
-
-                    xl:px-8
-                "
-            >
+            <main className={CONTENT_CLASS}>
                 {/* ==================================
                     PROJECT CONTAINER
                 ================================== */}
 
-                <div
-                    className="
-                        min-w-0
-                        overflow-hidden
-
-                        rounded-[22px]
-                        border
-                        border-[#dce5f0]
-
-                        bg-white/90
-
-                        shadow-[0_24px_70px_rgba(15,23,42,0.065)]
-
-                        sm:rounded-[28px]
-
-                        dark:border-white/[0.07]
-                        dark:bg-[#0b1018]/95
-
-                        dark:shadow-[0_40px_110px_rgba(0,0,0,0.35)]
-                    "
-                >
-                    {/* ==================================
+                <div className={PROJECT_CONTAINER_CLASS}>
+                    {/* ==============================
                         PROJECT HEADER
 
-                        - Title / description
+                        Preserved:
+                        - Title and description
                         - Promotion badge
-                        - Edit / delete
-                        - Star / unstar
+                        - Owner controls
+                        - Edit / Delete
+                        - Star / Unstar
                         - Statistics
                         - Gallery
-                    ================================== */}
+                    ============================== */}
 
                     <ProjectDetailHeader
                         projectData={projectData}
@@ -450,19 +467,20 @@ const ProjectDetail = () => {
                         }
                     />
 
-                    {/* ==================================
+                    {/* ==============================
                         CONTENT GRID
 
                         Left:
-                        Project information
+                        Project overview
                         Collaboration
 
                         Right:
                         Promotion
                         Author
-                        Tech stack
+                        Languages
+                        Technologies
                         External links
-                    ================================== */}
+                    ============================== */}
 
                     <div
                         className="
@@ -473,9 +491,9 @@ const ProjectDetail = () => {
                             xl:grid-cols-[minmax(0,1fr)_520px]
                         "
                     >
-                        {/* ==============================
+                        {/* ==========================
                             MAIN OVERVIEW
-                        ============================== */}
+                        ========================== */}
 
                         <ProjectDetailOverview
                             projectData={projectData}
@@ -493,9 +511,9 @@ const ProjectDetail = () => {
                             projectId={projectId}
                         />
 
-                        {/* ==============================
+                        {/* ==========================
                             PROJECT SIDEBAR
-                        ============================== */}
+                        ========================== */}
 
                         <ProjectDetailSidebar
                             projectData={projectData}
@@ -524,9 +542,9 @@ const ProjectDetail = () => {
                         />
                     </div>
 
-                    {/* ==================================
+                    {/* ==============================
                         PROJECT DISCUSSION
-                    ================================== */}
+                    ============================== */}
 
                     <ProjectDiscussion
                         projectId={projectId}
@@ -536,6 +554,11 @@ const ProjectDetail = () => {
 
             {/* ======================================
                 EDIT PROJECT MODAL
+
+                Kept outside the main container to
+                preserve the previous modal layout.
+
+                Only project owners can open it.
             ====================================== */}
 
             {isOwner && (
@@ -564,6 +587,9 @@ const ProjectDetail = () => {
 
             {/* ======================================
                 DELETE PROJECT MODAL
+
+                Confirmation is preserved.
+                Only project owners can open it.
             ====================================== */}
 
             {isOwner && (
@@ -597,4 +623,4 @@ const ProjectDetail = () => {
 // EXPORT
 // =========================================================
 
-export default ProjectDetail;
+export default memo(ProjectDetail);

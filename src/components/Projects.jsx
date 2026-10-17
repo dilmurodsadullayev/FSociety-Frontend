@@ -29,6 +29,12 @@ import {
 import ProjectService from "../services/project";
 
 // =========================================================
+// SHARED PAGE BACKGROUND
+// =========================================================
+
+import PageGridBackground from "./ui/PageGridBackground";
+
+// =========================================================
 // PROJECT COMPONENTS
 // =========================================================
 
@@ -52,7 +58,7 @@ import {
 } from "./projects/projectHelpers";
 
 // =========================================================
-// CONFIG
+// CONFIGURATION
 // =========================================================
 
 const PAGE_SIZE = 6;
@@ -63,10 +69,11 @@ const EMPTY_PROJECTS = [];
 // FSOCIETY — PROJECTS PAGE
 //
 // Features:
+// - Shared futuristic FSociety background
 // - Global Dark / Light Mode
 // - Responsive project grid
 // - Search with debounce
-// - Ctrl / Cmd + K search shortcut
+// - Ctrl / Cmd + K shortcut
 // - Server-side pagination
 // - AbortController request cancellation
 // - Stale response protection
@@ -74,6 +81,11 @@ const EMPTY_PROJECTS = [];
 // - Retry support
 //
 // Theme is controlled by ThemeContext.
+//
+// Background is shared with:
+// - Users
+// - Problems
+// - Feedback
 // =========================================================
 
 const Projects = () => {
@@ -102,25 +114,30 @@ const Projects = () => {
     // SEARCH STATE
     // =====================================================
 
-    const [searchTerm, setSearchTerm] =
-        useState("");
+    const [searchTerm, setSearchTerm] = useState("");
 
-    const [debouncedSearch, setDebouncedSearch] =
-        useState("");
+    const [
+        debouncedSearch,
+        setDebouncedSearch,
+    ] = useState("");
 
     // =====================================================
     // PAGINATION STATE
     // =====================================================
 
-    const [currentPage, setCurrentPage] =
-        useState(1);
+    const [
+        currentPage,
+        setCurrentPage,
+    ] = useState(1);
 
-    const [pagination, setPagination] =
-        useState({
-            count: 0,
-            next: null,
-            previous: null,
-        });
+    const [
+        pagination,
+        setPagination,
+    ] = useState({
+        count: 0,
+        next: null,
+        previous: null,
+    });
 
     // =====================================================
     // RETRY STATE
@@ -129,7 +146,10 @@ const Projects = () => {
     // The previous request is aborted by effect cleanup.
     // =====================================================
 
-    const [retryKey, setRetryKey] = useState(0);
+    const [
+        retryKey,
+        setRetryKey,
+    ] = useState(0);
 
     // =====================================================
     // SAFE PROJECTS
@@ -142,12 +162,16 @@ const Projects = () => {
     }, [projects]);
 
     // =====================================================
-    // TOTAL COUNT / PAGES
+    // TOTAL COUNT
     // =====================================================
 
     const totalCount = safeNumber(
         pagination.count
     );
+
+    // =====================================================
+    // TOTAL PAGES
+    // =====================================================
 
     const totalPages = useMemo(() => {
         if (totalCount <= 0) {
@@ -177,9 +201,10 @@ const Projects = () => {
     // RESULT RANGE
     // =====================================================
 
-    const rangeStart = totalCount > 0
-        ? (currentPage - 1) * PAGE_SIZE + 1
-        : 0;
+    const rangeStart =
+        totalCount > 0
+            ? (currentPage - 1) * PAGE_SIZE + 1
+            : 0;
 
     const rangeEnd = Math.min(
         currentPage * PAGE_SIZE,
@@ -189,9 +214,8 @@ const Projects = () => {
     // =====================================================
     // SEARCH DEBOUNCE
     //
-    // Reset page together with the debounced search.
-    // This avoids an unnecessary request for page 1
-    // with the previous search term.
+    // Reset the page together with debounced search.
+    // This avoids a request for page 1 with old search.
     // =====================================================
 
     useEffect(() => {
@@ -215,8 +239,8 @@ const Projects = () => {
     // =====================================================
     // SEARCH SHORTCUT
     //
-    // Ctrl + K on Windows / Linux
-    // Cmd + K on macOS
+    // Ctrl + K — Windows / Linux
+    // Cmd + K  — macOS
     // =====================================================
 
     useEffect(() => {
@@ -250,6 +274,8 @@ const Projects = () => {
 
     // =====================================================
     // FETCH PROJECTS
+    //
+    // Original API contract preserved.
     // =====================================================
 
     const fetchProjects = useCallback(
@@ -257,6 +283,10 @@ const Projects = () => {
             if (signal?.aborted) {
                 return;
             }
+
+            // =============================================
+            // REDUX START
+            // =============================================
 
             dispatch(getProjectStart());
 
@@ -269,25 +299,25 @@ const Projects = () => {
                         signal,
                     });
 
-                // ========================================
+                // =========================================
                 // PREVENT STALE UPDATES
-                // ========================================
+                // =========================================
 
                 if (signal?.aborted) {
                     return;
                 }
 
-                // ========================================
+                // =========================================
                 // REDUX SUCCESS
-                // ========================================
+                // =========================================
 
                 dispatch(
                     getProjectSuccess(response)
                 );
 
-                // ========================================
-                // PAGINATION META
-                // ========================================
+                // =========================================
+                // PAGINATION METADATA
+                // =========================================
 
                 const count = safeNumber(
                     response?.count
@@ -299,9 +329,12 @@ const Projects = () => {
                     previous: response?.previous ?? null,
                 });
 
-                // ========================================
+                // =========================================
                 // CORRECT INVALID PAGE
-                // ========================================
+                //
+                // Example:
+                // Search reduces total page count.
+                // =========================================
 
                 const responseTotalPages =
                     count > 0
@@ -314,11 +347,10 @@ const Projects = () => {
                 ) {
                     setCurrentPage(responseTotalPages);
                 }
-
             } catch (error) {
-                // ========================================
+                // =========================================
                 // IGNORE CANCELED REQUESTS
-                // ========================================
+                // =========================================
 
                 if (
                     signal?.aborted ||
@@ -426,8 +458,8 @@ const Projects = () => {
 
             setCurrentPage(nextPage);
 
-            // The toolbar section already exists in DOM.
-            // No arbitrary timeout is required.
+            // Existing toolbar section is already in DOM.
+            // No artificial delay required.
             scrollToProjects();
         },
         [
@@ -441,8 +473,7 @@ const Projects = () => {
     // =====================================================
     // RETRY
     //
-    // Reuse the same request lifecycle instead of
-    // creating an unmanaged AbortController.
+    // Reuse existing request lifecycle.
     // =====================================================
 
     const handleRetry = useCallback(() => {
@@ -457,9 +488,9 @@ const Projects = () => {
         project_isLoading
     );
 
-    const hasError = Boolean(
-        project_error
-    ) && !isLoading;
+    const hasError =
+        Boolean(project_error) &&
+        !isLoading;
 
     const hasProjects =
         projectList.length > 0;
@@ -486,8 +517,8 @@ const Projects = () => {
         // ================================================
         // ERROR
         //
-        // Error is displayed above the grid.
-        // Avoid also showing stale cards or empty state.
+        // Error is shown by ProjectsErrorState.
+        // Do not show stale project cards.
         // ================================================
 
         if (hasError) {
@@ -511,7 +542,7 @@ const Projects = () => {
 
                         index={
                             (currentPage - 1) *
-                            PAGE_SIZE +
+                                PAGE_SIZE +
                             index
                         }
                     />
@@ -544,14 +575,18 @@ const Projects = () => {
 
     return (
         <main
+            id="projects-directory"
             className="
                 relative
                 isolate
+
                 min-h-screen
+                w-full
                 min-w-0
+
                 overflow-hidden
 
-                bg-[#edf2fa]
+                bg-[#edf4ff]
                 text-slate-900
 
                 px-4
@@ -565,91 +600,37 @@ const Projects = () => {
 
                 lg:px-8
 
-                dark:bg-[#050816]
+                dark:bg-[#060b15]
                 dark:text-white
             "
         >
             {/* ======================================
-                BACKGROUND GRID
+                SHARED FUTURISTIC BACKGROUND
+
+                The same component is used on:
+                - Users
+                - Problems
+                - Feedback
+
+                Includes:
+                - Continuous grid
+                - Circuit / network lines
+                - Glowing nodes
+                - Glass-like 3D cubes
+                - Cyan / Indigo / Violet glows
+                - FS watermark
+
+                Decorative only:
+                Does not intercept clicks or scrolling.
             ====================================== */}
 
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-                    absolute
-                    inset-0
-                    z-0
-
-                    opacity-[0.025]
-
-                    text-slate-900
-
-                    [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)]
-                    [background-size:40px_40px]
-
-                    dark:opacity-[0.018]
-                    dark:text-white
-                "
-            />
-
-            {/* ======================================
-                BACKGROUND ACCENTS
-            ====================================== */}
-
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-                    absolute
-                    -left-28
-                    top-16
-
-                    hidden
-
-                    h-96
-                    w-96
-
-                    rounded-full
-
-                    bg-cyan-500/[0.07]
-                    blur-[110px]
-
-                    sm:block
-
-                    dark:bg-cyan-500/[0.045]
-                "
-            />
-
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-                    absolute
-                    -right-28
-                    top-72
-
-                    hidden
-
-                    h-96
-                    w-96
-
-                    rounded-full
-
-                    bg-indigo-500/[0.07]
-                    blur-[110px]
-
-                    sm:block
-
-                    dark:bg-indigo-500/[0.06]
-                "
-            />
+            <PageGridBackground showMonogram />
 
             {/* ======================================
                 CONTENT CONTAINER
+
+                Keep every interactive element
+                above the background.
             ====================================== */}
 
             <div
@@ -665,30 +646,68 @@ const Projects = () => {
             >
                 {/* ==================================
                     HEADER
+
+                    Contains:
+                    - Project hub heading
+                    - Search field
+                    - Ctrl / Cmd + K hint
                 ================================== */}
 
                 <ProjectsHeader
-                    searchInputRef={searchInputRef}
-                    searchTerm={searchTerm}
-                    onSearchChange={handleSearchChange}
-                    onClearSearch={handleClearSearch}
+                    searchInputRef={
+                        searchInputRef
+                    }
+
+                    searchTerm={
+                        searchTerm
+                    }
+
+                    onSearchChange={
+                        handleSearchChange
+                    }
+
+                    onClearSearch={
+                        handleClearSearch
+                    }
                 />
 
                 {/* ==================================
                     TOOLBAR
+
+                    Shows:
+                    - Number of projects
+                    - Current page range
+                    - Current search
                 ================================== */}
 
                 <ProjectsToolbar
-                    sectionRef={projectsSectionRef}
-                    isLoading={isLoading}
-                    count={totalCount}
-                    rangeStart={rangeStart}
-                    rangeEnd={rangeEnd}
-                    search={debouncedSearch}
+                    sectionRef={
+                        projectsSectionRef
+                    }
+
+                    isLoading={
+                        isLoading
+                    }
+
+                    count={
+                        totalCount
+                    }
+
+                    rangeStart={
+                        rangeStart
+                    }
+
+                    rangeEnd={
+                        rangeEnd
+                    }
+
+                    search={
+                        debouncedSearch
+                    }
                 />
 
                 {/* ==================================
-                    ERROR
+                    ERROR / RETRY
                 ================================== */}
 
                 <ProjectsErrorState
@@ -697,11 +716,14 @@ const Projects = () => {
                             ? project_error
                             : null
                     }
-                    onRetry={handleRetry}
+
+                    onRetry={
+                        handleRetry
+                    }
                 />
 
                 {/* ==================================
-                    PROJECT GRID
+                    PROJECTS GRID
                 ================================== */}
 
                 {!hasError && (
@@ -735,11 +757,25 @@ const Projects = () => {
 
                 {!hasError && (
                     <ProjectsPagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        items={paginationItems}
-                        isLoading={isLoading}
-                        onPageChange={handlePageChange}
+                        currentPage={
+                            currentPage
+                        }
+
+                        totalPages={
+                            totalPages
+                        }
+
+                        items={
+                            paginationItems
+                        }
+
+                        isLoading={
+                            isLoading
+                        }
+
+                        onPageChange={
+                            handlePageChange
+                        }
                     />
                 )}
             </div>
@@ -747,4 +783,8 @@ const Projects = () => {
     );
 };
 
-export default Projects;
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default React.memo(Projects);

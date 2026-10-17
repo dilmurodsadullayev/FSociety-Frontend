@@ -2,6 +2,12 @@
 import React from "react";
 
 // =========================================================
+// FSOCIETY — SHARED PAGE BACKGROUND
+// =========================================================
+
+import PageGridBackground from "./ui/PageGridBackground";
+
+// =========================================================
 // PROBLEM CARD
 // =========================================================
 
@@ -40,6 +46,9 @@ import {
 // - Render problem cards and pagination
 // - Light / Dark Mode
 // - Mobile-first responsiveness
+//
+// Shared futuristic background:
+// src/components/ui/PageGridBackground.jsx
 //
 // No direct Redux or API requests.
 // =========================================================
@@ -105,12 +114,19 @@ const Problems = () => {
     } = useProblemsPage();
 
     // =====================================================
+    // SAFE DATA
+    // =====================================================
+
+    const safeProblemList = Array.isArray(problemList)
+        ? problemList
+        : [];
+
+    // =====================================================
     // DERIVED UI VALUES
     // =====================================================
 
     const searchPending =
-        searchTerm.trim() !==
-        debouncedSearchTerm;
+        searchTerm.trim() !== debouncedSearchTerm;
 
     const isSearching = Boolean(
         (loading || searchPending) &&
@@ -130,7 +146,7 @@ const Problems = () => {
 
     const hasVisibleData =
         showCards &&
-        problemList.length > 0;
+        safeProblemList.length > 0;
 
     // =====================================================
     // JSX
@@ -139,7 +155,6 @@ const Problems = () => {
     return (
         <main
             id="problems-hero"
-
             className="
                 relative
                 isolate
@@ -151,10 +166,7 @@ const Problems = () => {
 
                 overflow-x-hidden
 
-                bg-gradient-to-b
-                from-slate-50
-                via-white
-                to-slate-50
+                bg-[#edf4ff]
 
                 px-3
                 pb-20
@@ -163,76 +175,38 @@ const Problems = () => {
                 font-sans
                 text-slate-900
 
-                transition-colors
-                duration-200
-
                 sm:px-6
                 sm:pb-24
                 sm:pt-12
 
                 lg:px-8
 
-                dark:from-gray-900
-                dark:via-[#0b0e14]
-                dark:to-black
+                dark:bg-[#060b15]
                 dark:text-gray-100
             "
         >
             {/* ======================================
-                BACKGROUND DECORATION
+                SHARED FUTURISTIC BACKGROUND
+
+                Same background used on Users page.
+
+                Includes:
+                - Continuous grid
+                - Network lines
+                - Glowing connection nodes
+                - Translucent glass cubes
+                - Cyan / Indigo / Violet lighting
+                - FS watermark
+                - Light / Dark Mode
             ====================================== */}
 
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-
-                    absolute
-                    left-1/2
-                    top-0
-
-                    h-[420px]
-                    w-[650px]
-                    max-w-none
-
-                    -translate-x-1/2
-
-                    rounded-full
-
-                    bg-indigo-500/[0.035]
-
-                    blur-[110px]
-
-                    dark:bg-indigo-500/[0.06]
-                "
-            />
-
-            <div
-                aria-hidden="true"
-
-                className="
-                    pointer-events-none
-
-                    absolute
-                    -right-32
-                    top-[520px]
-
-                    h-[320px]
-                    w-[320px]
-
-                    rounded-full
-
-                    bg-cyan-500/[0.025]
-
-                    blur-[100px]
-
-                    dark:bg-cyan-500/[0.04]
-                "
-            />
+            <PageGridBackground showMonogram />
 
             {/* ======================================
                 CONTENT CONTAINER
+
+                z-10 keeps all interactive content
+                above the shared background.
             ====================================== */}
 
             <div
@@ -350,6 +324,7 @@ const Problems = () => {
 
                     className="
                         grid
+
                         w-full
                         min-w-0
 
@@ -394,7 +369,7 @@ const Problems = () => {
                     ========================== */}
 
                     {hasVisibleData &&
-                        problemList.map((
+                        safeProblemList.map((
                             problem,
                             index
                         ) => (
@@ -413,7 +388,8 @@ const Problems = () => {
                                     problem={problem}
                                 />
                             </div>
-                        ))}
+                        ))
+                    }
 
                     {/* ==========================
                         EMPTY RESULTS
@@ -423,6 +399,7 @@ const Problems = () => {
                         <div
                             className="
                                 col-span-full
+
                                 w-full
                                 min-w-0
                             "
