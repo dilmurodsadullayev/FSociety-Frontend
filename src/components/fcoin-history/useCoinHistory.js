@@ -1,4 +1,32 @@
-// src/components/fcoin-history/useCoinHistory.js
+
+/**
+ * FSociety — useCoinHistory
+ *
+ * FCoin History sahifasining controller hooki.
+ *
+ * Mavjud imkoniyatlar:
+ * - Django API
+ * - Redux
+ * - Current user
+ * - Transaction history
+ * - Current balance
+ * - Pagination
+ * - Page size
+ * - Refresh / Retry
+ * - AbortController
+ * - Loading / Error states
+ *
+ * Tuzatishlar:
+ * - Stale API success himoyasi
+ * - Stale API error himoyasi
+ * - Abort qilingan so'rov error emas
+ * - Initial error paytida balance fallback
+ * - Refresh failure paytida eski balansni saqlash
+ * - Pagination validatsiyasi
+ * - Reduced Motion bilan scroll
+ *
+ * FCoin miqdori qisqartirilmaydi.
+ */
 
 import {
     useCallback,
@@ -12,10 +40,18 @@ import {
     useSelector,
 } from "react-redux";
 
+// =========================================================
+// COIN SERVICE
+// =========================================================
+
 import CoinService, {
     getCoinErrorMessage,
     isCoinRequestCanceled,
 } from "../../services/coin";
+
+// =========================================================
+// REDUX
+// =========================================================
 
 import {
     getCoinFailure,
@@ -26,15 +62,18 @@ import {
     setCoinPageSize,
 } from "../../features/coins";
 
+// =========================================================
+// HELPERS
+// =========================================================
+
 import {
     getCoinHistoryRange,
     getCoinPaginationPages,
     safeNumber,
 } from "./coinHistoryHelpers";
 
-
 // =========================================================
-// PAGE SIZE OPTIONS
+// CONSTANTS
 // =========================================================
 
 export const COIN_PAGE_SIZE_OPTIONS = [
@@ -44,36 +83,43 @@ export const COIN_PAGE_SIZE_OPTIONS = [
     50,
 ];
 
+const EMPTY_COINS = [];
 
 // =========================================================
 // USE COIN HISTORY
 // =========================================================
 
 const useCoinHistory = () => {
-    const dispatch =
-        useDispatch();
-
-
     // =====================================================
-    // STORE
+    // DISPATCH
     // =====================================================
 
-    const coinState =
-        useSelector(
-            selectCoinState
-        );
+    const dispatch = useDispatch();
 
+    // =====================================================
+    // REDUX COIN STATE
+    // =====================================================
 
-    const authUser =
-        useSelector(
-            (
-                state
-            ) => state?.auth?.user
-        );
+    const coinState = useSelector(
+        selectCoinState
+    );
 
+    // =====================================================
+    // AUTH USER
+    // =====================================================
+
+    const authUser = useSelector(
+        (state) =>
+            state?.auth?.user ?? null
+    );
+
+    // =====================================================
+    // REDUX DATA
+    // =====================================================
 
     const {
-        coins,
+        coins: storedCoins,
+
         balance,
         isLoading,
         error,
@@ -85,149 +131,234 @@ const useCoinHistory = () => {
         totalPages,
         next,
         previous,
-    } = coinState;
+    } = coinState || {};
 
+    // =====================================================
+    // SAFE COIN ARRAY
+    //
+    // API response yoki Redux holati vaqtincha
+    // undefined bo'lsa, sahifa buzilmaydi.
+    // =====================================================
+
+    const coins = Array.isArray(storedCoins)
+        ? storedCoins
+        : EMPTY_COINS;
 
     // =====================================================
     // REQUEST CONTROLLER
+    //
+    // Faqat oxirgi faol API request
+    // Redux holatini o'zgartirishi mumkin.
     // =====================================================
 
-    const requestControllerRef =
-        useRef(
-            null
-        );
+    const requestControllerRef = useRef(null);
 
+    // =====================================================
+    // LAST SUCCESSFUL BALANCE
+    //
+    // Refresh xatosida oldingi tasdiqlangan
+    // backend balansini saqlash uchun.
+    // =====================================================
+
+    const lastSuccessfulBalanceRef = useRef(null);
 
     // =====================================================
     // LOAD HISTORY
+    //
+    // API SIGNATURE:
+    //
+    // CoinService.getCoins(
+    //     page,
+    //     size,
+    //     { signal }
+    // )
+    //
+    // Redux:
+    // getCoinStart
+    // getCoinSuccess
+    // getCoinFailure
     // =====================================================
 
-    const loadHistory =
-        useCallback(
-            async (
-                page,
-                size
-            ) => {
+    const loadHistory = useCallback(
+        async (page, size) => {
+            // =============================================
+            // CANCEL PREVIOUS REQUEST
+            // =============================================
+
+            const previousController =
+                requestControllerRef.current;
+
+            if (previousController) {
+                previousController.abort();
+            }
+
+            // =============================================
+            // CREATE NEW CONTROLLER
+            // =============================================
+
+            const controller =
+                new AbortController();
+
+            requestControllerRef.current =
+                controller;
+
+            // =============================================
+            // REDUX LOADING START
+            // =============================================
+
+            dispatch(
+                getCoinStart({
+                    page,
+                    pageSize: size,
+                })
+            );
+
+            // =============================================
+            // API REQUEST
+            // =============================================
+
+            try {
+                const response =
+                    await CoinService.getCoins(
+                        page,
+                        size,
+                        {
+                            signal: controller.signal,
+                        }
+                    );
+
                 // =========================================
-                // OLD REQUEST CANCEL
+                // REQUEST VALIDATION
+                //
+                // Response eskirgan bo'lsa yoki request
+                // abort qilingan bo'lsa, Redux'ga yozmaymiz.
+                // =========================================
+
+                const isCurrentRequest =
+                    requestControllerRef.current ===
+                    controller;
+
+                if (
+                    controller.signal.aborted ||
+                    !isCurrentRequest
+                ) {
+                    return null;
+                }
+
+                // =========================================
+                // STORE SUCCESSFUL BACKEND BALANCE
+                //
+                // Saqlanadigan qiymat display uchun.
+                // API response o'zgartirilmaydi.
                 // =========================================
 
                 if (
-                    requestControllerRef.current
+                    response?.balance !== null &&
+                    response?.balance !== undefined
                 ) {
-                    requestControllerRef
-                        .current
-                        .abort();
+                    const numericBalance = safeNumber(
+                        response.balance,
+                        NaN
+                    );
+
+                    if (
+                        Number.isFinite(numericBalance)
+                    ) {
+                        lastSuccessfulBalanceRef.current =
+                            numericBalance;
+                    }
                 }
 
-
                 // =========================================
-                // NEW REQUEST
+                // REDUX SUCCESS
                 // =========================================
-
-                const controller =
-                    new AbortController();
-
-
-                requestControllerRef.current =
-                    controller;
-
 
                 dispatch(
-                    getCoinStart({
-                        page,
-
-                        pageSize:
-                            size,
-                    })
+                    getCoinSuccess(response)
                 );
 
+                // =========================================
+                // RETURN RESPONSE
+                // =========================================
 
-                try {
-                    const response =
-                        await CoinService
-                            .getCoins(
-                                page,
-                                size,
-                                {
-                                    signal:
-                                        controller.signal,
-                                }
-                            );
+                return response;
+            } catch (requestError) {
+                // =========================================
+                // CHECK WHETHER REQUEST WAS REPLACED
+                // =========================================
 
+                const isCurrentRequest =
+                    requestControllerRef.current ===
+                    controller;
 
-                    // =====================================
-                    // REQUEST ALREADY REPLACED
-                    // =====================================
+                // =========================================
+                // IGNORE CANCELED REQUEST
+                //
+                // AbortController / Axios cancellation
+                // foydalanuvchiga xato ko'rinmasligi kerak.
+                // =========================================
 
-                    if (
-                        requestControllerRef.current
-                        !==
-                        controller
-                    ) {
-                        return null;
-                    }
-
-
-                    dispatch(
-                        getCoinSuccess(
-                            response
-                        )
-                    );
-
-
-                    return response;
-
-                } catch (
-                    requestError
+                if (
+                    controller.signal.aborted ||
+                    !isCurrentRequest ||
+                    isCoinRequestCanceled(requestError)
                 ) {
-                    // =====================================
-                    // ABORT IS NOT FAILURE
-                    // =====================================
+                    return null;
+                }
 
-                    if (
-                        isCoinRequestCanceled(
-                            requestError
-                        )
-                    ) {
-                        return null;
-                    }
+                // =========================================
+                // ERROR MESSAGE
+                // =========================================
 
-
-                    const message =
-                        getCoinErrorMessage(
-                            requestError
-                        );
-
-
-                    dispatch(
-                        getCoinFailure(
-                            message
-                        )
+                const message =
+                    getCoinErrorMessage(
+                        requestError
                     );
 
+                // =========================================
+                // REDUX FAILURE
+                //
+                // Faqat hozirgi faol request uchun.
+                // =========================================
 
-                    return null;
+                dispatch(
+                    getCoinFailure(message)
+                );
 
-                } finally {
-                    if (
-                        requestControllerRef.current
-                        ===
-                        controller
-                    ) {
-                        requestControllerRef.current =
-                            null;
-                    }
+                return null;
+            } finally {
+                // =========================================
+                // CLEANUP
+                //
+                // Eski request yangi controller
+                // qiymatini o'chirib yubormaydi.
+                // =========================================
+
+                if (
+                    requestControllerRef.current ===
+                    controller
+                ) {
+                    requestControllerRef.current =
+                        null;
                 }
-            },
-            [
-                dispatch,
-            ]
-        );
-
+            }
+        },
+        [
+            dispatch,
+        ]
+    );
 
     // =====================================================
-    // INITIAL LOAD + PAGE CHANGE
+    // INITIAL LOAD + PAGE / SIZE CHANGE
+    //
+    // Mount:
+    // - currentPage
+    // - pageSize
+    //
+    // Redux pagination o'zgarsa, yangi so'rov.
+    //
+    // Cleanup:
+    // - oldingi request abort
     // =====================================================
 
     useEffect(
@@ -237,14 +368,12 @@ const useCoinHistory = () => {
                 pageSize
             );
 
-
             return () => {
-                if (
-                    requestControllerRef.current
-                ) {
-                    requestControllerRef
-                        .current
-                        .abort();
+                const controller =
+                    requestControllerRef.current;
+
+                if (controller) {
+                    controller.abort();
                 }
             };
         },
@@ -255,310 +384,391 @@ const useCoinHistory = () => {
         ]
     );
 
-
     // =====================================================
     // PAGE CHANGE
+    //
+    // Validation:
+    // - Loading paytida o'zgarmaydi
+    // - 1 dan kichik sahifa yo'q
+    // - totalPages dan katta sahifa yo'q
+    // - Joriy sahifaga qayta o'tmaymiz
     // =====================================================
 
-    const handlePageChange =
-        useCallback(
-            (
-                page
-            ) => {
-                const nextPage =
-                    Math.trunc(
-                        safeNumber(
-                            page,
-                            currentPage
-                        )
-                    );
+    const handlePageChange = useCallback(
+        (page) => {
+            const requestedPage =
+                safeNumber(
+                    page,
+                    currentPage
+                );
 
+            // =============================================
+            // ONLY INTEGER PAGE NUMBERS
+            // =============================================
+
+            if (
+                !Number.isInteger(
+                    requestedPage
+                )
+            ) {
+                return;
+            }
+
+            const nextPage =
+                requestedPage;
+
+            // =============================================
+            // PAGINATION GUARDS
+            // =============================================
+
+            if (
+                isLoading ||
+                nextPage < 1 ||
+                nextPage > Math.max(
+                    1,
+                    safeNumber(totalPages, 0)
+                ) ||
+                nextPage === currentPage
+            ) {
+                return;
+            }
+
+            // =============================================
+            // REDUX PAGE CHANGE
+            //
+            // useEffect performs the API request.
+            // =============================================
+
+            dispatch(
+                setCoinPage(
+                    nextPage
+                )
+            );
+
+            // =============================================
+            // SCROLL TO HISTORY LIST
+            //
+            // Reduced Motion qo'llab-quvvatlanadi.
+            // =============================================
+
+            if (
+                typeof window !== "undefined"
+            ) {
+                const performScroll = () => {
+                    const element =
+                        document.getElementById(
+                            "fcoin-history-list"
+                        );
+
+                    const reduceMotion =
+                        typeof window.matchMedia ===
+                            "function" &&
+                        window.matchMedia(
+                            "(prefers-reduced-motion: reduce)"
+                        ).matches;
+
+                    const behavior = reduceMotion
+                        ? "auto"
+                        : "smooth";
+
+                    if (
+                        element &&
+                        typeof element.scrollIntoView ===
+                            "function"
+                    ) {
+                        element.scrollIntoView({
+                            behavior,
+                            block: "start",
+                        });
+
+                        return;
+                    }
+
+                    window.scrollTo({
+                        top: 0,
+                        behavior,
+                    });
+                };
 
                 if (
-                    isLoading
-                    ||
-                    nextPage < 1
-                    ||
-                    nextPage >
-                        Math.max(
-                            totalPages,
-                            1
-                        )
-                    ||
-                    nextPage ===
-                        currentPage
+                    typeof window.requestAnimationFrame ===
+                    "function"
                 ) {
-                    return;
+                    window.requestAnimationFrame(
+                        performScroll
+                    );
+                } else {
+                    performScroll();
                 }
-
-
-                dispatch(
-                    setCoinPage(
-                        nextPage
-                    )
-                );
-
-
-                // Page tepasiga yumshoq scroll.
-                // Komponent mavjud bo'lmasa window fallback.
-
-                requestAnimationFrame(
-                    () => {
-                        const element =
-                            document
-                                .getElementById(
-                                    "fcoin-history-list"
-                                );
-
-
-                        if (
-                            element
-                        ) {
-                            element.scrollIntoView({
-                                behavior:
-                                    "smooth",
-
-                                block:
-                                    "start",
-                            });
-
-
-                            return;
-                        }
-
-
-                        window.scrollTo({
-                            top:
-                                0,
-
-                            behavior:
-                                "smooth",
-                        });
-                    }
-                );
-            },
-            [
-                currentPage,
-                dispatch,
-                isLoading,
-                totalPages,
-            ]
-        );
-
+            }
+        },
+        [
+            currentPage,
+            dispatch,
+            isLoading,
+            totalPages,
+        ]
+    );
 
     // =====================================================
     // PREVIOUS PAGE
     // =====================================================
 
-    const handlePreviousPage =
-        useCallback(
-            () => {
-                handlePageChange(
-                    currentPage - 1
-                );
-            },
-            [
-                currentPage,
-                handlePageChange,
-            ]
-        );
-
+    const handlePreviousPage = useCallback(
+        () => {
+            handlePageChange(
+                currentPage - 1
+            );
+        },
+        [
+            currentPage,
+            handlePageChange,
+        ]
+    );
 
     // =====================================================
     // NEXT PAGE
     // =====================================================
 
-    const handleNextPage =
-        useCallback(
-            () => {
-                handlePageChange(
-                    currentPage + 1
-                );
-            },
-            [
-                currentPage,
-                handlePageChange,
-            ]
-        );
-
+    const handleNextPage = useCallback(
+        () => {
+            handlePageChange(
+                currentPage + 1
+            );
+        },
+        [
+            currentPage,
+            handlePageChange,
+        ]
+    );
 
     // =====================================================
-    // PAGE SIZE
+    // PAGE SIZE CHANGE
+    //
+    // Supported options:
+    // 10 / 15 / 25 / 50
+    //
+    // Redux reducer birinchi sahifaga qaytaradi.
     // =====================================================
 
-    const handlePageSizeChange =
-        useCallback(
-            (
-                value
-            ) => {
-                const nextSize =
-                    Math.trunc(
-                        safeNumber(
-                            value,
-                            pageSize
-                        )
-                    );
-
-
-                if (
-                    isLoading
-                    ||
-                    nextSize <= 0
-                    ||
-                    nextSize ===
-                        pageSize
-                ) {
-                    return;
-                }
-
-
-                dispatch(
-                    setCoinPageSize(
-                        nextSize
-                    )
-                );
-            },
-            [
-                dispatch,
-                isLoading,
-                pageSize,
-            ]
-        );
-
-
-    // =====================================================
-    // REFRESH
-    // =====================================================
-
-    const refresh =
-        useCallback(
-            () => {
-                if (
-                    isLoading
-                ) {
-                    return;
-                }
-
-
-                loadHistory(
-                    currentPage,
+    const handlePageSizeChange = useCallback(
+        (value) => {
+            const requestedSize =
+                safeNumber(
+                    value,
                     pageSize
                 );
-            },
-            [
-                currentPage,
-                isLoading,
-                loadHistory,
-                pageSize,
-            ]
-        );
 
+            if (
+                !Number.isInteger(
+                    requestedSize
+                )
+            ) {
+                return;
+            }
+
+            const nextSize =
+                requestedSize;
+
+            if (
+                isLoading ||
+                nextSize === pageSize ||
+                !COIN_PAGE_SIZE_OPTIONS.includes(
+                    nextSize
+                )
+            ) {
+                return;
+            }
+
+            // =============================================
+            // REDUX PAGE SIZE CHANGE
+            //
+            // setCoinPageSize currentPage = 1 qiladi.
+            // useEffect yangi tarixni yuklaydi.
+            // =============================================
+
+            dispatch(
+                setCoinPageSize(
+                    nextSize
+                )
+            );
+        },
+        [
+            dispatch,
+            isLoading,
+            pageSize,
+        ]
+    );
+
+    // =====================================================
+    // REFRESH / RETRY
+    //
+    // Current page and size stay unchanged.
+    //
+    // During active loading, repeated clicks
+    // do not start additional requests.
+    // =====================================================
+
+    const refresh = useCallback(
+        () => {
+            if (
+                isLoading
+            ) {
+                return Promise.resolve(
+                    null
+                );
+            }
+
+            return loadHistory(
+                currentPage,
+                pageSize
+            );
+        },
+        [
+            currentPage,
+            isLoading,
+            loadHistory,
+            pageSize,
+        ]
+    );
 
     // =====================================================
     // DISPLAY BALANCE
     //
-    // Backend history yuklangandan keyin backend balance
-    // source-of-truth.
+    // MANTIQ:
     //
-    // Birinchi requestdan oldin auth user fallback.
+    // 1. Muvaffaqiyatli backend response mavjud:
+    //    uning balance qiymati asosiy manba.
+    //
+    // 2. Refresh xato bilan tugagan:
+    //    oxirgi muvaffaqiyatli balans saqlanadi.
+    //
+    // 3. Dastlabki so'rov xato:
+    //    authUser.coins fallback.
+    //
+    // 4. API hali tugamagan:
+    //    auth user yoki Redux balans.
+    //
+    // Bu joyda K / M formatlash YO'Q.
     // =====================================================
 
-    const displayBalance =
-        useMemo(
-            () => {
+    const displayBalance = useMemo(
+        () => {
+            // =============================================
+            // ERROR STATE
+            // =============================================
+
+            if (error) {
                 if (
-                    hasLoaded
+                    lastSuccessfulBalanceRef.current !==
+                    null
                 ) {
-                    return safeNumber(
-                        balance,
-                        0
-                    );
+                    return lastSuccessfulBalanceRef.current;
                 }
 
-
                 return safeNumber(
-                    authUser?.coins
-                    ??
+                    authUser?.coins ?? balance,
+                    0
+                );
+            }
+
+            // =============================================
+            // SUCCESSFUL LOADED DATA
+            // =============================================
+
+            if (
+                hasLoaded
+            ) {
+                return safeNumber(
                     balance,
                     0
                 );
-            },
-            [
-                authUser?.coins,
-                balance,
-                hasLoaded,
-            ]
-        );
+            }
 
+            // =============================================
+            // INITIAL FALLBACK
+            // =============================================
+
+            return safeNumber(
+                authUser?.coins ?? balance,
+                0
+            );
+        },
+        [
+            authUser?.coins,
+            balance,
+            error,
+            hasLoaded,
+        ]
+    );
 
     // =====================================================
     // USERNAME
+    //
+    // Existing fallback preserved.
     // =====================================================
 
-    const username =
-        useMemo(
-            () => {
-                return (
-                    authUser?.username
-                    ||
-                    "FSociety"
-                );
-            },
-            [
-                authUser?.username,
-            ]
-        );
-
+    const username = useMemo(
+        () => {
+            return (
+                authUser?.username ||
+                "FSociety"
+            );
+        },
+        [
+            authUser?.username,
+        ]
+    );
 
     // =====================================================
-    // RANGE
+    // HISTORY RANGE
+    //
+    // Example:
+    // 1–15 / 150
+    // 16–30 / 150
+    //
+    // count / page / pageSize / actual items.
     // =====================================================
 
-    const range =
-        useMemo(
-            () => {
-                return (
-                    getCoinHistoryRange({
-                        count,
-
-                        currentPage,
-
-                        pageSize,
-
-                        currentItemsCount:
-                            coins.length,
-                    })
-                );
-            },
-            [
-                coins.length,
+    const range = useMemo(
+        () => {
+            return getCoinHistoryRange({
                 count,
+
                 currentPage,
+
                 pageSize,
-            ]
-        );
 
+                currentItemsCount:
+                    coins.length,
+            });
+        },
+        [
+            count,
+            currentPage,
+            pageSize,
+            coins.length,
+        ]
+    );
 
     // =====================================================
-    // PAGINATION PAGE LIST
+    // PAGINATION PAGE NUMBERS
+    //
+    // Existing ellipsis keys remain available.
     // =====================================================
 
-    const paginationPages =
-        useMemo(
-            () => {
-                return (
-                    getCoinPaginationPages(
-                        currentPage,
-                        totalPages
-                    )
-                );
-            },
-            [
+    const paginationPages = useMemo(
+        () => {
+            return getCoinPaginationPages(
                 currentPage,
-                totalPages,
-            ]
-        );
-
+                totalPages
+            );
+        },
+        [
+            currentPage,
+            totalPages,
+        ]
+    );
 
     // =====================================================
     // FLAGS
@@ -567,132 +777,120 @@ const useCoinHistory = () => {
     const hasTransactions =
         coins.length > 0;
 
-
     const isInitialLoading =
-        isLoading
-        &&
+        Boolean(isLoading) &&
         !hasLoaded;
 
-
     const isRefreshing =
-        isLoading
-        &&
-        hasLoaded;
+        Boolean(isLoading) &&
+        Boolean(hasLoaded);
 
+    // =====================================================
+    // CAN GO PREVIOUS
+    //
+    // Original logic:
+    // previous OR currentPage > 1
+    //
+    // Kept for compatibility.
+    // =====================================================
 
     const canGoPrevious =
-        !isLoading
-        &&
-        currentPage > 1
-        &&
+        !isLoading &&
+        currentPage > 1 &&
         Boolean(
-            previous
-            ||
+            previous ||
             currentPage > 1
         );
 
+    // =====================================================
+    // CAN GO NEXT
+    //
+    // Original logic:
+    // next OR currentPage < totalPages
+    //
+    // Kept for compatibility.
+    // =====================================================
 
     const canGoNext =
-        !isLoading
-        &&
-        totalPages > 0
-        &&
-        currentPage < totalPages
-        &&
+        !isLoading &&
+        totalPages > 0 &&
+        currentPage < totalPages &&
         Boolean(
-            next
-            ||
+            next ||
             currentPage < totalPages
         );
 
-
     // =====================================================
     // RETURN
+    //
+    // Barcha eski nomlar va action handlerlar saqlangan.
+    //
+    // FCoinHistory.jsx va ichki komponentlar
+    // shu obyekt interfeysidan foydalanadi.
     // =====================================================
 
     return {
-        // =================================================
+        // ================================================
         // USER
-        // =================================================
+        // ================================================
 
         authUser,
-
         username,
 
-
-        // =================================================
+        // ================================================
         // DATA
-        // =================================================
+        // ================================================
 
         coins,
-
-        balance:
-            displayBalance,
-
+        balance: displayBalance,
         count,
-
         hasTransactions,
 
-
-        // =================================================
-        // REQUEST
-        // =================================================
+        // ================================================
+        // REQUEST STATE
+        // ================================================
 
         isLoading,
-
         isInitialLoading,
-
         isRefreshing,
-
         hasLoaded,
-
         error,
 
-
-        // =================================================
+        // ================================================
         // PAGINATION
-        // =================================================
+        // ================================================
 
         currentPage,
-
         pageSize,
-
         totalPages,
 
         next,
-
         previous,
 
         range,
-
         paginationPages,
 
         pageSizeOptions:
             COIN_PAGE_SIZE_OPTIONS,
 
         canGoPrevious,
-
         canGoNext,
 
-
-        // =================================================
+        // ================================================
         // ACTIONS
-        // =================================================
+        // ================================================
 
         loadHistory,
 
         refresh,
 
         handlePageChange,
-
         handlePreviousPage,
-
         handleNextPage,
 
         handlePageSizeChange,
     };
 };
-
 
 // =========================================================
 // EXPORT

@@ -1,9 +1,10 @@
 // src/components/fcoin-history/FCoinHistoryPagination.jsx
 
-import React from "react";
+import React, { memo } from "react";
 
 import {
     motion,
+    useReducedMotion,
 } from "framer-motion";
 
 import {
@@ -12,472 +13,521 @@ import {
     MoreHorizontal,
 } from "lucide-react";
 
+import {
+    formatFullCoinNumber,
+} from "./coinHistoryHelpers";
+
+// =========================================================
+// SHARED HELPERS
+// =========================================================
+
+const safeInteger = (value, fallback, minimum = 0) => {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return fallback;
+    }
+
+    return Math.max(minimum, Math.trunc(number));
+};
+
+const PAGE_TRANSITION = {
+    duration: 0.2,
+    ease: "easeOut",
+};
 
 // =========================================================
 // PAGE BUTTON
 // =========================================================
 
-const PageButton = ({
+const PageButton = memo(function PageButton({
     page,
     currentPage,
-
     disabled = false,
-
     onClick,
-}) => {
-    const isActive =
-        Number(
-            page
-        )
-        ===
-        Number(
-            currentPage
-        );
+    reduceMotion = false,
+}) {
+    const isActive = page === currentPage;
 
+    const isDisabled =
+        Boolean(disabled) ||
+        isActive ||
+        typeof onClick !== "function";
 
     const handleClick = () => {
-        if (
-            disabled
-            ||
-            isActive
-            ||
-            typeof onClick !==
-                "function"
-        ) {
-            return;
+        if (!isDisabled) {
+            onClick(page);
         }
-
-
-        onClick(
-            page
-        );
     };
-
 
     return (
         <motion.button
             type="button"
+            onClick={handleClick}
+            disabled={isDisabled}
+            aria-current={isActive ? "page" : undefined}
+            aria-label={`${page}-sahifa`}
             whileHover={
-                disabled
-                ||
-                isActive
+                reduceMotion || isDisabled
                     ? undefined
-                    : {
-                        y: -2,
-                    }
+                    : { y: -2 }
             }
             whileTap={
-                disabled
-                ||
-                isActive
+                reduceMotion || isDisabled
                     ? undefined
-                    : {
-                        scale: 0.96,
-                    }
+                    : { scale: 0.96 }
             }
-            onClick={
-                handleClick
-            }
-            disabled={
-                disabled
-            }
-            aria-current={
-                isActive
-                    ? "page"
-                    : undefined
-            }
-            aria-label={
-                `${page}-sahifa`
-            }
+            transition={PAGE_TRANSITION}
             className={`
-                flex
+                inline-flex
                 h-10
                 min-w-10
-
+                shrink-0
                 items-center
                 justify-center
 
                 rounded-xl
-
                 border
-
                 px-3
 
                 font-mono
-
                 text-xs
                 font-black
+                tabular-nums
 
-                transition-all
+                transition-colors
                 duration-200
 
                 ${
                     isActive
-                        ? (
-                            "border-indigo-400/30 "
-                            +
-                            "bg-indigo-500/15 "
-                            +
-                            "text-indigo-200 "
-                            +
-                            "shadow-[0_0_24px_rgba(99,102,241,0.10)]"
-                        )
-                        : (
-                            "border-white/[0.06] "
-                            +
-                            "bg-white/[0.025] "
-                            +
-                            "text-gray-500 "
-                            +
-                            "hover:border-white/[0.12] "
-                            +
-                            "hover:bg-white/[0.05] "
-                            +
-                            "hover:text-white"
-                        )
+                        ? `
+                            border-indigo-300
+                            bg-indigo-100
+                            text-indigo-800
+
+                            shadow-[0_4px_18px_rgba(99,102,241,0.12)]
+
+                            dark:border-indigo-400/30
+                            dark:bg-indigo-500/15
+                            dark:text-indigo-200
+
+                            dark:shadow-[0_0_24px_rgba(99,102,241,0.10)]
+                        `
+                        : `
+                            border-slate-200
+                            bg-white/80
+                            text-slate-600
+
+                            hover:border-indigo-300
+                            hover:bg-indigo-50
+                            hover:text-indigo-700
+
+                            dark:border-white/[0.07]
+                            dark:bg-white/[0.025]
+                            dark:text-gray-400
+
+                            dark:hover:border-white/[0.15]
+                            dark:hover:bg-white/[0.05]
+                            dark:hover:text-white
+                        `
                 }
 
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-indigo-500/60
+                focus-visible:ring-offset-2
+
+                dark:focus-visible:ring-offset-[#0d1117]
+
                 disabled:cursor-not-allowed
-                disabled:opacity-40
             `}
         >
-            {
-                page
-            }
+            {formatFullCoinNumber(page)}
         </motion.button>
     );
-};
-
+});
 
 // =========================================================
 // ELLIPSIS
 // =========================================================
 
-const Ellipsis = () => {
+const Ellipsis = memo(function Ellipsis() {
     return (
-        <div
+        <span
             aria-hidden="true"
             className="
-                flex
+                inline-flex
                 h-10
                 w-8
-
+                shrink-0
                 items-center
                 justify-center
 
-                text-gray-700
+                text-slate-400
+                dark:text-gray-600
             "
         >
-            <MoreHorizontal
-                size={17}
-            />
-        </div>
+            <MoreHorizontal size={17} />
+        </span>
     );
-};
-
+});
 
 // =========================================================
-// NAV BUTTON
+// NAVIGATION BUTTON
 // =========================================================
 
-const NavigationButton = ({
+const NavigationButton = memo(function NavigationButton({
     direction,
-
     disabled = false,
-
     onClick,
-}) => {
-    const isPrevious =
-        direction ===
-        "previous";
+    reduceMotion = false,
+}) {
+    const isPrevious = direction === "previous";
 
+    const Icon = isPrevious
+        ? ChevronLeft
+        : ChevronRight;
 
-    const Icon =
-        isPrevious
-            ? ChevronLeft
-            : ChevronRight;
+    const label = isPrevious
+        ? "Oldingi"
+        : "Keyingi";
 
+    const isDisabled =
+        Boolean(disabled) ||
+        typeof onClick !== "function";
 
-    const label =
-        isPrevious
-            ? "Oldingi"
-            : "Keyingi";
-
+    const handleClick = () => {
+        if (!isDisabled) {
+            onClick();
+        }
+    };
 
     return (
         <motion.button
             type="button"
+            onClick={handleClick}
+            disabled={isDisabled}
+            aria-label={`${label} sahifa`}
             whileHover={
-                disabled
+                reduceMotion || isDisabled
                     ? undefined
-                    : {
-                        y: -2,
-                    }
+                    : { y: -2 }
             }
             whileTap={
-                disabled
+                reduceMotion || isDisabled
                     ? undefined
-                    : {
-                        scale: 0.97,
-                    }
+                    : { scale: 0.97 }
             }
-            onClick={
-                onClick
-            }
-            disabled={
-                disabled
-            }
+            transition={PAGE_TRANSITION}
             className="
                 inline-flex
                 h-10
-
+                min-w-10
+                shrink-0
                 items-center
                 justify-center
-
                 gap-1.5
 
                 rounded-xl
-
                 border
-                border-white/[0.07]
-
-                bg-white/[0.025]
+                border-slate-200
+                bg-white/80
 
                 px-3
 
                 text-xs
                 font-black
+                text-slate-600
 
-                text-gray-400
-
-                transition-all
+                transition-colors
                 duration-200
 
-                hover:border-indigo-400/20
-                hover:bg-indigo-500/[0.07]
-                hover:text-indigo-200
+                hover:border-indigo-300
+                hover:bg-indigo-50
+                hover:text-indigo-700
 
-                active:scale-[0.98]
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-indigo-500/60
+                focus-visible:ring-offset-2
 
                 disabled:cursor-not-allowed
                 disabled:opacity-35
 
+                dark:border-white/[0.07]
+                dark:bg-white/[0.025]
+                dark:text-gray-400
+
+                dark:hover:border-indigo-400/20
+                dark:hover:bg-indigo-500/[0.07]
+                dark:hover:text-indigo-200
+
+                dark:focus-visible:ring-offset-[#0d1117]
+
                 sm:px-4
             "
         >
-            {
-                isPrevious
-                &&
-                (
-                    <Icon
-                        size={15}
-                    />
-                )
-            }
+            {isPrevious && (
+                <Icon
+                    size={16}
+                    aria-hidden="true"
+                />
+            )}
 
-
-            <span
-                className="
-                    hidden
-                    sm:inline
-                "
-            >
-                {
-                    label
-                }
+            <span className="hidden sm:inline">
+                {label}
             </span>
 
-
-            {
-                !isPrevious
-                &&
-                (
-                    <Icon
-                        size={15}
-                    />
-                )
-            }
+            {!isPrevious && (
+                <Icon
+                    size={16}
+                    aria-hidden="true"
+                />
+            )}
         </motion.button>
     );
-};
-
+});
 
 // =========================================================
-// PAGINATION
+// FCOIN HISTORY PAGINATION
+//
+// Existing props:
+// - currentPage
+// - totalPages
+// - paginationPages
+// - canGoPrevious
+// - canGoNext
+// - isLoading
+// - onPageChange
+// - onPrevious
+// - onNext
+//
+// All existing callbacks are preserved.
 // =========================================================
 
 const FCoinHistoryPagination = ({
     currentPage = 1,
-
     totalPages = 0,
-
     paginationPages = [],
-
     canGoPrevious = false,
     canGoNext = false,
-
     isLoading = false,
-
     onPageChange,
     onPrevious,
     onNext,
 }) => {
+    const reduceMotion = useReducedMotion();
+
+    // =====================================================
+    // SAFE PAGINATION DATA
+    // =====================================================
+
+    const safeTotalPages = safeInteger(
+        totalPages,
+        0,
+        0
+    );
+
+    const requestedCurrentPage = safeInteger(
+        currentPage,
+        1,
+        1
+    );
+
     const safeCurrentPage =
-        Math.max(
-            1,
-            Number(
-                currentPage
+        safeTotalPages > 0
+            ? Math.min(
+                requestedCurrentPage,
+                safeTotalPages
             )
-            ||
-            1
-        );
+            : 1;
 
+    const pages = Array.isArray(paginationPages)
+        ? paginationPages
+        : [];
 
-    const safeTotalPages =
-        Math.max(
-            0,
-            Number(
-                totalPages
+    const loading = Boolean(isLoading);
+
+    // =====================================================
+    // NAVIGATION GUARDS
+    // =====================================================
+
+    const previousDisabled =
+        loading ||
+        !canGoPrevious ||
+        safeCurrentPage <= 1;
+
+    const nextDisabled =
+        loading ||
+        !canGoNext ||
+        safeCurrentPage >= safeTotalPages;
+
+    const handlePageChange = (page) => {
+        if (
+            loading ||
+            typeof onPageChange !== "function"
+        ) {
+            return;
+        }
+
+        const requestedPage = Number(page);
+
+        if (
+            !Number.isInteger(requestedPage) ||
+            requestedPage < 1 ||
+            requestedPage > safeTotalPages ||
+            requestedPage === safeCurrentPage
+        ) {
+            return;
+        }
+
+        onPageChange(requestedPage);
+    };
+
+    // =====================================================
+    // MOBILE PAGE PROGRESS
+    // =====================================================
+
+    const progressPercentage =
+        safeTotalPages > 0
+            ? Math.min(
+                100,
+                Math.max(
+                    0,
+                    (safeCurrentPage / safeTotalPages) * 100
+                )
             )
-            ||
-            0
-        );
-
-
-    const pages =
-        Array.isArray(
-            paginationPages
-        )
-            ? paginationPages
-            : [];
-
+            : 0;
 
     // =====================================================
     // NO PAGINATION
     // =====================================================
 
-    if (
-        safeTotalPages <= 1
-    ) {
+    if (safeTotalPages <= 1) {
         return null;
     }
 
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
         <nav
-            aria-label="FCoin pagination"
+            aria-label="FCoin tranzaksiyalar sahifalari"
+            aria-busy={loading}
             className="
+                relative
                 mt-6
+                min-w-0
+                overflow-hidden
 
                 rounded-[24px]
-
                 border
-                border-white/[0.06]
+                border-slate-200/90
 
-                bg-[#0d1117]/80
-
+                bg-white/85
                 p-3
 
-                shadow-[0_15px_50px_rgba(0,0,0,0.22)]
+                shadow-[0_15px_45px_rgba(15,23,42,0.06)]
 
                 backdrop-blur-xl
+
+                dark:border-white/[0.06]
+                dark:bg-[#0d1117]/85
+                dark:shadow-[0_15px_50px_rgba(0,0,0,0.22)]
+
+                sm:p-4
             "
         >
+            {/* Decorative top line */}
+            <div
+                aria-hidden="true"
+                className="
+                    pointer-events-none
+                    absolute
+                    inset-x-0
+                    top-0
+                    h-px
+
+                    bg-gradient-to-r
+                    from-transparent
+                    via-indigo-400/35
+                    to-transparent
+                "
+            />
+
             <div
                 className="
+                    relative
+                    z-10
+
                     flex
+                    min-w-0
                     items-center
                     justify-between
+                    gap-2
 
-                    gap-3
+                    sm:gap-3
                 "
             >
-                {/* =========================================
-                    PREVIOUS
-                ========================================== */}
-
+                {/* PREVIOUS BUTTON */}
                 <NavigationButton
                     direction="previous"
-                    disabled={
-                        !canGoPrevious
-                        ||
-                        isLoading
-                    }
-                    onClick={
-                        onPrevious
-                    }
+                    disabled={previousDisabled}
+                    onClick={onPrevious}
+                    reduceMotion={reduceMotion}
                 />
 
-
-                {/* =========================================
-                    DESKTOP PAGE NUMBERS
-                ========================================== */}
-
+                {/* DESKTOP PAGE NUMBERS */}
                 <div
                     className="
                         hidden
+                        min-w-0
                         items-center
-
+                        justify-center
                         gap-1.5
 
                         md:flex
                     "
                 >
-                    {
-                        pages.map(
-                            (
-                                page,
-                                index
-                            ) => {
-                                if (
-                                    typeof page ===
-                                    "string"
-                                ) {
-                                    return (
-                                        <Ellipsis
-                                            key={
-                                                `${page}-${index}`
-                                            }
-                                        />
-                                    );
-                                }
+                    {pages.map((page, index) => {
+                        if (typeof page === "string") {
+                            return (
+                                <Ellipsis
+                                    key={`${page}-${index}`}
+                                />
+                            );
+                        }
 
+                        const pageNumber = Number(page);
 
-                                return (
-                                    <PageButton
-                                        key={
-                                            page
-                                        }
-                                        page={
-                                            page
-                                        }
-                                        currentPage={
-                                            safeCurrentPage
-                                        }
-                                        disabled={
-                                            isLoading
-                                        }
-                                        onClick={
-                                            onPageChange
-                                        }
-                                    />
-                                );
-                            }
-                        )
-                    }
+                        if (
+                            !Number.isInteger(pageNumber) ||
+                            pageNumber < 1 ||
+                            pageNumber > safeTotalPages
+                        ) {
+                            return null;
+                        }
+
+                        return (
+                            <PageButton
+                                key={pageNumber}
+                                page={pageNumber}
+                                currentPage={safeCurrentPage}
+                                disabled={loading}
+                                onClick={handlePageChange}
+                                reduceMotion={reduceMotion}
+                            />
+                        );
+                    })}
                 </div>
 
-
-                {/* =========================================
-                    MOBILE CURRENT PAGE
-                ========================================== */}
-
+                {/* MOBILE CURRENT PAGE */}
                 <div
                     className="
                         flex
                         min-w-0
                         flex-1
-
                         items-center
                         justify-center
 
@@ -486,118 +536,99 @@ const FCoinHistoryPagination = ({
                 >
                     <div
                         className="
+                            min-w-0
+                            max-w-full
+
                             rounded-xl
-
                             border
-                            border-indigo-400/[0.15]
+                            border-indigo-200
 
-                            bg-indigo-500/[0.06]
+                            bg-indigo-50
 
-                            px-4
+                            px-3
                             py-2
 
                             text-center
+
+                            dark:border-indigo-400/[0.15]
+                            dark:bg-indigo-500/[0.06]
+
+                            sm:px-4
                         "
                     >
                         <p
                             className="
                                 font-mono
-
-                                text-[8px]
+                                text-[9px]
                                 font-black
-
                                 uppercase
-
                                 tracking-[0.14em]
 
-                                text-gray-600
+                                text-slate-500
+                                dark:text-gray-400
                             "
                         >
                             Page
                         </p>
 
-
                         <p
                             className="
                                 mt-0.5
-
+                                break-all
+                                font-mono
                                 text-xs
                                 font-black
+                                tabular-nums
 
-                                text-indigo-200
+                                text-indigo-700
+                                dark:text-indigo-200
                             "
                         >
-                            {
-                                safeCurrentPage
-                            }
-
+                            {formatFullCoinNumber(safeCurrentPage)}
                             {" / "}
-
-                            {
-                                safeTotalPages
-                            }
+                            {formatFullCoinNumber(safeTotalPages)}
                         </p>
                     </div>
                 </div>
 
-
-                {/* =========================================
-                    NEXT
-                ========================================== */}
-
+                {/* NEXT BUTTON */}
                 <NavigationButton
                     direction="next"
-                    disabled={
-                        !canGoNext
-                        ||
-                        isLoading
-                    }
-                    onClick={
-                        onNext
-                    }
+                    disabled={nextDisabled}
+                    onClick={onNext}
+                    reduceMotion={reduceMotion}
                 />
             </div>
 
-
-            {/* =============================================
-                MOBILE PROGRESS BAR
-            ============================================== */}
-
+            {/* MOBILE PROGRESS BAR */}
             <div
+                aria-hidden="true"
                 className="
                     mt-3
-
                     h-1
-
                     overflow-hidden
 
                     rounded-full
+                    bg-slate-200/80
 
-                    bg-white/[0.03]
+                    dark:bg-white/[0.05]
 
                     md:hidden
                 "
             >
                 <motion.div
+                    initial={false}
                     animate={{
-                        width:
-                            `${
-                                (
-                                    safeCurrentPage
-                                    /
-                                    safeTotalPages
-                                )
-                                *
-                                100
-                            }%`,
+                        width: `${progressPercentage}%`,
                     }}
-                    transition={{
-                        duration:
-                            0.25,
-
-                        ease:
-                            "easeOut",
-                    }}
+                    transition={
+                        reduceMotion
+                            ? { duration: 0 }
+                            : {
+                                duration: 0.25,
+                                ease: "easeOut",
+                            }
+                    }
                     className="
                         h-full
 
@@ -613,11 +644,8 @@ const FCoinHistoryPagination = ({
     );
 };
 
-
 // =========================================================
 // EXPORT
 // =========================================================
 
-export default React.memo(
-    FCoinHistoryPagination
-);
+export default memo(FCoinHistoryPagination);

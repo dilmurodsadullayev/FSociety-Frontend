@@ -358,20 +358,20 @@ pre {
 
 
 /* =========================================================
-   SELECTION
+   FSOCIETY — GLOBAL TEXT SELECTION
+
+   Classic gold selection
+   Same colors in Light / Dark Mode
    ========================================================= */
 
 ::selection {
-    color:
-        #ffffff;
+    background-color: #fbbf24;
+    color: #000000;
+}
 
-    background:
-        rgba(
-            99,
-            102,
-            241,
-            0.50
-        );
+::-moz-selection {
+    background-color: #fbbf24;
+    color: #000000;
 }
 
 
