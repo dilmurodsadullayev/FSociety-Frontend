@@ -1,4 +1,6 @@
 
+// src/components/posts/create/PostCreateFields.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -11,7 +13,6 @@ import {
 // =========================================================
 
 const TITLE_MAX_LENGTH = 150;
-
 const TITLE_WARNING_LENGTH = 140;
 
 // =========================================================
@@ -20,40 +21,46 @@ const TITLE_WARNING_LENGTH = 140;
 
 const LABEL_CLASS = `
     flex
+    min-w-0
     items-center
     gap-2
 
-    text-xs
+    text-[11px]
     font-black
     uppercase
-    tracking-[0.16em]
+    tracking-[0.12em]
 
     text-slate-700
-    dark:text-slate-400
+    dark:text-slate-300
+
+    sm:text-xs
+    sm:tracking-[0.16em]
 `;
 
 const INPUT_CLASS = `
     relative
     z-10
 
+    block
     w-full
     min-w-0
+    max-w-full
 
-    rounded-2xl
+    rounded-xl
     border
-
     border-slate-300
     bg-white
 
-    px-4
-    py-3.5
+    px-3.5
+    py-3
 
-    text-sm
-    font-semibold
+    text-base
+    font-medium
     text-slate-900
 
     outline-none
-    transition-all
+
+    transition-colors
     duration-200
 
     placeholder:text-slate-400
@@ -65,29 +72,33 @@ const INPUT_CLASS = `
     disabled:cursor-not-allowed
     disabled:opacity-50
 
-    dark:border-white/[0.08]
+    dark:border-white/[0.10]
     dark:bg-black/20
     dark:text-white
-    dark:placeholder:text-slate-600
+    dark:placeholder:text-slate-500
 
     dark:focus:border-indigo-400/40
     dark:focus:bg-indigo-500/[0.025]
     dark:focus:ring-indigo-500/[0.06]
+
+    sm:rounded-2xl
+    sm:px-4
+    sm:py-3.5
+
+    motion-reduce:transition-none
 `;
 
 // =========================================================
-// TITLE FIELD
+// POST TITLE FIELD
 //
-// Original behavior:
-//
-// - name="title"
-// - maxLength={150}
-// - Create/Edit controlled value
-// - Character counter
-// - Warning when reaching 140 characters
-// - Disabled during submission
-//
-// Validation remains in CreatePostModal.
+// Features:
+// - Controlled value
+// - 150-character limit
+// - Warning from 140 characters
+// - Accessible label and counter
+// - Disabled state
+// - Mobile-friendly input font size
+// - Light / Dark Mode
 // =========================================================
 
 const PostTitleField = memo(
@@ -104,9 +115,11 @@ const PostTitleField = memo(
 
         const titleLength = title.length;
 
-        // =================================================
-        // CHARACTER LIMIT
-        // =================================================
+        const remainingCharacters =
+            Math.max(
+                0,
+                TITLE_MAX_LENGTH - titleLength
+            );
 
         const isNearLimit =
             titleLength >= TITLE_WARNING_LENGTH;
@@ -116,22 +129,24 @@ const PostTitleField = memo(
         // =================================================
 
         return (
-            <section className="min-w-0">
-                {/* =====================================
+            <section className="w-full min-w-0">
+                {/* =========================================
                     LABEL AND CHARACTER COUNTER
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
                         mb-2.5
+
                         flex
+                        min-w-0
+
                         items-center
                         justify-between
-                        gap-3
+
+                        gap-2
                     "
                 >
-                    {/* LABEL */}
-
                     <label
                         htmlFor="title"
                         className={LABEL_CLASS}
@@ -140,21 +155,21 @@ const PostTitleField = memo(
                             size={14}
                             aria-hidden="true"
                             className="
+                                shrink-0
                                 text-indigo-600
                                 dark:text-indigo-300
                             "
                         />
 
-                        Sarlavha
+                        <span>Sarlavha</span>
                     </label>
 
-                    {/* CHARACTER COUNTER */}
-
                     <span
+                        id="post-title-counter"
                         className={`
                             shrink-0
 
-                            text-[10px]
+                            text-[11px]
                             font-bold
                             tabular-nums
 
@@ -166,25 +181,27 @@ const PostTitleField = memo(
                                     `
                                     : `
                                         text-slate-500
-                                        dark:text-slate-500
+                                        dark:text-slate-400
                                     `
                             }
                         `}
                     >
                         {titleLength}
-                        /
+                        {" / "}
                         {TITLE_MAX_LENGTH}
                     </span>
                 </div>
 
-                {/* =====================================
-                    TITLE INPUT WRAPPER
-                ====================================== */}
+                {/* =========================================
+                    TITLE INPUT
+                ========================================== */}
 
                 <div
                     className="
                         group
                         relative
+
+                        w-full
                         min-w-0
                     "
                 >
@@ -206,10 +223,10 @@ const PostTitleField = memo(
                             transition-colors
 
                             group-focus-within:bg-indigo-500/[0.06]
+
+                            motion-reduce:transition-none
                         "
                     />
-
-                    {/* TITLE INPUT */}
 
                     <input
                         id="title"
@@ -222,36 +239,38 @@ const PostTitleField = memo(
                         maxLength={TITLE_MAX_LENGTH}
 
                         disabled={disabled}
+                        aria-describedby="post-title-counter"
 
                         autoComplete="off"
 
                         placeholder="Masalan: Django REST Framework’da JWT authentication..."
 
-                        className={`
-                            ${INPUT_CLASS}
-                            sm:text-base
-                        `}
+                        className={INPUT_CLASS}
                     />
                 </div>
 
-                {/* =====================================
-                    LIMIT WARNING
-                ====================================== */}
+                {/* =========================================
+                    CHARACTER LIMIT WARNING
+                ========================================== */}
 
                 {isNearLimit && (
                     <p
+                        role="status"
                         className="
                             mt-2
 
-                            text-[10px]
+                            break-words
+
+                            text-[11px]
                             font-medium
+                            leading-5
 
                             text-amber-700
                             dark:text-amber-300
                         "
                     >
                         Sarlavha uchun{" "}
-                        {TITLE_MAX_LENGTH - titleLength}
+                        {remainingCharacters}
                         {" "}ta belgi qoldi.
                     </p>
                 )}
@@ -261,20 +280,20 @@ const PostTitleField = memo(
 );
 
 // =========================================================
-// CONTENT FIELD
+// POST CONTENT FIELD
 //
-// Original behavior:
-//
-// - name="content"
-// - rows={11}
-// - User-friendly placeholder
-// - Resizable textarea
+// Features:
+// - Controlled textarea
+// - Original 11 rows
+// - Resizable height
 // - Word counter
-// - Disabled during submission
+// - Existing placeholder
+// - Disabled state
+// - Responsive mobile dimensions
+// - Light / Dark Mode
 //
-// HTML-to-text conversion and word counting
-// are calculated in the parent modal.
-// This component only displays wordCount.
+// Content parsing and word counting are performed
+// by CreatePostModal.
 // =========================================================
 
 const PostContentField = memo(
@@ -285,7 +304,7 @@ const PostContentField = memo(
         wordCount = 0,
     }) {
         // =================================================
-        // SAFE VALUE
+        // SAFE CONTENT
         // =================================================
 
         const content = String(value ?? "");
@@ -294,11 +313,14 @@ const PostContentField = memo(
         // SAFE WORD COUNT
         // =================================================
 
+        const numericWordCount =
+            Number(wordCount);
+
         const normalizedWordCount =
-            Number.isFinite(Number(wordCount))
+            Number.isFinite(numericWordCount)
                 ? Math.max(
                     0,
-                    Math.floor(Number(wordCount))
+                    Math.floor(numericWordCount)
                 )
                 : 0;
 
@@ -307,23 +329,24 @@ const PostContentField = memo(
         // =================================================
 
         return (
-            <section className="min-w-0">
-                {/* =====================================
+            <section className="w-full min-w-0">
+                {/* =========================================
                     LABEL AND WORD COUNT
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
                         mb-2.5
 
                         flex
+                        min-w-0
+
                         items-center
                         justify-between
-                        gap-3
+
+                        gap-2
                     "
                 >
-                    {/* LABEL */}
-
                     <label
                         htmlFor="content"
                         className={LABEL_CLASS}
@@ -332,26 +355,28 @@ const PostContentField = memo(
                             size={14}
                             aria-hidden="true"
                             className="
+                                shrink-0
                                 text-purple-600
                                 dark:text-purple-300
                             "
                         />
 
-                        Post mazmuni
+                        <span>
+                            Post mazmuni
+                        </span>
                     </label>
 
-                    {/* WORD COUNT */}
-
                     <span
+                        id="post-content-word-count"
                         className="
                             shrink-0
 
-                            text-[10px]
+                            text-[11px]
                             font-bold
                             tabular-nums
 
                             text-slate-500
-                            dark:text-slate-500
+                            dark:text-slate-400
                         "
                     >
                         {normalizedWordCount.toLocaleString()}
@@ -359,14 +384,16 @@ const PostContentField = memo(
                     </span>
                 </div>
 
-                {/* =====================================
-                    CONTENT INPUT WRAPPER
-                ====================================== */}
+                {/* =========================================
+                    CONTENT TEXTAREA
+                ========================================== */}
 
                 <div
                     className="
                         group
                         relative
+
+                        w-full
                         min-w-0
                     "
                 >
@@ -388,10 +415,10 @@ const PostContentField = memo(
                             transition-colors
 
                             group-focus-within:bg-purple-500/[0.05]
+
+                            motion-reduce:transition-none
                         "
                     />
-
-                    {/* CONTENT TEXTAREA */}
 
                     <textarea
                         id="content"
@@ -403,6 +430,10 @@ const PostContentField = memo(
                         rows={11}
 
                         disabled={disabled}
+
+                        aria-describedby="post-content-word-count"
+
+                        spellCheck={true}
 
                         placeholder={`O‘z fikringizni yozing...
 
@@ -416,29 +447,33 @@ Masalan:
                             relative
                             z-10
 
-                            min-h-[260px]
-                            w-full
+                            block
+
+                            min-h-[200px]
+                            max-w-full
                             min-w-0
+                            w-full
 
                             resize-y
 
-                            rounded-2xl
+                            rounded-xl
                             border
 
                             border-slate-300
                             bg-white
 
-                            px-4
-                            py-4
+                            px-3.5
+                            py-3
 
-                            text-sm
+                            text-base
                             font-medium
                             leading-7
 
                             text-slate-800
 
                             outline-none
-                            transition-all
+
+                            transition-colors
                             duration-200
 
                             placeholder:text-slate-400
@@ -450,14 +485,21 @@ Masalan:
                             disabled:cursor-not-allowed
                             disabled:opacity-50
 
-                            dark:border-white/[0.08]
+                            dark:border-white/[0.10]
                             dark:bg-black/20
                             dark:text-slate-200
-                            dark:placeholder:text-slate-600
+                            dark:placeholder:text-slate-500
 
                             dark:focus:border-purple-400/40
                             dark:focus:bg-purple-500/[0.02]
                             dark:focus:ring-purple-500/[0.05]
+
+                            sm:min-h-[260px]
+                            sm:rounded-2xl
+                            sm:px-4
+                            sm:py-4
+
+                            motion-reduce:transition-none
                         "
                     />
                 </div>
@@ -479,19 +521,15 @@ Masalan:
 // }
 //
 // onChange:
-//   Existing CreatePostModal handleChange.
+//   CreatePostModal.handleChange
 //
 // wordCount:
-//   Existing wordCount calculated from stripped HTML.
+//   Calculated by CreatePostModal
 //
 // disabled:
-//   Existing isSubmitting / busy state.
+//   Parent modal busy state
 //
-// This component does NOT:
-// - Own form state
-// - Make API requests
-// - Validate or submit the form
-// - Display server errors
+// No API calls or independent form state.
 // =========================================================
 
 const PostCreateFields = ({
@@ -501,7 +539,7 @@ const PostCreateFields = ({
     disabled = false,
 }) => {
     // =====================================================
-    // SAFE FORM DATA
+    // SAFE VALUES
     // =====================================================
 
     const title =
@@ -521,13 +559,17 @@ const PostCreateFields = ({
     return (
         <div
             className="
+                w-full
                 min-w-0
-                space-y-7
+
+                space-y-5
+
+                sm:space-y-7
             "
         >
-            {/* =====================================
+            {/* =============================================
                 TITLE FIELD
-            ====================================== */}
+            ============================================== */}
 
             <PostTitleField
                 value={title}
@@ -535,9 +577,9 @@ const PostCreateFields = ({
                 disabled={disabled}
             />
 
-            {/* =====================================
+            {/* =============================================
                 CONTENT FIELD
-            ====================================== */}
+            ============================================== */}
 
             <PostContentField
                 value={content}

@@ -1,4 +1,6 @@
 
+// src/components/posts/create/PostCreatePreview.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -39,19 +41,26 @@ const PreviewStat = memo(
                 title={label}
                 className="
                     inline-flex
+
+                    min-w-0
+
                     items-center
                     gap-1.5
 
-                    text-xs
+                    text-[11px]
                     font-bold
 
                     text-slate-500
-                    dark:text-slate-500
+
+                    dark:text-slate-400
+
+                    sm:text-xs
                 "
             >
                 <Icon
                     size={14}
                     aria-hidden="true"
+                    className="shrink-0"
                 />
 
                 <span className="tabular-nums">
@@ -79,10 +88,9 @@ const PreviewStat = memo(
 // }
 //
 // cleanPreviewContent:
-//   Plain text obtained from existing stripHtml().
+//   Plain text from CreatePostModal.stripHtml().
 //
-// Responsibilities:
-//
+// Features:
 // - Selected post type
 // - Category color
 // - Category icon
@@ -90,12 +98,14 @@ const PreviewStat = memo(
 // - Live content
 // - Preview statistics
 // - Writing tips
+// - Light / Dark Mode
 //
-// This component does NOT:
-// - Submit posts
-// - Fetch posts
-// - Modify form state
-// - Parse unsafe HTML into elements
+// Responsive:
+// - Mobile: visible below form
+// - Tablet: full-width preview
+// - Desktop: right column
+//
+// No API calls, submission, or unsafe HTML rendering.
 // =========================================================
 
 const PostCreatePreview = ({
@@ -103,7 +113,7 @@ const PostCreatePreview = ({
     cleanPreviewContent = "",
 }) => {
     // =====================================================
-    // SAFE FORM DATA
+    // SAFE VALUES
     // =====================================================
 
     const postType =
@@ -119,9 +129,6 @@ const PostCreatePreview = ({
 
     // =====================================================
     // SELECTED CATEGORY
-    //
-    // Shared configuration.
-    // No duplicate POST_TYPES array.
     // =====================================================
 
     const selectedType =
@@ -131,7 +138,7 @@ const PostCreatePreview = ({
         selectedType.Icon;
 
     // =====================================================
-    // PREVIEW STATE
+    // CONTENT STATE
     // =====================================================
 
     const hasTitle =
@@ -148,34 +155,48 @@ const PostCreatePreview = ({
         <aside
             aria-label="Postning oldindan ko‘rinishi"
             className="
-                hidden
+                relative
+
+                block
+
+                w-full
                 min-w-0
 
+                overflow-hidden
+
+                border-t
                 border-slate-200
+
                 bg-slate-50/80
 
-                p-6
+                p-3
 
-                dark:border-white/[0.06]
+                dark:border-white/[0.08]
                 dark:bg-black/10
 
-                lg:block
+                min-[380px]:p-4
+
+                sm:p-6
+
+                lg:border-l
+                lg:border-t-0
             "
         >
-            {/* =====================================
-                STICKY PREVIEW CONTENT
-            ====================================== */}
+            {/* =============================================
+                PREVIEW CONTENT
+            ============================================== */}
 
             <div
                 className="
-                    sticky
-                    top-4
                     min-w-0
+
+                    lg:sticky
+                    lg:top-4
                 "
             >
-                {/* =====================================
+                {/* =========================================
                     PREVIEW HEADER
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
@@ -184,24 +205,34 @@ const PostCreatePreview = ({
                         flex
                         min-w-0
 
+                        flex-wrap
+
                         items-center
                         justify-between
-                        gap-3
+
+                        gap-2.5
+
+                        sm:gap-3
                     "
                 >
-                    {/* TITLE */}
+                    {/* =====================================
+                        TITLE AND DESCRIPTION
+                    ====================================== */}
 
                     <div className="min-w-0">
                         <p
                             className="
-                                text-xs
+                                text-[11px]
                                 font-black
 
                                 uppercase
-                                tracking-[0.16em]
+                                tracking-[0.12em]
 
                                 text-slate-700
-                                dark:text-slate-400
+                                dark:text-slate-300
+
+                                sm:text-xs
+                                sm:tracking-[0.16em]
                             "
                         >
                             Live preview
@@ -211,24 +242,31 @@ const PostCreatePreview = ({
                             className="
                                 mt-1
 
-                                text-[10px]
+                                break-words
+
+                                text-[11px]
                                 font-medium
                                 leading-5
 
                                 text-slate-500
-                                dark:text-slate-500
+
+                                dark:text-slate-400
                             "
                         >
                             Post kartada taxminan shunday ko‘rinadi
                         </p>
                     </div>
 
-                    {/* PREVIEW BADGE */}
+                    {/* =====================================
+                        PREVIEW BADGE
+                    ====================================== */}
 
                     <span
                         className="
                             inline-flex
+
                             shrink-0
+
                             items-center
                             gap-1.5
 
@@ -241,7 +279,7 @@ const PostCreatePreview = ({
                             px-2.5
                             py-1
 
-                            text-[9px]
+                            text-[10px]
                             font-bold
 
                             uppercase
@@ -249,13 +287,13 @@ const PostCreatePreview = ({
 
                             text-slate-500
 
-                            dark:border-white/[0.07]
-                            dark:bg-white/[0.03]
+                            dark:border-white/[0.08]
+                            dark:bg-white/[0.04]
                             dark:text-slate-400
                         "
                     >
                         <Eye
-                            size={11}
+                            size={12}
                             aria-hidden="true"
                         />
 
@@ -263,36 +301,42 @@ const PostCreatePreview = ({
                     </span>
                 </div>
 
-                {/* =====================================
+                {/* =========================================
                     POST PREVIEW CARD
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
                         relative
+
+                        w-full
                         min-w-0
+
                         overflow-hidden
 
-                        rounded-[26px]
+                        rounded-2xl
                         border
 
                         border-slate-200
                         bg-white
 
-                        p-5
+                        p-3.5
 
                         shadow-[0_15px_35px_rgba(15,23,42,0.07)]
 
                         dark:border-white/[0.08]
                         dark:bg-[#101521]
 
-                        dark:shadow-2xl
-                        dark:shadow-black/30
+                        dark:shadow-xl
+                        dark:shadow-black/20
+
+                        sm:rounded-[26px]
+                        sm:p-5
                     "
                 >
-                    {/* =================================
+                    {/* =====================================
                         CATEGORY GLOW
-                    ================================== */}
+                    ====================================== */}
 
                     <div
                         aria-hidden="true"
@@ -317,14 +361,16 @@ const PostCreatePreview = ({
                         `}
                     />
 
-                    {/* =================================
+                    {/* =====================================
                         CARD CONTENT
-                    ================================== */}
+                    ====================================== */}
 
                     <div
                         className="
                             relative
                             z-10
+
+                            w-full
                             min-w-0
                         "
                     >
@@ -336,19 +382,25 @@ const PostCreatePreview = ({
                             className="
                                 flex
                                 min-w-0
+
                                 flex-wrap
 
                                 items-center
                                 justify-between
-                                gap-3
+
+                                gap-2.5
                             "
                         >
-                            {/* SELECTED CATEGORY */}
+                            {/* =========================
+                                SELECTED CATEGORY
+                            ========================== */}
 
                             <div
                                 className={`
                                     inline-flex
                                     max-w-full
+
+                                    min-w-0
 
                                     items-center
                                     gap-2
@@ -374,12 +426,19 @@ const PostCreatePreview = ({
                                     className="shrink-0"
                                 />
 
-                                <span className="truncate">
+                                <span
+                                    className="
+                                        min-w-0
+                                        truncate
+                                    "
+                                >
                                     {selectedType.label}
                                 </span>
                             </div>
 
-                            {/* PREVIEW TIME */}
+                            {/* =========================
+                                PREVIEW TIME
+                            ========================== */}
 
                             <span
                                 className="
@@ -389,7 +448,8 @@ const PostCreatePreview = ({
                                     font-bold
 
                                     text-slate-500
-                                    dark:text-slate-500
+
+                                    dark:text-slate-400
                                 "
                             >
                                 Hozir
@@ -402,25 +462,33 @@ const PostCreatePreview = ({
 
                         <h3
                             className={`
-                                mt-5
+                                mt-4
 
                                 min-w-0
+
                                 break-words
+                                [overflow-wrap:anywhere]
 
                                 font-black
                                 leading-tight
 
+                                sm:mt-5
+
                                 ${
                                     hasTitle
                                         ? `
-                                            text-xl
+                                            text-lg
                                             text-slate-900
                                             dark:text-white
+
+                                            sm:text-xl
                                         `
                                         : `
-                                            text-lg
+                                            text-base
                                             text-slate-400
-                                            dark:text-slate-600
+                                            dark:text-slate-500
+
+                                            sm:text-lg
                                         `
                                 }
                             `}
@@ -443,7 +511,9 @@ const PostCreatePreview = ({
                                 border-l-2
                                 border-indigo-400/40
 
-                                pl-4
+                                pl-3
+
+                                sm:pl-4
                             "
                         >
                             <p
@@ -451,11 +521,16 @@ const PostCreatePreview = ({
                                     line-clamp-6
 
                                     whitespace-pre-wrap
-                                    break-words
 
-                                    text-sm
+                                    break-words
+                                    [overflow-wrap:anywhere]
+
+                                    text-[13px]
                                     font-medium
-                                    leading-7
+                                    leading-6
+
+                                    sm:text-sm
+                                    sm:leading-7
 
                                     ${
                                         hasContent
@@ -465,7 +540,7 @@ const PostCreatePreview = ({
                                             `
                                             : `
                                                 text-slate-400
-                                                dark:text-slate-600
+                                                dark:text-slate-500
                                             `
                                     }
                                 `}
@@ -478,42 +553,45 @@ const PostCreatePreview = ({
 
                         {/* =============================
                             STATS PREVIEW
+
+                            These are decorative preview
+                            values, not live API stats.
                         ============================== */}
 
                         <div
                             className="
-                                mt-6
+                                mt-5
 
                                 flex
+                                min-w-0
+
                                 flex-wrap
                                 items-center
-                                gap-4
+
+                                gap-x-4
+                                gap-y-2.5
 
                                 border-t
                                 border-slate-200
 
                                 pt-4
 
-                                dark:border-white/[0.06]
+                                dark:border-white/[0.08]
+
+                                sm:mt-6
                             "
                         >
-                            {/* LIKES */}
-
                             <PreviewStat
                                 Icon={Heart}
                                 count={0}
                                 label="Layklar"
                             />
 
-                            {/* VIEWS */}
-
                             <PreviewStat
                                 Icon={Eye}
                                 count={0}
                                 label="Ko‘rishlar"
                             />
-
-                            {/* COMMENTS */}
 
                             <PreviewStat
                                 Icon={MessageCircle}
@@ -524,13 +602,15 @@ const PostCreatePreview = ({
                     </div>
                 </div>
 
-                {/* =====================================
+                {/* =========================================
                     WRITING TIPS
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
                         mt-4
+
+                        w-full
                         min-w-0
 
                         rounded-2xl
@@ -539,17 +619,23 @@ const PostCreatePreview = ({
                         border-indigo-200
                         bg-indigo-50
 
-                        p-4
+                        p-3.5
 
                         dark:border-indigo-400/15
                         dark:bg-indigo-500/[0.05]
+
+                        sm:p-4
                     "
                 >
-                    {/* TIPS HEADER */}
+                    {/* =====================================
+                        TIPS HEADER
+                    ====================================== */}
 
                     <div
                         className="
                             flex
+                            min-w-0
+
                             items-center
                             gap-2
 
@@ -563,16 +649,23 @@ const PostCreatePreview = ({
                         <Sparkles
                             size={14}
                             aria-hidden="true"
+                            className="shrink-0"
                         />
 
-                        Yaxshi post uchun
+                        <span>
+                            Yaxshi post uchun
+                        </span>
                     </div>
 
-                    {/* TIPS DESCRIPTION */}
+                    {/* =====================================
+                        TIPS DESCRIPTION
+                    ====================================== */}
 
                     <p
                         className="
                             mt-2
+
+                            break-words
 
                             text-xs
                             font-medium

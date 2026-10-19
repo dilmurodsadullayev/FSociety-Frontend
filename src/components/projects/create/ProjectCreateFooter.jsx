@@ -1,4 +1,6 @@
 
+// src/components/projects/create/ProjectCreateFooter.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -14,7 +16,10 @@ import {
 
 const CANCEL_BUTTON_CLASS = `
     inline-flex
-    min-h-[42px]
+
+    min-h-11
+    min-w-0
+    w-full
 
     items-center
     justify-center
@@ -26,7 +31,7 @@ const CANCEL_BUTTON_CLASS = `
     border-slate-200
     bg-slate-100
 
-    px-5
+    px-3
     py-2.5
 
     text-xs
@@ -34,38 +39,51 @@ const CANCEL_BUTTON_CLASS = `
 
     text-slate-700
 
-    transition-all
+    transition-colors
     duration-200
 
-    hover:border-slate-300
-    hover:bg-slate-200
+    enabled:hover:border-slate-300
+    enabled:hover:bg-slate-200
 
     focus-visible:outline-none
     focus-visible:ring-2
     focus-visible:ring-indigo-500/50
+    focus-visible:ring-offset-2
 
-    active:scale-[0.98]
+    enabled:active:scale-[0.98]
 
     disabled:cursor-not-allowed
     disabled:opacity-40
 
-    dark:border-white/[0.07]
-    dark:bg-white/[0.025]
-    dark:text-slate-400
+    dark:border-white/[0.08]
+    dark:bg-white/[0.04]
+    dark:text-slate-300
 
-    dark:hover:border-white/[0.12]
-    dark:hover:bg-white/[0.05]
-    dark:hover:text-white
+    dark:enabled:hover:border-white/[0.14]
+    dark:enabled:hover:bg-white/[0.08]
+    dark:enabled:hover:text-white
+
+    dark:focus-visible:ring-offset-[#0b1018]
+
+    sm:w-auto
+    sm:rounded-2xl
+    sm:px-5
+    sm:py-3
+    sm:text-sm
 
     motion-reduce:transform-none
+    motion-reduce:transition-none
 `;
 
 const SUBMIT_BUTTON_CLASS = `
     group
-
     relative
+
     inline-flex
-    min-h-[42px]
+
+    min-h-11
+    min-w-0
+    w-full
 
     items-center
     justify-center
@@ -79,7 +97,7 @@ const SUBMIT_BUTTON_CLASS = `
     border-indigo-400/30
     bg-indigo-600
 
-    px-5
+    px-3
     py-2.5
 
     text-xs
@@ -89,17 +107,18 @@ const SUBMIT_BUTTON_CLASS = `
     shadow-lg
     shadow-indigo-600/20
 
-    transition-all
+    transition-colors
     duration-200
 
-    hover:bg-indigo-500
-    hover:shadow-indigo-500/30
+    enabled:hover:bg-indigo-500
+    enabled:hover:shadow-indigo-500/30
 
     focus-visible:outline-none
     focus-visible:ring-2
     focus-visible:ring-indigo-500/50
+    focus-visible:ring-offset-2
 
-    active:scale-[0.98]
+    enabled:active:scale-[0.98]
 
     disabled:cursor-not-allowed
     disabled:bg-indigo-300
@@ -109,7 +128,17 @@ const SUBMIT_BUTTON_CLASS = `
     dark:disabled:bg-indigo-700/40
     dark:disabled:text-slate-400
 
+    dark:focus-visible:ring-offset-[#0b1018]
+
+    sm:w-auto
+    sm:min-w-[190px]
+    sm:rounded-2xl
+    sm:px-6
+    sm:py-3
+    sm:text-sm
+
     motion-reduce:transform-none
+    motion-reduce:transition-none
 `;
 
 // =========================================================
@@ -132,19 +161,24 @@ const SUBMIT_BUTTON_CLASS = `
 //
 // IMPORTANT:
 //
-// The submit button uses type="submit".
+// - Submit button uses type="submit".
+// - This component stays inside the parent form.
+// - Parent handles validation and API requests.
+// - Parent closes modal after successful submission.
 //
-// It must remain inside:
+// RESPONSIVE:
 //
-// <form onSubmit={handleSubmit}>
+// Small mobile:
+// - Vertical buttons
 //
-// This component does NOT:
+// Wide mobile:
+// - Two equal-width buttons
 //
-// - Validate project fields
-// - Build FormData
-// - Call ProjectService
-// - Display toast messages
-// - Close modal after API success
+// Tablet / Desktop:
+// - Horizontal action buttons
+//
+// This footer remains outside the parent form's
+// scrollable content area.
 // =========================================================
 
 const ProjectCreateFooter = ({
@@ -166,7 +200,7 @@ const ProjectCreateFooter = ({
         stackLoading;
 
     // =====================================================
-    // LABELS
+    // BUTTON LABELS
     // =====================================================
 
     const submitText = isEditMode
@@ -177,9 +211,19 @@ const ProjectCreateFooter = ({
         ? "Saqlanmoqda..."
         : "Yaratilmoqda...";
 
+    const displayText = isSubmitting
+        ? loadingText
+        : stackLoading
+            ? "Stack yuklanmoqda..."
+            : submitText;
+
     const SubmitIcon = isEditMode
         ? Save
         : Rocket;
+
+    const showSpinner =
+        isSubmitting ||
+        stackLoading;
 
     // =====================================================
     // RENDER
@@ -188,183 +232,240 @@ const ProjectCreateFooter = ({
     return (
         <footer
             className="
-                sticky
-                bottom-0
+                relative
                 z-20
 
-                flex
+                w-full
                 min-w-0
-                flex-col-reverse
-                gap-3
+                shrink-0
 
                 border-t
                 border-slate-200
 
                 bg-white/95
 
-                px-5
-                py-4
+                px-3
+                pt-3
+
+                pb-[max(12px,env(safe-area-inset-bottom))]
 
                 backdrop-blur-xl
 
-                dark:border-white/[0.06]
+                dark:border-white/[0.08]
                 dark:bg-[#0b1018]/95
 
-                sm:flex-row
-                sm:items-center
-                sm:justify-between
+                min-[380px]:px-4
+
                 sm:px-7
+                sm:py-4
             "
         >
-            {/* =====================================
-                FOOTER INFORMATION
-            ====================================== */}
-
-            <div
-                className="
-                    hidden
-
-                    items-center
-                    gap-2
-
-                    text-[10px]
-                    font-medium
-                    leading-5
-
-                    text-slate-500
-                    dark:text-slate-400
-
-                    md:flex
-                "
-            >
-                <Sparkles
-                    size={14}
-                    aria-hidden="true"
-                    className="
-                        shrink-0
-
-                        text-indigo-600
-                        dark:text-indigo-400
-                    "
-                />
-
-                <span>
-                    Tillar, texnologiyalar va rasmlarni
-                    tekshirib, keyin saqlang.
-                </span>
-            </div>
-
-            {/* =====================================
-                ACTION BUTTONS
-            ====================================== */}
+            {/* =============================================
+                FOOTER LAYOUT
+            ============================================== */}
 
             <div
                 className="
                     flex
+                    w-full
                     min-w-0
 
-                    flex-col-reverse
-                    gap-2
+                    flex-col
+                    gap-2.5
 
                     sm:flex-row
                     sm:items-center
+                    sm:justify-between
+                    sm:gap-4
                 "
             >
-                {/* =================================
-                    CANCEL BUTTON
-                ================================== */}
+                {/* =========================================
+                    FOOTER INFORMATION
 
-                <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={!canClose}
-                    className={CANCEL_BUTTON_CLASS}
+                    Hidden on smaller screens to leave
+                    enough space for action buttons.
+                ========================================== */}
+
+                <div
+                    className="
+                        hidden
+                        min-w-0
+
+                        items-center
+                        gap-2
+
+                        text-[10px]
+                        font-medium
+                        leading-5
+
+                        text-slate-500
+                        dark:text-slate-400
+
+                        lg:flex
+                    "
                 >
-                    Bekor qilish
-                </button>
-
-                {/* =================================
-                    SUBMIT BUTTON
-                ================================== */}
-
-                <button
-                    type="submit"
-                    disabled={submitDisabled}
-                    aria-busy={isSubmitting}
-                    className={SUBMIT_BUTTON_CLASS}
-                >
-                    {/* DECORATIVE SHINE */}
-
-                    <span
+                    <Sparkles
+                        size={14}
                         aria-hidden="true"
                         className="
-                            pointer-events-none
+                            shrink-0
 
-                            absolute
-                            inset-y-0
-                            -left-16
-
-                            w-12
-                            rotate-12
-
-                            bg-white/[0.12]
-                            blur-md
-
-                            transition-all
-                            duration-700
-
-                            group-hover:left-[120%]
+                            text-indigo-600
+                            dark:text-indigo-400
                         "
                     />
 
-                    {/* BUTTON CONTENT */}
-
-                    <span
-                        className="
-                            relative
-                            z-10
-
-                            inline-flex
-                            items-center
-                            justify-center
-                            gap-2
-                        "
-                    >
-                        {isSubmitting ? (
-                            <>
-                                {/* LOADING */}
-
-                                <Loader2
-                                    size={16}
-                                    aria-hidden="true"
-                                    className="
-                                        animate-spin
-                                        motion-reduce:animate-none
-                                    "
-                                />
-
-                                <span>
-                                    {loadingText}
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                {/* ICON */}
-
-                                <SubmitIcon
-                                    size={16}
-                                    aria-hidden="true"
-                                />
-
-                                {/* LABEL */}
-
-                                <span>
-                                    {submitText}
-                                </span>
-                            </>
-                        )}
+                    <span className="min-w-0">
+                        Tillar, texnologiyalar va rasmlarni
+                        tekshirib, keyin saqlang.
                     </span>
-                </button>
+                </div>
+
+                {/* =========================================
+                    ACTION BUTTONS
+
+                    Below 380px:
+                    - One column
+
+                    From 380px:
+                    - Two equal columns
+
+                    From sm:
+                    - Compact horizontal buttons
+                ========================================== */}
+
+                <div
+                    className="
+                        grid
+                        w-full
+                        min-w-0
+
+                        grid-cols-1
+                        gap-2
+
+                        min-[380px]:grid-cols-2
+
+                        sm:ml-auto
+                        sm:flex
+                        sm:w-auto
+                        sm:items-center
+                        sm:gap-2.5
+                    "
+                >
+                    {/* =====================================
+                        CANCEL BUTTON
+                    ====================================== */}
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={!canClose}
+                        aria-label="Loyihani yaratish yoki tahrirlashni bekor qilish"
+                        className={CANCEL_BUTTON_CLASS}
+                    >
+                        Bekor qilish
+                    </button>
+
+                    {/* =====================================
+                        SUBMIT BUTTON
+
+                        Must remain inside parent form.
+                    ====================================== */}
+
+                    <button
+                        type="submit"
+                        disabled={submitDisabled}
+                        aria-busy={isSubmitting}
+                        className={SUBMIT_BUTTON_CLASS}
+                    >
+                        {/* =================================
+                            DECORATIVE SHINE
+                        ================================== */}
+
+                        <span
+                            aria-hidden="true"
+                            className="
+                                pointer-events-none
+
+                                absolute
+                                inset-y-0
+                                -left-16
+
+                                w-12
+                                rotate-12
+
+                                bg-white/[0.12]
+                                blur-md
+
+                                transition-all
+                                duration-700
+
+                                group-hover:left-[120%]
+                                group-focus-visible:left-[120%]
+
+                                motion-reduce:transition-none
+                            "
+                        />
+
+                        {/* =================================
+                            BUTTON CONTENT
+                        ================================== */}
+
+                        <span
+                            className="
+                                relative
+                                z-10
+
+                                inline-flex
+                                min-w-0
+
+                                items-center
+                                justify-center
+                                gap-2
+                            "
+                        >
+                            {showSpinner ? (
+                                <>
+                                    {/* LOADING ICON */}
+
+                                    <Loader2
+                                        size={17}
+                                        aria-hidden="true"
+                                        className="
+                                            shrink-0
+
+                                            animate-spin
+                                            motion-reduce:animate-none
+                                        "
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    {/* CREATE / EDIT ICON */}
+
+                                    <SubmitIcon
+                                        size={17}
+                                        aria-hidden="true"
+                                        className="shrink-0"
+                                    />
+                                </>
+                            )}
+
+                            {/* BUTTON TEXT */}
+
+                            <span
+                                aria-live="polite"
+                                className="
+                                    min-w-0
+                                    text-center
+                                    break-words
+                                "
+                            >
+                                {displayText}
+                            </span>
+                        </span>
+                    </button>
+                </div>
             </div>
         </footer>
     );

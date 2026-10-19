@@ -1,4 +1,6 @@
 
+// src/components/posts/create/PostCreateTypeSelector.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -13,21 +15,16 @@ import {
 // =========================================================
 // POST TYPES
 //
-// Matches original CreatePostModal categories.
+// Used by PostCreateTypeSelector and PostCreatePreview.
 //
-// Used by:
-// - PostCreateTypeSelector
-// - PostCreatePreview
-//
-// Keep backend enum values unchanged.
+// Backend category values MUST NOT change.
 // =========================================================
 
 export const POST_TYPES = [
     {
         value: "TEX",
         label: "Texnologiya",
-        description:
-            "Dasturlash, IT va texnologiyalar",
+        description: "Dasturlash, IT va texnologiyalar",
 
         Icon: Cpu,
 
@@ -57,8 +54,7 @@ export const POST_TYPES = [
     {
         value: "SPO",
         label: "Sport",
-        description:
-            "Sport, mashg‘ulot va faol hayot",
+        description: "Sport, mashg‘ulot va faol hayot",
 
         Icon: Dumbbell,
 
@@ -88,8 +84,7 @@ export const POST_TYPES = [
     {
         value: "BIZ",
         label: "Biznes",
-        description:
-            "Biznes, startup va freelancing",
+        description: "Biznes, startup va freelancing",
 
         Icon: BriefcaseBusiness,
 
@@ -119,8 +114,7 @@ export const POST_TYPES = [
     {
         value: "ENT",
         label: "O‘yin-kulgi",
-        description:
-            "Gaming, media va qiziqarli mavzular",
+        description: "Gaming, media va qiziqarli mavzular",
 
         Icon: Gamepad2,
 
@@ -150,8 +144,7 @@ export const POST_TYPES = [
     {
         value: "OTH",
         label: "Boshqa",
-        description:
-            "Boshqa turdagi foydali kontent",
+        description: "Boshqa turdagi foydali kontent",
 
         Icon: Layers3,
 
@@ -182,7 +175,7 @@ export const POST_TYPES = [
 // =========================================================
 // GET SELECTED TYPE
 //
-// Used in Live Preview later.
+// Export kept for PostCreatePreview or other consumers.
 // =========================================================
 
 export const getPostType = (value) => {
@@ -198,25 +191,20 @@ export const getPostType = (value) => {
 //
 // Props:
 //
-// value:
-//   Selected post_type.
+// - value: selected post_type
+// - onChange: callback receiving category value
+// - disabled: block changes while submitting
 //
-// onChange:
-//   Parent callback receiving category value.
+// Responsive:
 //
-// disabled:
-//   Disable changes during POST/PATCH.
+// - Narrow phones: one column
+// - Tablets / desktops: two columns
 //
-// Features:
-// - Five backend-compatible categories
-// - Selected state
-// - Category icon
-// - Description
-// - Colored glow
-// - Responsive grid
-// - Light / Dark Mode
+// No xl:grid-cols-3 because the modal's left panel
+// becomes narrower when the live preview appears
+// beside the form on large screens.
 //
-// No Redux / API / internal form state.
+// Light / Dark and category colors preserved.
 // =========================================================
 
 const PostCreateTypeSelector = ({
@@ -233,6 +221,9 @@ const PostCreateTypeSelector = ({
     const canChange =
         typeof onChange === "function";
 
+    const isDisabled =
+        disabled || !canChange;
+
     // =====================================================
     // RENDER
     // =====================================================
@@ -240,94 +231,153 @@ const PostCreateTypeSelector = ({
     return (
         <section
             aria-label="Post kategoriyasi"
-            className="min-w-0"
+            className="w-full min-w-0"
         >
-            {/* =====================================
+            {/* =============================================
                 SECTION HEADER
-            ====================================== */}
+            ============================================== */}
 
             <div
                 className="
-                    mb-3 flex flex-wrap
-                    items-center justify-between
-                    gap-3
+                    mb-3
+
+                    flex
+                    min-w-0
+                    flex-wrap
+
+                    items-start
+                    justify-between
+
+                    gap-2
+
+                    sm:gap-3
                 "
             >
-                {/* SECTION TITLE */}
+                {/* =========================================
+                    TITLE AND DESCRIPTION
+                ========================================== */}
 
-                <div>
+                <div className="min-w-0 flex-1">
                     <p
                         id="post-type-label"
                         className="
-                            text-xs font-black
-                            uppercase tracking-[0.16em]
+                            text-[11px]
+                            font-black
+
+                            uppercase
+                            tracking-[0.12em]
 
                             text-slate-700
-                            dark:text-slate-400
+                            dark:text-slate-300
+
+                            sm:text-xs
+                            sm:tracking-[0.16em]
                         "
                     >
                         Post turi
                     </p>
 
                     <p
+                        id="post-type-description"
                         className="
-                            mt-1 text-xs
-                            font-medium
-                            text-slate-500
+                            mt-1
 
-                            dark:text-slate-500
+                            break-words
+
+                            text-xs
+                            font-medium
+                            leading-5
+
+                            text-slate-500
+                            dark:text-slate-400
                         "
                     >
                         Postingizga eng mos kategoriyani tanlang.
                     </p>
                 </div>
 
-                {/* CURRENT SELECTION */}
+                {/* =========================================
+                    CURRENT SELECTION
+                ========================================== */}
 
                 <div
                     className="
-                        hidden items-center gap-1.5
-                        rounded-full border
+                        inline-flex
+                        max-w-full
+                        shrink-0
+
+                        items-center
+                        gap-1.5
+
+                        rounded-full
+                        border
 
                         border-emerald-200
                         bg-emerald-50
 
-                        px-3 py-1
+                        px-2.5
+                        py-1
 
-                        text-[10px] font-bold
+                        text-[10px]
+                        font-bold
+
                         text-emerald-700
 
                         dark:border-emerald-400/15
                         dark:bg-emerald-500/[0.06]
                         dark:text-emerald-300
-
-                        sm:flex
                     "
                 >
                     <Check
                         size={12}
                         aria-hidden="true"
+                        className="shrink-0"
                     />
 
-                    {selectedType.label}
+                    <span
+                        className="
+                            max-w-[125px]
+                            truncate
+
+                            sm:max-w-none
+                        "
+                    >
+                        {selectedType.label}
+                    </span>
                 </div>
             </div>
 
-            {/* =====================================
+            {/* =============================================
                 CATEGORY OPTIONS
-            ====================================== */}
+
+                Keep two columns at most.
+
+                This prevents narrow cards inside the
+                desktop modal's left form panel.
+            ============================================== */}
 
             <div
                 role="group"
                 aria-labelledby="post-type-label"
+                aria-describedby="post-type-description"
                 className="
-                    grid min-w-0 gap-3
+                    grid
+                    w-full
+                    min-w-0
+
+                    grid-cols-1
+
+                    gap-2.5
 
                     sm:grid-cols-2
-                    xl:grid-cols-3
+                    sm:gap-3
                 "
             >
                 {POST_TYPES.map((item) => {
+                    // =====================================
+                    // CATEGORY DATA
+                    // =====================================
+
                     const {
                         value: typeValue,
                         label,
@@ -338,6 +388,10 @@ const PostCreateTypeSelector = ({
                         glowClass,
                     } = item;
 
+                    // =====================================
+                    // SELECTED STATE
+                    // =====================================
+
                     const active =
                         value === typeValue;
 
@@ -345,31 +399,60 @@ const PostCreateTypeSelector = ({
                         <button
                             key={typeValue}
                             type="button"
-                            onClick={() =>
-                                onChange?.(typeValue)
-                            }
-                            disabled={
-                                disabled || !canChange
-                            }
+
+                            onClick={() => {
+                                if (
+                                    !isDisabled &&
+                                    !active
+                                ) {
+                                    onChange(typeValue);
+                                }
+                            }}
+
+                            disabled={isDisabled}
                             aria-pressed={active}
+
                             className={`
-                                group relative
-                                min-w-0 overflow-hidden
+                                group
+                                relative
+                                isolate
 
-                                rounded-2xl border
-                                p-3.5 text-left
+                                flex
+                                w-full
+                                min-w-0
+                                min-h-[72px]
 
-                                transition-all duration-300
-                                active:scale-[0.98]
+                                items-center
+
+                                overflow-hidden
+
+                                rounded-2xl
+                                border
+
+                                p-3
+                                text-left
+
+                                transition-colors
+                                duration-200
 
                                 focus-visible:outline-none
                                 focus-visible:ring-2
                                 focus-visible:ring-indigo-500/50
+                                focus-visible:ring-offset-2
+
+                                dark:focus-visible:ring-offset-[#0a0d14]
+
+                                enabled:active:scale-[0.99]
 
                                 disabled:cursor-not-allowed
                                 disabled:opacity-50
 
                                 motion-reduce:transform-none
+                                motion-reduce:transition-none
+
+                                sm:min-h-[88px]
+                                sm:items-start
+                                sm:p-3.5
 
                                 ${
                                     active
@@ -379,31 +462,42 @@ const PostCreateTypeSelector = ({
                                             bg-white
                                             text-slate-700
 
-                                            hover:border-indigo-300
-                                            hover:bg-slate-50
+                                            enabled:hover:border-indigo-300
+                                            enabled:hover:bg-slate-50
 
                                             dark:border-white/[0.07]
                                             dark:bg-white/[0.025]
                                             dark:text-slate-300
 
-                                            dark:hover:border-white/[0.12]
-                                            dark:hover:bg-white/[0.045]
+                                            dark:enabled:hover:border-white/[0.14]
+                                            dark:enabled:hover:bg-white/[0.045]
                                         `
                                 }
                             `}
                         >
-                            {/* CATEGORY GLOW */}
+                            {/* =============================
+                                CATEGORY GLOW
+                            ============================== */}
 
                             <div
                                 aria-hidden="true"
                                 className={`
                                     pointer-events-none
-                                    absolute -right-8 -top-8
 
-                                    h-20 w-20
-                                    rounded-full blur-2xl
+                                    absolute
+                                    -right-8
+                                    -top-8
+
+                                    h-20
+                                    w-20
+
+                                    rounded-full
+                                    blur-2xl
 
                                     transition-opacity
+                                    duration-200
+
+                                    motion-reduce:transition-none
 
                                     ${
                                         active
@@ -415,64 +509,114 @@ const PostCreateTypeSelector = ({
                                 `}
                             />
 
-                            {/* CATEGORY CONTENT */}
+                            {/* =============================
+                                CATEGORY CONTENT
+                            ============================== */}
 
                             <div
                                 className="
-                                    relative z-10
-                                    flex min-w-0
-                                    items-start gap-3
+                                    relative
+                                    z-10
+
+                                    flex
+                                    w-full
+                                    min-w-0
+
+                                    items-start
+                                    gap-2.5
+
+                                    sm:gap-3
                                 "
                             >
-                                {/* ICON */}
+                                {/* =========================
+                                    CATEGORY ICON
+                                ========================== */}
 
-                                <div
+                                <span
                                     aria-hidden="true"
                                     className={`
-                                        flex h-10 w-10 shrink-0
-                                        items-center justify-center
+                                        flex
+                                        h-10
+                                        w-10
 
-                                        rounded-xl border
+                                        shrink-0
+
+                                        items-center
+                                        justify-center
+
+                                        rounded-xl
+                                        border
 
                                         ${iconClass}
                                     `}
                                 >
                                     <Icon size={18} />
-                                </div>
+                                </span>
 
-                                {/* TEXT */}
+                                {/* =========================
+                                    CATEGORY LABEL + DESCRIPTION
+                                ========================== */}
 
-                                <div
-                                    className="min-w-0 flex-1"
+                                <span
+                                    className="
+                                        block
+                                        min-w-0
+                                        flex-1
+                                    "
                                 >
-                                    {/* LABEL */}
+                                    {/* =====================
+                                        LABEL ROW
+                                    ====================== */}
 
-                                    <div
+                                    <span
                                         className="
-                                            flex items-center
-                                            justify-between gap-2
+                                            flex
+                                            min-w-0
+
+                                            items-start
+                                            justify-between
+
+                                            gap-1.5
                                         "
                                     >
-                                        <p
+                                        <span
                                             className="
-                                                text-sm font-black
+                                                min-w-0
+
+                                                break-words
+
+                                                text-[13px]
+                                                font-black
+                                                leading-5
+
                                                 text-slate-900
                                                 dark:text-white
+
+                                                sm:text-sm
                                             "
                                         >
                                             {label}
-                                        </p>
+                                        </span>
 
-                                        {/* SELECTED ICON */}
+                                        {/* =================
+                                            SELECTED ICON
+                                        ================== */}
 
                                         {active && (
                                             <span
                                                 aria-hidden="true"
                                                 className="
-                                                    flex h-5 w-5 shrink-0
-                                                    items-center justify-center
+                                                    flex
+                                                    h-5
+                                                    w-5
+
+                                                    shrink-0
+
+                                                    items-center
+                                                    justify-center
 
                                                     rounded-full
+
                                                     bg-indigo-500/10
                                                     text-indigo-700
 
@@ -480,27 +624,35 @@ const PostCreateTypeSelector = ({
                                                     dark:text-white
                                                 "
                                             >
-                                                <Check
-                                                    size={12}
-                                                />
+                                                <Check size={12} />
                                             </span>
                                         )}
-                                    </div>
+                                    </span>
 
-                                    {/* DESCRIPTION */}
+                                    {/* =====================
+                                        DESCRIPTION
+                                    ====================== */}
 
-                                    <p
+                                    <span
                                         className="
-                                            mt-1 text-[10px]
-                                            font-medium leading-4
+                                            mt-1
+                                            block
+
+                                            break-words
+
+                                            text-[11px]
+                                            font-medium
+                                            leading-4
 
                                             text-slate-500
                                             dark:text-slate-400
+
+                                            sm:text-xs
                                         "
                                     >
                                         {description}
-                                    </p>
-                                </div>
+                                    </span>
+                                </span>
                             </div>
                         </button>
                     );
@@ -509,5 +661,9 @@ const PostCreateTypeSelector = ({
         </section>
     );
 };
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default memo(PostCreateTypeSelector);

@@ -1,4 +1,6 @@
 
+// src/components/projects/create/ProjectCreateImages.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -15,7 +17,6 @@ import ProjectCreateImageCard from "./ProjectCreateImageCard";
 // =========================================================
 
 const MAX_PROJECT_IMAGES = 4;
-
 const EMPTY_IMAGES = [];
 
 const IMAGE_ACCEPT =
@@ -24,41 +25,28 @@ const IMAGE_ACCEPT =
 // =========================================================
 // PROJECT CREATE IMAGES
 //
-// Props:
+// Parent contracts:
 //
-// images:
-//   Project images.
+// - images: image list
+// - isSubmitting: disable changes while saving
+// - onMultipleImageSelect(event): upload handler
+// - onImageTitleChange(id, value): edit caption
+// - onReplaceImage(id, file): replace image
+// - onRemoveImage(id): remove image
 //
-// isSubmitting:
-//   Disable upload/edit/delete while saving.
+// Parent handles:
+// - File validation
+// - Maximum image count enforcement
+// - Object URL creation / revocation
+// - Image state
+// - FormData creation
 //
-// onMultipleImageSelect:
-//   Parent handleMultipleImageSelect(event).
-//
-// onImageTitleChange:
-//   Parent handleImageTitleChange(id, value).
-//
-// onReplaceImage:
-//   Parent handleReplaceImage(id, file).
-//
-// onRemoveImage:
-//   Parent handleRemoveImage(id).
-//
-// IMPORTANT:
-//
-// - Parent manages image state.
-// - Parent validates image formats.
-// - Parent enforces maximum image count.
-// - Parent creates/revokes blob URLs.
-// - Parent builds FormData.
-//
-// This component only renders the image UI.
+// This component handles presentation only.
 // =========================================================
 
 const ProjectCreateImages = ({
     images = EMPTY_IMAGES,
     isSubmitting = false,
-
     onMultipleImageSelect,
     onImageTitleChange,
     onReplaceImage,
@@ -93,17 +81,15 @@ const ProjectCreateImages = ({
     const canUpload =
         !isSubmitting &&
         !isLimitReached &&
-        typeof onMultipleImageSelect ===
-            "function";
+        typeof onMultipleImageSelect === "function";
 
     // =====================================================
     // UPLOAD CHANGE
     //
-    // Original handler receives the event
-    // and reads event.target.files.
+    // The parent receives the original input event.
     //
-    // Do not clear the input here:
-    // the original parent handler already does it.
+    // The parent is responsible for resetting the input
+    // after processing the selected files.
     // =====================================================
 
     const handleUploadChange = (event) => {
@@ -122,34 +108,42 @@ const ProjectCreateImages = ({
     return (
         <aside
             aria-label="Loyiha rasmlari"
-            className="min-w-0"
+            className="
+                w-full
+                min-w-0
+                max-w-full
+            "
         >
-            {/* =====================================
+            {/* =============================================
                 IMAGES PANEL
-            ====================================== */}
+            ============================================== */}
 
             <section
                 className="
+                    w-full
                     min-w-0
+                    max-w-full
 
-                    rounded-[24px]
+                    rounded-2xl
                     border
-
                     border-slate-200
+
                     bg-slate-50/70
 
-                    p-5
+                    p-3.5
 
-                    dark:border-white/[0.06]
-                    dark:bg-white/[0.018]
+                    dark:border-white/[0.08]
+                    dark:bg-white/[0.025]
 
-                    lg:sticky
-                    lg:top-0
+                    min-[380px]:p-4
+
+                    sm:rounded-[24px]
+                    sm:p-5
                 "
             >
-                {/* =====================================
+                {/* =========================================
                     PANEL HEADER
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
@@ -158,30 +152,35 @@ const ProjectCreateImages = ({
 
                         items-start
                         justify-between
+
                         gap-3
                     "
                 >
-                    {/* =================================
+                    {/* =====================================
                         HEADER CONTENT
-                    ================================== */}
+                    ====================================== */}
 
                     <div
                         className="
                             flex
                             min-w-0
+                            flex-1
 
                             items-center
                             gap-3
                         "
                     >
-                        {/* ICON */}
+                        {/* =============================
+                            ICON
+                        ============================== */}
 
-                        <div
+                        <span
                             aria-hidden="true"
                             className="
                                 grid
                                 h-9
                                 w-9
+
                                 shrink-0
 
                                 place-items-center
@@ -200,48 +199,58 @@ const ProjectCreateImages = ({
                             "
                         >
                             <Images size={17} />
-                        </div>
+                        </span>
 
-                        {/* TITLE */}
+                        {/* =============================
+                            TITLE AND IMAGE COUNT
+                        ============================== */}
 
-                        <div className="min-w-0">
+                        <div
+                            className="
+                                min-w-0
+                                flex-1
+                            "
+                        >
                             <h3
                                 className="
+                                    break-words
+
                                     text-sm
                                     font-black
 
                                     text-slate-900
+
                                     dark:text-white
                                 "
                             >
                                 Loyiha rasmlari
                             </h3>
 
-                            {/* IMAGE COUNT */}
-
                             <p
+                                aria-live="polite"
                                 className="
                                     mt-0.5
 
-                                    text-[10px]
+                                    text-[11px]
                                     font-medium
                                     tabular-nums
 
                                     text-slate-500
+
                                     dark:text-slate-400
                                 "
                             >
                                 {imageCount}
-                                /
+                                {" / "}
                                 {MAX_PROJECT_IMAGES}
                                 {" ta rasm"}
                             </p>
                         </div>
                     </div>
 
-                    {/* =================================
-                        SMALL ADD IMAGE BUTTON
-                    ================================== */}
+                    {/* =====================================
+                        QUICK ADD IMAGE BUTTON
+                    ====================================== */}
 
                     <label
                         title={
@@ -250,9 +259,12 @@ const ProjectCreateImages = ({
                                 : "Bir yoki bir nechta rasm qo‘shish"
                         }
                         className={`
+                            relative
+
                             grid
-                            h-9
-                            w-9
+                            h-11
+                            w-11
+
                             shrink-0
 
                             place-items-center
@@ -260,8 +272,17 @@ const ProjectCreateImages = ({
                             rounded-xl
                             border
 
-                            transition-all
+                            transition-colors
                             duration-200
+
+                            focus-within:outline-none
+                            focus-within:ring-2
+                            focus-within:ring-indigo-500/50
+                            focus-within:ring-offset-2
+
+                            dark:focus-within:ring-offset-[#0b1018]
+
+                            motion-reduce:transition-none
 
                             ${
                                 canUpload
@@ -270,7 +291,6 @@ const ProjectCreateImages = ({
 
                                         border-indigo-200
                                         bg-indigo-50
-
                                         text-indigo-700
 
                                         hover:border-indigo-300
@@ -288,7 +308,6 @@ const ProjectCreateImages = ({
 
                                         border-slate-200
                                         bg-slate-100
-
                                         text-slate-400
 
                                         opacity-50
@@ -301,52 +320,77 @@ const ProjectCreateImages = ({
                         `}
                     >
                         <Plus
-                            size={17}
+                            size={18}
                             aria-hidden="true"
                         />
-
-                        {/* MULTIPLE IMAGE INPUT */}
 
                         <input
                             type="file"
                             multiple
+
                             accept={IMAGE_ACCEPT}
+
                             disabled={!canUpload}
+
                             onChange={handleUploadChange}
+
                             aria-label="Loyiha rasmlarini qo‘shish"
+
                             className="sr-only"
                         />
                     </label>
                 </div>
 
-                {/* =====================================
+                {/* =========================================
                     LARGE UPLOAD AREA
-                ====================================== */}
+
+                    This is a native file picker.
+
+                    File selection is passed to the parent.
+                    No independent drag/drop logic is added.
+                ========================================== */}
 
                 {!isLimitReached && (
                     <label
                         className={`
-                            mt-5
+                            relative
+
+                            mt-4
 
                             flex
+                            w-full
                             min-w-0
 
                             flex-col
                             items-center
                             justify-center
+
                             gap-2
 
                             rounded-2xl
                             border
                             border-dashed
 
-                            px-4
-                            py-6
+                            px-3
+                            py-5
 
                             text-center
 
-                            transition-all
+                            transition-colors
                             duration-200
+
+                            focus-within:outline-none
+                            focus-within:ring-2
+                            focus-within:ring-indigo-500/50
+                            focus-within:ring-offset-2
+
+                            dark:focus-within:ring-offset-[#0b1018]
+
+                            sm:mt-5
+                            sm:px-4
+                            sm:py-6
+
+                            motion-reduce:transition-none
 
                             ${
                                 canUpload
@@ -379,51 +423,66 @@ const ProjectCreateImages = ({
                             }
                         `}
                     >
-                        {/* UPLOAD ICON */}
+                        {/* =============================
+                            UPLOAD ICON
+                        ============================== */}
 
                         <UploadCloud
                             size={26}
                             aria-hidden="true"
                             className="
                                 text-indigo-600
+
                                 dark:text-indigo-300
                             "
                         />
 
-                        {/* UPLOAD LABEL */}
+                        {/* =============================
+                            UPLOAD LABEL
+                        ============================== */}
 
                         <span
                             className="
+                                break-words
+
                                 text-xs
                                 font-black
 
                                 text-slate-800
+
                                 dark:text-slate-200
                             "
                         >
                             Rasm tanlash
                         </span>
 
-                        {/* UPLOAD DESCRIPTION */}
+                        {/* =============================
+                            UPLOAD DESCRIPTION
+                        ============================== */}
 
                         <span
                             className="
                                 max-w-xs
 
-                                text-[10px]
+                                break-words
+
+                                text-[11px]
                                 font-medium
                                 leading-5
 
                                 text-slate-500
+
                                 dark:text-slate-400
                             "
                         >
                             Bir vaqtning o‘zida bir nechta
-                            JPG, JPEG, PNG yoki WEBP
-                            rasmlarini tanlashingiz mumkin.
+                            JPG, JPEG, PNG yoki WEBP rasmlarini
+                            tanlashingiz mumkin.
                         </span>
 
-                        {/* REMAINING SLOTS */}
+                        {/* =============================
+                            REMAINING SLOTS
+                        ============================== */}
 
                         <span
                             className="
@@ -436,7 +495,7 @@ const ProjectCreateImages = ({
                                 px-3
                                 py-1
 
-                                text-[9px]
+                                text-[10px]
                                 font-black
                                 tabular-nums
 
@@ -451,65 +510,90 @@ const ProjectCreateImages = ({
                             {" ta joy qoldi"}
                         </span>
 
-                        {/* MULTIPLE IMAGE INPUT */}
+                        {/* =============================
+                            MULTIPLE IMAGE INPUT
+                        ============================== */}
 
                         <input
                             type="file"
                             multiple
+
                             accept={IMAGE_ACCEPT}
+
                             disabled={!canUpload}
+
                             onChange={handleUploadChange}
+
                             aria-label="Bir nechta loyiha rasmini yuklash"
+
                             className="sr-only"
                         />
                     </label>
                 )}
 
-                {/* =====================================
+                {/* =========================================
                     IMAGE CARDS
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
-                        mt-5
+                        mt-4
+
+                        w-full
                         min-w-0
 
-                        space-y-4
+                        space-y-3
+
+                        sm:mt-5
+                        sm:space-y-4
                     "
                 >
-                    {safeImages.map(
-                        (image, index) => (
+                    {safeImages.map((image, index) => (
+                        <div
+                            key={
+                                image?.id ??
+                                `image-${index}`
+                            }
+                            className="
+                                min-w-0
+                                max-w-full
+
+                                [&>*]:max-w-full
+                            "
+                        >
                             <ProjectCreateImageCard
-                                key={
-                                    image?.id ??
-                                    `image-${index}`
-                                }
                                 image={image}
                                 index={index}
+
                                 isSubmitting={
                                     isSubmitting
                                 }
+
                                 onTitleChange={
                                     onImageTitleChange
                                 }
+
                                 onReplace={
                                     onReplaceImage
                                 }
+
                                 onRemove={
                                     onRemoveImage
                                 }
                             />
-                        )
-                    )}
+                        </div>
+                    ))}
 
-                    {/* =================================
+                    {/* =====================================
                         EMPTY IMAGE STATE
-                    ================================== */}
+                    ====================================== */}
 
                     {imageCount === 0 && (
                         <div
                             role="status"
                             className="
+                                min-w-0
+
                                 rounded-2xl
                                 border
                                 border-dashed
@@ -517,14 +601,19 @@ const ProjectCreateImages = ({
                                 border-slate-200
                                 bg-white/70
 
-                                p-6
+                                px-3
+                                py-5
 
                                 text-center
 
-                                dark:border-white/[0.06]
+                                dark:border-white/[0.08]
                                 dark:bg-black/10
+
+                                sm:p-6
                             "
                         >
+                            {/* EMPTY ICON */}
+
                             <FileImage
                                 size={32}
                                 aria-hidden="true"
@@ -532,39 +621,49 @@ const ProjectCreateImages = ({
                                     mx-auto
 
                                     text-slate-300
+
                                     dark:text-slate-600
                                 "
                             />
+
+                            {/* EMPTY TITLE */}
 
                             <p
                                 className="
                                     mt-3
 
+                                    break-words
+
                                     text-xs
                                     font-bold
 
                                     text-slate-500
+
                                     dark:text-slate-400
                                 "
                             >
                                 Hali rasm tanlanmagan
                             </p>
 
+                            {/* EMPTY DESCRIPTION */}
+
                             <p
                                 className="
                                     mt-1
 
-                                    text-[10px]
+                                    break-words
+
+                                    text-[11px]
                                     font-medium
                                     leading-5
 
                                     text-slate-400
+
                                     dark:text-slate-500
                                 "
                             >
-                                Loyihangizni tanishtirish
-                                uchun kamida bitta rasm
-                                qo‘shing.
+                                Loyihangizni tanishtirish uchun
+                                kamida bitta rasm qo‘shing.
                             </p>
                         </div>
                     )}

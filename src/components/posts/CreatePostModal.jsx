@@ -1,4 +1,6 @@
 
+// src/components/posts/CreatePostModal.jsx
+
 import React, {
     useCallback,
     useEffect,
@@ -52,10 +54,10 @@ const TITLE_MAX_LENGTH = 150;
 // INITIAL FORM DATA
 //
 // Create:
-//   Empty form.
+// - Empty form.
 //
 // Edit:
-//   Existing post information.
+// - Existing post data.
 //
 // Backend field names are preserved.
 // =========================================================
@@ -83,14 +85,13 @@ const getInitialFormData = (initialData) => {
 // ERROR PARSER
 //
 // Supports:
-//
-// - Normal JavaScript Error
+// - JavaScript Error
 // - Axios error
 // - DRF response.data
 // - Field validation errors
 // - JSON serialized error messages
 //
-// Prevents [object Object] appearing in UI.
+// Prevents [object Object] from appearing in UI.
 // =========================================================
 
 const ERROR_FIELD_LABELS = {
@@ -253,14 +254,11 @@ const getErrorMessage = (
 // =========================================================
 // HTML -> TEXT
 //
-// Original behavior preserved.
-//
 // Used for:
-//
 // - Live preview
 // - Word count
 //
-// Never render untrusted HTML using
+// Do not render untrusted HTML with
 // dangerouslySetInnerHTML.
 // =========================================================
 
@@ -274,10 +272,7 @@ const stripHtml = (html = "") => {
             /<script[^>]*>.*?<\/script>/gis,
             ""
         )
-        .replace(
-            /<[^>]+>/g,
-            " "
-        )
+        .replace(/<[^>]+>/g, " ")
         .replace(/&nbsp;/gi, " ")
         .replace(/&amp;/gi, "&")
         .replace(/&lt;/gi, "<")
@@ -291,20 +286,18 @@ const stripHtml = (html = "") => {
 // =========================================================
 // VALIDATE FORM
 //
-// Original rules:
+// Existing rules:
 //
 // post_type:
-//   Valid backend category.
+// - Must match an available category.
 //
 // title:
-//   Required.
-//   At least 3 characters.
-//   Maximum 150 characters.
+// - Required.
+// - At least 3 characters.
+// - Maximum 150 characters.
 //
 // content:
-//   Required.
-//
-// Validation remains centralized here.
+// - Required.
 // =========================================================
 
 const validatePostForm = (formData) => {
@@ -340,7 +333,7 @@ const validatePostForm = (formData) => {
     }
 
     // =====================================================
-    // TITLE MIN LENGTH
+    // TITLE MINIMUM
     // =====================================================
 
     if (
@@ -354,7 +347,7 @@ const validatePostForm = (formData) => {
     }
 
     // =====================================================
-    // TITLE MAX LENGTH
+    // TITLE MAXIMUM
     // =====================================================
 
     if (
@@ -368,7 +361,7 @@ const validatePostForm = (formData) => {
     }
 
     // =====================================================
-    // CONTENT REQUIRED
+    // CONTENT
     // =====================================================
 
     if (!content) {
@@ -379,7 +372,7 @@ const validatePostForm = (formData) => {
 };
 
 // =========================================================
-// BUILD BACKEND PAYLOAD
+// BACKEND PAYLOAD
 //
 // Preserve existing backend contract.
 //
@@ -412,19 +405,29 @@ const buildPostPayload = (formData) => {
 //
 // CREATE MODE:
 //
-// - No initialData.
-// - Modal handles toast.
-// - Parent handles POST and Redux.
-// - Parent closes modal after success.
+// - initialData is null
+// - Modal manages create toast
+// - Parent performs POST and Redux updates
+// - Parent closes modal after success
 //
 // EDIT MODE:
 //
-// - initialData is provided.
-// - PostDetail handles toast.
-// - Parent handles PATCH and Redux.
-// - Parent closes modal after success.
+// - initialData is provided
+// - PostDetail manages edit toast
+// - Parent performs PATCH and Redux updates
+// - Parent closes modal after success
 //
-// This preserves the original behavior.
+// RESPONSIVE:
+//
+// Mobile:
+// - Full-screen modal
+// - Scrollable content
+// - Header and footer always accessible
+//
+// Tablet / Desktop:
+// - Centered modal
+// - Maximum viewport height
+// - Two columns on large screens
 // =========================================================
 
 const CreatePostModal = ({
@@ -462,13 +465,12 @@ const CreatePostModal = ({
     ] = useState("");
 
     // =====================================================
-    // INTERNAL PROCESSING STATE
+    // INTERNAL SUBMISSION STATE
     //
-    // Parent isSubmitting may update only after
-    // React rerenders.
+    // Parent isSubmitting may update after a render.
     //
-    // Internal state and ref prevent duplicate
-    // submission before that happens.
+    // Local state + ref prevent duplicate submits
+    // during the same event cycle.
     // =====================================================
 
     const [
@@ -478,13 +480,23 @@ const CreatePostModal = ({
 
     // =====================================================
     // REFS
+    //
+    // modalRef:
+    // - Focus management
+    //
+    // contentScrollRef:
+    // - Scrollable modal body
+    // - Error visibility
+    //
+    // submittingRef:
+    // - Duplicate submission protection
     // =====================================================
 
-    const modalRef =
-        useRef(null);
+    const modalRef = useRef(null);
 
-    const submittingRef =
-        useRef(false);
+    const contentScrollRef = useRef(null);
+
+    const submittingRef = useRef(false);
 
     // =====================================================
     // BUSY STATE
@@ -497,11 +509,13 @@ const CreatePostModal = ({
     // =====================================================
     // INITIAL DATA
     //
-    // Reset form whenever the modal opens or
-    // the selected post changes.
+    // Reset when:
+    // - Modal opens
+    // - Post changes
+    // - Existing post fields change
     //
     // Primitive dependencies prevent unnecessary
-    // resets when initialData is recreated.
+    // resets caused by recreated initialData objects.
     // =====================================================
 
     useEffect(() => {
@@ -514,8 +528,15 @@ const CreatePostModal = ({
         );
 
         setError("");
+
+        // Reset scroll position for every new session.
+
+        if (contentScrollRef.current) {
+            contentScrollRef.current.scrollTop = 0;
+        }
     }, [
         isOpen,
+        initialData?.id,
         initialData?.post_type,
         initialData?.title,
         initialData?.content,
@@ -523,6 +544,10 @@ const CreatePostModal = ({
 
     // =====================================================
     // BODY SCROLL LOCK
+    //
+    // Page behind the modal must not scroll.
+    //
+    // Modal content has its own scroll container.
     // =====================================================
 
     useEffect(() => {
@@ -530,7 +555,7 @@ const CreatePostModal = ({
             return undefined;
         }
 
-        const oldOverflow =
+        const previousOverflow =
             document.body.style.overflow;
 
         document.body.style.overflow =
@@ -538,7 +563,7 @@ const CreatePostModal = ({
 
         return () => {
             document.body.style.overflow =
-                oldOverflow;
+                previousOverflow;
         };
     }, [
         isOpen,
@@ -547,7 +572,7 @@ const CreatePostModal = ({
     // =====================================================
     // CLOSE MODAL
     //
-    // Prevent close during POST/PATCH.
+    // Prevent closing while POST / PATCH is running.
     // =====================================================
 
     const handleClose = useCallback(() => {
@@ -569,7 +594,7 @@ const CreatePostModal = ({
     // =====================================================
     // ESC KEY
     //
-    // Keep same behavior as original modal.
+    // Preserve original keyboard behavior.
     // =====================================================
 
     useEffect(() => {
@@ -606,9 +631,8 @@ const CreatePostModal = ({
     // =====================================================
     // FOCUS MANAGEMENT
     //
-    // Focus the modal when opened.
-    //
-    // Restore previous focus when closed.
+    // - Focus modal on opening
+    // - Restore previous focus on closing
     // =====================================================
 
     useEffect(() => {
@@ -619,7 +643,9 @@ const CreatePostModal = ({
         const previousElement =
             document.activeElement;
 
-        modalRef.current?.focus();
+        modalRef.current?.focus({
+            preventScroll: true,
+        });
 
         return () => {
             if (
@@ -628,7 +654,9 @@ const CreatePostModal = ({
                     "function" &&
                 previousElement.isConnected
             ) {
-                previousElement.focus();
+                previousElement.focus({
+                    preventScroll: true,
+                });
             }
         };
     }, [
@@ -637,9 +665,6 @@ const CreatePostModal = ({
 
     // =====================================================
     // SELECTED CATEGORY
-    //
-    // Category configuration is defined in
-    // PostCreateTypeSelector.
     // =====================================================
 
     const selectedType = useMemo(() => {
@@ -668,8 +693,6 @@ const CreatePostModal = ({
 
     // =====================================================
     // WORD COUNT
-    //
-    // Preserve original stripHtml-based counting.
     // =====================================================
 
     const wordCount = useMemo(() => {
@@ -691,12 +714,10 @@ const CreatePostModal = ({
     // =====================================================
     // INPUT CHANGE
     //
-    // Works with:
+    // Expected fields:
     //
     // name="title"
     // name="content"
-    //
-    // These names are preserved in PostCreateFields.
     // =====================================================
 
     const handleChange = (event) => {
@@ -708,10 +729,6 @@ const CreatePostModal = ({
             name,
             value,
         } = event.target;
-
-        // =================================================
-        // ONLY ACCEPT EXPECTED FIELDS
-        // =================================================
 
         if (
             name !== "title" &&
@@ -732,9 +749,6 @@ const CreatePostModal = ({
 
     // =====================================================
     // CATEGORY CHANGE
-    //
-    // Receives category value directly from
-    // PostCreateTypeSelector.
     // =====================================================
 
     const handleCategoryChange = (value) => {
@@ -754,7 +768,6 @@ const CreatePostModal = ({
 
         setFormData((previous) => ({
             ...previous,
-
             post_type: value,
         }));
 
@@ -766,7 +779,7 @@ const CreatePostModal = ({
     // =====================================================
     // BACKDROP CLICK
     //
-    // Close only when clicking outside the dialog.
+    // Only clicking the backdrop closes the modal.
     // =====================================================
 
     const handleBackdropClick = (event) => {
@@ -779,18 +792,37 @@ const CreatePostModal = ({
     };
 
     // =====================================================
+    // SCROLL TO FORM TOP
+    //
+    // Useful when validation/API errors occur
+    // on smaller mobile screens.
+    // =====================================================
+
+    const scrollToFormTop = useCallback(() => {
+        if (!contentScrollRef.current) {
+            return;
+        }
+
+        contentScrollRef.current.scrollTo({
+            top: 0,
+            behavior: "smooth",
+        });
+    }, []);
+
+    // =====================================================
     // SUBMIT
     //
     // Steps:
     //
-    // 1. Prevent default.
-    // 2. Prevent duplicate submission.
-    // 3. Validate fields.
-    // 4. Build backend payload.
-    // 5. Call parent's onSubmit.
-    // 6. Create mode: display toast.
-    // 7. Edit mode: let PostDetail display toast.
-    // 8. Keep modal open when API fails.
+    // 1. Prevent default
+    // 2. Prevent duplicates
+    // 3. Validate
+    // 4. Build payload
+    // 5. Call parent onSubmit
+    // 6. Handle create toast
+    // 7. Keep modal open on failure
+    //
+    // Existing parent contracts are preserved.
     // =====================================================
 
     const handleSubmit = async (event) => {
@@ -820,6 +852,7 @@ const CreatePostModal = ({
                 "Postni saqlash funksiyasi mavjud emas.";
 
             setError(message);
+            scrollToFormTop();
 
             return;
         }
@@ -839,23 +872,24 @@ const CreatePostModal = ({
                 {
                     title:
                         "Post ma’lumotlarini tekshiring",
-
                     duration: 4000,
                 }
             );
+
+            scrollToFormTop();
 
             return;
         }
 
         // =================================================
-        // BUILD PAYLOAD
+        // PAYLOAD
         // =================================================
 
         const payload =
             buildPostPayload(formData);
 
         // =================================================
-        // PREVENT DUPLICATE POST/PATCH
+        // PREVENT DUPLICATE SUBMISSIONS
         // =================================================
 
         submittingRef.current = true;
@@ -865,7 +899,7 @@ const CreatePostModal = ({
         // =================================================
         // CREATE TOAST
         //
-        // In edit mode, PostDetail handles toasts.
+        // Edit mode toast is handled in PostDetail.
         // =================================================
 
         let loadingToastId = null;
@@ -886,14 +920,13 @@ const CreatePostModal = ({
             // PARENT CALLBACK
             // =============================================
 
-            const result = await onSubmit(
-                payload
-            );
+            const result =
+                await onSubmit(payload);
 
             // =============================================
             // PARENT RETURNED FALSE
             //
-            // Do not show success.
+            // Do not display success.
             // =============================================
 
             if (result === false) {
@@ -911,9 +944,6 @@ const CreatePostModal = ({
 
             // =============================================
             // CREATE SUCCESS
-            //
-            // Edit mode has its own success toast in
-            // PostDetail.
             // =============================================
 
             if (!isEditMode) {
@@ -921,10 +951,8 @@ const CreatePostModal = ({
                     "Yangi postingiz community uchun muvaffaqiyatli chop etildi.",
                     {
                         id: loadingToastId,
-
                         title:
                             "Post chop etildi",
-
                         duration: 3800,
                     }
                 );
@@ -943,17 +971,12 @@ const CreatePostModal = ({
             // =============================================
             // MODAL CLOSING
             //
-            // Do not call onClose here.
+            // Do NOT call onClose here.
             //
-            // Existing parents manage this:
+            // Existing parents manage closing:
             //
-            // ProfilePosts:
-            //   closes after create success.
-            //
-            // PostDetail:
-            //   closes after update success.
-            //
-            // This preserves their existing contracts.
+            // ProfilePosts after creating a post.
+            // PostDetail after editing a post.
             // =============================================
         } catch (submitError) {
             // =============================================
@@ -962,7 +985,6 @@ const CreatePostModal = ({
 
             const message = getErrorMessage(
                 submitError,
-
                 isEditMode
                     ? "Postni tahrirlashda xato yuz berdi."
                     : "Post yaratishda xato yuz berdi."
@@ -976,15 +998,15 @@ const CreatePostModal = ({
             );
 
             // =============================================
-            // KEEP FORM VALUES
+            // PRESERVE FORM VALUES
             // =============================================
 
             setError(message);
 
+            scrollToFormTop();
+
             // =============================================
             // CREATE ERROR TOAST
-            //
-            // Edit error toast remains in PostDetail.
             // =============================================
 
             if (!isEditMode) {
@@ -992,10 +1014,8 @@ const CreatePostModal = ({
                     message,
                     {
                         id: loadingToastId,
-
                         title:
                             "Post yaratilmadi",
-
                         duration: 5000,
                     }
                 );
@@ -1013,6 +1033,8 @@ const CreatePostModal = ({
 
     // =====================================================
     // CLOSED MODAL
+    //
+    // All hooks remain above this condition.
     // =====================================================
 
     if (!isOpen) {
@@ -1025,36 +1047,35 @@ const CreatePostModal = ({
 
     return (
         <div
-            onMouseDown={
-                handleBackdropClick
-            }
+            onMouseDown={handleBackdropClick}
             className="
                 fixed
                 inset-0
                 z-[100]
 
                 flex
-                items-start
+                items-stretch
                 justify-center
 
-                overflow-y-auto
+                overflow-hidden
 
-                bg-black/75
+                bg-slate-950/75
 
-                px-3
-                py-5
+                p-0
 
                 backdrop-blur-md
 
-                sm:px-6
-                sm:py-8
+                dark:bg-black/80
 
-                lg:items-center
+                sm:items-center
+                sm:p-4
+
+                lg:p-6
             "
         >
-            {/* =====================================
+            {/* =============================================
                 BACKGROUND GLOWS
-            ====================================== */}
+            ============================================== */}
 
             <div
                 aria-hidden="true"
@@ -1098,9 +1119,19 @@ const CreatePostModal = ({
                 "
             />
 
-            {/* =====================================
-                MAIN MODAL
-            ====================================== */}
+            {/* =============================================
+                MAIN MODAL PANEL
+
+                MOBILE:
+                - Full-screen
+                - Dynamic viewport
+                - No border radius
+
+                TABLET / DESKTOP:
+                - Centered
+                - Limited height
+                - Rounded corners
+            ============================================== */}
 
             <div
                 ref={modalRef}
@@ -1111,35 +1142,52 @@ const CreatePostModal = ({
                 tabIndex={-1}
                 className="
                     relative
-                    my-auto
+                    isolate
+
+                    flex
+
+                    h-screen
+                    max-h-screen
 
                     w-full
-                    max-w-6xl
                     min-w-0
+                    max-w-6xl
+
+                    flex-col
 
                     overflow-hidden
 
-                    rounded-[32px]
-                    border
+                    rounded-none
 
-                    border-slate-200
-                    bg-white/95
+                    border-0
+
+                    bg-white
 
                     shadow-[0_35px_100px_rgba(15,23,42,0.25)]
 
                     outline-none
 
-                    backdrop-blur-2xl
-
-                    dark:border-white/[0.08]
-                    dark:bg-[#0a0d14]/95
-
+                    dark:bg-[#0a0d14]
                     dark:shadow-[0_35px_100px_rgba(0,0,0,0.75)]
+
+                    h-[100dvh]
+                    max-h-[100dvh]
+
+                    sm:h-[92dvh]
+                    sm:max-h-[900px]
+
+                    sm:rounded-[26px]
+                    sm:border
+                    sm:border-slate-200
+
+                    dark:sm:border-white/[0.08]
+
+                    lg:rounded-[32px]
                 "
             >
-                {/* =================================
+                {/* =========================================
                     TOP GLOW
-                ================================== */}
+                ========================================== */}
 
                 <div
                     aria-hidden="true"
@@ -1164,209 +1212,332 @@ const CreatePostModal = ({
                     "
                 />
 
-                {/* =================================
-                    1. MODAL HEADER
-                ================================== */}
+                {/* =========================================
+                    1. HEADER
 
-                <PostCreateHeader
-                    isEditMode={isEditMode}
-                    isSubmitting={busy}
-                    onClose={handleClose}
-                />
+                    Header remains outside the form's
+                    scrollable body.
+                ========================================== */}
 
-                {/* =================================
-                    POST FORM
-                ================================== */}
+                <div
+                    className="
+                        relative
+                        z-20
 
-                <form
-                    onSubmit={handleSubmit}
+                        w-full
+                        min-w-0
+
+                        shrink-0
+                    "
                 >
-                    {/* =============================
-                        TWO-COLUMN LAYOUT
-
-                        Left:
-                        - Post type
-                        - Title
-                        - Content
-                        - Error
-
-                        Right:
-                        - Live preview
-                    ============================== */}
-
-                    <div
-                        className="
-                            grid
-                            min-w-0
-
-                            lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.7fr)]
-                        "
-                    >
-                        {/* =========================
-                            LEFT PANEL
-                        ========================== */}
-
-                        <div
-                            className="
-                                min-w-0
-
-                                space-y-7
-
-                                p-5
-
-                                sm:p-7
-
-                                lg:border-r
-                                lg:border-slate-200
-
-                                dark:lg:border-white/[0.06]
-                            "
-                        >
-                            {/* =====================
-                                2. CATEGORY SELECTOR
-                            ====================== */}
-
-                            <PostCreateTypeSelector
-                                value={
-                                    selectedType.value
-                                }
-                                onChange={
-                                    handleCategoryChange
-                                }
-                                disabled={busy}
-                            />
-
-                            {/* =====================
-                                3. FORM FIELDS
-                            ====================== */}
-
-                            <PostCreateFields
-                                formData={formData}
-                                onChange={handleChange}
-                                wordCount={wordCount}
-                                disabled={busy}
-                            />
-
-                            {/* =====================
-                                INLINE ERROR
-                            ====================== */}
-
-                            {error && (
-                                <div
-                                    role="alert"
-                                    className="
-                                        flex
-                                        min-w-0
-
-                                        items-start
-                                        gap-3
-
-                                        rounded-2xl
-                                        border
-
-                                        border-red-200
-                                        bg-red-50
-
-                                        p-4
-
-                                        dark:border-red-400/20
-                                        dark:bg-red-500/[0.08]
-                                    "
-                                >
-                                    {/* ERROR ICON */}
-
-                                    <span
-                                        aria-hidden="true"
-                                        className="
-                                            mt-0.5
-
-                                            flex
-                                            h-8
-                                            w-8
-                                            shrink-0
-
-                                            items-center
-                                            justify-center
-
-                                            rounded-xl
-
-                                            bg-red-100
-                                            text-red-600
-
-                                            dark:bg-red-500/10
-                                            dark:text-red-300
-                                        "
-                                    >
-                                        <AlertTriangle
-                                            size={17}
-                                        />
-                                    </span>
-
-                                    {/* ERROR MESSAGE */}
-
-                                    <div className="min-w-0">
-                                        <p
-                                            className="
-                                                text-xs
-                                                font-black
-
-                                                uppercase
-                                                tracking-wider
-
-                                                text-red-700
-
-                                                dark:text-red-300
-                                            "
-                                        >
-                                            Xatolik
-                                        </p>
-
-                                        <p
-                                            className="
-                                                mt-1
-
-                                                break-words
-
-                                                text-sm
-                                                font-medium
-                                                leading-6
-
-                                                text-red-700
-
-                                                dark:text-red-200
-                                            "
-                                        >
-                                            {error}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* =========================
-                            RIGHT PANEL
-                        ========================== */}
-
-                        <PostCreatePreview
-                            formData={formData}
-                            cleanPreviewContent={
-                                cleanPreviewContent
-                            }
-                        />
-                    </div>
-
-                    {/* =================================
-                        4. MODAL FOOTER
-
-                        The submit button remains
-                        inside the form.
-                    ================================== */}
-
-                    <PostCreateFooter
+                    <PostCreateHeader
                         isEditMode={isEditMode}
                         isSubmitting={busy}
                         onClose={handleClose}
                     />
+                </div>
+
+                {/* =========================================
+                    FORM
+
+                    Footer remains inside the form
+                    so type="submit" continues working.
+                ========================================== */}
+
+                <form
+                    onSubmit={handleSubmit}
+                    className="
+                        relative
+                        z-10
+
+                        flex
+
+                        min-h-0
+                        min-w-0
+                        flex-1
+
+                        flex-col
+
+                        overflow-hidden
+                    "
+                >
+                    {/* =====================================
+                        SCROLLABLE CONTENT
+
+                        Only this area scrolls.
+
+                        Header stays above.
+                        Footer stays below.
+
+                        Prevent horizontal overflow.
+                    ====================================== */}
+
+                    <div
+                        ref={contentScrollRef}
+                        className="
+                            min-h-0
+                            min-w-0
+                            flex-1
+
+                            overflow-x-hidden
+                            overflow-y-auto
+
+                            overscroll-contain
+
+                            touch-pan-y
+
+                            [scrollbar-gutter:stable]
+                        "
+                    >
+                        {/* =================================
+                            TWO-COLUMN LAYOUT
+
+                            Mobile:
+                            - One column
+
+                            Large desktop:
+                            - Fields / Live preview
+                        ================================== */}
+
+                        <div
+                            className="
+                                grid
+                                min-w-0
+                                grid-cols-1
+
+                                items-start
+
+                                lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]
+                            "
+                        >
+                            {/* =============================
+                                LEFT PANEL
+                            ============================== */}
+
+                            <div
+                                className="
+                                    min-w-0
+                                    w-full
+
+                                    space-y-5
+
+                                    p-3
+
+                                    min-[380px]:p-4
+
+                                    sm:space-y-6
+                                    sm:p-6
+
+                                    lg:space-y-7
+                                    lg:border-r
+                                    lg:border-slate-200
+                                    lg:p-7
+
+                                    dark:lg:border-white/[0.06]
+                                "
+                            >
+                                {/* =========================
+                                    2. POST CATEGORY
+                                ========================== */}
+
+                                <div
+                                    className="
+                                        min-w-0
+                                        w-full
+                                    "
+                                >
+                                    <PostCreateTypeSelector
+                                        value={selectedType.value}
+                                        onChange={
+                                            handleCategoryChange
+                                        }
+                                        disabled={busy}
+                                    />
+                                </div>
+
+                                {/* =========================
+                                    3. POST FORM FIELDS
+                                ========================== */}
+
+                                <div
+                                    className="
+                                        min-w-0
+                                        w-full
+                                    "
+                                >
+                                    <PostCreateFields
+                                        formData={formData}
+                                        onChange={handleChange}
+                                        wordCount={wordCount}
+                                        disabled={busy}
+                                    />
+                                </div>
+
+                                {/* =========================
+                                    INLINE FORM ERROR
+                                ========================== */}
+
+                                {error && (
+                                    <div
+                                        role="alert"
+                                        className="
+                                            flex
+                                            min-w-0
+
+                                            items-start
+                                            gap-3
+
+                                            rounded-2xl
+                                            border
+
+                                            border-red-200
+                                            bg-red-50
+
+                                            p-3
+
+                                            dark:border-red-400/20
+                                            dark:bg-red-500/[0.08]
+
+                                            sm:p-4
+                                        "
+                                    >
+                                        {/* =================
+                                            ERROR ICON
+                                        ================== */}
+
+                                        <span
+                                            aria-hidden="true"
+                                            className="
+                                                mt-0.5
+
+                                                flex
+                                                h-8
+                                                w-8
+
+                                                shrink-0
+
+                                                items-center
+                                                justify-center
+
+                                                rounded-xl
+
+                                                bg-red-100
+                                                text-red-600
+
+                                                dark:bg-red-500/10
+                                                dark:text-red-300
+                                            "
+                                        >
+                                            <AlertTriangle
+                                                size={17}
+                                            />
+                                        </span>
+
+                                        {/* =================
+                                            ERROR CONTENT
+                                        ================== */}
+
+                                        <div
+                                            className="
+                                                min-w-0
+                                                flex-1
+                                            "
+                                        >
+                                            <p
+                                                className="
+                                                    text-xs
+                                                    font-black
+
+                                                    uppercase
+                                                    tracking-wider
+
+                                                    text-red-700
+
+                                                    dark:text-red-300
+                                                "
+                                            >
+                                                Xatolik
+                                            </p>
+
+                                            <p
+                                                className="
+                                                    mt-1
+
+                                                    break-words
+
+                                                    text-sm
+                                                    font-medium
+                                                    leading-6
+
+                                                    text-red-700
+
+                                                    dark:text-red-200
+                                                "
+                                            >
+                                                {error}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* =============================
+                                RIGHT PANEL — LIVE PREVIEW
+
+                                Below form on mobile.
+
+                                Right column on desktop.
+
+                                Preview component keeps
+                                its original props.
+                            ============================== */}
+
+                            <div
+                                className="
+                                    min-w-0
+                                    w-full
+
+                                    overflow-hidden
+                                "
+                            >
+                                <PostCreatePreview
+                                    formData={formData}
+                                    cleanPreviewContent={
+                                        cleanPreviewContent
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* =====================================
+                        4. FOOTER
+
+                        Must stay inside <form>.
+
+                        Does not scroll with content.
+
+                        Mobile safe area padding is handled
+                        by PostCreateFooter.
+                    ====================================== */}
+
+                    <div
+                        className="
+                            relative
+                            z-20
+
+                            min-w-0
+                            w-full
+
+                            shrink-0
+                        "
+                    >
+                        <PostCreateFooter
+                            isEditMode={isEditMode}
+                            isSubmitting={busy}
+                            onClose={handleClose}
+                        />
+                    </div>
                 </form>
             </div>
         </div>

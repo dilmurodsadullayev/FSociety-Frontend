@@ -1,4 +1,6 @@
 
+// src/components/projects/create/ProjectCreateStackPreview.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -20,53 +22,48 @@ const EMPTY_ITEMS = [];
 // =========================================================
 // STACK PREVIEW TAG
 //
-// Used for both:
+// Shows an individual selected language or technology.
 //
-// - Selected languages
-// - Selected technologies
+// Features:
+// - Backend-defined color
+// - Responsive text wrapping
+// - Light / Dark Mode
+// - Safe fallback names
 //
-// Colors come from the backend catalog.
-//
-// Shared color helpers are imported from
-// ProjectCreateStackTag.jsx.
+// No selection or form state.
 // =========================================================
 
 const StackPreviewTag = memo(
-    function StackPreviewTag({
-        item,
-    }) {
-        // ================================================
+    function StackPreviewTag({ item }) {
+        // =================================================
         // SAFE VALUES
-        // ================================================
+        // =================================================
 
-        const name = String(
-            item?.name || "Noma’lum"
-        );
+        const name =
+            String(item?.name ?? "").trim() ||
+            "Noma’lum";
 
         const color =
             getProjectStackColor(item);
 
-        // ================================================
-        // STYLES
-        // ================================================
+        // =================================================
+        // BACKEND COLOR STYLES
+        // =================================================
 
         const tagStyle = {
-            borderColor:
-                withProjectStackAlpha(
-                    color,
-                    "45"
-                ),
-
-            backgroundColor:
-                withProjectStackAlpha(
-                    color,
-                    "12"
-                ),
+            borderColor: withProjectStackAlpha(
+                color,
+                "45"
+            ),
+            backgroundColor: withProjectStackAlpha(
+                color,
+                "12"
+            ),
         };
 
-        // ================================================
+        // =================================================
         // RENDER
-        // ================================================
+        // =================================================
 
         return (
             <span
@@ -74,13 +71,14 @@ const StackPreviewTag = memo(
                 style={tagStyle}
                 className="
                     inline-flex
-                    max-w-full
+
                     min-w-0
+                    max-w-full
 
                     items-center
                     gap-1.5
 
-                    rounded-full
+                    rounded-xl
                     border
 
                     px-2.5
@@ -88,15 +86,18 @@ const StackPreviewTag = memo(
 
                     text-[10px]
                     font-black
+                    leading-5
 
                     text-slate-800
                     dark:text-slate-200
 
-                    transition-colors
-                    duration-200
+                    sm:rounded-full
+                    sm:text-[11px]
                 "
             >
-                {/* COLOR INDICATOR */}
+                {/* =========================================
+                    COLOR INDICATOR
+                ========================================== */}
 
                 <span
                     aria-hidden="true"
@@ -104,8 +105,8 @@ const StackPreviewTag = memo(
                         backgroundColor: color,
                     }}
                     className="
-                        h-1.5
-                        w-1.5
+                        h-2
+                        w-2
 
                         shrink-0
 
@@ -113,9 +114,23 @@ const StackPreviewTag = memo(
                     "
                 />
 
-                {/* STACK NAME */}
+                {/* =========================================
+                    STACK NAME
 
-                <span className="truncate">
+                    Long names can wrap rather than
+                    overflowing the preview card.
+                ========================================== */}
+
+                <span
+                    className="
+                        min-w-0
+
+                        whitespace-normal
+                        break-words
+
+                        [overflow-wrap:anywhere]
+                    "
+                >
                     {name}
                 </span>
             </span>
@@ -127,17 +142,11 @@ const StackPreviewTag = memo(
 // STACK PREVIEW GROUP
 //
 // Props:
+// - title
+// - items
+// - variant: language | technology
 //
-// title:
-//   Group label.
-//
-// items:
-//   Selected catalog items.
-//
-// variant:
-//   language | technology
-//
-// Renders nothing when items are empty.
+// Renders nothing when no items are selected.
 // =========================================================
 
 const StackPreviewGroup = memo(
@@ -146,22 +155,25 @@ const StackPreviewGroup = memo(
         items = EMPTY_ITEMS,
         variant = "language",
     }) {
-        // ================================================
+        // =================================================
         // SAFE ITEMS
-        // ================================================
+        // =================================================
 
-        const safeItems =
-            Array.isArray(items)
-                ? items.filter(Boolean)
-                : EMPTY_ITEMS;
+        const safeItems = Array.isArray(items)
+            ? items.filter(Boolean)
+            : EMPTY_ITEMS;
+
+        // =================================================
+        // VISIBILITY
+        // =================================================
 
         if (safeItems.length === 0) {
             return null;
         }
 
-        // ================================================
-        // GROUP ICON
-        // ================================================
+        // =================================================
+        // GROUP ICON AND COLORS
+        // =================================================
 
         const isLanguage =
             variant === "language";
@@ -170,28 +182,63 @@ const StackPreviewGroup = memo(
             ? Code2
             : Layers3;
 
-        // ================================================
+        const iconClass = isLanguage
+            ? "text-blue-600 dark:text-blue-400"
+            : "text-purple-600 dark:text-purple-400";
+
+        const countClass = isLanguage
+            ? `
+                border-blue-200
+                bg-blue-50
+                text-blue-700
+
+                dark:border-blue-400/15
+                dark:bg-blue-500/[0.06]
+                dark:text-blue-300
+            `
+            : `
+                border-purple-200
+                bg-purple-50
+                text-purple-700
+
+                dark:border-purple-400/15
+                dark:bg-purple-500/[0.06]
+                dark:text-purple-300
+            `;
+
+        // =================================================
         // RENDER
-        // ================================================
+        // =================================================
 
         return (
-            <div className="min-w-0">
-                {/* =====================================
+            <div
+                className="
+                    w-full
+                    min-w-0
+                "
+            >
+                {/* =========================================
                     GROUP HEADER
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     className="
-                        mb-2
+                        mb-2.5
 
                         flex
                         min-w-0
 
+                        flex-wrap
                         items-center
                         justify-between
+
                         gap-2
                     "
                 >
+                    {/* =====================================
+                        GROUP ICON AND TITLE
+                    ====================================== */}
+
                     <div
                         className="
                             flex
@@ -202,17 +249,21 @@ const StackPreviewGroup = memo(
                         "
                     >
                         <Icon
-                            size={13}
+                            size={14}
                             aria-hidden="true"
-                            className={
-                                isLanguage
-                                    ? "text-blue-600 dark:text-blue-400"
-                                    : "text-purple-600 dark:text-purple-400"
-                            }
+                            className={`
+                                shrink-0
+
+                                ${iconClass}
+                            `}
                         />
 
                         <p
                             className="
+                                min-w-0
+
+                                break-words
+
                                 text-[10px]
                                 font-black
 
@@ -220,52 +271,83 @@ const StackPreviewGroup = memo(
                                 tracking-[0.12em]
 
                                 text-slate-600
-                                dark:text-slate-400
+                                dark:text-slate-300
+
+                                sm:text-[11px]
                             "
                         >
                             {title}
                         </p>
                     </div>
 
-                    {/* GROUP COUNT */}
+                    {/* =====================================
+                        GROUP COUNT
+                    ====================================== */}
 
                     <span
-                        className="
+                        className={`
+                            inline-flex
+
+                            shrink-0
+
+                            items-center
+                            justify-center
+
+                            rounded-full
+                            border
+
+                            px-2
+                            py-0.5
+
                             text-[10px]
                             font-black
                             tabular-nums
 
-                            text-slate-500
-                            dark:text-slate-500
-                        "
+                            ${countClass}
+                        `}
                     >
-                        {safeItems.length}
+                        {safeItems.length} ta
                     </span>
                 </div>
 
-                {/* =====================================
-                    SELECTED ITEMS
-                ====================================== */}
+                {/* =========================================
+                    SELECTED STACK TAGS
+
+                    flex-wrap:
+                    Moves tags to the next line.
+
+                    max-w-full:
+                    Prevents oversized tags.
+
+                    overflow-wrap:
+                    Handles long words without spaces.
+                ========================================== */}
 
                 <div
                     className="
                         flex
+
+                        w-full
                         min-w-0
+                        max-w-full
+
                         flex-wrap
+
+                        items-start
                         gap-2
+
+                        [&>*]:max-w-full
                     "
                 >
-                    {safeItems.map(
-                        (item, index) => (
-                            <StackPreviewTag
-                                key={
-                                    item?.id ??
-                                    `${variant}-${index}`
-                                }
-                                item={item}
-                            />
-                        )
-                    )}
+                    {safeItems.map((item, index) => (
+                        <StackPreviewTag
+                            key={
+                                item?.id ??
+                                `${variant}-${index}`
+                            }
+                            item={item}
+                        />
+                    ))}
                 </div>
             </div>
         );
@@ -283,28 +365,22 @@ const StackPreviewGroup = memo(
 // selectedTechnologies:
 //   Array of selected technology objects.
 //
-// Example:
-//
-// <ProjectCreateStackPreview
-//     selectedLanguages={selectedLanguages}
-//     selectedTechnologies={selectedTechnologies}
-// />
-//
-// Responsibilities:
-//
-// - Show selected programming languages
-// - Show selected technologies
-// - Render category counters
-// - Use backend catalog colors
+// Features:
+// - Live selected language preview
+// - Live selected technology preview
+// - Language count
+// - Technology count
+// - Total selected stack count
+// - Backend category colors
+// - Responsive mobile layout
 // - Light / Dark Mode
 //
-// This component does NOT:
+// Visibility:
+// - Returns null if nothing is selected.
 //
-// - Fetch catalog data
-// - Toggle selections
-// - Validate stack choices
-// - Manage form state
-// - Make API calls
+// No API calls.
+// No form state.
+// No selection mutation.
 // =========================================================
 
 const ProjectCreateStackPreview = ({
@@ -312,18 +388,20 @@ const ProjectCreateStackPreview = ({
     selectedTechnologies = EMPTY_ITEMS,
 }) => {
     // =====================================================
-    // SAFE DATA
+    // SAFE ARRAYS
     // =====================================================
 
-    const safeLanguages =
-        Array.isArray(selectedLanguages)
-            ? selectedLanguages.filter(Boolean)
-            : EMPTY_ITEMS;
+    const safeLanguages = Array.isArray(
+        selectedLanguages
+    )
+        ? selectedLanguages.filter(Boolean)
+        : EMPTY_ITEMS;
 
-    const safeTechnologies =
-        Array.isArray(selectedTechnologies)
-            ? selectedTechnologies.filter(Boolean)
-            : EMPTY_ITEMS;
+    const safeTechnologies = Array.isArray(
+        selectedTechnologies
+    )
+        ? selectedTechnologies.filter(Boolean)
+        : EMPTY_ITEMS;
 
     // =====================================================
     // COUNTERS
@@ -339,9 +417,10 @@ const ProjectCreateStackPreview = ({
         languageCount + technologyCount;
 
     // =====================================================
-    // ORIGINAL VISIBILITY RULE
+    // VISIBILITY
     //
-    // Do not display an empty preview panel.
+    // Preserve original behavior.
+    // Do not show an empty preview card.
     // =====================================================
 
     if (totalCount === 0) {
@@ -357,7 +436,10 @@ const ProjectCreateStackPreview = ({
             aria-label="Tanlangan texnologik stack"
             className="
                 relative
+
+                w-full
                 min-w-0
+                max-w-full
 
                 overflow-hidden
 
@@ -367,15 +449,17 @@ const ProjectCreateStackPreview = ({
                 border-slate-200
                 bg-slate-50
 
-                p-4
+                p-3.5
 
                 dark:border-white/[0.08]
                 dark:bg-black/20
+
+                min-[380px]:p-4
             "
         >
-            {/* =====================================
+            {/* =============================================
                 BACKGROUND GLOW
-            ====================================== */}
+            ============================================== */}
 
             <div
                 aria-hidden="true"
@@ -396,9 +480,9 @@ const ProjectCreateStackPreview = ({
                 "
             />
 
-            {/* =====================================
+            {/* =============================================
                 MAIN HEADER
-            ====================================== */}
+            ============================================== */}
 
             <div
                 className="
@@ -410,12 +494,17 @@ const ProjectCreateStackPreview = ({
                     flex
                     min-w-0
 
+                    flex-wrap
+
                     items-center
                     justify-between
-                    gap-3
+
+                    gap-2.5
                 "
             >
-                {/* TITLE */}
+                {/* =========================================
+                    HEADER ICON AND TITLE
+                ========================================== */}
 
                 <div
                     className="
@@ -427,7 +516,7 @@ const ProjectCreateStackPreview = ({
                     "
                 >
                     <Code2
-                        size={15}
+                        size={16}
                         aria-hidden="true"
                         className="
                             shrink-0
@@ -439,25 +528,35 @@ const ProjectCreateStackPreview = ({
 
                     <h4
                         className="
+                            min-w-0
+
+                            break-words
+
                             text-[10px]
                             font-black
 
                             uppercase
-                            tracking-[0.15em]
+                            tracking-[0.12em]
 
                             text-slate-700
                             dark:text-slate-300
+
+                            sm:text-[11px]
+                            sm:tracking-[0.15em]
                         "
                     >
                         Stack preview
                     </h4>
                 </div>
 
-                {/* TOTAL COUNT */}
+                {/* =========================================
+                    TOTAL SELECTED COUNT
+                ========================================== */}
 
                 <span
                     className="
                         inline-flex
+
                         shrink-0
 
                         items-center
@@ -472,7 +571,7 @@ const ProjectCreateStackPreview = ({
                         px-2.5
                         py-1
 
-                        text-[9px]
+                        text-[10px]
                         font-black
                         tabular-nums
 
@@ -487,20 +586,24 @@ const ProjectCreateStackPreview = ({
                 </span>
             </div>
 
-            {/* =====================================
+            {/* =============================================
                 STACK GROUPS
-            ====================================== */}
+            ============================================== */}
 
             <div
                 className="
                     relative
                     z-10
 
+                    w-full
                     min-w-0
+
                     space-y-4
                 "
             >
-                {/* LANGUAGES */}
+                {/* =========================================
+                    SELECTED LANGUAGES
+                ========================================== */}
 
                 <StackPreviewGroup
                     title="Tillar"
@@ -508,7 +611,12 @@ const ProjectCreateStackPreview = ({
                     variant="language"
                 />
 
-                {/* DIVIDER */}
+                {/* =========================================
+                    DIVIDER
+
+                    Only show when both groups contain
+                    selected items.
+                ========================================== */}
 
                 {languageCount > 0 &&
                     technologyCount > 0 && (
@@ -516,14 +624,18 @@ const ProjectCreateStackPreview = ({
                             aria-hidden="true"
                             className="
                                 h-px
+                                w-full
+
                                 bg-slate-200
 
-                                dark:bg-white/[0.06]
+                                dark:bg-white/[0.08]
                             "
                         />
                     )}
 
-                {/* TECHNOLOGIES */}
+                {/* =========================================
+                    SELECTED TECHNOLOGIES
+                ========================================== */}
 
                 <StackPreviewGroup
                     title="Texnologiyalar"
