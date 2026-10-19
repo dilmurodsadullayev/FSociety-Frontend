@@ -1,5 +1,10 @@
 
-import React, { memo, useMemo } from "react";
+// src/components/profile/projects/ProfileProjectsStats.jsx
+
+import React, {
+    memo,
+    useMemo,
+} from "react";
 
 import {
     Eye,
@@ -57,9 +62,12 @@ const formatNumber = (value) => {
 //
 // Compatibility with older ProfileProjects.
 //
-// Important:
-// This fallback uses only the provided projects.
-// For paginated profiles, backend stats must be used.
+// IMPORTANT:
+//
+// This fallback calculates values only from the
+// projects supplied to this component.
+//
+// Paginated profiles should provide backend stats.
 // =========================================================
 
 const calculateLegacyStats = (projects) => {
@@ -72,22 +80,19 @@ const calculateLegacyStats = (projects) => {
 
         stars: list.reduce(
             (sum, project) =>
-                sum +
-                safeNumber(project?.stars_count),
+                sum + safeNumber(project?.stars_count),
             0
         ),
 
         views: list.reduce(
             (sum, project) =>
-                sum +
-                safeNumber(project?.views_count),
+                sum + safeNumber(project?.views_count),
             0
         ),
 
         comments: list.reduce(
             (sum, project) =>
-                sum +
-                safeNumber(project?.comments_count),
+                sum + safeNumber(project?.comments_count),
             0
         ),
     };
@@ -95,13 +100,25 @@ const calculateLegacyStats = (projects) => {
 
 // =========================================================
 // STAT CONFIGURATION
+//
+// Existing:
+// - Keys
+// - Labels
+// - Descriptions
+// - Icons
+// - Colors
+//
+// All preserved.
 // =========================================================
 
 const STAT_ITEMS = [
     {
         key: "total",
+
         label: "Jami loyihalar",
+
         description: "Portfolio loyihalari",
+
         icon: FolderKanban,
 
         iconClass:
@@ -109,7 +126,7 @@ const STAT_ITEMS = [
 
         iconBackground:
             "border-indigo-200 bg-indigo-50 " +
-            "dark:border-indigo-400/15 " +
+            "dark:border-indigo-400/20 " +
             "dark:bg-indigo-500/[0.09]",
 
         accentClass:
@@ -117,8 +134,11 @@ const STAT_ITEMS = [
     },
     {
         key: "stars",
+
         label: "Starlar",
+
         description: "Olingan yulduzlar",
+
         icon: Star,
 
         iconClass:
@@ -126,7 +146,7 @@ const STAT_ITEMS = [
 
         iconBackground:
             "border-amber-200 bg-amber-50 " +
-            "dark:border-amber-400/15 " +
+            "dark:border-amber-400/20 " +
             "dark:bg-amber-500/[0.09]",
 
         accentClass:
@@ -134,8 +154,11 @@ const STAT_ITEMS = [
     },
     {
         key: "views",
+
         label: "Ko‘rishlar",
+
         description: "Loyiha ko‘rishlari",
+
         icon: Eye,
 
         iconClass:
@@ -143,7 +166,7 @@ const STAT_ITEMS = [
 
         iconBackground:
             "border-cyan-200 bg-cyan-50 " +
-            "dark:border-cyan-400/15 " +
+            "dark:border-cyan-400/20 " +
             "dark:bg-cyan-500/[0.09]",
 
         accentClass:
@@ -151,8 +174,11 @@ const STAT_ITEMS = [
     },
     {
         key: "comments",
+
         label: "Izohlar",
-        description: "Loyalarga yozilgan izohlar",
+
+        description: "Loyihalarga yozilgan izohlar",
+
         icon: MessageCircle,
 
         iconClass:
@@ -160,7 +186,7 @@ const STAT_ITEMS = [
 
         iconBackground:
             "border-emerald-200 bg-emerald-50 " +
-            "dark:border-emerald-400/15 " +
+            "dark:border-emerald-400/20 " +
             "dark:bg-emerald-500/[0.09]",
 
         accentClass:
@@ -170,6 +196,21 @@ const STAT_ITEMS = [
 
 // =========================================================
 // PROFILE PROJECT STAT CARD
+//
+// Compact layout inspired by Profile Posts.
+//
+// Layout:
+//
+// [ ICON ]  [ 7                  ]
+//           [ JAMI LOYIHALAR     ]
+//           [ Portfolio loyihalari ]
+//
+// Responsive:
+// - Compact mobile cards
+// - Comfortable desktop spacing
+// - Long descriptions wrap safely
+//
+// No API or state logic.
 // =========================================================
 
 const ProfileProjectStatCard = memo(
@@ -187,15 +228,24 @@ const ProfileProjectStatCard = memo(
                 className="
                     group
                     relative
+
+                    flex
+
+                    min-h-[98px]
                     min-w-0
+
+                    items-center
+
                     overflow-hidden
 
                     rounded-2xl
                     border
+
                     border-slate-200
 
                     bg-white/90
-                    p-4
+
+                    p-3
 
                     shadow-sm
 
@@ -213,14 +263,16 @@ const ProfileProjectStatCard = memo(
                     dark:hover:border-white/[0.12]
                     dark:hover:bg-[#111925]
 
-                    motion-reduce:transform-none
+                    sm:min-h-[100px]
+                    sm:p-4
 
-                    sm:p-5
+                    motion-reduce:transform-none
+                    motion-reduce:transition-none
                 "
             >
-                {/* =====================================
-                    TOP ACCENT
-                ====================================== */}
+                {/* =========================================
+                    DECORATIVE TOP ACCENT
+                ========================================== */}
 
                 <div
                     aria-hidden="true"
@@ -236,103 +288,9 @@ const ProfileProjectStatCard = memo(
                     `}
                 />
 
-                {/* =====================================
-                    CARD HEADER
-                ====================================== */}
-
-                <div
-                    className="
-                        flex
-                        min-w-0
-
-                        items-start
-                        justify-between
-                        gap-3
-                    "
-                >
-                    <div className="min-w-0">
-                        <p
-                            className="
-                                text-[11px]
-                                font-bold
-                                leading-5
-
-                                text-slate-500
-                                dark:text-slate-400
-                            "
-                        >
-                            {label}
-                        </p>
-
-                        <p
-                            className="
-                                mt-1
-
-                                text-[10px]
-                                font-medium
-                                leading-4
-
-                                text-slate-400
-                                dark:text-slate-500
-                            "
-                        >
-                            {description}
-                        </p>
-                    </div>
-
-                    <div
-                        aria-hidden="true"
-                        className={`
-                            flex
-                            h-10
-                            w-10
-                            shrink-0
-
-                            items-center
-                            justify-center
-
-                            rounded-xl
-                            border
-
-                            ${iconBackground}
-                        `}
-                    >
-                        <Icon
-                            size={19}
-                            strokeWidth={2}
-                            className={iconClass}
-                        />
-                    </div>
-                </div>
-
-                {/* =====================================
-                    STATISTIC VALUE
-                ====================================== */}
-
-                <div className="mt-3">
-                    <strong
-                        className="
-                            block
-
-                            text-2xl
-                            font-black
-                            leading-tight
-                            tracking-tight
-                            tabular-nums
-
-                            text-slate-900
-                            dark:text-white
-
-                            sm:text-[28px]
-                        "
-                    >
-                        {formatNumber(value)}
-                    </strong>
-                </div>
-
-                {/* =====================================
-                    DECORATIVE BACKGROUND
-                ====================================== */}
+                {/* =========================================
+                    SUBTLE BACKGROUND GLOW
+                ========================================== */}
 
                 <div
                     aria-hidden="true"
@@ -354,6 +312,156 @@ const ProfileProjectStatCard = memo(
                         ${accentClass}
                     `}
                 />
+
+                {/* =========================================
+                    HORIZONTAL CONTENT
+                ========================================== */}
+
+                <div
+                    className="
+                        relative
+                        z-10
+
+                        flex
+                        w-full
+                        min-w-0
+
+                        items-center
+                        gap-2.5
+
+                        sm:gap-3.5
+                    "
+                >
+                    {/* =====================================
+                        ICON
+                    ====================================== */}
+
+                    <div
+                        aria-hidden="true"
+                        className={`
+                            grid
+
+                            h-10
+                            w-10
+
+                            shrink-0
+
+                            place-items-center
+
+                            rounded-xl
+                            border
+
+                            ${iconBackground}
+
+                            sm:h-11
+                            sm:w-11
+                        `}
+                    >
+                        <Icon
+                            size={19}
+                            strokeWidth={2}
+                            className={iconClass}
+                        />
+                    </div>
+
+                    {/* =====================================
+                        STATISTIC INFORMATION
+                    ====================================== */}
+
+                    <div
+                        className="
+                            flex
+                            min-w-0
+                            flex-1
+
+                            flex-col
+                            justify-center
+                        "
+                    >
+                        {/* =============================
+                            VALUE
+                        ============================== */}
+
+                        <strong
+                            className="
+                                block
+
+                                min-w-0
+
+                                break-words
+
+                                text-[22px]
+                                font-black
+
+                                leading-none
+                                tracking-tight
+                                tabular-nums
+
+                                text-slate-900
+                                dark:text-white
+
+                                sm:text-2xl
+                            "
+                        >
+                            {formatNumber(value)}
+                        </strong>
+
+                        {/* =============================
+                            LABEL
+                        ============================== */}
+
+                        <p
+                            className="
+                                mt-1.5
+
+                                min-w-0
+
+                                break-words
+
+                                text-[9px]
+                                font-black
+
+                                uppercase
+                                tracking-[0.04em]
+
+                                leading-[1.35]
+
+                                text-slate-600
+                                dark:text-slate-300
+
+                                sm:text-[10px]
+                            "
+                        >
+                            {label}
+                        </p>
+
+                        {/* =============================
+                            DESCRIPTION
+                        ============================== */}
+
+                        <p
+                            className="
+                                mt-0.5
+
+                                min-w-0
+
+                                break-words
+
+                                text-[9px]
+                                font-medium
+
+                                leading-[1.4]
+
+                                text-slate-400
+                                dark:text-slate-500
+
+                                sm:text-[10px]
+                            "
+                        >
+                            {description}
+                        </p>
+                    </div>
+                </div>
             </article>
         );
     }
@@ -368,16 +476,22 @@ const ProfileProjectStatCard = memo(
 //   Authoritative backend statistics.
 //
 // projects:
-//   Legacy fallback for non-paginated consumers.
+//   Legacy fallback for older consumers.
 //
 // totalCount:
-//   Optional fallback for total projects.
+//   Optional fallback for project total.
 //
-// Important:
+// className:
+//   Additional grid styles from parent.
 //
-// Always prefer backend stats when supplied.
-// Never calculate paginated profile statistics
-// from the current four visible projects.
+// IMPORTANT:
+//
+// Backend stats always take priority.
+//
+// A value of zero is valid.
+//
+// Do not calculate all-profile statistics from
+// a single paginated page when backend stats exist.
 // =========================================================
 
 const ProfileProjectsStats = ({
@@ -399,6 +513,10 @@ const ProfileProjectsStats = ({
             typeof stats === "object" &&
             !Array.isArray(stats);
 
+        // =================================================
+        // LEGACY FALLBACK
+        // =================================================
+
         if (!hasServerStats) {
             return {
                 ...legacy,
@@ -413,12 +531,17 @@ const ProfileProjectsStats = ({
             };
         }
 
-        // Server values are authoritative.
-        // Zero is a valid statistic.
+        // =================================================
+        // SERVER STATISTICS
+        //
+        // Backend values are authoritative.
+        // Zero remains a valid value.
+        // =================================================
 
         return {
             total: safeNumber(
                 stats.total,
+
                 totalCount != null
                     ? safeNumber(totalCount)
                     : DEFAULT_STATS.total
@@ -447,6 +570,14 @@ const ProfileProjectsStats = ({
 
     // =====================================================
     // RENDER
+    //
+    // Mobile:
+    // - 2 columns
+    //
+    // Large screens:
+    // - 4 columns
+    //
+    // Cards match ProfilePosts statistics styling.
     // =====================================================
 
     return (
@@ -454,10 +585,14 @@ const ProfileProjectsStats = ({
             aria-label="Profil loyihalari statistikasi"
             className={`
                 grid
+
+                w-full
                 min-w-0
 
                 grid-cols-2
-                gap-3
+                gap-2.5
+
+                sm:gap-3
 
                 xl:grid-cols-4
 
@@ -467,17 +602,30 @@ const ProfileProjectsStats = ({
             {STAT_ITEMS.map((item) => (
                 <ProfileProjectStatCard
                     key={item.key}
+
                     icon={item.icon}
+
                     label={item.label}
-                    description={item.description}
+
+                    description={
+                        item.description
+                    }
+
                     value={
                         resolvedStats[item.key]
                     }
-                    iconClass={item.iconClass}
+
+                    iconClass={
+                        item.iconClass
+                    }
+
                     iconBackground={
                         item.iconBackground
                     }
-                    accentClass={item.accentClass}
+
+                    accentClass={
+                        item.accentClass
+                    }
                 />
             ))}
         </section>

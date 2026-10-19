@@ -1,4 +1,6 @@
 
+// src/components/profile/projects/ProfileProjectsHeader.jsx
+
 import React, { memo, useId } from "react";
 
 import {
@@ -13,30 +15,21 @@ import {
 // FSOCIETY — PROFILE PROJECTS HEADER
 //
 // Props:
+// - search
+// - onSearchChange(value)
+// - isOwner
+// - onCreateProject()
+// - isLoading
+// - isSubmitting
 //
-// search:
-//   Controlled search text.
+// Changes:
+// - Compact header layout
+// - Smaller badge and paddings
+// - Balanced search and create button
+// - Responsive mobile actions
+// - Light / Dark Mode
 //
-// onSearchChange:
-//   Called with a string, not an event.
-//
-// isOwner:
-//   Whether the visitor owns this profile.
-//
-// onCreateProject:
-//   Opens CreateProjectModal.
-//
-// isLoading:
-//   Optional search loading indicator.
-//
-// isSubmitting:
-//   Optional project creation loading state.
-//
-// This component does not:
-// - Fetch projects
-// - Filter a local project array
-// - Store separate search state
-// - Manage pagination
+// No Redux, API or pagination logic.
 // =========================================================
 
 const ProfileProjectsHeader = ({
@@ -48,7 +41,7 @@ const ProfileProjectsHeader = ({
     isSubmitting = false,
 }) => {
     // =====================================================
-    // ACCESSIBLE INPUT ID
+    // ACCESSIBLE SEARCH ID
     // =====================================================
 
     const searchId = useId();
@@ -62,23 +55,29 @@ const ProfileProjectsHeader = ({
             ? search
             : String(search ?? "");
 
-    const hasSearch =
-        searchValue.length > 0;
+    const hasSearch = searchValue.length > 0;
 
     const canCreate =
         Boolean(isOwner) &&
         typeof onCreateProject === "function";
 
+    const canSearch =
+        typeof onSearchChange === "function";
+
     // =====================================================
-    // SEARCH HANDLERS
+    // HANDLERS
     // =====================================================
 
     const handleSearchChange = (event) => {
-        onSearchChange?.(event.target.value);
+        if (!canSearch) return;
+
+        onSearchChange(event.target.value);
     };
 
     const handleClearSearch = () => {
-        onSearchChange?.("");
+        if (!canSearch) return;
+
+        onSearchChange("");
     };
 
     // =====================================================
@@ -91,25 +90,33 @@ const ProfileProjectsHeader = ({
             className="
                 relative
                 isolate
+
+                w-full
                 min-w-0
+
                 overflow-hidden
 
-                rounded-3xl
+                rounded-2xl
                 border
-
                 border-slate-200
+
                 bg-white/95
 
-                p-4
-                shadow-sm
+                px-4
+                py-4
 
-                sm:p-5
-                lg:p-6
+                shadow-sm
 
                 dark:border-white/[0.08]
                 dark:bg-[#0d131d]/95
-                dark:shadow-xl
                 dark:shadow-black/20
+
+                sm:rounded-3xl
+                sm:px-5
+                sm:py-4
+
+                lg:px-5
+                lg:py-5
             "
         >
             {/* =============================================
@@ -122,14 +129,15 @@ const ProfileProjectsHeader = ({
                     pointer-events-none
 
                     absolute
-                    -right-24
-                    -top-24
+                    -right-16
+                    -top-20
 
-                    h-52
-                    w-52
+                    h-44
+                    w-44
 
                     rounded-full
-                    bg-indigo-500/[0.07]
+
+                    bg-indigo-500/[0.06]
                     blur-3xl
 
                     dark:bg-indigo-500/[0.10]
@@ -142,22 +150,23 @@ const ProfileProjectsHeader = ({
                     pointer-events-none
 
                     absolute
-                    -bottom-24
-                    -left-24
+                    -bottom-20
+                    -left-20
 
-                    h-52
-                    w-52
+                    h-36
+                    w-36
 
                     rounded-full
-                    bg-purple-500/[0.05]
+
+                    bg-purple-500/[0.04]
                     blur-3xl
 
-                    dark:bg-purple-500/[0.08]
+                    dark:bg-purple-500/[0.07]
                 "
             />
 
             {/* =============================================
-                MAIN CONTENT
+                HEADER CONTENT
             ============================================== */}
 
             <div
@@ -166,31 +175,40 @@ const ProfileProjectsHeader = ({
                     z-10
 
                     flex
+                    w-full
                     min-w-0
 
                     flex-col
-                    gap-5
+
+                    gap-4
 
                     lg:flex-row
                     lg:items-center
                     lg:justify-between
+                    lg:gap-5
                 "
             >
                 {/* =========================================
-                    TITLE AND DESCRIPTION
+                    TITLE BLOCK
                 ========================================== */}
 
-                <div className="min-w-0 flex-1">
+                <div
+                    className="
+                        min-w-0
+                        flex-1
+                    "
+                >
                     {/* PROFILE BADGE */}
 
                     <div
                         className="
-                            mb-3
+                            mb-2
+
                             inline-flex
                             max-w-full
 
                             items-center
-                            gap-2
+                            gap-1.5
 
                             rounded-full
                             border
@@ -198,14 +216,14 @@ const ProfileProjectsHeader = ({
                             border-indigo-200
                             bg-indigo-50
 
-                            px-3
-                            py-1.5
+                            px-2.5
+                            py-1
 
-                            text-[10px]
+                            text-[9px]
                             font-black
 
                             uppercase
-                            tracking-[0.14em]
+                            tracking-[0.12em]
 
                             text-indigo-700
 
@@ -213,11 +231,11 @@ const ProfileProjectsHeader = ({
                             dark:bg-indigo-500/[0.09]
                             dark:text-indigo-300
 
-                            sm:text-[11px]
+                            sm:text-[10px]
                         "
                     >
                         <Sparkles
-                            size={14}
+                            size={13}
                             aria-hidden="true"
                             className="shrink-0"
                         />
@@ -227,19 +245,19 @@ const ProfileProjectsHeader = ({
                         </span>
                     </div>
 
-                    {/* HEADING */}
+                    {/* TITLE */}
 
                     <h3
                         className="
                             text-xl
                             font-black
+                            leading-tight
                             tracking-tight
 
                             text-slate-900
-
                             dark:text-white
 
-                            sm:text-2xl
+                            sm:text-[22px]
                         "
                     >
                         Loyihalar
@@ -249,7 +267,8 @@ const ProfileProjectsHeader = ({
 
                     <p
                         className="
-                            mt-1.5
+                            mt-1
+
                             max-w-xl
 
                             text-xs
@@ -257,11 +276,9 @@ const ProfileProjectsHeader = ({
                             leading-5
 
                             text-slate-500
-
                             dark:text-slate-400
 
-                            sm:text-sm
-                            sm:leading-6
+                            sm:text-[13px]
                         "
                     >
                         Portfolio, real ishlar va community
@@ -270,7 +287,7 @@ const ProfileProjectsHeader = ({
                 </div>
 
                 {/* =========================================
-                    ACTIONS
+                    SEARCH AND CREATE ACTIONS
                 ========================================== */}
 
                 <div
@@ -280,10 +297,11 @@ const ProfileProjectsHeader = ({
                         min-w-0
 
                         flex-col
-                        gap-3
+                        gap-2.5
 
                         sm:flex-row
                         sm:items-center
+                        sm:gap-3
 
                         lg:w-auto
                         lg:shrink-0
@@ -296,10 +314,12 @@ const ProfileProjectsHeader = ({
                     <div
                         className="
                             relative
-                            min-w-0
-                            flex-1
 
-                            sm:min-w-[220px]
+                            w-full
+                            min-w-0
+
+                            sm:flex-1
+
                             lg:w-64
                             lg:flex-none
                         "
@@ -313,7 +333,7 @@ const ProfileProjectsHeader = ({
                                 pointer-events-none
 
                                 absolute
-                                left-4
+                                left-3.5
                                 top-1/2
 
                                 -translate-y-1/2
@@ -323,7 +343,7 @@ const ProfileProjectsHeader = ({
                             "
                         />
 
-                        {/* SEARCH INPUT */}
+                        {/* SCREEN READER LABEL */}
 
                         <label
                             htmlFor={searchId}
@@ -332,93 +352,114 @@ const ProfileProjectsHeader = ({
                             Profil loyihalarini qidirish
                         </label>
 
+                        {/* CONTROLLED INPUT */}
+
                         <input
                             id={searchId}
                             type="search"
                             name="profile-project-search"
+
                             value={searchValue}
                             onChange={handleSearchChange}
+
+                            disabled={!canSearch}
+
                             placeholder="Loyiha qidirish..."
+
                             autoComplete="off"
                             autoCorrect="off"
                             autoCapitalize="off"
                             spellCheck={false}
+
                             enterKeyHint="search"
+
                             aria-label="Loyihalarni qidirish"
                             aria-controls="profile-projects-list"
+                            aria-busy={isLoading}
+
                             className="
-                                h-12
+                                block
+
+                                h-11
                                 w-full
                                 min-w-0
 
-                                rounded-2xl
+                                rounded-xl
                                 border
 
                                 border-slate-200
                                 bg-slate-50/90
 
-                                py-3
-                                pl-11
-                                pr-11
+                                py-2.5
+                                pl-10
+                                pr-10
 
-                                text-sm
+                                text-base
                                 font-semibold
 
                                 text-slate-900
 
                                 outline-none
 
-                                transition-all
+                                transition-colors
                                 duration-200
 
                                 placeholder:text-slate-400
 
-                                hover:border-slate-300
+                                enabled:hover:border-slate-300
 
                                 focus:border-indigo-500
                                 focus:bg-white
                                 focus:ring-2
                                 focus:ring-indigo-500/15
 
+                                disabled:cursor-not-allowed
+                                disabled:opacity-50
+
                                 dark:border-white/[0.09]
                                 dark:bg-black/25
                                 dark:text-white
-
                                 dark:placeholder:text-slate-500
 
-                                dark:hover:border-white/[0.16]
+                                dark:enabled:hover:border-white/[0.16]
 
                                 dark:focus:border-indigo-400/50
                                 dark:focus:bg-black/35
                                 dark:focus:ring-indigo-500/15
 
+                                sm:text-sm
+
                                 [&::-webkit-search-cancel-button]:hidden
+
+                                motion-reduce:transition-none
                             "
                         />
 
                         {/* =================================
-                            SEARCH ACTION
+                            CLEAR / LOADING ACTION
                         ================================== */}
 
-                        {hasSearch ? (
+                        {hasSearch && canSearch ? (
                             <button
                                 type="button"
+
                                 onClick={handleClearSearch}
+
                                 title="Qidiruvni tozalash"
                                 aria-label="Qidiruvni tozalash"
+
                                 className="
                                     absolute
-                                    right-2
+                                    right-1.5
                                     top-1/2
 
-                                    inline-flex
+                                    grid
                                     h-8
                                     w-8
 
                                     -translate-y-1/2
 
-                                    items-center
-                                    justify-center
+                                    place-items-center
 
                                     rounded-lg
 
@@ -437,6 +478,8 @@ const ProfileProjectsHeader = ({
                                     dark:text-slate-500
                                     dark:hover:bg-white/[0.08]
                                     dark:hover:text-white
+
+                                    motion-reduce:transition-none
                                 "
                             >
                                 <X
@@ -446,10 +489,11 @@ const ProfileProjectsHeader = ({
                             </button>
                         ) : isLoading ? (
                             <span
-                                aria-hidden="true"
+                                role="status"
+                                aria-label="Loyihalar qidirilmoqda"
                                 className="
                                     absolute
-                                    right-4
+                                    right-3.5
                                     top-1/2
 
                                     -translate-y-1/2
@@ -457,6 +501,7 @@ const ProfileProjectsHeader = ({
                             >
                                 <Loader2
                                     size={16}
+                                    aria-hidden="true"
                                     className="
                                         animate-spin
                                         text-indigo-500
@@ -475,14 +520,20 @@ const ProfileProjectsHeader = ({
                     {canCreate && (
                         <button
                             type="button"
+
                             onClick={onCreateProject}
+
                             disabled={isSubmitting}
+
+                            aria-busy={isSubmitting}
+
                             className="
                                 group
                                 relative
 
                                 inline-flex
-                                h-12
+
+                                h-11
                                 w-full
 
                                 shrink-0
@@ -493,13 +544,13 @@ const ProfileProjectsHeader = ({
 
                                 overflow-hidden
 
-                                rounded-2xl
+                                rounded-xl
                                 border
 
                                 border-indigo-500/30
                                 bg-indigo-600
 
-                                px-5
+                                px-4
 
                                 text-sm
                                 font-black
@@ -512,22 +563,26 @@ const ProfileProjectsHeader = ({
                                 transition-all
                                 duration-200
 
-                                hover:bg-indigo-500
-                                hover:shadow-indigo-500/25
+                                enabled:hover:bg-indigo-500
+                                enabled:hover:shadow-indigo-500/25
 
                                 focus-visible:outline-none
                                 focus-visible:ring-2
                                 focus-visible:ring-indigo-500/50
                                 focus-visible:ring-offset-2
 
-                                active:scale-[0.98]
+                                enabled:active:scale-[0.98]
 
                                 disabled:cursor-not-allowed
                                 disabled:opacity-50
 
+                                dark:focus-visible:ring-offset-[#0d131d]
+
                                 sm:w-auto
+                                sm:min-w-[145px]
 
                                 motion-reduce:transform-none
+                                motion-reduce:transition-none
                             "
                         >
                             {/* BUTTON SHINE */}
@@ -551,6 +606,8 @@ const ProfileProjectsHeader = ({
                                     duration-700
 
                                     group-hover:left-[120%]
+
+                                    motion-reduce:transition-none
                                 "
                             />
 
@@ -562,6 +619,7 @@ const ProfileProjectsHeader = ({
                                     z-10
 
                                     inline-flex
+
                                     items-center
                                     justify-center
                                     gap-2
@@ -569,7 +627,7 @@ const ProfileProjectsHeader = ({
                             >
                                 {isSubmitting ? (
                                     <Loader2
-                                        size={18}
+                                        size={17}
                                         aria-hidden="true"
                                         className="
                                             animate-spin
@@ -578,7 +636,7 @@ const ProfileProjectsHeader = ({
                                     />
                                 ) : (
                                     <Plus
-                                        size={18}
+                                        size={17}
                                         aria-hidden="true"
                                     />
                                 )}

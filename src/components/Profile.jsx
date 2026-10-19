@@ -9,6 +9,12 @@ import {
 } from "lucide-react";
 
 // =========================================================
+// FSOCIETY — SHARED FUTURISTIC BACKGROUND
+// =========================================================
+
+import PageGridBackground from "./ui/PageGridBackground";
+
+// =========================================================
 // PROFILE CONTROLLER
 // =========================================================
 
@@ -19,15 +25,10 @@ import useProfilePage from "./profile/useProfilePage";
 // =========================================================
 
 import ProfileHero from "./profile/ProfileHero";
-
 import ProfileSidebar from "./profile/ProfileSidebar";
-
 import ProfileContent from "./profile/ProfileContent";
-
 import ProfileSkeleton from "./profile/ProfileSkeleton";
-
 import ProfileError from "./profile/ProfileError";
-
 import ProfileNotFound from "./profile/ProfileNotFound";
 
 // =========================================================
@@ -35,13 +36,65 @@ import ProfileNotFound from "./profile/ProfileNotFound";
 // =========================================================
 
 import EditProfileModal from "./profile/EditProfileModal";
-
 import CoverImageEditModal from "./profile/CoverImageEditModal";
+
+// =========================================================
+// PAGE STYLES
+//
+// The page background follows the same design system
+// used by ProjectDetail.jsx.
+//
+// Important:
+// - PageGridBackground owns its overflow clipping.
+// - Foreground remains above decorative elements.
+// - No interference with buttons or modals.
+// - Light / Dark Mode.
+// =========================================================
+
+const PROFILE_PAGE_CLASS = `
+    relative
+    isolate
+
+    min-h-screen
+
+    w-full
+    min-w-0
+
+    bg-[#edf4ff]
+    text-slate-900
+
+    transition-colors
+    duration-300
+
+    dark:bg-[#060b15]
+    dark:text-white
+
+    motion-reduce:transition-none
+`;
+
+const PROFILE_CONTAINER_CLASS = `
+    container
+
+    relative
+    z-10
+
+    mx-auto
+
+    w-full
+    min-w-0
+
+    p-3
+
+    font-sans
+
+    sm:p-4
+    md:p-6
+`;
 
 // =========================================================
 // FSOCIETY — PROFILE PAGE
 //
-// PAGE RESPONSIBILITIES:
+// Responsibilities:
 //
 // - Profile loading
 // - Profile not found (HTTP 404)
@@ -56,41 +109,38 @@ import CoverImageEditModal from "./profile/CoverImageEditModal";
 // - Background refresh indicator
 // - Background refresh error
 //
-// THEME:
+// New:
 //
-// - Light Mode
-// - Dark Mode
+// - Shared PageGridBackground
+// - Consistent Light / Dark page theme
+// - Decorative FSociety branding
 //
 // Business logic remains in useProfilePage.js.
-//
-// Dedicated 404 design is in ProfileNotFound.jsx.
 // =========================================================
 
 const Profile = () => {
     // =====================================================
-    // CONTROLLER
+    // PROFILE CONTROLLER
     // =====================================================
 
     const {
-        // =================================================
+        // ================================================
         // ROUTE
-        // =================================================
+        // ================================================
 
         username,
 
-        // =================================================
+        // ================================================
         // PROFILE
-        // =================================================
+        // ================================================
 
         profile,
         error,
         isLoading,
 
-        // =================================================
+        // ================================================
         // PROFILE REQUEST STATUS
-        //
-        // Provided by useProfilePage.js.
-        // =================================================
+        // ================================================
 
         profileStatus,
         profileErrorStatus,
@@ -98,70 +148,70 @@ const Profile = () => {
         isNotFound,
         notFoundUsername,
 
-        // =================================================
+        // ================================================
         // ROUTE SAFETY / PERMISSIONS
-        // =================================================
+        // ================================================
 
         profileMatchesRoute,
         isOwner,
 
-        // =================================================
+        // ================================================
         // VIEW MODEL
-        // =================================================
+        // ================================================
 
         currentUser,
         birthdayStatus,
 
-        // =================================================
+        // ================================================
         // TELEGRAM
-        // =================================================
+        // ================================================
 
         botLoading,
         isTelegramLinked,
 
-        // =================================================
+        // ================================================
         // TABS
-        // =================================================
+        // ================================================
 
         activeTab,
         setActiveTab,
 
-        // =================================================
+        // ================================================
         // MODALS
-        // =================================================
+        // ================================================
 
         isEditModalOpen,
         isCoverModalOpen,
 
-        // =================================================
+        // ================================================
         // LOADING
-        // =================================================
+        // ================================================
 
         isInitialLoading,
         isRefreshing,
 
-        // =================================================
+        // ================================================
         // RETRY
-        // =================================================
+        // ================================================
 
         retryProfile,
 
-        // =================================================
+        // ================================================
         // TELEGRAM CALLBACKS
-        // =================================================
+        // ================================================
 
         handleConnectTelegramBot,
 
-        // =================================================
+        // ================================================
         // EDIT PROFILE CALLBACKS
-        // =================================================
+        // ================================================
 
         handleOpenEditModal,
         handleCloseEditModal,
 
-        // =================================================
+        // ================================================
         // COVER CALLBACKS
-        // =================================================
+        // ================================================
 
         handleOpenCoverModal,
         handleCloseCoverModal,
@@ -170,26 +220,7 @@ const Profile = () => {
     // =====================================================
     // 1. USER NOT FOUND — HTTP 404
     //
-    // This condition must be checked BEFORE skeleton.
-    //
-    // Example:
-    //
-    // /s/profile
-    //
-    // Backend:
-    // GET /api/users/s/profile/
-    // HTTP 404
-    //
-    // Controller:
-    //
-    // profileStatus = "not_found"
-    // isNotFound = true
-    //
-    // UI:
-    //
-    // ProfileNotFound.jsx
-    //
-    // Important:
+    // This condition must be checked before skeleton.
     //
     // Do not render an old user's profile.
     // Do not render an infinite skeleton.
@@ -210,16 +241,11 @@ const Profile = () => {
     // 2. INITIAL / ROUTE ERROR
     //
     // Handles:
-    //
     // - Network errors
     // - Server errors
     // - Other request failures
     //
-    // The dedicated NotFound page has already
-    // handled HTTP 404 above.
-    //
-    // A failed request for a different username
-    // must not display stale profile content.
+    // HTTP 404 is already handled above.
     // =====================================================
 
     if (
@@ -241,15 +267,12 @@ const Profile = () => {
     // 3. INITIAL / ROUTE LOADING
     //
     // ProfileSkeleton handles:
-    //
     // - Cover skeleton
     // - Avatar skeleton
     // - Profile information skeleton
     // - Sidebar skeleton
     // - Badges skeleton
     // - Content skeleton
-    //
-    // Light / Dark Mode supported.
     // =====================================================
 
     if (isInitialLoading) {
@@ -259,18 +282,11 @@ const Profile = () => {
     // =====================================================
     // 4. ROUTE SAFETY
     //
-    // Previously loaded user data must not be
-    // shown under a different username.
-    //
-    // The hook updates the request state when
-    // a new username is requested.
+    // Previously loaded user data must not be shown
+    // under a different username.
     // =====================================================
 
     if (!profileMatchesRoute) {
-        // If the controller has reported a terminal
-        // error, render the retry UI rather than
-        // leaving the user on a skeleton forever.
-
         if (
             profileStatus === "error" &&
             !isLoading
@@ -291,9 +307,8 @@ const Profile = () => {
     // =====================================================
     // 5. BACKGROUND REFRESH STATES
     //
-    // When the loaded profile already matches
-    // the current username, preserve the page
-    // during a background refresh.
+    // Preserve existing profile content while refresh
+    // is in progress.
     // =====================================================
 
     const showRefreshIndicator =
@@ -302,7 +317,7 @@ const Profile = () => {
     // =====================================================
     // BACKGROUND REFRESH ERROR
     //
-    // Only show errors from the current profile.
+    // Display errors only for the current profile.
     // =====================================================
 
     const showBackgroundError =
@@ -325,57 +340,58 @@ const Profile = () => {
     // 6. PROFILE CONTENT
     //
     // At this point:
-    //
-    // - User is not missing
-    // - Initial load is finished
-    // - Profile matches the route
-    //
-    // Existing page design is preserved.
+    // - User exists
+    // - Initial load has finished
+    // - Profile matches the current route
     // =====================================================
 
     return (
-        <main
-            className="
-                relative
-                isolate
-
-                min-h-screen
-                w-full
-                min-w-0
-
-                bg-[#f4f7fc]
-                text-slate-900
-
-                transition-colors
-                duration-300
-
-                dark:bg-[#0d1117]
-                dark:text-[#e6edf3]
-            "
-        >
+        <main className={PROFILE_PAGE_CLASS}>
             {/* =============================================
-                MAIN CONTAINER
+                FSOCIETY FUTURISTIC BACKGROUND
+
+                Shared with ProjectDetail.
+
+                Features:
+                - Blueprint grid
+                - Developer network
+                - Geometric lines
+                - Illuminated nodes
+                - Glass-like 3D cubes
+                - Cyan / Indigo / Violet glows
+                - FS brand watermarks
+                - Light / Dark Mode
+
+                This component:
+                - Is decorative
+                - Has pointer-events-none
+                - Uses z-0
+                - Does not block profile interactions
             ============================================== */}
 
-            <div
-                className="
-                    container
-                    relative
-                    z-10
+            <PageGridBackground
+                showMonogram
+                showCubes
+            />
 
-                    mx-auto
-                    min-w-0
+            {/* =============================================
+                PROFILE FOREGROUND CONTENT
 
-                    p-3
+                z-10 keeps the profile above the
+                decorative background.
+            ============================================== */}
 
-                    font-sans
-
-                    sm:p-4
-                    md:p-6
-                "
-            >
+            <div className={PROFILE_CONTAINER_CLASS}>
                 {/* =========================================
                     PROFILE HERO
+
+                    Features preserved:
+                    - Cover image
+                    - Avatar
+                    - User information
+                    - Telegram connection
+                    - Edit profile
+                    - Edit cover
                 ========================================== */}
 
                 <ProfileHero
@@ -401,7 +417,10 @@ const Profile = () => {
                     - Single column
 
                     Desktop:
-                    - Sidebar / Content layout
+                    - Sidebar
+                    - Profile content
+
+                    Existing responsive layout preserved.
                 ========================================== */}
 
                 <div
@@ -410,6 +429,7 @@ const Profile = () => {
 
                         grid
                         min-w-0
+
                         grid-cols-1
 
                         items-start
@@ -424,13 +444,15 @@ const Profile = () => {
 
                     <div
                         className="
-                            min-w-0
                             w-full
+                            min-w-0
                         "
                     >
                         <ProfileSidebar
                             currentUser={currentUser}
-                            birthdayStatus={birthdayStatus}
+                            birthdayStatus={
+                                birthdayStatus
+                            }
                             username={username}
                         />
                     </div>
@@ -438,6 +460,7 @@ const Profile = () => {
                     {/* =====================================
                         PROFILE CONTENT
 
+                        Preserved:
                         - Posts
                         - Projects
                         - Roadmap
@@ -446,21 +469,25 @@ const Profile = () => {
 
                     <div
                         className="
-                            min-w-0
                             w-full
+                            min-w-0
                         "
                     >
                         <ProfileContent
                             username={username}
                             activeTab={activeTab}
-                            onTabChange={setActiveTab}
+                            onTabChange={
+                                setActiveTab
+                            }
                         />
                     </div>
                 </div>
 
                 {/* =========================================
                     PROFILE MODALS
-                    Only owner can edit profile.
+
+                    Only profile owners can edit
+                    profile information and cover.
                 ========================================== */}
 
                 {isOwner && (
@@ -472,7 +499,9 @@ const Profile = () => {
                         <EditProfileModal
                             profileData={profile}
                             isOpen={isEditModalOpen}
-                            onClose={handleCloseEditModal}
+                            onClose={
+                                handleCloseEditModal
+                            }
                         />
 
                         {/* =================================
@@ -484,7 +513,9 @@ const Profile = () => {
                             currentCoverImage={
                                 currentUser?.coverImage
                             }
-                            onClose={handleCloseCoverModal}
+                            onClose={
+                                handleCloseCoverModal
+                            }
                         />
                     </>
                 )}
@@ -492,8 +523,7 @@ const Profile = () => {
                 {/* =========================================
                     BACKGROUND REFRESH INDICATOR
 
-                    Preserve existing profile content
-                    while a refresh is in progress.
+                    Existing profile remains visible.
 
                     Light / Dark Mode supported.
                 ========================================== */}
@@ -509,6 +539,7 @@ const Profile = () => {
                             fixed
                             bottom-5
                             right-4
+
                             z-50
 
                             inline-flex
@@ -528,6 +559,7 @@ const Profile = () => {
                             py-3
 
                             font-display
+
                             text-[10px]
                             font-semibold
 
@@ -551,12 +583,13 @@ const Profile = () => {
                             dark:shadow-black/30
                         "
                     >
-                        {/* =================================
+                        {/* =============================
                             LOADING ICON
-                        ================================== */}
+                        ============================== */}
 
                         <Loader2
                             size={15}
+                            aria-hidden="true"
                             className="
                                 shrink-0
 
@@ -564,12 +597,11 @@ const Profile = () => {
 
                                 motion-reduce:animate-none
                             "
-                            aria-hidden="true"
                         />
 
-                        {/* =================================
+                        {/* =============================
                             LOADING TEXT
-                        ================================== */}
+                        ============================== */}
 
                         <span>
                             Profil yangilanmoqda
@@ -582,8 +614,8 @@ const Profile = () => {
 
                     Existing profile remains visible.
 
-                    Display only for genuine refresh
-                    failures on the current route.
+                    Display only genuine errors from
+                    the current profile request.
                 ========================================== */}
 
                 {showBackgroundError && (
@@ -593,6 +625,7 @@ const Profile = () => {
                             fixed
                             bottom-5
                             left-4
+
                             z-40
 
                             flex
@@ -634,26 +667,25 @@ const Profile = () => {
                             dark:shadow-black/30
                         "
                     >
-                        {/* =================================
+                        {/* =============================
                             ERROR ICON
-                        ================================== */}
+                        ============================== */}
 
                         <AlertCircle
                             size={16}
+                            aria-hidden="true"
                             className="
                                 mt-0.5
                                 shrink-0
 
                                 text-red-600
-
                                 dark:text-red-400
                             "
-                            aria-hidden="true"
                         />
 
-                        {/* =================================
+                        {/* =============================
                             ERROR MESSAGE
-                        ================================== */}
+                        ============================== */}
 
                         <span
                             className="
@@ -666,9 +698,9 @@ const Profile = () => {
                             {backgroundErrorMessage}
                         </span>
 
-                        {/* =================================
-                            OPTIONAL STATUS
-                        ================================== */}
+                        {/* =============================
+                            OPTIONAL HTTP STATUS
+                        ============================== */}
 
                         {profileErrorStatus &&
                             profileErrorStatus !== 404 && (
@@ -677,6 +709,7 @@ const Profile = () => {
                                         shrink-0
 
                                         rounded-md
+
                                         bg-red-100
 
                                         px-1.5
