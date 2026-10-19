@@ -1,4 +1,6 @@
 
+// src/components/profile/roadmap/RoadmapCreateModal.jsx
+
 import React, {
     useCallback,
     useEffect,
@@ -6,23 +8,11 @@ import React, {
     useState,
 } from "react";
 
-import {
-    AlertTriangle,
-} from "lucide-react";
+import { createPortal } from "react-dom";
 
-// =========================================================
-// TOAST SERVICE
-//
-// Previous location:
-// profile/RoadmapCreateModal.jsx
-//
-// New location:
-// profile/roadmap/RoadmapCreateModal.jsx
-// =========================================================
+import { AlertTriangle } from "lucide-react";
 
-import {
-    siteToast,
-} from "../../ui/AuthToast";
+import { siteToast } from "../../ui/AuthToast";
 
 // =========================================================
 // MODAL COMPONENTS
@@ -55,19 +45,28 @@ const VALID_ROADMAP_TYPES = [
     "experience",
 ];
 
+const TITLE_MIN_LENGTH = 2;
 const TITLE_MAX_LENGTH = 255;
 
 const DESCRIPTION_MAX_LENGTH = 3000;
 
+const FOCUSABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'textarea:not([disabled])',
+    'select:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(", ");
+
 // =========================================================
 // DATE FORMAT
 //
-// Backend dates:
+// Backend examples:
 // 2026-10-18
 // 2026-10-18T10:30:00Z
 //
-// HTML date input:
-// YYYY-MM-DD
+// HTML date input expects YYYY-MM-DD.
 // =========================================================
 
 const formatDateForInput = (value) => {
@@ -81,10 +80,10 @@ const formatDateForInput = (value) => {
 // =========================================================
 // INITIAL FORM NORMALIZER
 //
-// Supports create and edit modes.
+// Create: empty form.
+// Edit: existing roadmap fields.
 //
-// Only fields supported by the roadmap backend
-// are included.
+// Backend field names remain unchanged.
 // =========================================================
 
 const getInitialFormData = (initialData) => {
@@ -95,19 +94,21 @@ const getInitialFormData = (initialData) => {
     }
 
     return {
-        title: initialData?.title || "",
+        title:
+            initialData.title || "",
 
-        type: initialData?.type || "learning",
+        type:
+            initialData.type || "learning",
 
         description:
-            initialData?.description || "",
+            initialData.description || "",
 
         started_at: formatDateForInput(
-            initialData?.started_at
+            initialData.started_at
         ),
 
         finished_at: formatDateForInput(
-            initialData?.finished_at
+            initialData.finished_at
         ),
     };
 };
@@ -118,15 +119,10 @@ const getInitialFormData = (initialData) => {
 
 const ERROR_FIELD_LABELS = {
     title: "Sarlavha",
-
     type: "Roadmap turi",
-
     description: "Tavsif",
-
     started_at: "Boshlanish sanasi",
-
     finished_at: "Tugash sanasi",
-
     non_field_errors: "Xatolik",
 };
 
@@ -134,53 +130,129 @@ const ERROR_FIELD_LABELS = {
 // PARSE BACKEND ERROR DATA
 //
 // Supports:
+// - Strings
+// - DRF field errors
+// - Arrays
+// - detail / message / error
+// - Nested validation errors
 //
-// - String
-// - DRF field error object
-// - Array of validation errors
-// - detail / message
+// Prevents [object Object] in UI.
 // =========================================================
 
-const parseErrorData = (data) => {
-    if (!data) {
+const parseErrorData = (
+    data,
+    depth = 0
+) => {
+    if (
+        data == null ||
+        depth > 5
+    ) {
         return "";
     }
 
+    // =====================================================
+    // STRING
+    // =====================================================
+
     if (typeof data === "string") {
-        return data.trim();
+        const text = data.trim();
+
+        if (!text) {
+            return "";
+        }
+
+        if (
+            (
+                text.startsWith("{") &&
+                text.endsWith("}")
+            ) ||
+            (
+                text.startsWith("[") &&
+                text.endsWith("]")
+            )
+        ) {
+            try {
+                return parseErrorData(
+                    JSON.parse(text),
+                    depth + 1
+                );
+            } catch {
+                return text;
+            }
+        }
+
+        return text;
     }
+
+    // =====================================================
+    // NUMBER / BOOLEAN
+    // =====================================================
+
+    if (
+        typeof data === "number" ||
+        typeof data === "boolean"
+    ) {
+        return String(data);
+    }
+
+    // =====================================================
+    // ARRAY
+    // =====================================================
 
     if (Array.isArray(data)) {
         return data
-            .map(parseErrorData)
+            .map((item) =>
+                parseErrorData(
+                    item,
+                    depth + 1
+                )
+            )
             .filter(Boolean)
             .join("; ");
     }
 
+    // =====================================================
+    // OBJECT
+    // =====================================================
+
     if (typeof data === "object") {
-        // General API errors
+        for (const key of [
+            "detail",
+            "non_field_errors",
+            "message",
+            "error",
+        ]) {
+            if (data[key]) {
+                const message =
+                    parseErrorData(
+                        data[key],
+                        depth + 1
+                    );
 
-        if (data.detail) {
-            return parseErrorData(data.detail);
+                if (message) {
+                    return message;
+                }
+            }
         }
 
-        if (data.non_field_errors) {
-            return parseErrorData(
-                data.non_field_errors
-            );
-        }
-
-        if (data.message) {
-            return parseErrorData(data.message);
-        }
-
-        // Field validation errors
-
-        const messages = Object.entries(data)
+        return Object.entries(data)
+            .filter(
+                ([key]) =>
+                    ![
+                        "request",
+                        "response",
+                        "config",
+                        "stack",
+                    ].includes(key)
+            )
             .map(([field, value]) => {
-                const text = parseErrorData(value);
+                const message =
+                    parseErrorData(
+                        value,
+                        depth + 1
+                    );
 
-                if (!text) {
+                if (!message) {
                     return "";
                 }
 
@@ -188,26 +260,17 @@ const parseErrorData = (data) => {
                     ERROR_FIELD_LABELS[field] ||
                     field;
 
-                return `${label}: ${text}`;
+                return `${label}: ${message}`;
             })
-            .filter(Boolean);
-
-        return messages.join("; ");
+            .filter(Boolean)
+            .join("; ");
     }
 
-    return String(data);
+    return "";
 };
 
 // =========================================================
 // GET API ERROR MESSAGE
-//
-// Supports:
-//
-// error.serverData
-// error.response.data
-// error.message
-//
-// Preserves DRF validation messages.
 // =========================================================
 
 const getErrorMessage = (
@@ -222,91 +285,79 @@ const getErrorMessage = (
         error?.serverData ??
         error?.response?.data;
 
-    const serverMessage =
-        parseErrorData(serverData);
-
-    if (serverMessage) {
-        return serverMessage;
-    }
-
-    if (
-        typeof error?.message === "string" &&
-        error.message.trim()
-    ) {
-        try {
-            const parsed = JSON.parse(
-                error.message
-            );
-
-            const parsedMessage =
-                parseErrorData(parsed);
-
-            if (parsedMessage) {
-                return parsedMessage;
-            }
-        } catch {
-            // The message is not JSON.
-        }
-
-        return error.message;
-    }
-
-    return fallback;
+    return (
+        parseErrorData(serverData) ||
+        parseErrorData(error?.message) ||
+        fallback
+    );
 };
 
 // =========================================================
-// VALIDATE FORM
+// VALIDATE ROADMAP FORM
 //
-// Original backend rules preserved.
+// Existing rules:
 //
 // title:
-// - required
-// - min 2
-// - max 255
+// - Required
+// - Minimum 2 characters
+// - Maximum 255 characters
 //
 // type:
-// - learning / experience
+// - learning
+// - experience
 //
 // started_at:
-// - required
+// - Required
 //
 // finished_at:
-// - optional
-// - cannot be earlier than started_at
+// - Optional
+// - Cannot be earlier than started_at
 //
 // description:
-// - max 3000
+// - Optional
+// - Maximum 3000 characters
 // =========================================================
 
 const validateRoadmapForm = (formData) => {
     const title = String(
-        formData?.title || ""
+        formData?.title ?? ""
     ).trim();
 
     const description = String(
-        formData?.description || ""
+        formData?.description ?? ""
     ).trim();
 
-    const type = formData?.type;
+    const type =
+        formData?.type;
 
-    const startedAt = formData?.started_at;
+    const startedAt =
+        formData?.started_at;
 
-    const finishedAt = formData?.finished_at;
+    const finishedAt =
+        formData?.finished_at;
 
     // =====================================================
-    // TITLE
+    // TITLE REQUIRED
     // =====================================================
 
     if (!title) {
         return "Roadmap sarlavhasini kiriting.";
     }
 
-    if (title.length < 2) {
+    // =====================================================
+    // TITLE MINIMUM
+    // =====================================================
+
+    if (title.length < TITLE_MIN_LENGTH) {
         return (
             "Roadmap sarlavhasi kamida 2 ta belgidan " +
             "iborat bo‘lishi kerak."
         );
     }
+
+    // =====================================================
+    // TITLE MAXIMUM
+    // =====================================================
 
     if (title.length > TITLE_MAX_LENGTH) {
         return (
@@ -316,7 +367,7 @@ const validateRoadmapForm = (formData) => {
     }
 
     // =====================================================
-    // TYPE
+    // ROADMAP TYPE
     // =====================================================
 
     if (!VALID_ROADMAP_TYPES.includes(type)) {
@@ -328,9 +379,7 @@ const validateRoadmapForm = (formData) => {
     // =====================================================
 
     if (!startedAt) {
-        return (
-            "Roadmap boshlanish sanasini kiriting."
-        );
+        return "Roadmap boshlanish sanasini kiriting.";
     }
 
     // =====================================================
@@ -348,7 +397,7 @@ const validateRoadmapForm = (formData) => {
     }
 
     // =====================================================
-    // DESCRIPTION
+    // DESCRIPTION MAXIMUM
     // =====================================================
 
     if (
@@ -367,16 +416,17 @@ const validateRoadmapForm = (formData) => {
 // =========================================================
 // CREATE BACKEND PAYLOAD
 //
-// Do not send frontend-only fields.
-//
-// Only send supported Django model fields.
+// No frontend-only fields.
+// Django API contract is unchanged.
 // =========================================================
 
 const buildRoadmapPayload = (formData) => {
     return {
-        title: formData.title.trim(),
+        title:
+            formData.title.trim(),
 
-        type: formData.type,
+        type:
+            formData.type,
 
         description:
             formData.description.trim(),
@@ -392,7 +442,7 @@ const buildRoadmapPayload = (formData) => {
 // =========================================================
 // ROADMAP CREATE / EDIT MODAL
 //
-// Existing ProfileRoadmap contract:
+// Parent usage:
 //
 // <RoadmapCreateModal
 //     isOpen={isFormModalOpen}
@@ -403,17 +453,33 @@ const buildRoadmapPayload = (formData) => {
 // />
 //
 // Responsibilities:
-//
+// - Create/Edit initialization
 // - Form state
-// - Edit mode initialization
 // - Validation
 // - Submission
-// - Error handling
+// - Backend error handling
 // - Toast notifications
-// - ESC / backdrop close
+// - Focus management
+// - Escape and backdrop closing
 // - Body scroll lock
+// - Responsive layout
 //
-// API requests remain in ProfileRoadmap.jsx.
+// API requests stay in ProfileRoadmap.jsx.
+//
+// RESPONSIVE:
+//
+// Mobile:
+// - Full-screen modal
+// - One column
+// - Scrollable form content
+// - Visible header/footer
+//
+// Tablet/Desktop:
+// - Centered modal
+// - Height capped at 780px
+// - Preview on the right on large screens
+//
+// createPortal prevents navbar overlap.
 // =========================================================
 
 const RoadmapCreateModal = ({
@@ -427,7 +493,11 @@ const RoadmapCreateModal = ({
     // MODE
     // =====================================================
 
-    const isEditMode = Boolean(initialData);
+    const isEditMode =
+        Boolean(initialData);
+
+    const roadmapId =
+        initialData?.id ?? null;
 
     // =====================================================
     // STATE
@@ -436,9 +506,9 @@ const RoadmapCreateModal = ({
     const [
         formData,
         setFormData,
-    ] = useState({
+    ] = useState(() => ({
         ...EMPTY_FORM,
-    });
+    }));
 
     const [
         error,
@@ -452,13 +522,21 @@ const RoadmapCreateModal = ({
 
     // =====================================================
     // REFS
-    //
-    // Prevent duplicate submit before React rerenders.
     // =====================================================
+
+    const modalRef = useRef(null);
+
+    const contentScrollRef = useRef(null);
+
+    const initialDataRef = useRef(initialData);
+
+    const previousFocusedElementRef = useRef(null);
 
     const submittingRef = useRef(false);
 
-    const modalRef = useRef(null);
+    const sessionRef = useRef(0);
+
+    initialDataRef.current = initialData;
 
     // =====================================================
     // BUSY STATE
@@ -469,36 +547,52 @@ const RoadmapCreateModal = ({
         isProcessing;
 
     // =====================================================
-    // RESET FORM WHEN MODAL OPENS
+    // INITIALIZE FORM
     //
-    // Create:
-    // Empty fields
+    // Reset when:
+    // - Modal opens
+    // - Edited roadmap ID changes
     //
-    // Edit:
-    // Existing roadmap data
+    // Do not reset merely because the parent creates a
+    // new initialData object on every render.
     // =====================================================
 
     useEffect(() => {
         if (!isOpen) {
-            return;
+            return undefined;
         }
 
+        sessionRef.current += 1;
+
         setFormData(
-            getInitialFormData(initialData)
+            getInitialFormData(
+                initialDataRef.current
+            )
         );
 
         setError("");
+
+        setIsProcessing(false);
+
+        submittingRef.current = false;
+
+        if (contentScrollRef.current) {
+            contentScrollRef.current.scrollTop = 0;
+        }
+
+        return () => {
+            sessionRef.current += 1;
+        };
     }, [
         isOpen,
-        initialData,
+        roadmapId,
     ]);
 
     // =====================================================
     // BODY SCROLL LOCK
     //
-    // Separate from ESC handler so changes to
-    // busy state cannot accidentally leave the
-    // document body permanently locked.
+    // The background page must not scroll.
+    // Only the modal's content area scrolls.
     // =====================================================
 
     useEffect(() => {
@@ -522,6 +616,8 @@ const RoadmapCreateModal = ({
 
     // =====================================================
     // CLOSE HANDLER
+    //
+    // Prevent closing during Create/Edit requests.
     // =====================================================
 
     const handleClose = useCallback(() => {
@@ -541,9 +637,56 @@ const RoadmapCreateModal = ({
     ]);
 
     // =====================================================
-    // ESC KEY
+    // FOCUS MANAGEMENT
     //
-    // Disabled while submitting.
+    // Focus modal instead of an input to prevent mobile
+    // keyboard from opening immediately.
+    //
+    // Restore focus to the previous element on closing.
+    // =====================================================
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        previousFocusedElementRef.current =
+            document.activeElement;
+
+        const frameId =
+            window.requestAnimationFrame(() => {
+                modalRef.current?.focus({
+                    preventScroll: true,
+                });
+            });
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+
+            const previous =
+                previousFocusedElementRef.current;
+
+            if (
+                previous?.isConnected &&
+                typeof previous.focus === "function"
+            ) {
+                previous.focus({
+                    preventScroll: true,
+                });
+            }
+        };
+    }, [
+        isOpen,
+    ]);
+
+    // =====================================================
+    // ESCAPE AND FOCUS TRAP
+    //
+    // Escape:
+    // - Close when not submitting.
+    //
+    // Tab:
+    // - Keep keyboard focus inside the modal.
     // =====================================================
 
     useEffect(() => {
@@ -552,13 +695,89 @@ const RoadmapCreateModal = ({
         }
 
         const handleKeyDown = (event) => {
-            if (event.key !== "Escape") {
+            // =============================================
+            // ESCAPE
+            // =============================================
+
+            if (event.key === "Escape") {
+                if (
+                    !busy &&
+                    !submittingRef.current
+                ) {
+                    event.preventDefault();
+                    handleClose();
+                }
+
                 return;
             }
 
-            event.preventDefault();
+            // =============================================
+            // TAB
+            // =============================================
 
-            handleClose();
+            if (
+                event.key !== "Tab" ||
+                !modalRef.current
+            ) {
+                return;
+            }
+
+            const focusable = Array.from(
+                modalRef.current.querySelectorAll(
+                    FOCUSABLE_SELECTOR
+                )
+            ).filter(
+                (element) =>
+                    element.getClientRects().length > 0 &&
+                    element.getAttribute("aria-hidden") !== "true"
+            );
+
+            if (focusable.length === 0) {
+                event.preventDefault();
+
+                modalRef.current.focus();
+
+                return;
+            }
+
+            const first = focusable[0];
+
+            const last =
+                focusable[focusable.length - 1];
+
+            const active =
+                document.activeElement;
+
+            if (
+                active === modalRef.current ||
+                !modalRef.current.contains(active)
+            ) {
+                event.preventDefault();
+
+                (
+                    event.shiftKey
+                        ? last
+                        : first
+                ).focus();
+
+                return;
+            }
+
+            if (
+                event.shiftKey &&
+                active === first
+            ) {
+                event.preventDefault();
+
+                last.focus();
+            } else if (
+                !event.shiftKey &&
+                active === last
+            ) {
+                event.preventDefault();
+
+                first.focus();
+            }
         };
 
         window.addEventListener(
@@ -574,48 +793,26 @@ const RoadmapCreateModal = ({
         };
     }, [
         isOpen,
+        busy,
         handleClose,
     ]);
 
     // =====================================================
-    // AUTO FOCUS
+    // INPUT CHANGE
     //
-    // Focus modal on opening.
-    // Restore previous focus after closing.
-    // =====================================================
-
-    useEffect(() => {
-        if (!isOpen) {
-            return undefined;
-        }
-
-        const previousActiveElement =
-            document.activeElement;
-
-        modalRef.current?.focus();
-
-        return () => {
-            if (
-                previousActiveElement &&
-                typeof previousActiveElement.focus ===
-                    "function"
-            ) {
-                previousActiveElement.focus();
-            }
-        };
-    }, [
-        isOpen,
-    ]);
-
-    // =====================================================
-    // FORM INPUT CHANGE
-    //
-    // Uses name attributes from
-    // RoadmapCreateFields.jsx
+    // Fields:
+    // - title
+    // - type
+    // - description
+    // - started_at
+    // - finished_at
     // =====================================================
 
     const handleChange = (event) => {
-        if (busy) {
+        if (
+            busy ||
+            submittingRef.current
+        ) {
             return;
         }
 
@@ -635,7 +832,6 @@ const RoadmapCreateModal = ({
 
         setFormData((current) => ({
             ...current,
-
             [name]: value,
         }));
 
@@ -646,13 +842,12 @@ const RoadmapCreateModal = ({
 
     // =====================================================
     // ROADMAP TYPE CHANGE
-    //
-    // Uses RoadmapCreateTypeSelector.jsx
     // =====================================================
 
     const handleTypeChange = (value) => {
         if (
             busy ||
+            submittingRef.current ||
             !VALID_ROADMAP_TYPES.includes(value)
         ) {
             return;
@@ -660,7 +855,6 @@ const RoadmapCreateModal = ({
 
         setFormData((current) => ({
             ...current,
-
             type: value,
         }));
 
@@ -672,7 +866,8 @@ const RoadmapCreateModal = ({
     // =====================================================
     // BACKDROP CLOSE
     //
-    // Only clicking outside the modal closes it.
+    // Only clicking the actual overlay closes the modal.
+    // Clicking inside the form does not close it.
     // =====================================================
 
     const handleBackdropClick = (event) => {
@@ -687,24 +882,42 @@ const RoadmapCreateModal = ({
     };
 
     // =====================================================
+    // SCROLL TO FORM TOP
+    //
+    // Show errors immediately after failed validation
+    // or backend requests.
+    // =====================================================
+
+    const scrollToFormTop = useCallback(() => {
+        if (!contentScrollRef.current) {
+            return;
+        }
+
+        contentScrollRef.current.scrollTo({
+            top: 0,
+            behavior: "smooth",
+        });
+    }, []);
+
+    // =====================================================
     // SUBMIT
     //
-    // Process:
-    //
-    // 1. Block duplicate submission
+    // 1. Prevent duplicate requests
     // 2. Validate fields
-    // 3. Build backend payload
+    // 3. Build Django payload
     // 4. Show loading toast
-    // 5. Call parent onSubmit
-    // 6. Show success or failure
+    // 5. Call parent onSubmit(payload)
+    // 6. Handle success or error
     // 7. Close modal on success
+    //
+    // Parent API contract remains unchanged.
     // =====================================================
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
         // =================================================
-        // GUARD
+        // SUBMISSION GUARD
         // =================================================
 
         if (
@@ -714,12 +927,19 @@ const RoadmapCreateModal = ({
             return;
         }
 
+        // =================================================
+        // CALLBACK CHECK
+        // =================================================
+
         if (
             typeof onSubmit !== "function"
         ) {
-            setError(
-                "Roadmapni saqlash funksiyasi mavjud emas."
-            );
+            const message =
+                "Roadmapni saqlash funksiyasi mavjud emas.";
+
+            setError(message);
+
+            scrollToFormTop();
 
             return;
         }
@@ -741,16 +961,17 @@ const RoadmapCreateModal = ({
                 {
                     title:
                         "Roadmap ma’lumotlarini tekshiring",
-
                     duration: 4000,
                 }
             );
+
+            scrollToFormTop();
 
             return;
         }
 
         // =================================================
-        // PAYLOAD
+        // BACKEND PAYLOAD
         // =================================================
 
         const payload =
@@ -760,6 +981,9 @@ const RoadmapCreateModal = ({
         // LOCK SUBMISSION
         // =================================================
 
+        const currentSession =
+            sessionRef.current;
+
         submittingRef.current = true;
 
         setIsProcessing(true);
@@ -768,34 +992,56 @@ const RoadmapCreateModal = ({
         // LOADING TOAST
         // =================================================
 
-        const toastId = siteToast.loading(
-            isEditMode
-                ? "Roadmapdagi o‘zgarishlar saqlanmoqda..."
-                : "Yangi roadmap yaratilmoqda...",
-            {
-                title: isEditMode
-                    ? "Roadmap yangilanmoqda"
-                    : "Roadmap yaratilmoqda",
-            }
-        );
+        let toastId = null;
 
         try {
+            toastId = siteToast.loading(
+                isEditMode
+                    ? "Roadmapdagi o‘zgarishlar saqlanmoqda..."
+                    : "Yangi roadmap yaratilmoqda...",
+                {
+                    title: isEditMode
+                        ? "Roadmap yangilanmoqda"
+                        : "Roadmap yaratilmoqda",
+                }
+            );
+
             // =============================================
             // PARENT HANDLES CREATE / UPDATE API
             // =============================================
 
-            const result = await onSubmit(
-                payload
-            );
+            const result =
+                await onSubmit(payload);
 
             // =============================================
-            // PARENT EXPLICITLY RETURNS FALSE
-            //
-            // Example: Duplicate operation blocked.
+            // IGNORE AN OUTDATED MODAL SESSION
+            // =============================================
+
+            if (
+                sessionRef.current !==
+                currentSession
+            ) {
+                if (
+                    toastId !== null &&
+                    toastId !== undefined
+                ) {
+                    siteToast.dismiss(toastId);
+                }
+
+                return;
+            }
+
+            // =============================================
+            // PARENT EXPLICITLY RETURNED FALSE
             // =============================================
 
             if (result === false) {
-                siteToast.dismiss(toastId);
+                if (
+                    toastId !== null &&
+                    toastId !== undefined
+                ) {
+                    siteToast.dismiss(toastId);
+                }
 
                 return;
             }
@@ -829,14 +1075,36 @@ const RoadmapCreateModal = ({
                 });
             }
 
+            setError("");
+
             // =============================================
             // CLOSE MODAL
             //
-            // The parent handles modal visibility.
+            // Call the parent directly after successful
+            // submission. Do not use handleClose here
+            // because the request is still marked busy.
             // =============================================
 
             onClose?.();
         } catch (requestError) {
+            // =============================================
+            // IGNORE OLD SESSION ERRORS
+            // =============================================
+
+            if (
+                sessionRef.current !==
+                currentSession
+            ) {
+                if (
+                    toastId !== null &&
+                    toastId !== undefined
+                ) {
+                    siteToast.dismiss(toastId);
+                }
+
+                return;
+            }
+
             // =============================================
             // PARSE API ERROR
             // =============================================
@@ -855,10 +1123,12 @@ const RoadmapCreateModal = ({
             );
 
             // =============================================
-            // KEEP MODAL OPEN
+            // PRESERVE FORM VALUES
             // =============================================
 
             setError(message);
+
+            scrollToFormTop();
 
             // =============================================
             // ERROR TOAST
@@ -877,14 +1147,27 @@ const RoadmapCreateModal = ({
                 }
             );
         } finally {
-            submittingRef.current = false;
+            // =============================================
+            // RELEASE SUBMISSION LOCK
+            //
+            // Do not update a newer modal session.
+            // =============================================
 
-            setIsProcessing(false);
+            if (
+                sessionRef.current ===
+                currentSession
+            ) {
+                submittingRef.current = false;
+
+                setIsProcessing(false);
+            }
         }
     };
 
     // =====================================================
-    // CLOSED
+    // CLOSED MODAL
+    //
+    // All hooks must remain above this condition.
     // =====================================================
 
     if (!isOpen) {
@@ -892,46 +1175,63 @@ const RoadmapCreateModal = ({
     }
 
     // =====================================================
-    // RENDER
+    // PORTAL RENDER
+    //
+    // Portal prevents Navbar/Profile stacking contexts
+    // from overlapping or clipping the modal.
+    //
+    // Desktop:
+    // - Centered
+    // - Maximum height 780px
+    //
+    // Mobile:
+    // - Full viewport
+    //
+    // Header and Footer stay outside the scrollable body.
     // =====================================================
 
-    return (
+    return createPortal(
         <div
             onMouseDown={handleBackdropClick}
             className="
                 fixed
                 inset-0
-                z-[100]
+
+                z-[99999]
 
                 flex
-                items-start
+
+                items-stretch
                 justify-center
 
-                overflow-y-auto
+                overflow-hidden
 
-                bg-black/75
+                bg-slate-950/75
 
-                px-3
-                py-5
+                p-0
 
                 backdrop-blur-md
 
-                sm:px-5
-                sm:py-8
+                dark:bg-black/80
 
-                lg:items-center
+                sm:items-center
+                sm:px-5
+                sm:py-10
+
+                lg:px-8
+                lg:py-12
             "
         >
-            {/* =====================================
+            {/* =============================================
                 BACKGROUND GLOW
-            ====================================== */}
+            ============================================== */}
 
             <div
                 aria-hidden="true"
                 className="
                     pointer-events-none
 
-                    fixed
+                    absolute
                     left-1/2
                     top-[20%]
 
@@ -948,56 +1248,81 @@ const RoadmapCreateModal = ({
                 "
             />
 
-            {/* =====================================
-                MODAL CONTAINER
+            {/* =============================================
+                MAIN MODAL CONTAINER
 
-                Light / Dark Mode supported.
+                Mobile:
+                - Full-screen
+                - No border radius
+                - Dynamic viewport height
 
-                Accessibility:
-                - Dialog role
-                - Modal semantics
-                - Heading association
-                - Keyboard focus
-            ====================================== */}
+                Desktop:
+                - Centered
+                - Maximum height 780px
+                - Rounded corners
+            ============================================== */}
 
             <div
                 ref={modalRef}
+
                 role="dialog"
                 aria-modal="true"
+
                 aria-labelledby="roadmap-modal-title"
+
                 aria-describedby="roadmap-modal-description"
+
                 tabIndex={-1}
+
                 className="
                     relative
-                    my-auto
+                    isolate
+
+                    flex
+
+                    h-screen
+                    max-h-screen
+
+                    h-[100dvh]
+                    max-h-[100dvh]
 
                     w-full
-                    max-w-5xl
                     min-w-0
+                    max-w-5xl
+
+                    flex-col
 
                     overflow-hidden
 
-                    rounded-[30px]
-                    border
+                    rounded-none
+                    border-0
 
-                    border-slate-200
-                    bg-white/95
+                    bg-white
 
                     shadow-[0_40px_120px_rgba(0,0,0,0.25)]
 
                     outline-none
 
-                    backdrop-blur-2xl
-
-                    dark:border-white/[0.08]
-                    dark:bg-[#0a0e16]/95
+                    dark:bg-[#0a0e16]
 
                     dark:shadow-[0_40px_120px_rgba(0,0,0,0.70)]
+
+                    sm:h-[min(780px,calc(100dvh-80px))]
+                    sm:max-h-[calc(100dvh-80px)]
+
+                    sm:rounded-[26px]
+
+                    sm:border
+                    sm:border-slate-200
+
+                    dark:sm:border-white/[0.08]
+
+                    lg:rounded-[30px]
                 "
             >
-                {/* =====================================
+                {/* =========================================
                     TOP GLOW
-                ====================================== */}
+                ========================================== */}
 
                 <div
                     aria-hidden="true"
@@ -1022,164 +1347,312 @@ const RoadmapCreateModal = ({
                     "
                 />
 
-                {/* =====================================
+                {/* =========================================
                     HEADER
-                ====================================== */}
 
-                <RoadmapCreateHeader
-                    isEditMode={isEditMode}
-                    isLoading={busy}
-                    onClose={handleClose}
-                />
+                    Remains visible at the top.
+                    Outside scrollable form body.
+                ========================================== */}
 
-                {/* =====================================
+                <div
+                    className="
+                        relative
+                        z-20
+
+                        w-full
+                        min-w-0
+
+                        shrink-0
+                    "
+                >
+                    <RoadmapCreateHeader
+                        isEditMode={isEditMode}
+
+                        isLoading={busy}
+
+                        onClose={handleClose}
+                    />
+                </div>
+
+                {/* =========================================
                     FORM
 
-                    Native HTML validation remains active.
-
-                    Controlled values are managed by
-                    this modal.
-                ====================================== */}
+                    Footer must remain inside form so
+                    type="submit" works correctly.
+                ========================================== */}
 
                 <form
                     onSubmit={handleSubmit}
-                >
-                    {/* =================================
-                        CONTENT GRID
 
-                        Left: Form
-                        Right: Live preview
-                    ================================== */}
+                    className="
+                        relative
+                        z-10
+
+                        flex
+
+                        min-h-0
+                        min-w-0
+                        flex-1
+
+                        flex-col
+
+                        overflow-hidden
+                    "
+                >
+                    {/* =====================================
+                        SCROLLABLE FORM BODY
+
+                        Header and Footer do not scroll.
+
+                        Supports touch scrolling,
+                        prevents horizontal overflow.
+                    ====================================== */}
 
                     <div
-                        className="
-                            grid
-                            min-w-0
+                        ref={contentScrollRef}
 
-                            lg:grid-cols-[minmax(0,1fr)_310px]
+                        className="
+                            min-h-0
+                            min-w-0
+                            flex-1
+
+                            overflow-x-hidden
+                            overflow-y-auto
+
+                            overscroll-contain
+
+                            touch-pan-y
+
+                            [scrollbar-gutter:stable]
                         "
                     >
-                        {/* =============================
-                            LEFT PANEL
-                        ============================== */}
+                        {/* =================================
+                            RESPONSIVE CONTENT GRID
+
+                            Mobile/Tablet:
+                            - One column
+
+                            Desktop:
+                            - Form on the left
+                            - Preview on the right
+                        ================================== */}
 
                         <div
                             className="
+                                grid
+
+                                w-full
                                 min-w-0
 
-                                space-y-7
+                                grid-cols-1
 
-                                p-5
+                                items-start
 
-                                sm:p-7
-
-                                lg:border-r
-                                lg:border-slate-200
-
-                                dark:lg:border-white/[0.06]
+                                lg:grid-cols-[minmax(0,1fr)_310px]
                             "
                         >
-                            {/* =========================
-                                ROADMAP TYPE
-                            ========================== */}
+                            {/* =============================
+                                LEFT PANEL
+                            ============================== */}
 
-                            <RoadmapCreateTypeSelector
-                                value={formData.type}
-                                onChange={handleTypeChange}
-                                disabled={busy}
-                            />
+                            <div
+                                className="
+                                    w-full
+                                    min-w-0
 
-                            {/* =========================
-                                TITLE, DESCRIPTION,
-                                START AND FINISH DATES
-                            ========================== */}
+                                    space-y-5
 
-                            <RoadmapCreateFields
-                                formData={formData}
-                                onChange={handleChange}
-                                disabled={busy}
-                            />
+                                    p-3
 
-                            {/* =========================
-                                API / VALIDATION ERROR
-                            ========================== */}
+                                    min-[380px]:p-4
 
-                            {error && (
-                                <div
-                                    role="alert"
-                                    className="
-                                        flex
-                                        min-w-0
+                                    sm:space-y-6
+                                    sm:p-6
 
-                                        items-start
-                                        gap-3
+                                    lg:space-y-7
 
-                                        rounded-2xl
-                                        border
+                                    lg:border-r
+                                    lg:border-slate-200
 
-                                        border-red-300
-                                        bg-red-50
+                                    lg:p-7
 
-                                        p-4
+                                    dark:lg:border-white/[0.06]
+                                "
+                            >
+                                {/* =========================
+                                    API / VALIDATION ERROR
 
-                                        text-sm
-                                        font-semibold
+                                    At the top so the
+                                    scrollToFormTop handler
+                                    makes it visible.
+                                ========================== */}
 
-                                        text-red-700
+                                {error && (
+                                    <div
+                                        role="alert"
 
-                                        dark:border-red-400/20
-                                        dark:bg-red-500/[0.08]
-                                        dark:text-red-300
-                                    "
-                                >
-                                    <AlertTriangle
-                                        size={18}
-                                        aria-hidden="true"
                                         className="
-                                            mt-0.5
-                                            shrink-0
-                                        "
-                                    />
-
-                                    <span
-                                        className="
+                                            flex
                                             min-w-0
-                                            break-words
-                                            [overflow-wrap:anywhere]
+
+                                            items-start
+                                            gap-3
+
+                                            rounded-2xl
+                                            border
+
+                                            border-red-200
+                                            bg-red-50
+
+                                            p-3
+
+                                            text-sm
+                                            font-semibold
+
+                                            text-red-700
+
+                                            dark:border-red-400/20
+                                            dark:bg-red-500/[0.08]
+                                            dark:text-red-300
+
+                                            sm:p-4
                                         "
                                     >
-                                        {error}
-                                    </span>
+                                        <AlertTriangle
+                                            size={18}
+
+                                            aria-hidden="true"
+
+                                            className="
+                                                mt-0.5
+                                                shrink-0
+                                            "
+                                        />
+
+                                        <span
+                                            className="
+                                                min-w-0
+                                                flex-1
+
+                                                break-words
+                                                [overflow-wrap:anywhere]
+
+                                                leading-6
+                                            "
+                                        >
+                                            {error}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* =========================
+                                    ROADMAP TYPE
+                                ========================== */}
+
+                                <div
+                                    className="
+                                        w-full
+                                        min-w-0
+                                    "
+                                >
+                                    <RoadmapCreateTypeSelector
+                                        value={
+                                            formData.type
+                                        }
+
+                                        onChange={
+                                            handleTypeChange
+                                        }
+
+                                        disabled={busy}
+                                    />
                                 </div>
-                            )}
+
+                                {/* =========================
+                                    ROADMAP FIELDS
+
+                                    Title
+                                    Description
+                                    Start date
+                                    Finish date
+                                ========================== */}
+
+                                <div
+                                    className="
+                                        w-full
+                                        min-w-0
+                                    "
+                                >
+                                    <RoadmapCreateFields
+                                        formData={formData}
+
+                                        onChange={
+                                            handleChange
+                                        }
+
+                                        disabled={busy}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* =============================
+                                RIGHT PANEL
+                                LIVE ROADMAP PREVIEW
+
+                                On mobile:
+                                - Below form fields
+
+                                On desktop:
+                                - Right column
+                            ============================== */}
+
+                            <div
+                                className="
+                                    w-full
+                                    min-w-0
+
+                                    overflow-hidden
+                                "
+                            >
+                                <RoadmapCreatePreview
+                                    formData={formData}
+                                />
+                            </div>
                         </div>
-
-                        {/* =============================
-                            RIGHT PANEL
-
-                            Live roadmap preview.
-                        ============================== */}
-
-                        <RoadmapCreatePreview
-                            formData={formData}
-                        />
                     </div>
 
-                    {/* =================================
+                    {/* =====================================
                         FOOTER
 
-                        Submit button remains inside
-                        the parent form.
-                    ================================== */}
+                        - Inside form
+                        - Outside scrollable area
+                        - Always accessible
+                        - Preserves original props
+                    ====================================== */}
 
-                    <RoadmapCreateFooter
-                        isEditMode={isEditMode}
-                        isLoading={busy}
-                        onClose={handleClose}
-                    />
+                    <div
+                        className="
+                            relative
+                            z-20
+
+                            w-full
+                            min-w-0
+
+                            shrink-0
+                        "
+                    >
+                        <RoadmapCreateFooter
+                            isEditMode={isEditMode}
+
+                            isLoading={busy}
+
+                            onClose={handleClose}
+                        />
+                    </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
