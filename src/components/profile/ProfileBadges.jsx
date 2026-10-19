@@ -1,17 +1,26 @@
-import React, { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { motion } from "framer-motion";
+
+import React, {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 
 import {
+    useDispatch,
+    useSelector,
+} from "react-redux";
+
+import {
+    AlertTriangle,
     Award,
-    Calendar,
-    Crown,
-    Gem,
-    Medal,
-    ShieldCheck,
-    Sparkles,
-    Trophy,
+    RefreshCw,
 } from "lucide-react";
+
+// =========================================================
+// REDUX ACTIONS
+// =========================================================
 
 import {
     getBadgesStart,
@@ -19,303 +28,900 @@ import {
     getBadgesFailure,
 } from "../../features/badge";
 
+// =========================================================
+// SERVICES
+// =========================================================
+
 import BadgeService from "../../services/badge";
-import { formatPrettyDate } from "../../utils/formatDate";
 
-const getBadgeImage = (image) => {
-    if (!image) return null;
-    if (typeof image === "string" && image.startsWith("http")) return image;
+// =========================================================
+// BADGE COMPONENTS
+// =========================================================
 
-    return `${window.location.origin}${image}`;
+import ProfileBadgeCard from "./badges/ProfileBadgeCard";
+
+import ProfileBadgesSkeleton from "./badges/ProfileBadgesSkeleton";
+
+import ProfileBadgesEmpty from "./badges/ProfileBadgesEmpty";
+
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const EMPTY_BADGES = [];
+
+const DEFAULT_ERROR_MESSAGE =
+    "Nishonlarni yuklashda xatolik yuz berdi. " +
+    "Internet aloqasini tekshirib, qayta urinib ko‘ring.";
+
+// =========================================================
+// REDUX SELECTOR
+// =========================================================
+
+const selectBadgeState = (state) => {
+    return state.badge || {};
 };
 
-const getBadgeTone = (index) => {
-    const tones = [
-        {
-            icon: Crown,
-            border: "border-yellow-400/30",
-            hoverBorder: "hover:border-yellow-400/50",
-            bg: "bg-yellow-500/10",
-            text: "text-yellow-300",
-            glow: "bg-yellow-500/20",
-            ring: "ring-yellow-400/20",
-            progress: "bg-yellow-400",
-        },
-        {
-            icon: Trophy,
-            border: "border-indigo-400/30",
-            hoverBorder: "hover:border-indigo-400/50",
-            bg: "bg-indigo-500/10",
-            text: "text-indigo-300",
-            glow: "bg-indigo-500/20",
-            ring: "ring-indigo-400/20",
-            progress: "bg-indigo-400",
-        },
-        {
-            icon: Gem,
-            border: "border-purple-400/30",
-            hoverBorder: "hover:border-purple-400/50",
-            bg: "bg-purple-500/10",
-            text: "text-purple-300",
-            glow: "bg-purple-500/20",
-            ring: "ring-purple-400/20",
-            progress: "bg-purple-400",
-        },
-        {
-            icon: Medal,
-            border: "border-emerald-400/30",
-            hoverBorder: "hover:border-emerald-400/50",
-            bg: "bg-emerald-500/10",
-            text: "text-emerald-300",
-            glow: "bg-emerald-500/20",
-            ring: "ring-emerald-400/20",
-            progress: "bg-emerald-400",
-        },
-    ];
+// =========================================================
+// SAFE BADGES
+//
+// Supports:
+// - Array response
+// - Paginated results response
+// - Missing data
+// =========================================================
 
-    return tones[index % tones.length];
+const getSafeBadges = (value) => {
+    if (Array.isArray(value)) {
+        return value;
+    }
+
+    if (Array.isArray(value?.results)) {
+        return value.results;
+    }
+
+    return EMPTY_BADGES;
 };
 
-const ProfileBadges = ({ username }) => {
+// =========================================================
+// NORMALIZE USERNAME
+// =========================================================
+
+const normalizeUsername = (value) => {
+    return String(value ?? "").trim();
+};
+
+// =========================================================
+// GET ERROR MESSAGE
+//
+// Supports:
+// - Error string
+// - Axios response
+// - DRF detail
+// - JavaScript Error
+// =========================================================
+
+const getErrorMessage = (
+    error,
+    fallback = DEFAULT_ERROR_MESSAGE
+) => {
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    const data =
+        error?.serverData ??
+        error?.response?.data;
+
+    if (
+        typeof data === "string" &&
+        data.trim()
+    ) {
+        return data.trim();
+    }
+
+    if (
+        typeof data?.detail === "string" &&
+        data.detail.trim()
+    ) {
+        return data.detail.trim();
+    }
+
+    if (
+        typeof data?.message === "string" &&
+        data.message.trim()
+    ) {
+        return data.message.trim();
+    }
+
+    if (
+        typeof error?.message === "string" &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    return fallback;
+};
+
+// =========================================================
+// REQUEST KEY
+//
+// Each username and retry attempt has its own key.
+//
+// This prevents previous profile data from appearing
+// while the next profile is being loaded.
+// =========================================================
+
+const buildRequestKey = (
+    username,
+    retryKey
+) => {
+    return JSON.stringify([
+        username,
+        retryKey,
+    ]);
+};
+
+// =========================================================
+// PROFILE BADGES CONTENT
+//
+// Responsibilities:
+//
+// - Load badges
+// - Dispatch Redux actions
+// - Manage retry
+// - Prevent stale API responses
+// - Render header
+// - Render skeleton
+// - Render error
+// - Render badge list
+// - Render empty state
+//
+// The badge visuals live in separate components.
+// =========================================================
+
+const ProfileBadgesContent = ({
+    username,
+}) => {
+    // =====================================================
+    // REDUX DISPATCH
+    // =====================================================
+
     const dispatch = useDispatch();
 
-    const { userBadges, isLoading, error } = useSelector(
-        (state) => state.badge || {}
+    // =====================================================
+    // REDUX STATE
+    // =====================================================
+
+    const {
+        userBadges = EMPTY_BADGES,
+        isLoading = false,
+        error = null,
+    } = useSelector(selectBadgeState);
+
+    // =====================================================
+    // NORMALIZED USERNAME
+    // =====================================================
+
+    const profileUsername =
+        normalizeUsername(username);
+
+    // =====================================================
+    // RETRY STATE
+    //
+    // Incrementing this value triggers another GET.
+    // =====================================================
+
+    const [
+        retryKey,
+        setRetryKey,
+    ] = useState(0);
+
+    // =====================================================
+    // COMPLETED REQUEST
+    //
+    // Remains null until this particular component
+    // has completed its own request.
+    //
+    // Used to protect against stale Redux data when
+    // navigating between profile usernames.
+    // =====================================================
+
+    const [
+        completedRequestKey,
+        setCompletedRequestKey,
+    ] = useState(null);
+
+    // =====================================================
+    // REQUEST KEY
+    // =====================================================
+
+    const requestedKey = useMemo(
+        () =>
+            buildRequestKey(
+                profileUsername,
+                retryKey
+            ),
+        [
+            profileUsername,
+            retryKey,
+        ]
     );
 
-    const safeBadges = Array.isArray(userBadges) ? userBadges : [];
+    // =====================================================
+    // SAFE BADGE LIST
+    // =====================================================
+
+    const safeBadges = useMemo(
+        () => getSafeBadges(userBadges),
+        [userBadges]
+    );
+
+    // =====================================================
+    // FETCH USER BADGES
+    //
+    // Triggers:
+    // - Initial mount
+    // - Profile username change
+    // - Retry button
+    //
+    // Existing service contract is preserved:
+    //
+    // BadgeService.getUserBadges(username)
+    //
+    // Existing Redux actions are preserved:
+    //
+    // getBadgesStart()
+    // getBadgesSuccess(response)
+    // getBadgesFailure(message)
+    //
+    // The active flag prevents an outdated request
+    // from updating the store after unmount or retry.
+    // =====================================================
 
     useEffect(() => {
+        // ================================================
+        // NO USERNAME
+        // ================================================
+
+        if (!profileUsername) {
+            dispatch(
+                getBadgesSuccess([])
+            );
+
+            setCompletedRequestKey(
+                requestedKey
+            );
+
+            return undefined;
+        }
+
+        // ================================================
+        // REQUEST LIFECYCLE
+        // ================================================
+
+        let active = true;
+
         const fetchBadges = async () => {
             dispatch(getBadgesStart());
 
             try {
-                const response = await BadgeService.getUserBadges(username);
-                dispatch(getBadgesSuccess(response));
-            } catch (err) {
+                // =========================================
+                // API REQUEST
+                // =========================================
+
+                const response =
+                    await BadgeService.getUserBadges(
+                        profileUsername
+                    );
+
+                // =========================================
+                // IGNORE OUTDATED RESPONSES
+                // =========================================
+
+                if (!active) {
+                    return;
+                }
+
+                // =========================================
+                // STORE RESULT
+                //
+                // Preserve original Redux contract.
+                // =========================================
+
                 dispatch(
-                    getBadgesFailure(
-                        err?.message || "Nishonlarni yuklashda xato yuz berdi."
-                    )
+                    getBadgesSuccess(response)
+                );
+
+                // =========================================
+                // COMPLETE CURRENT REQUEST
+                // =========================================
+
+                setCompletedRequestKey(
+                    requestedKey
+                );
+            } catch (err) {
+                if (!active) {
+                    return;
+                }
+
+                // =========================================
+                // NORMALIZE ERROR
+                // =========================================
+
+                const message =
+                    getErrorMessage(err);
+
+                console.error(
+                    "Nishonlarni yuklashda xato:",
+                    err
+                );
+
+                // =========================================
+                // REDUX FAILURE
+                // =========================================
+
+                dispatch(
+                    getBadgesFailure(message)
+                );
+
+                // =========================================
+                // COMPLETE FAILED REQUEST
+                //
+                // This stops the skeleton so that
+                // the error and retry button appear.
+                // =========================================
+
+                setCompletedRequestKey(
+                    requestedKey
                 );
             }
         };
 
-        if (username) fetchBadges();
-    }, [username, dispatch]);
+        void fetchBadges();
 
-    if (isLoading) {
-        return <BadgesSkeleton />;
+        // ================================================
+        // CLEANUP
+        //
+        // On username change or retry, this component
+        // stops old requests from dispatching results.
+        // ================================================
+
+        return () => {
+            active = false;
+        };
+    }, [
+        dispatch,
+        profileUsername,
+        requestedKey,
+    ]);
+
+    // =====================================================
+    // RETRY
+    //
+    // A new request starts when retryKey changes.
+    //
+    // No page refresh is necessary.
+    // =====================================================
+
+    const handleRetry = useCallback(() => {
+        setRetryKey(
+            (previous) => previous + 1
+        );
+    }, []);
+
+    // =====================================================
+    // VIEW STATES
+    // =====================================================
+
+    const isCurrentRequestComplete =
+        completedRequestKey === requestedKey;
+
+    const showSkeleton =
+        !isCurrentRequestComplete ||
+        Boolean(isLoading);
+
+    const hasError =
+        !showSkeleton &&
+        Boolean(error);
+
+    const hasBadges =
+        !showSkeleton &&
+        !hasError &&
+        safeBadges.length > 0;
+
+    const showEmpty =
+        !showSkeleton &&
+        !hasError &&
+        safeBadges.length === 0;
+
+    // =====================================================
+    // INITIAL / RETRY LOADING
+    //
+    // The skeleton includes its own header and cards.
+    // Prevent rendering a duplicate header.
+    // =====================================================
+
+    if (showSkeleton) {
+        return (
+            <ProfileBadgesSkeleton
+                count={3}
+            />
+        );
     }
 
-    return (
-        <section className="relative overflow-hidden rounded-3xl border border-gray-700/70 bg-gray-900/70 p-5 shadow-2xl shadow-black/30">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-52 w-52 rounded-full bg-yellow-500/10 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-24 h-52 w-52 rounded-full bg-indigo-500/10 blur-3xl" />
+    // =====================================================
+    // RENDER
+    // =====================================================
 
-            <div className="relative z-10 mb-6 flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-yellow-400/25 bg-yellow-500/10 text-yellow-300 shadow-lg shadow-yellow-500/10">
-                        <Award size={24} />
+    return (
+        <section
+            aria-label="Foydalanuvchi nishonlari"
+            className="
+                relative
+                isolate
+                min-w-0
+                overflow-hidden
+
+                rounded-3xl
+                border
+
+                border-slate-200
+                bg-white/90
+
+                p-4
+
+                shadow-lg
+                shadow-slate-900/5
+
+                dark:border-gray-700/70
+                dark:bg-gray-900/70
+                dark:shadow-2xl
+                dark:shadow-black/30
+
+                sm:p-5
+            "
+        >
+            {/* =============================================
+                DECORATIVE BACKGROUND GLOW
+
+                Preserves original yellow and indigo
+                background decorations.
+            ============================================== */}
+
+            <div
+                aria-hidden="true"
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -right-24
+                    -top-24
+
+                    h-52
+                    w-52
+
+                    rounded-full
+
+                    bg-yellow-500/[0.06]
+                    blur-3xl
+
+                    dark:bg-yellow-500/10
+                "
+            />
+
+            <div
+                aria-hidden="true"
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -bottom-24
+                    -left-24
+
+                    h-52
+                    w-52
+
+                    rounded-full
+
+                    bg-indigo-500/[0.06]
+                    blur-3xl
+
+                    dark:bg-indigo-500/10
+                "
+            />
+
+            {/* =============================================
+                HEADER
+            ============================================== */}
+
+            <div
+                className="
+                    relative
+                    z-10
+
+                    mb-6
+
+                    flex
+                    min-w-0
+
+                    items-center
+                    justify-between
+
+                    gap-3
+                "
+            >
+                {/* =========================================
+                    HEADER LEFT
+                ========================================== */}
+
+                <div
+                    className="
+                        flex
+                        min-w-0
+
+                        items-center
+                        gap-3
+                    "
+                >
+                    {/* =====================================
+                        HEADER ICON
+                    ====================================== */}
+
+                    <div
+                        className="
+                            flex
+                            h-12
+                            w-12
+                            shrink-0
+
+                            items-center
+                            justify-center
+
+                            rounded-2xl
+                            border
+
+                            border-yellow-300/40
+                            bg-yellow-50
+
+                            text-yellow-600
+
+                            shadow-lg
+                            shadow-yellow-500/10
+
+                            dark:border-yellow-400/25
+                            dark:bg-yellow-500/10
+                            dark:text-yellow-300
+                        "
+                    >
+                        <Award
+                            size={24}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                        />
                     </div>
 
+                    {/* =====================================
+                        HEADER TITLE
+                    ====================================== */}
+
                     <div className="min-w-0">
-                        <h3 className="text-xl font-black text-white">
+                        <h3
+                            className="
+                                text-xl
+                                font-black
+
+                                text-slate-900
+                                dark:text-white
+                            "
+                        >
                             Nishonlar
                         </h3>
-                        <p className="text-xs font-semibold leading-5 text-gray-500">
-                            Yutuqlar, faoliyat va community belgisi
+
+                        <p
+                            className="
+                                mt-0.5
+
+                                text-xs
+                                font-semibold
+                                leading-5
+
+                                text-slate-500
+                                dark:text-gray-500
+                            "
+                        >
+                            Yutuqlar, faoliyat va
+                            community belgisi
                         </p>
                     </div>
                 </div>
 
-                <span className="shrink-0 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-black uppercase tracking-wider text-indigo-300">
-                    {safeBadges.length} ta
+                {/* =========================================
+                    BADGE COUNT
+                ========================================== */}
+
+                <span
+                    className="
+                        shrink-0
+
+                        rounded-full
+                        border
+
+                        border-indigo-200
+                        bg-indigo-50
+
+                        px-3
+                        py-1
+
+                        text-xs
+                        font-black
+
+                        uppercase
+                        tracking-wider
+
+                        text-indigo-700
+
+                        dark:border-indigo-400/30
+                        dark:bg-indigo-500/10
+                        dark:text-indigo-300
+                    "
+                >
+                    {hasError
+                        ? "—"
+                        : `${safeBadges.length} ta`}
                 </span>
             </div>
 
-            {error && (
-                <div className="relative z-10 mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-semibold text-red-300">
-                    <i className="fa-solid fa-triangle-exclamation mr-2"></i>
-                    {error}
-                </div>
-            )}
+            {/* =============================================
+                ERROR STATE
 
-            {safeBadges.length > 0 ? (
-                <div className="relative z-10 space-y-4">
-                    {safeBadges.map((item, index) => (
-                        <BadgeCard
-                            key={item?.id || index}
-                            item={item}
-                            index={index}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <EmptyBadges />
-            )}
-        </section>
-    );
-};
+                If loading fails:
+                - Show error
+                - Show retry action
+                - Do not display stale badge records
+                - Do not display misleading empty state
+            ============================================== */}
 
-const BadgeCard = ({ item, index }) => {
-    const badge = item?.badge || {};
-    const tone = getBadgeTone(index);
-    const ToneIcon = tone.icon;
-    const badgeImage = getBadgeImage(badge?.image);
+            {hasError && (
+                <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="
+                        relative
+                        z-10
 
-    return (
-        <motion.article
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.07, duration: 0.35 }}
-            whileHover={{ y: -2 }}
-            className={`group relative overflow-hidden rounded-3xl border border-gray-700/70 bg-gray-950/35 shadow-xl shadow-black/20 transition-all duration-300 ${tone.hoverBorder} hover:bg-gray-900/80`}
-        >
-            <div
-                className={`pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full ${tone.glow} opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100`}
-            />
+                        rounded-2xl
+                        border
 
-            <div className="relative z-10 p-4">
-                <div className="flex items-start gap-4">
-                    {/* IMAGE */}
+                        border-red-200
+                        bg-red-50
+
+                        p-4
+
+                        dark:border-red-500/30
+                        dark:bg-red-500/10
+                    "
+                >
                     <div
-                        className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border ${tone.border} bg-gray-900 ring-4 ${tone.ring} sm:h-24 sm:w-24`}
+                        className="
+                            flex
+                            min-w-0
+                            items-start
+                            gap-3
+                        "
                     >
-                        {badgeImage ? (
-                            <img
-                                src={badgeImage}
-                                alt={badge?.name || "Badge"}
-                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                }}
-                            />
-                        ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                                <ToneIcon className={tone.text} size={38} />
-                            </div>
-                        )}
-
-                        <div className="absolute inset-0 bg-gradient-to-tr from-black/50 via-transparent to-white/5" />
+                        {/* ERROR ICON */}
 
                         <div
-                            className={`absolute bottom-1.5 left-1.5 flex h-7 w-7 items-center justify-center rounded-xl border ${tone.border} ${tone.bg} ${tone.text} backdrop-blur-md`}
-                        >
-                            <ToneIcon size={15} />
-                        </div>
-                    </div>
+                            className="
+                                flex
+                                h-9
+                                w-9
+                                shrink-0
 
-                    {/* CONTENT */}
-                    <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-2">
-                            <h4 className="break-words text-base font-black leading-snug text-white transition-colors group-hover:text-indigo-300 sm:text-lg">
-                                {badge?.name || "Noma’lum nishon"}
+                                items-center
+                                justify-center
+
+                                rounded-xl
+
+                                bg-red-100
+                                text-red-600
+
+                                dark:bg-red-500/15
+                                dark:text-red-300
+                            "
+                        >
+                            <AlertTriangle
+                                size={18}
+                                aria-hidden="true"
+                            />
+                        </div>
+
+                        {/* ERROR CONTENT */}
+
+                        <div
+                            className="
+                                min-w-0
+                                flex-1
+                            "
+                        >
+                            <h4
+                                className="
+                                    text-sm
+                                    font-black
+
+                                    text-red-800
+                                    dark:text-red-200
+                                "
+                            >
+                                Nishonlarni yuklab bo‘lmadi
                             </h4>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                    className={`w-fit rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${tone.border} ${tone.bg} ${tone.text}`}
-                                >
-                                    Achievement
-                                </span>
+                            <p
+                                className="
+                                    mt-1
 
-                                <span className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-gray-700/70 bg-gray-900/70 px-2.5 py-1 text-[11px] font-bold leading-4 text-gray-300">
-                                    <Calendar size={12} className="shrink-0 text-indigo-300" />
-                                    <span className="normal-case">
-                                        {formatPrettyDate(item?.awarded_at)}
-                                    </span>
-                                </span>
-                            </div>
+                                    break-words
+
+                                    text-xs
+                                    font-medium
+                                    leading-6
+
+                                    text-red-700
+                                    dark:text-red-300
+                                "
+                            >
+                                {getErrorMessage(error)}
+                            </p>
+
+                            {/* =================================
+                                RETRY BUTTON
+                            ================================== */}
+
+                            <button
+                                type="button"
+                                onClick={handleRetry}
+                                className="
+                                    mt-4
+
+                                    inline-flex
+                                    min-h-10
+
+                                    items-center
+                                    justify-center
+                                    gap-2
+
+                                    rounded-xl
+                                    border
+
+                                    border-red-200
+                                    bg-white
+
+                                    px-4
+                                    py-2
+
+                                    text-xs
+                                    font-black
+
+                                    text-red-700
+
+                                    transition-all
+                                    duration-200
+
+                                    hover:border-red-300
+                                    hover:bg-red-100
+
+                                    focus-visible:outline-none
+                                    focus-visible:ring-2
+                                    focus-visible:ring-red-500/50
+
+                                    active:scale-[0.98]
+
+                                    dark:border-red-400/20
+                                    dark:bg-red-500/10
+                                    dark:text-red-200
+
+                                    dark:hover:bg-red-500/20
+
+                                    motion-reduce:transform-none
+                                "
+                            >
+                                <RefreshCw
+                                    size={15}
+                                    aria-hidden="true"
+                                />
+
+                                Qayta urinish
+                            </button>
                         </div>
-
-                        <p className="mt-3 break-words text-sm font-medium leading-6 text-gray-400">
-                            {badge?.description ||
-                                "Ushbu yutuq haqida ma’lumot mavjud emas."}
-                        </p>
                     </div>
                 </div>
+            )}
 
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-gray-800">
-                    <div
-                        className={`h-full rounded-full ${tone.progress} opacity-70 shadow-lg`}
-                        style={{ width: `${Math.min(100, 45 + index * 12)}%` }}
-                    />
+            {/* =============================================
+                BADGE LIST
+
+                Original order and animation index
+                are preserved.
+            ============================================== */}
+
+            {hasBadges && (
+                <div
+                    className="
+                        relative
+                        z-10
+
+                        space-y-4
+                    "
+                >
+                    {safeBadges.map(
+                        (item, index) => (
+                            <ProfileBadgeCard
+                                key={
+                                    item?.id ??
+                                    `badge-${index}`
+                                }
+                                item={item}
+                                index={index}
+                            />
+                        )
+                    )}
                 </div>
-            </div>
+            )}
 
-            <div
-                className={`absolute inset-y-0 right-0 w-1 ${tone.bg} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
-            />
-        </motion.article>
-    );
-};
+            {/* =============================================
+                EMPTY STATE
 
-const BadgesSkeleton = () => {
-    return (
-        <section className="relative overflow-hidden rounded-3xl border border-gray-700/70 bg-gray-900/70 p-5 shadow-2xl shadow-black/30">
-            <div className="mb-6 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 animate-pulse rounded-2xl bg-gray-800" />
+                Show only when:
+                - Request completed
+                - No error
+                - No badges
+            ============================================== */}
 
-                    <div className="space-y-2">
-                        <div className="h-5 w-32 animate-pulse rounded-xl bg-gray-800" />
-                        <div className="h-3 w-44 animate-pulse rounded-xl bg-gray-800" />
-                    </div>
-                </div>
-
-                <div className="h-7 w-14 animate-pulse rounded-full bg-gray-800" />
-            </div>
-
-            <div className="space-y-4">
-                {[1, 2, 3].map((item) => (
-                    <div
-                        key={item}
-                        className="rounded-3xl border border-gray-700/70 bg-gray-950/35 p-4"
-                    >
-                        <div className="flex gap-4">
-                            <div className="h-20 w-20 shrink-0 animate-pulse rounded-2xl bg-gray-800 sm:h-24 sm:w-24" />
-
-                            <div className="min-w-0 flex-1 space-y-3">
-                                <div className="h-5 w-2/3 animate-pulse rounded-xl bg-gray-800" />
-                                <div className="h-6 w-36 animate-pulse rounded-xl bg-gray-800" />
-                                <div className="h-3 w-full animate-pulse rounded-xl bg-gray-800" />
-                                <div className="h-3 w-4/5 animate-pulse rounded-xl bg-gray-800" />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            {showEmpty && (
+                <ProfileBadgesEmpty />
+            )}
         </section>
     );
 };
 
-const EmptyBadges = () => {
+// =========================================================
+// PROFILE BADGES WRAPPER
+//
+// The key forces a clean component instance when
+// switching between profile usernames.
+//
+// Benefits:
+//
+// - Retry state resets
+// - Completed request identity resets
+// - Skeleton appears immediately
+// - Previous request cleanup becomes effective
+// =========================================================
+
+const ProfileBadges = ({
+    username,
+}) => {
+    const profileUsername =
+        normalizeUsername(username);
+
     return (
-        <div className="relative z-10 overflow-hidden rounded-3xl border-2 border-dashed border-gray-700/70 bg-gray-950/30 px-5 py-12 text-center">
-            <div className="pointer-events-none absolute left-1/2 top-0 h-36 w-36 -translate-x-1/2 rounded-full bg-yellow-500/10 blur-3xl" />
-
-            <div className="relative z-10">
-                <div className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border border-gray-700 bg-gray-900/80 shadow-xl shadow-black/30">
-                    <ShieldCheck className="text-gray-600" size={52} />
-                </div>
-
-                <h4 className="text-xl font-black text-white">
-                    Hali nishonlar mavjud emas
-                </h4>
-
-                <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-gray-500">
-                    Faol bo‘ling, post yozing, muammolarga yechim bering va ilk
-                    nishoningizni qo‘lga kiriting.
-                </p>
-
-                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-indigo-300">
-                    <Sparkles size={14} />
-                    Keep grinding
-                </div>
-            </div>
-        </div>
+        <ProfileBadgesContent
+            key={
+                profileUsername ||
+                "__no_username__"
+            }
+            username={profileUsername}
+        />
     );
 };
 
-export default ProfileBadges;
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default memo(ProfileBadges);

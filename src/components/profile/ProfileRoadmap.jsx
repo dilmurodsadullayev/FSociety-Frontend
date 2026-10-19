@@ -1,9 +1,9 @@
-// src/components/profile/ProfileRoadmap.jsx
 
 import React, {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
@@ -13,21 +13,17 @@ import {
 } from "react-redux";
 
 import {
-    AlertTriangle,
     Loader2,
-    Map,
-    MapPinned,
-    Plus,
-    RefreshCw,
-    Route,
-    Sparkles,
 } from "lucide-react";
 
+// =========================================================
+// REDUX
+// =========================================================
 
 import {
-    getRoadMapFailure,
     getRoadMapStart,
     getRoadMapSuccess,
+    getRoadMapFailure,
 
     deleteRoadMapStart,
     deleteRoadMapSuccess,
@@ -40,334 +36,298 @@ import {
     updateRoadmapLocal,
 } from "../../features/roadmap";
 
+// =========================================================
+// SERVICES
+// =========================================================
 
 import RoadmapService from "../../services/roadmap";
 
-import RoadmapItem from "./RoadmapItem";
+// =========================================================
+// SHARED COMPONENTS
+// =========================================================
 
 import DeleteConfirmationModal from "../DeleteConfirmationModal";
-
-import RoadmapFormModal from "./RoadmapCreateModal";
 
 import {
     siteToast,
 } from "../ui/AuthToast";
 
+// =========================================================
+// PROFILE ROADMAP COMPONENTS
+// =========================================================
+
+import ProfileRoadmapHeader from "./roadmap/ProfileRoadmapHeader";
+
+import ProfileRoadmapSkeleton from "./roadmap/ProfileRoadmapSkeleton";
+
+import ProfileRoadmapEmpty from "./roadmap/ProfileRoadmapEmpty";
+
+import ProfileRoadmapError from "./roadmap/ProfileRoadmapError";
+
+import ProfileRoadmapTimeline from "./roadmap/ProfileRoadmapTimeline";
+
+import RoadmapCreateModal from "./roadmap/RoadmapCreateModal";
 
 // =========================================================
-// SELECTORS
+// CONSTANTS
 // =========================================================
 
-const selectRoadmapState =
-    (state) =>
-        state.roadmap;
-
-
-const selectAuthUsername =
-    (state) =>
-        state.auth.user?.username;
-
+const EMPTY_ROADMAPS = [];
 
 // =========================================================
-// ERROR PARSER
+// REDUX SELECTORS
+// =========================================================
+
+const selectRoadmapState = (state) =>
+    state.roadmap;
+
+const selectAuthUsername = (state) =>
+    state.auth?.user?.username;
+
+// =========================================================
+// ERROR FIELD LABELS
+// =========================================================
+
+const FIELD_LABELS = {
+    title: "Sarlavha",
+    type: "Roadmap turi",
+    description: "Tavsif",
+    started_at: "Boshlanish sanasi",
+    finished_at: "Tugash sanasi",
+    non_field_errors: "Xatolik",
+};
+
+// =========================================================
+// PARSE API ERRORS
+//
+// RoadmapService can return serialized DRF errors.
+//
+// Supports:
+// - Error message
+// - JSON string
+// - DRF detail
+// - Validation errors
+// - Error arrays
+// =========================================================
+
+const parseErrorValue = (
+    value,
+    depth = 0
+) => {
+    if (
+        value == null ||
+        depth > 6
+    ) {
+        return "";
+    }
+
+    // =====================================================
+    // STRING
+    // =====================================================
+
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+
+        if (!trimmed) {
+            return "";
+        }
+
+        if (
+            (
+                trimmed.startsWith("{") &&
+                trimmed.endsWith("}")
+            ) ||
+            (
+                trimmed.startsWith("[") &&
+                trimmed.endsWith("]")
+            )
+        ) {
+            try {
+                return parseErrorValue(
+                    JSON.parse(trimmed),
+                    depth + 1
+                );
+            } catch {
+                return trimmed;
+            }
+        }
+
+        return trimmed;
+    }
+
+    // =====================================================
+    // ARRAY
+    // =====================================================
+
+    if (Array.isArray(value)) {
+        return value
+            .map((item) =>
+                parseErrorValue(
+                    item,
+                    depth + 1
+                )
+            )
+            .filter(Boolean)
+            .join("; ");
+    }
+
+    // =====================================================
+    // OBJECT
+    // =====================================================
+
+    if (typeof value === "object") {
+        for (const key of [
+            "detail",
+            "message",
+            "error",
+            "non_field_errors",
+        ]) {
+            if (value[key]) {
+                const message =
+                    parseErrorValue(
+                        value[key],
+                        depth + 1
+                    );
+
+                if (message) {
+                    return message;
+                }
+            }
+        }
+
+        return Object.entries(value)
+            .filter(
+                ([key]) =>
+                    ![
+                        "stack",
+                        "config",
+                        "request",
+                        "response",
+                    ].includes(key)
+            )
+            .map(([key, messages]) => {
+                const message =
+                    parseErrorValue(
+                        messages,
+                        depth + 1
+                    );
+
+                return message
+                    ? `${
+                        FIELD_LABELS[key] || key
+                    }: ${message}`
+                    : "";
+            })
+            .filter(Boolean)
+            .join("; ");
+    }
+
+    return "";
+};
+
+// =========================================================
+// GET READABLE ERROR MESSAGE
 // =========================================================
 
 const getErrorMessage = (
     error,
     fallback = "Kutilmagan xatolik yuz berdi."
 ) => {
-
-    const data =
-        error?.serverData
-        ||
-        error?.response?.data;
-
-
-    // =====================================================
-    // STRING RESPONSE
-    // =====================================================
-
-    if (
-        typeof data === "string"
-        &&
-        data.trim()
-    ) {
-        return data;
-    }
-
-
-    // =====================================================
-    // DRF DETAIL
-    // =====================================================
-
-    if (
-        data?.detail
-    ) {
-        return String(
-            data.detail
-        );
-    }
-
-
-    // =====================================================
-    // DRF ERROR
-    // =====================================================
-
-    if (
-        data?.error
-    ) {
-        return String(
-            data.error
-        );
-    }
-
-
-    // =====================================================
-    // DRF MESSAGE
-    // =====================================================
-
-    if (
-        data?.message
-    ) {
-        return String(
-            data.message
-        );
-    }
-
-
-    // =====================================================
-    // FIELD ERRORS
-    // =====================================================
-
-    if (
-        data
-        &&
-        typeof data === "object"
-    ) {
-
-        const fieldLabels = {
-            title:
-                "Sarlavha",
-
-            type:
-                "Roadmap turi",
-
-            description:
-                "Tavsif",
-
-            started_at:
-                "Boshlanish sanasi",
-
-            finished_at:
-                "Tugash sanasi",
-        };
-
-
-        for (
-            const [
-                key,
-                value,
-            ]
-            of Object.entries(
-                data
-            )
-        ) {
-
-            const label =
-                fieldLabels[key]
-                ||
-                key;
-
-
-            if (
-                Array.isArray(
-                    value
-                )
-                &&
-                value.length
-            ) {
-
-                return (
-                    `${label}: ${value[0]}`
-                );
-            }
-
-
-            if (
-                typeof value ===
-                "string"
-            ) {
-
-                return (
-                    `${label}: ${value}`
-                );
-            }
-        }
-    }
-
-
-    // =====================================================
-    // ERROR.MESSAGE
-    // =====================================================
-
-    if (
-        error?.message
-    ) {
-
-        try {
-
-            const parsed =
-                JSON.parse(
-                    error.message
-                );
-
-
-            if (
-                parsed?.detail
-            ) {
-
-                return String(
-                    parsed.detail
-                );
-            }
-
-
-            const firstEntry =
-                Object.entries(
-                    parsed
-                )[0];
-
-
-            if (
-                firstEntry
-            ) {
-
-                const [
-                    key,
-                    value,
-                ] =
-                    firstEntry;
-
-
-                const fieldLabels = {
-                    title:
-                        "Sarlavha",
-
-                    type:
-                        "Roadmap turi",
-
-                    description:
-                        "Tavsif",
-
-                    started_at:
-                        "Boshlanish sanasi",
-
-                    finished_at:
-                        "Tugash sanasi",
-                };
-
-
-                const label =
-                    fieldLabels[key]
-                    ||
-                    key;
-
-
-                if (
-                    Array.isArray(
-                        value
-                    )
-                ) {
-
-                    return (
-                        `${label}: ${
-                            value[0]
-                            ||
-                            fallback
-                        }`
-                    );
-                }
-
-
-                if (
-                    typeof value ===
-                    "string"
-                ) {
-
-                    return (
-                        `${label}: ${value}`
-                    );
-                }
-            }
-
-        } catch {
-
-            return String(
-                error.message
-            );
-        }
-    }
-
-
-    return fallback;
-};
-
-
-// =========================================================
-// SORT ROADMAPS
-// =========================================================
-
-const sortRoadmaps = (
-    items = []
-) => {
-
-    return [
-        ...items,
-    ].sort(
-        (
-            first,
-            second
-        ) => {
-
-            const firstDate =
-                String(
-                    first?.started_at
-                    ||
-                    ""
-                );
-
-
-            const secondDate =
-                String(
-                    second?.started_at
-                    ||
-                    ""
-                );
-
-
-            return secondDate.localeCompare(
-                firstDate
-            );
-        }
+    return (
+        parseErrorValue(
+            error?.serverData ??
+            error?.response?.data
+        ) ||
+
+        parseErrorValue(
+            error?.message ?? error
+        ) ||
+
+        fallback
     );
 };
 
+// =========================================================
+// NORMALIZE ROADMAP RESPONSE
+//
+// Supports:
+// - Direct array
+// - Paginated DRF response
+// =========================================================
+
+const normalizeRoadmaps = (response) => {
+    if (Array.isArray(response)) {
+        return response;
+    }
+
+    if (Array.isArray(response?.results)) {
+        return response.results;
+    }
+
+    return [];
+};
+
+// =========================================================
+// SORT ROADMAPS
+//
+// Latest starting date first.
+// =========================================================
+
+const sortRoadmaps = (items = []) => {
+    return [...items].sort(
+        (first, second) =>
+            String(
+                second?.started_at || ""
+            ).localeCompare(
+                String(
+                    first?.started_at || ""
+                )
+            )
+    );
+};
+
+// =========================================================
+// ID HELPERS
+// =========================================================
+
+const isValidId = (id) => {
+    return (
+        id !== null &&
+        id !== undefined &&
+        id !== ""
+    );
+};
+
+const sameId = (first, second) => {
+    return String(first) === String(second);
+};
 
 // =========================================================
 // PROFILE ROADMAP
+//
+// Responsibilities:
+//
+// - Redux integration
+// - Roadmap GET
+// - Roadmap CREATE
+// - Roadmap UPDATE
+// - Roadmap DELETE
+// - Like / Unlike
+// - Owner permissions
+// - Modal state
+// - Request synchronization
+//
+// UI components are located inside ./roadmap/.
 // =========================================================
 
 const ProfileRoadmap = ({
     username,
 }) => {
-
-    const dispatch =
-        useDispatch();
-
-
     // =====================================================
     // REDUX
     // =====================================================
+
+    const dispatch = useDispatch();
 
     const {
         roadmaps,
@@ -384,475 +344,501 @@ const ProfileRoadmap = ({
         selectRoadmapState
     );
 
+    // =====================================================
+    // AUTH
+    // =====================================================
 
     const currentAuthUsername =
         useSelector(
             selectAuthUsername
         );
 
+    // =====================================================
+    // OWNER PERMISSION
+    // =====================================================
+
+    const isOwner = Boolean(
+        username &&
+        currentAuthUsername &&
+
+        String(username).toLowerCase() ===
+        String(currentAuthUsername).toLowerCase()
+    );
 
     // =====================================================
-    // OWNER
-    // =====================================================
-
-    const isOwner =
-        Boolean(
-            currentAuthUsername
-            &&
-            username
-            &&
-            currentAuthUsername ===
-            username
-        );
-
-
-    // =====================================================
-    // FORM MODAL
+    // CREATE / EDIT MODAL STATE
     // =====================================================
 
     const [
         isFormModalOpen,
         setIsFormModalOpen,
-    ] = useState(
-        false
-    );
-
+    ] = useState(false);
 
     const [
         editingRoadmap,
         setEditingRoadmap,
-    ] = useState(
-        null
-    );
-
+    ] = useState(null);
 
     const [
         isFormSubmitting,
         setIsFormSubmitting,
-    ] = useState(
-        false
-    );
-
+    ] = useState(false);
 
     // =====================================================
-    // DELETE MODAL
+    // DELETE MODAL STATE
     // =====================================================
 
     const [
         isDeleteModalOpen,
         setIsDeleteModalOpen,
-    ] = useState(
-        false
-    );
-
+    ] = useState(false);
 
     const [
         deletingRoadmap,
         setDeletingRoadmap,
-    ] = useState(
-        null
-    );
+    ] = useState(null);
 
+    // =====================================================
+    // REFS
+    //
+    // mountedRef:
+    // Prevents updates after unmount.
+    //
+    // fetchSequenceRef:
+    // Ignores stale GET responses.
+    //
+    // loadedUsernameRef:
+    // Prevents another profile's data from flashing.
+    //
+    // submittingRef / deletingRef / likingRef:
+    // Prevent duplicate operations.
+    // =====================================================
+
+    const mountedRef = useRef(false);
+
+    const currentUsernameRef =
+        useRef(username);
+
+    const fetchSequenceRef =
+        useRef(0);
+
+    const loadedUsernameRef =
+        useRef(null);
+
+    const submittingRef =
+        useRef(false);
+
+    const deletingRef =
+        useRef(false);
+
+    const likingRef =
+        useRef(false);
+
+    currentUsernameRef.current = username;
+
+    // =====================================================
+    // MOUNT / UNMOUNT
+    // =====================================================
+
+    useEffect(() => {
+        mountedRef.current = true;
+
+        return () => {
+            mountedRef.current = false;
+
+            fetchSequenceRef.current += 1;
+        };
+    }, []);
 
     // =====================================================
     // SAFE ROADMAPS
+    //
+    // Redux roadmap data is shared between profiles.
+    //
+    // Do not display data fetched for a different
+    // username while the requested profile loads.
     // =====================================================
 
-    const safeRoadmaps =
-        useMemo(
-            () => {
+    const isCurrentProfileLoaded =
+        loadedUsernameRef.current === username;
 
-                return Array.isArray(
-                    roadmaps
-                )
-                    ? roadmaps
-                    : [];
+    const safeRoadmaps = useMemo(() => {
+        if (
+            !isCurrentProfileLoaded ||
+            !Array.isArray(roadmaps)
+        ) {
+            return EMPTY_ROADMAPS;
+        }
 
-            },
-            [
-                roadmaps,
-            ]
-        );
-
-
-    // =====================================================
-    // ROADMAP STATISTICS
-    // =====================================================
-
-    const roadmapStats =
-        useMemo(
-            () => {
-
-                const learning =
-                    safeRoadmaps.filter(
-                        (
-                            item
-                        ) =>
-                            item?.type ===
-                            "learning"
-                    ).length;
-
-
-                const experience =
-                    safeRoadmaps.filter(
-                        (
-                            item
-                        ) =>
-                            item?.type ===
-                            "experience"
-                    ).length;
-
-
-                const completed =
-                    safeRoadmaps.filter(
-                        (
-                            item
-                        ) =>
-                            Boolean(
-                                item
-                                    ?.finished_at
-                            )
-                    ).length;
-
-
-                return {
-                    total:
-                        safeRoadmaps.length,
-
-                    learning,
-
-                    experience,
-
-                    completed,
-                };
-
-            },
-            [
-                safeRoadmaps,
-            ]
-        );
-
+        return roadmaps;
+    }, [
+        isCurrentProfileLoaded,
+        roadmaps,
+    ]);
 
     // =====================================================
     // GET ROADMAPS
+    //
+    // RoadmapService.getRoadmap(username)
+    //
+    // The existing service does not accept AbortSignal.
+    // Use request sequence to ignore stale responses.
     // =====================================================
 
-    const getRoadmap =
-        useCallback(
-            async (
-                {
-                    silent = false,
-                } = {}
-            ) => {
+    const getRoadmap = useCallback(
+        async ({
+            silent = false,
+        } = {}) => {
+            if (!username) {
+                return [];
+            }
+
+            // =============================================
+            // REQUEST SEQUENCE
+            // =============================================
+
+            const sequence =
+                ++fetchSequenceRef.current;
+
+            // =============================================
+            // START LOADING
+            // =============================================
+
+            if (!silent) {
+                dispatch(
+                    getRoadMapStart()
+                );
+            }
+
+            try {
+                // =========================================
+                // API GET
+                // =========================================
+
+                const response =
+                    await RoadmapService.getRoadmap(
+                        username
+                    );
+
+                const nextRoadmaps =
+                    normalizeRoadmaps(response);
+
+                // =========================================
+                // IGNORE OLD RESPONSES
+                // =========================================
 
                 if (
-                    !username
+                    !mountedRef.current ||
+
+                    sequence !==
+                        fetchSequenceRef.current ||
+
+                    currentUsernameRef.current !==
+                        username
                 ) {
                     return [];
                 }
 
+                // =========================================
+                // PROFILE DATA IS READY
+                // =========================================
 
-                if (
-                    !silent
-                ) {
+                loadedUsernameRef.current =
+                    username;
 
-                    dispatch(
-                        getRoadMapStart()
-                    );
-                }
+                // =========================================
+                // REDUX SUCCESS
+                // =========================================
 
-
-                try {
-
-                    const response =
-                        await RoadmapService
-                            .getRoadmap(
-                                username
-                            );
-
-
-                    const nextRoadmaps =
-                        Array.isArray(
-                            response
-                        )
-                            ? response
-
-                            : Array.isArray(
-                                response
-                                    ?.results
-                            )
-                                ? response.results
-                                : [];
-
-
-                    dispatch(
-                        getRoadMapSuccess(
-                            nextRoadmaps
-                        )
-                    );
-
-
-                    return nextRoadmaps;
-
-                } catch (
-                    requestError
-                ) {
-
-                    console.error(
-                        "Roadmap olishda xato:",
-                        requestError
-                    );
-
-
-                    const errorMessage =
-                        getErrorMessage(
-                            requestError,
-                            "Roadmaplarni olishda xato yuz berdi."
-                        );
-
-
-                    if (
-                        !silent
-                    ) {
-
-                        dispatch(
-                            getRoadMapFailure(
-                                errorMessage
-                            )
-                        );
-                    }
-
-
-                    throw requestError;
-                }
-
-            },
-            [
-                dispatch,
-                username,
-            ]
-        );
-
-
-    // =====================================================
-    // INITIAL LOAD
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            getRoadmap()
-                .catch(
-                    () => {
-                        // Error Redux orqali UI da ko‘rsatiladi.
-                    }
+                dispatch(
+                    getRoadMapSuccess(
+                        nextRoadmaps
+                    )
                 );
 
+                return nextRoadmaps;
+            } catch (requestError) {
+                // =========================================
+                // IGNORE OLD REQUEST ERRORS
+                // =========================================
+
+                if (
+                    !mountedRef.current ||
+
+                    sequence !==
+                        fetchSequenceRef.current ||
+
+                    currentUsernameRef.current !==
+                        username
+                ) {
+                    return [];
+                }
+
+                console.error(
+                    "Roadmap olishda xato:",
+                    requestError
+                );
+
+                // =========================================
+                // REDUX ERROR
+                // =========================================
+
+                if (!silent) {
+                    // Stop showing the skeleton after
+                    // a failed initial request.
+
+                    loadedUsernameRef.current =
+                        username;
+
+                    dispatch(
+                        getRoadMapFailure(
+                            getErrorMessage(
+                                requestError,
+                                "Roadmaplarni olishda xato yuz berdi."
+                            )
+                        )
+                    );
+                }
+
+                throw requestError;
+            }
         },
         [
-            getRoadmap,
+            dispatch,
+            username,
         ]
     );
 
-
     // =====================================================
-    // OPEN CREATE
-    // =====================================================
-
-    const handleCreateClick =
-        () => {
-
-            if (
-                !isOwner
-            ) {
-
-                siteToast.warning(
-                    "Faqat o‘z profilingizga roadmap qo‘sha olasiz.",
-                    {
-                        title:
-                            "Ruxsat yo‘q",
-
-                        duration:
-                            3500,
-                    }
-                );
-
-
-                return;
-            }
-
-
-            setEditingRoadmap(
-                null
-            );
-
-
-            setIsFormModalOpen(
-                true
-            );
-        };
-
-
-    // =====================================================
-    // OPEN EDIT
-    // =====================================================
-
-    const handleEditClick =
-        (
-            roadmap
-        ) => {
-
-            if (
-                !isOwner
-            ) {
-
-                siteToast.warning(
-                    "Bu roadmapni tahrirlash huquqingiz yo‘q.",
-                    {
-                        title:
-                            "Ruxsat yo‘q",
-                    }
-                );
-
-
-                return;
-            }
-
-
-            if (
-                !roadmap?.id
-            ) {
-                return;
-            }
-
-
-            setEditingRoadmap(
-                roadmap
-            );
-
-
-            setIsFormModalOpen(
-                true
-            );
-        };
-
-
-    // =====================================================
-    // CLOSE FORM
-    // =====================================================
-
-    const handleCloseFormModal =
-        () => {
-
-            if (
-                isFormSubmitting
-            ) {
-                return;
-            }
-
-
-            setIsFormModalOpen(
-                false
-            );
-
-
-            setEditingRoadmap(
-                null
-            );
-        };
-
-
-    // =====================================================
-    // CREATE / UPDATE
+    // INITIAL LOAD / USERNAME CHANGE
     //
-    // Toast RoadmapCreateModal ichida boshqariladi.
-    // Shu sabab bu yerda success/error toast YO‘Q.
+    // Reset visible modals when switching profiles.
+    //
+    // Increment sequence during cleanup to prevent
+    // outdated requests from updating Redux.
     // =====================================================
 
-    const handleRoadmapSubmit =
-        async (
-            payload
-        ) => {
+    useEffect(() => {
+        setIsFormModalOpen(false);
 
-            if (
-                !username
-            ) {
+        setEditingRoadmap(null);
 
-                throw new Error(
-                    "Profil username topilmadi."
-                );
-            }
+        setIsDeleteModalOpen(false);
 
+        setDeletingRoadmap(null);
 
-            if (
-                !isOwner
-            ) {
+        // ================================================
+        // NO USERNAME
+        // ================================================
 
-                throw new Error(
-                    "Faqat o‘z profilingizdagi roadmapni boshqarishingiz mumkin."
-                );
-            }
+        if (!username) {
+            loadedUsernameRef.current =
+                username;
 
-
-            if (
-                isFormSubmitting
-            ) {
-                return false;
-            }
-
-
-            setIsFormSubmitting(
-                true
+            dispatch(
+                getRoadMapSuccess([])
             );
 
+            return undefined;
+        }
 
-            try {
+        // ================================================
+        // GET CURRENT PROFILE
+        // ================================================
 
-                // =================================================
-                // UPDATE
-                // =================================================
+        getRoadmap().catch(() => {
+            // Error is already stored in Redux.
+        });
+
+        // ================================================
+        // CLEANUP
+        // ================================================
+
+        return () => {
+            fetchSequenceRef.current += 1;
+        };
+    }, [
+        dispatch,
+        getRoadmap,
+        username,
+    ]);
+
+    // =====================================================
+    // OPEN CREATE MODAL
+    // =====================================================
+
+    const handleCreateClick = () => {
+        if (!isOwner) {
+            siteToast.warning(
+                "Faqat o‘z profilingizga roadmap qo‘sha olasiz.",
+                {
+                    title: "Ruxsat yo‘q",
+                    duration: 3500,
+                }
+            );
+
+            return;
+        }
+
+        if (
+            submittingRef.current ||
+            deletingRef.current
+        ) {
+            return;
+        }
+
+        setEditingRoadmap(null);
+
+        setIsFormModalOpen(true);
+    };
+
+    // =====================================================
+    // OPEN EDIT MODAL
+    // =====================================================
+
+    const handleEditClick = (roadmap) => {
+        if (!isOwner) {
+            siteToast.warning(
+                "Bu roadmapni tahrirlash huquqingiz yo‘q.",
+                {
+                    title: "Ruxsat yo‘q",
+                }
+            );
+
+            return;
+        }
+
+        if (
+            !isValidId(roadmap?.id) ||
+            submittingRef.current ||
+            deletingRef.current
+        ) {
+            return;
+        }
+
+        setEditingRoadmap(roadmap);
+
+        setIsFormModalOpen(true);
+    };
+
+    // =====================================================
+    // CLOSE CREATE / EDIT MODAL
+    //
+    // RoadmapCreateModal prevents manual closing
+    // while processing.
+    //
+    // Do not block its success callback because
+    // React may not have rerendered after the
+    // parent's isFormSubmitting becomes false.
+    // =====================================================
+
+    const handleCloseFormModal = () => {
+        setIsFormModalOpen(false);
+
+        setEditingRoadmap(null);
+    };
+
+    // =====================================================
+    // CREATE / UPDATE ROADMAP
+    //
+    // API:
+    //
+    // RoadmapService.createRoadmap(username, payload)
+    //
+    // RoadmapService.updateRoadmap(
+    //     username,
+    //     roadmapId,
+    //     payload
+    // )
+    //
+    // RoadmapCreateModal handles toast notifications.
+    //
+    // Do not duplicate create/update toasts here.
+    // =====================================================
+
+    const handleRoadmapSubmit = async (
+        payload
+    ) => {
+        // =================================================
+        // USERNAME
+        // =================================================
+
+        if (!username) {
+            throw new Error(
+                "Profil username topilmadi."
+            );
+        }
+
+        // =================================================
+        // OWNER
+        // =================================================
+
+        if (!isOwner) {
+            throw new Error(
+                "Faqat o‘z profilingizdagi roadmapni boshqarishingiz mumkin."
+            );
+        }
+
+        // =================================================
+        // DUPLICATE SUBMIT
+        // =================================================
+
+        if (submittingRef.current) {
+            return false;
+        }
+
+        submittingRef.current = true;
+
+        setIsFormSubmitting(true);
+
+        const submittedUsername =
+            username;
+
+        const editingId =
+            editingRoadmap?.id;
+
+        try {
+            // =============================================
+            // UPDATE ROADMAP
+            // =============================================
+
+            if (isValidId(editingId)) {
+                const response =
+                    await RoadmapService.updateRoadmap(
+                        submittedUsername,
+                        editingId,
+                        payload
+                    );
+
+                const updatedRoadmap =
+                    response?.roadmap ||
+                    response;
+
+                // =========================================
+                // UPDATE CURRENT PROFILE ONLY
+                // =========================================
 
                 if (
-                    editingRoadmap?.id
+                    mountedRef.current &&
+                    currentUsernameRef.current ===
+                        submittedUsername
                 ) {
-
-                    const response =
-                        await RoadmapService
-                            .updateRoadmap(
-                                username,
-                                editingRoadmap.id,
-                                payload
-                            );
-
-
-                    const updatedRoadmap =
-                        response?.roadmap
-                        ||
-                        response;
-
-
                     if (
-                        updatedRoadmap?.id
+                        isValidId(
+                            updatedRoadmap?.id
+                        )
                     ) {
-
                         const nextRoadmaps =
                             safeRoadmaps.map(
-                                (
-                                    item
-                                ) => {
-
+                                (item) => {
                                     if (
-                                        Number(
-                                            item.id
-                                        )
-                                        !==
-                                        Number(
-                                            editingRoadmap.id
+                                        !sameId(
+                                            item?.id,
+                                            editingId
                                         )
                                     ) {
                                         return item;
                                     }
-
 
                                     return {
                                         ...item,
@@ -861,7 +847,6 @@ const ProfileRoadmap = ({
                                 }
                             );
 
-
                         dispatch(
                             getRoadMapSuccess(
                                 sortRoadmaps(
@@ -869,59 +854,57 @@ const ProfileRoadmap = ({
                                 )
                             )
                         );
-
                     } else {
-
-                        // Response formati boshqacha bo‘lsa
-                        // serverdan qayta olamiz.
+                        // Unexpected response format.
+                        // Refresh from the server.
 
                         await getRoadmap({
-                            silent:
-                                true,
+                            silent: true,
                         });
                     }
-
-
-                    return updatedRoadmap;
                 }
 
+                return updatedRoadmap;
+            }
 
-                // =================================================
-                // CREATE
-                // =================================================
+            // =============================================
+            // CREATE ROADMAP
+            // =============================================
 
-                const response =
-                    await RoadmapService
-                        .createRoadmap(
-                            username,
-                            payload
-                        );
+            const response =
+                await RoadmapService.createRoadmap(
+                    submittedUsername,
+                    payload
+                );
 
+            const createdRoadmap =
+                response?.roadmap ||
+                response;
 
-                const createdRoadmap =
-                    response?.roadmap
-                    ||
-                    response;
+            // =============================================
+            // UPDATE CURRENT PROFILE ONLY
+            // =============================================
 
-
+            if (
+                mountedRef.current &&
+                currentUsernameRef.current ===
+                    submittedUsername
+            ) {
                 if (
-                    createdRoadmap?.id
+                    isValidId(
+                        createdRoadmap?.id
+                    )
                 ) {
+                    // Avoid duplicate roadmap IDs.
 
                     const withoutDuplicate =
                         safeRoadmaps.filter(
-                            (
-                                item
-                            ) =>
-                                Number(
-                                    item.id
-                                )
-                                !==
-                                Number(
+                            (item) =>
+                                !sameId(
+                                    item?.id,
                                     createdRoadmap.id
                                 )
                         );
-
 
                     dispatch(
                         getRoadMapSuccess(
@@ -931,422 +914,438 @@ const ProfileRoadmap = ({
                             ])
                         )
                     );
-
                 } else {
+                    // Unexpected response format.
+                    // Refresh from the server.
 
                     await getRoadmap({
-                        silent:
-                            true,
+                        silent: true,
                     });
                 }
+            }
 
-
-                return createdRoadmap;
-
-            } catch (
+            return createdRoadmap;
+        } catch (requestError) {
+            console.error(
+                isValidId(editingId)
+                    ? "Roadmap update xato:"
+                    : "Roadmap create xato:",
                 requestError
-            ) {
-
-                console.error(
-                    editingRoadmap?.id
-
-                        ? "Roadmap update xato:"
-
-                        : "Roadmap create xato:",
-
-                    requestError
-                );
-
-
-                /*
-                    MUHIM:
-
-                    Xatoni bu yerda yutib yubormaymiz.
-
-                    RoadmapCreateModal catch qiladi
-                    va siteToast orqali chiqaradi.
-                */
-
-                throw requestError;
-
-            } finally {
-
-                setIsFormSubmitting(
-                    false
-                );
-            }
-        };
-
-
-    // =====================================================
-    // DELETE CLICK
-    // =====================================================
-
-    const handleDeleteClick =
-        (
-            roadmap
-        ) => {
-
-            if (
-                !isOwner
-            ) {
-
-                siteToast.warning(
-                    "Bu roadmapni o‘chirish huquqingiz yo‘q.",
-                    {
-                        title:
-                            "Ruxsat yo‘q",
-                    }
-                );
-
-
-                return;
-            }
-
-
-            if (
-                !roadmap?.id
-            ) {
-                return;
-            }
-
-
-            setDeletingRoadmap(
-                roadmap
             );
 
+            // The modal catches this error and
+            // displays its existing siteToast.
 
-            setIsDeleteModalOpen(
-                true
-            );
-        };
+            throw requestError;
+        } finally {
+            submittingRef.current = false;
 
-
-    // =====================================================
-    // CLOSE DELETE
-    // =====================================================
-
-    const handleCloseDeleteModal =
-        () => {
-
-            if (
-                isDeleting
-            ) {
-                return;
+            if (mountedRef.current) {
+                setIsFormSubmitting(false);
             }
+        }
+    };
 
+    // =====================================================
+    // OPEN DELETE MODAL
+    // =====================================================
 
-            setIsDeleteModalOpen(
-                false
+    const handleDeleteClick = (roadmap) => {
+        if (!isOwner) {
+            siteToast.warning(
+                "Bu roadmapni o‘chirish huquqingiz yo‘q.",
+                {
+                    title: "Ruxsat yo‘q",
+                }
             );
 
+            return;
+        }
 
-            setDeletingRoadmap(
-                null
-            );
-        };
+        if (
+            !isValidId(roadmap?.id) ||
+            deletingRef.current ||
+            submittingRef.current
+        ) {
+            return;
+        }
 
+        setDeletingRoadmap(roadmap);
+
+        setIsDeleteModalOpen(true);
+    };
+
+    // =====================================================
+    // CLOSE DELETE MODAL
+    // =====================================================
+
+    const handleCloseDeleteModal = () => {
+        if (
+            deletingRef.current ||
+            isDeleting
+        ) {
+            return;
+        }
+
+        setIsDeleteModalOpen(false);
+
+        setDeletingRoadmap(null);
+    };
 
     // =====================================================
     // CONFIRM DELETE
+    //
+    // Original DeleteConfirmationModal contract.
+    //
+    // API DELETE may return HTTP 204 with no body.
+    // Send the known roadmap ID to Redux.
     // =====================================================
 
-    const handleConfirmDelete =
-        async () => {
+    const handleConfirmDelete = async () => {
+        if (
+            !isOwner ||
+            !isValidId(deletingRoadmap?.id) ||
+            deletingRef.current ||
+            isDeleting
+        ) {
+            return;
+        }
 
-            if (
-                !deletingRoadmap?.id
-                ||
-                isDeleting
-            ) {
-                return;
+        deletingRef.current = true;
+
+        const deletedId =
+            deletingRoadmap.id;
+
+        const deletedTitle =
+            deletingRoadmap.title ||
+            "Roadmap";
+
+        const submittedUsername =
+            username;
+
+        // ================================================
+        // REDUX START
+        // ================================================
+
+        dispatch(
+            deleteRoadMapStart()
+        );
+
+        // ================================================
+        // LOADING TOAST
+        // ================================================
+
+        const toastId = siteToast.loading(
+            `"${deletedTitle}" roadmap o‘chirilmoqda...`,
+            {
+                title:
+                    "Roadmap o‘chirilmoqda",
             }
+        );
 
+        try {
+            // ============================================
+            // API DELETE
+            // ============================================
 
-            dispatch(
-                deleteRoadMapStart()
+            await RoadmapService.deleteRoadmap(
+                submittedUsername,
+                deletedId
             );
 
+            // ============================================
+            // REDUX SUCCESS
+            // ============================================
 
-            const toastId =
-                siteToast.loading(
-                    `"${deletingRoadmap.title}" roadmap o‘chirilmoqda...`,
-                    {
-                        title:
-                            "Roadmap o‘chirilmoqda",
-                    }
-                );
-
-
-            try {
-
-                await RoadmapService
-                    .deleteRoadmap(
-                        username,
-                        deletingRoadmap.id
-                    );
-
-
-                /*
-                    API 204 qaytarsa response body bo‘lmasligi
-                    mumkin. Shu sabab reducerga o‘zimiz bilgan
-                    roadmap ID ni yuboramiz.
-                */
-
+            if (
+                mountedRef.current &&
+                currentUsernameRef.current ===
+                    submittedUsername
+            ) {
                 dispatch(
                     deleteRoadMapSuccess(
-                        deletingRoadmap.id
+                        deletedId
                     )
                 );
 
+                setIsDeleteModalOpen(false);
 
-                setIsDeleteModalOpen(
-                    false
-                );
+                setDeletingRoadmap(null);
+            }
 
+            // ============================================
+            // SUCCESS TOAST
+            // ============================================
 
-                setDeletingRoadmap(
-                    null
-                );
-
-
-                siteToast.success(
-                    "Roadmap muvaffaqiyatli o‘chirildi.",
-                    {
-                        id:
-                            toastId,
-
-                        title:
-                            "Roadmap o‘chirildi",
-
-                        duration:
-                            3200,
-                    }
-                );
-
-            } catch (
+            siteToast.success(
+                "Roadmap muvaffaqiyatli o‘chirildi.",
+                {
+                    id: toastId,
+                    title:
+                        "Roadmap o‘chirildi",
+                    duration: 3200,
+                }
+            );
+        } catch (requestError) {
+            console.error(
+                "Roadmap o‘chirishda xato:",
                 requestError
-            ) {
-
-                console.error(
-                    "Roadmap o‘chirishda xato:",
-                    requestError
-                );
-
-
-                const errorMessage =
-                    getErrorMessage(
-                        requestError,
-                        "Roadmapni o‘chirishda xato yuz berdi."
-                    );
-
-
-                dispatch(
-                    deleteRoadMapFailure(
-                        errorMessage
-                    )
-                );
-
-
-                siteToast.error(
-                    errorMessage,
-                    {
-                        id:
-                            toastId,
-
-                        title:
-                            "Roadmap o‘chirilmadi",
-
-                        duration:
-                            5000,
-                    }
-                );
-            }
-        };
-
-
-    // =====================================================
-    // TOGGLE LIKE
-    // =====================================================
-
-    const handleToggleLike =
-        async (
-            roadmap
-        ) => {
-
-            if (
-                !roadmap?.id
-            ) {
-                return;
-            }
-
-
-            // =================================================
-            // AUTH
-            // =================================================
-
-            if (
-                !currentAuthUsername
-            ) {
-
-                siteToast.warning(
-                    "Roadmapni yoqtirish uchun avval tizimga kiring.",
-                    {
-                        title:
-                            "Kirish talab qilinadi",
-
-                        duration:
-                            3500,
-                    }
-                );
-
-
-                return;
-            }
-
-
-            // =================================================
-            // BUSY
-            // =================================================
-
-            if (
-                isLiking
-                ||
-                isDeleting
-                ||
-                roadmap_isLoading
-            ) {
-                return;
-            }
-
-
-            dispatch(
-                toggleLikeRoadmapStart(
-                    roadmap.id
-                )
             );
 
+            const message = getErrorMessage(
+                requestError,
+                "Roadmapni o‘chirishda xato yuz berdi."
+            );
 
-            // =================================================
-            // OLD VALUES
-            // =================================================
+            // ============================================
+            // REDUX ERROR
+            // ============================================
 
-            const oldIsLiked =
-                Boolean(
-                    roadmap.is_liked
+            if (
+                mountedRef.current &&
+                currentUsernameRef.current ===
+                    submittedUsername
+            ) {
+                dispatch(
+                    deleteRoadMapFailure(
+                        message
+                    )
                 );
+            }
 
+            // ============================================
+            // ERROR TOAST
+            // ============================================
 
-            const oldLikeCount =
-                Number(
-                    roadmap.like_count
-                    ||
-                    0
-                );
+            siteToast.error(
+                message,
+                {
+                    id: toastId,
+                    title:
+                        "Roadmap o‘chirilmadi",
+                    duration: 5000,
+                }
+            );
+        } finally {
+            deletingRef.current = false;
+        }
+    };
 
+    // =====================================================
+    // LIKE / UNLIKE ROADMAP
+    //
+    // Existing behavior:
+    //
+    // 1. Check authentication
+    // 2. Prevent duplicate requests
+    // 3. Optimistically update Redux
+    // 4. POST to backend
+    // 5. Sync response
+    // 6. Rollback on error
+    // =====================================================
 
-            // =================================================
-            // OPTIMISTIC VALUES
-            // =================================================
+    const handleToggleLike = async (
+        roadmap
+    ) => {
+        // =================================================
+        // VALID ROADMAP
+        // =================================================
 
-            const nextIsLiked =
-                !oldIsLiked;
+        if (
+            !isValidId(
+                roadmap?.id
+            )
+        ) {
+            return;
+        }
 
+        // =================================================
+        // AUTH
+        // =================================================
 
-            const nextLikeCount =
-                Math.max(
+        if (!currentAuthUsername) {
+            siteToast.warning(
+                "Roadmapni yoqtirish uchun avval tizimga kiring.",
+                {
+                    title:
+                        "Kirish talab qilinadi",
+                    duration: 3500,
+                }
+            );
+
+            return;
+        }
+
+        // =================================================
+        // BUSY STATE
+        // =================================================
+
+        if (
+            likingRef.current ||
+            isLiking ||
+            deletingRef.current ||
+            isDeleting ||
+            roadmap_isLoading
+        ) {
+            return;
+        }
+
+        const roadmapId =
+            roadmap.id;
+
+        const submittedUsername =
+            username;
+
+        likingRef.current = true;
+
+        // =================================================
+        // OLD VALUES
+        // =================================================
+
+        const oldIsLiked = Boolean(
+            roadmap.is_liked
+        );
+
+        const oldLikeCountRaw = Number(
+            roadmap.like_count ?? 0
+        );
+
+        const oldLikeCount =
+            Number.isFinite(
+                oldLikeCountRaw
+            )
+                ? Math.max(
                     0,
+                    oldLikeCountRaw
+                )
+                : 0;
 
-                    nextIsLiked
-                        ? oldLikeCount + 1
-                        : oldLikeCount - 1
+        // =================================================
+        // NEXT VALUES
+        // =================================================
+
+        const nextIsLiked =
+            !oldIsLiked;
+
+        const nextLikeCount = Math.max(
+            0,
+            oldLikeCount +
+                (nextIsLiked ? 1 : -1)
+        );
+
+        // =================================================
+        // REDUX START
+        // =================================================
+
+        dispatch(
+            toggleLikeRoadmapStart(
+                roadmapId
+            )
+        );
+
+        // =================================================
+        // OPTIMISTIC UPDATE
+        // =================================================
+
+        dispatch(
+            updateRoadmapLocal({
+                id: roadmapId,
+
+                changes: {
+                    is_liked:
+                        nextIsLiked,
+
+                    like_count:
+                        nextLikeCount,
+                },
+            })
+        );
+
+        try {
+            // =============================================
+            // API REQUEST
+            // =============================================
+
+            const response =
+                await RoadmapService.toggleLikeRoadmap(
+                    roadmapId
                 );
 
+            // =============================================
+            // IGNORE OLD PROFILE RESPONSE
+            // =============================================
 
-            // =================================================
-            // OPTIMISTIC UI
-            // =================================================
+            if (
+                !mountedRef.current ||
+                currentUsernameRef.current !==
+                    submittedUsername
+            ) {
+                return;
+            }
+
+            // =============================================
+            // NORMALIZE COUNTER
+            // =============================================
+
+            const returnedCount = Number(
+                response?.like_count ??
+                nextLikeCount
+            );
+
+            // =============================================
+            // REDUX SUCCESS
+            // =============================================
 
             dispatch(
-                updateRoadmapLocal({
+                toggleLikeRoadmapSuccess({
+                    ...response,
+
                     id:
-                        roadmap.id,
+                        response?.id ??
+                        roadmapId,
 
-                    changes: {
-                        is_liked:
-                            nextIsLiked,
+                    is_liked:
+                        typeof response?.is_liked ===
+                        "boolean"
+                            ? response.is_liked
+                            : nextIsLiked,
 
-                        like_count:
-                            nextLikeCount,
-                    },
+                    like_count:
+                        Number.isFinite(
+                            returnedCount
+                        )
+                            ? Math.max(
+                                0,
+                                returnedCount
+                            )
+                            : nextLikeCount,
                 })
             );
 
-
-            try {
-
-                const response =
-                    await RoadmapService
-                        .toggleLikeRoadmap(
-                            roadmap.id
-                        );
-
-
-                dispatch(
-                    toggleLikeRoadmapSuccess({
-                        ...response,
-
-                        id:
-                            response?.id
-                            ||
-                            roadmap.id,
-
-                        is_liked:
-                            typeof response
-                                ?.is_liked ===
-                            "boolean"
-
-                                ? response.is_liked
-
-                                : nextIsLiked,
-
-                        like_count:
-                            Number(
-                                response
-                                    ?.like_count
-                                ??
-                                nextLikeCount
-                            ),
-                    })
-                );
-
-
-                /*
-                    Like bosilganda har safar success toast
-                    chiqarish shart emas.
-
-                    Aks holda user tez-tez like/unlike qilganda
-                    toast juda ko‘payib ketadi.
-                */
-
-            } catch (
+            // Like success toast intentionally omitted.
+        } catch (requestError) {
+            console.error(
+                "Roadmap like bosishda xato:",
                 requestError
+            );
+
+            const message = getErrorMessage(
+                requestError,
+                "Roadmapni yoqtirishda xato yuz berdi."
+            );
+
+            // =============================================
+            // ROLLBACK
+            // =============================================
+
+            if (
+                mountedRef.current &&
+                currentUsernameRef.current ===
+                    submittedUsername
             ) {
-
-                console.error(
-                    "Roadmap like bosishda xato:",
-                    requestError
-                );
-
-
-                // =================================================
-                // ROLLBACK
-                // =================================================
-
                 dispatch(
                     updateRoadmapLocal({
-                        id:
-                            roadmap.id,
+                        id: roadmapId,
 
                         changes: {
                             is_liked:
@@ -1358,1296 +1357,206 @@ const ProfileRoadmap = ({
                     })
                 );
 
-
-                const errorMessage =
-                    getErrorMessage(
-                        requestError,
-                        "Roadmapni yoqtirishda xato yuz berdi."
-                    );
-
-
                 dispatch(
                     toggleLikeRoadmapFailure(
-                        errorMessage
+                        message
                     )
                 );
 
+                // =========================================
+                // ERROR TOAST
+                // =========================================
 
                 siteToast.error(
-                    errorMessage,
+                    message,
                     {
                         title:
                             "Like amalga oshmadi",
-
-                        duration:
-                            4200,
+                        duration: 4200,
                     }
                 );
             }
-        };
-
+        } finally {
+            likingRef.current = false;
+        }
+    };
 
     // =====================================================
     // RETRY
+    //
+    // ProfileRoadmapHeader and ProfileRoadmapError
+    // use the same callback.
     // =====================================================
 
-    const handleRetry =
-        async () => {
-
-            try {
-
-                await getRoadmap();
-
-            } catch {
-                // Redux state orqali error ko‘rsatiladi.
-            }
-        };
-
-
-    // =====================================================
-    // EMPTY / ERROR COMPONENT
-    // =====================================================
-
-    const EmptyRoadmap = ({
-        errorMode = false,
-    }) => {
-
-        const message =
-            errorMode
-
-                ? roadmap_error
-                    ||
-                    "Roadmaplarni yuklab bo‘lmadi."
-
-                : isOwner
-
-                    ? "O‘rganayotgan texnologiyalaringiz, tajribangiz va rivojlanish bosqichlaringizni roadmap orqali ko‘rsating."
-
-                    : "Foydalanuvchi hali o‘z rivojlanish yo‘lini qo‘shmagan.";
-
-
-        return (
-            <div
-                className="
-                    relative
-                    overflow-hidden
-                    rounded-[28px]
-                    border
-                    border-white/[0.07]
-                    bg-[#0b1018]/80
-                    p-6
-                    shadow-2xl
-                    shadow-black/20
-
-                    sm:p-8
-                "
-            >
-
-                {/* =============================================
-                    GLOWS
-                ============================================== */}
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -right-20
-                        -top-20
-                        h-56
-                        w-56
-                        rounded-full
-                        bg-indigo-500/[0.08]
-                        blur-[80px]
-                    "
-                />
-
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -bottom-20
-                        -left-20
-                        h-56
-                        w-56
-                        rounded-full
-                        bg-violet-500/[0.06]
-                        blur-[80px]
-                    "
-                />
-
-
-                <div
-                    className="
-                        relative
-                        z-10
-                        mx-auto
-                        flex
-                        max-w-2xl
-                        flex-col
-                        items-center
-                        py-8
-                        text-center
-
-                        sm:py-12
-                    "
-                >
-
-                    {/* =========================================
-                        ICON
-                    ========================================== */}
-
-                    <div
-                        className={`
-                            relative
-                            flex
-                            h-20
-                            w-20
-                            items-center
-                            justify-center
-                            rounded-[24px]
-                            border
-
-                            ${
-                                errorMode
-
-                                    ? `
-                                        border-red-400/15
-                                        bg-red-500/[0.06]
-                                        text-red-300
-                                    `
-
-                                    : `
-                                        border-indigo-400/15
-                                        bg-indigo-500/[0.07]
-                                        text-indigo-300
-                                    `
-                            }
-                        `}
-                    >
-
-                        {errorMode ? (
-                            <AlertTriangle
-                                size={31}
-                            />
-                        ) : (
-                            <MapPinned
-                                size={32}
-                            />
-                        )}
-
-
-                        {!errorMode && (
-                            <span
-                                className="
-                                    absolute
-                                    -right-1
-                                    -top-1
-                                    h-4
-                                    w-4
-                                    rounded-full
-                                    border-[3px]
-                                    border-[#0b1018]
-                                    bg-emerald-400
-                                    shadow-[0_0_12px_rgba(52,211,153,0.7)]
-                                "
-                            />
-                        )}
-
-                    </div>
-
-
-                    {/* =========================================
-                        TEXT
-                    ========================================== */}
-
-                    <div
-                        className="
-                            mt-5
-                        "
-                    >
-
-                        <p
-                            className="
-                                text-[9px]
-                                font-black
-                                uppercase
-                                tracking-[0.22em]
-                                text-indigo-400
-                            "
-                        >
-                            F.Society Journey
-                        </p>
-
-
-                        <h3
-                            className="
-                                mt-2
-                                text-xl
-                                font-black
-                                tracking-tight
-                                text-white
-
-                                sm:text-2xl
-                            "
-                        >
-                            {errorMode
-                                ? "Roadmaplarni yuklab bo‘lmadi"
-                                : "Rivojlanish yo‘li hali boshlanmagan"}
-                        </h3>
-
-
-                        <p
-                            className="
-                                mx-auto
-                                mt-3
-                                max-w-lg
-                                text-xs
-                                font-medium
-                                leading-6
-                                text-gray-600
-
-                                sm:text-sm
-                            "
-                        >
-                            {message}
-                        </p>
-
-                    </div>
-
-
-                    {/* =========================================
-                        ACTION
-                    ========================================== */}
-
-                    <div
-                        className="
-                            mt-6
-                            flex
-                            flex-wrap
-                            items-center
-                            justify-center
-                            gap-2
-                        "
-                    >
-
-                        {errorMode && (
-                            <button
-                                type="button"
-                                onClick={
-                                    handleRetry
-                                }
-                                className="
-                                    inline-flex
-                                    min-h-[42px]
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    rounded-xl
-                                    border
-                                    border-white/[0.08]
-                                    bg-white/[0.035]
-                                    px-4
-                                    py-2.5
-                                    text-xs
-                                    font-black
-                                    text-gray-300
-                                    transition
-
-                                    hover:border-indigo-400/20
-                                    hover:bg-indigo-500/[0.06]
-                                    hover:text-indigo-200
-
-                                    active:scale-[0.97]
-                                "
-                            >
-                                <RefreshCw
-                                    size={15}
-                                />
-
-                                Qayta urinish
-                            </button>
-                        )}
-
-
-                        {!errorMode
-                            &&
-                            isOwner
-                            && (
-                                <button
-                                    type="button"
-                                    onClick={
-                                        handleCreateClick
-                                    }
-                                    className="
-                                        group
-                                        inline-flex
-                                        min-h-[42px]
-                                        items-center
-                                        justify-center
-                                        gap-2
-                                        rounded-xl
-                                        border
-                                        border-indigo-400/25
-                                        bg-indigo-600
-                                        px-5
-                                        py-2.5
-                                        text-xs
-                                        font-black
-                                        text-white
-                                        shadow-lg
-                                        shadow-indigo-600/20
-                                        transition-all
-
-                                        hover:-translate-y-0.5
-                                        hover:bg-indigo-500
-                                        hover:shadow-indigo-500/25
-
-                                        active:translate-y-0
-                                        active:scale-[0.97]
-                                    "
-                                >
-                                    <Plus
-                                        size={16}
-                                        className="
-                                            transition-transform
-                                            group-hover:rotate-90
-                                        "
-                                    />
-
-                                    Birinchi roadmapni qo‘shish
-                                </button>
-                            )
-                        }
-
-                    </div>
-
-                </div>
-
-            </div>
-        );
+    const handleRetry = () => {
+        getRoadmap().catch(() => {
+            // Redux error will be displayed.
+        });
     };
 
-
     // =====================================================
-    // INITIAL LOADING
+    // DISPLAY STATE
+    //
+    // Always render modals outside conditional states.
+    //
+    // This prevents losing an active modal when a
+    // background fetch changes the loading state.
     // =====================================================
 
-    if (
-        roadmap_isLoading
-        &&
-        safeRoadmaps.length ===
-        0
-    ) {
-
-        return (
-            <div
-                id="roadmap"
-                className="
-                    overflow-hidden
-                    rounded-[28px]
-                    border
-                    border-white/[0.07]
-                    bg-[#0b1018]/80
-                    p-5
-
-                    sm:p-7
-                "
-            >
-
-                {/* =========================================
-                    HEADER SKELETON
-                ========================================== */}
-
-                <div
-                    className="
-                        flex
-                        items-center
-                        justify-between
-                        gap-4
-                    "
-                >
-                    <div
-                        className="
-                            space-y-2
-                        "
-                    >
-                        <div
-                            className="
-                                h-6
-                                w-40
-                                animate-pulse
-                                rounded-lg
-                                bg-white/[0.06]
-                            "
-                        />
-
-                        <div
-                            className="
-                                h-3
-                                w-64
-                                max-w-full
-                                animate-pulse
-                                rounded-lg
-                                bg-white/[0.035]
-                            "
-                        />
-                    </div>
-
-
-                    <div
-                        className="
-                            h-10
-                            w-28
-                            animate-pulse
-                            rounded-xl
-                            bg-white/[0.05]
-                        "
-                    />
-                </div>
-
-
-                {/* =========================================
-                    TIMELINE SKELETON
-                ========================================== */}
-
-                <div
-                    className="
-                        relative
-                        mt-8
-                        space-y-8
-                    "
-                >
-
-                    <div
-                        className="
-                            absolute
-                            bottom-5
-                            left-[17px]
-                            top-5
-                            w-px
-                            bg-white/[0.06]
-                        "
-                    />
-
-
-                    {[1, 2, 3].map(
-                        (
-                            item
-                        ) => (
-                            <div
-                                key={
-                                    item
-                                }
-                                className="
-                                    relative
-                                    flex
-                                    gap-5
-                                    pl-12
-                                "
-                            >
-
-                                <div
-                                    className="
-                                        absolute
-                                        left-0
-                                        top-1
-                                        h-9
-                                        w-9
-                                        animate-pulse
-                                        rounded-full
-                                        border-4
-                                        border-[#0b1018]
-                                        bg-white/[0.08]
-                                    "
-                                />
-
-
-                                <div
-                                    className="
-                                        flex-1
-                                        space-y-3
-                                    "
-                                >
-                                    <div
-                                        className="
-                                            h-3
-                                            w-28
-                                            animate-pulse
-                                            rounded-lg
-                                            bg-white/[0.04]
-                                        "
-                                    />
-
-                                    <div
-                                        className="
-                                            h-6
-                                            w-2/3
-                                            animate-pulse
-                                            rounded-lg
-                                            bg-white/[0.07]
-                                        "
-                                    />
-
-                                    <div
-                                        className="
-                                            h-3
-                                            w-full
-                                            animate-pulse
-                                            rounded-lg
-                                            bg-white/[0.04]
-                                        "
-                                    />
-
-                                    <div
-                                        className="
-                                            h-3
-                                            w-3/4
-                                            animate-pulse
-                                            rounded-lg
-                                            bg-white/[0.035]
-                                        "
-                                    />
-                                </div>
-
-                            </div>
-                        )
-                    )}
-
-                </div>
-
-            </div>
+    const showSkeleton =
+        !isCurrentProfileLoaded ||
+        (
+            roadmap_isLoading &&
+            safeRoadmaps.length === 0
         );
-    }
 
-
-    // =====================================================
-    // ERROR
-    // =====================================================
-
-    if (
-        roadmap_error
-        &&
-        safeRoadmaps.length ===
-        0
-    ) {
-
-        return (
-            <div
-                id="roadmap"
-            >
-                <EmptyRoadmap
-                    errorMode
-                />
-            </div>
-        );
-    }
-
+    const showFullError = Boolean(
+        !showSkeleton &&
+        roadmap_error &&
+        safeRoadmaps.length === 0
+    );
 
     // =====================================================
-    // EMPTY
-    // =====================================================
-
-    if (
-        safeRoadmaps.length ===
-        0
-    ) {
-
-        return (
-            <div
-                id="roadmap"
-            >
-
-                <EmptyRoadmap />
-
-
-                <RoadmapFormModal
-                    isOpen={
-                        isFormModalOpen
-                    }
-                    onClose={
-                        handleCloseFormModal
-                    }
-                    onSubmit={
-                        handleRoadmapSubmit
-                    }
-                    initialData={
-                        editingRoadmap
-                    }
-                    isSubmitting={
-                        isFormSubmitting
-                    }
-                />
-
-            </div>
-        );
-    }
-
-
-    // =====================================================
-    // MAIN
+    // RENDER
     // =====================================================
 
     return (
         <div
             id="roadmap"
             className="
+                min-w-0
                 space-y-5
             "
         >
+            {/* =========================================
+                CONTENT STATES
+            ========================================== */}
 
-            {/* =================================================
-                HEADER
-            ================================================== */}
+            {showSkeleton ? (
+                // =====================================
+                // LOADING SKELETON
+                // =====================================
 
-            <div
-                className="
-                    relative
-                    overflow-hidden
-                    rounded-[26px]
-                    border
-                    border-white/[0.07]
-                    bg-[#0b1018]/80
-                    p-5
-                    shadow-xl
-                    shadow-black/20
-
-                    sm:p-6
-                "
-            >
-
-                {/* GLOW */}
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -right-16
-                        -top-20
-                        h-48
-                        w-48
-                        rounded-full
-                        bg-indigo-500/[0.08]
-                        blur-[75px]
-                    "
+                <ProfileRoadmapSkeleton
+                    isOwner={isOwner}
                 />
+            ) : showFullError ? (
+                // =====================================
+                // FULL FETCH ERROR
+                // =====================================
 
+                <ProfileRoadmapError
+                    variant="fetch"
+                    error={roadmap_error}
+                    onRetry={handleRetry}
+                    isLoading={
+                        roadmap_isLoading
+                    }
+                />
+            ) : (
+                <>
+                    {/* =============================
+                        1. HEADER
+                    ============================== */}
 
-                <div
-                    className="
-                        relative
-                        z-10
-                        flex
-                        flex-col
-                        gap-5
+                    <ProfileRoadmapHeader
+                        roadmaps={safeRoadmaps}
+                        isOwner={isOwner}
+                        isLoading={
+                            roadmap_isLoading
+                        }
+                        onRefresh={handleRetry}
+                        onCreate={
+                            handleCreateClick
+                        }
+                    />
 
-                        sm:flex-row
-                        sm:items-center
-                        sm:justify-between
-                    "
-                >
+                    {/* =============================
+                        2. FETCH ERROR
+                        WITH EXISTING DATA
+                    ============================== */}
 
-                    {/* =========================================
-                        TITLE
-                    ========================================== */}
-
-                    <div
-                        className="
-                            flex
-                            items-center
-                            gap-4
-                        "
-                    >
-
-                        <div
-                            className="
-                                flex
-                                h-12
-                                w-12
-                                shrink-0
-                                items-center
-                                justify-center
-                                rounded-2xl
-                                border
-                                border-indigo-400/15
-                                bg-indigo-500/[0.07]
-                                text-indigo-300
-                            "
-                        >
-                            <Route
-                                size={22}
+                    {roadmap_error &&
+                        safeRoadmaps.length > 0 && (
+                            <ProfileRoadmapError
+                                variant="action"
+                                error={roadmap_error}
                             />
-                        </div>
-
-
-                        <div>
-
-                            <div
-                                className="
-                                    flex
-                                    flex-wrap
-                                    items-center
-                                    gap-2
-                                "
-                            >
-                                <h3
-                                    className="
-                                        text-xl
-                                        font-black
-                                        tracking-tight
-                                        text-white
-
-                                        sm:text-2xl
-                                    "
-                                >
-                                    Yo‘l xaritasi
-                                </h3>
-
-
-                                <span
-                                    className="
-                                        inline-flex
-                                        items-center
-                                        rounded-full
-                                        border
-                                        border-indigo-400/15
-                                        bg-indigo-500/[0.06]
-                                        px-2.5
-                                        py-1
-                                        text-[9px]
-                                        font-black
-                                        text-indigo-300
-                                    "
-                                >
-                                    {
-                                        roadmapStats.total
-                                    }
-                                    {" "}
-                                    ta
-                                </span>
-                            </div>
-
-
-                            <p
-                                className="
-                                    mt-1
-                                    text-xs
-                                    font-medium
-                                    text-gray-600
-                                "
-                            >
-                                O‘rganish, tajriba va rivojlanish timeline’i
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* =========================================
-                        ACTIONS
-                    ========================================== */}
-
-                    <div
-                        className="
-                            flex
-                            flex-wrap
-                            items-center
-                            gap-2
-                        "
-                    >
-
-                        <button
-                            type="button"
-                            onClick={
-                                handleRetry
-                            }
-                            disabled={
-                                roadmap_isLoading
-                            }
-                            title="Roadmaplarni yangilash"
-                            className="
-                                inline-flex
-                                h-10
-                                w-10
-                                items-center
-                                justify-center
-                                rounded-xl
-                                border
-                                border-white/[0.07]
-                                bg-white/[0.025]
-                                text-gray-500
-                                transition
-
-                                hover:border-indigo-400/20
-                                hover:bg-indigo-500/[0.06]
-                                hover:text-indigo-300
-
-                                disabled:cursor-not-allowed
-                                disabled:opacity-40
-                            "
-                        >
-                            <RefreshCw
-                                size={15}
-                                className={
-                                    roadmap_isLoading
-                                        ? "animate-spin"
-                                        : ""
-                                }
-                            />
-                        </button>
-
-
-                        {isOwner && (
-                            <button
-                                type="button"
-                                onClick={
-                                    handleCreateClick
-                                }
-                                className="
-                                    group
-                                    inline-flex
-                                    min-h-[40px]
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    rounded-xl
-                                    border
-                                    border-indigo-400/25
-                                    bg-indigo-600
-                                    px-4
-                                    py-2.5
-                                    text-xs
-                                    font-black
-                                    text-white
-                                    shadow-lg
-                                    shadow-indigo-600/20
-                                    transition-all
-
-                                    hover:-translate-y-0.5
-                                    hover:bg-indigo-500
-
-                                    active:translate-y-0
-                                    active:scale-[0.97]
-                                "
-                            >
-                                <Plus
-                                    size={15}
-                                    className="
-                                        transition-transform
-                                        group-hover:rotate-90
-                                    "
-                                />
-
-                                Roadmap qo‘shish
-                            </button>
                         )}
 
-                    </div>
+                    {/* =============================
+                        3. DELETE ERROR
+                    ============================== */}
 
-                </div>
-
-
-                {/* =================================================
-                    SMALL STATS
-                ================================================== */}
-
-                <div
-                    className="
-                        relative
-                        z-10
-                        mt-5
-                        grid
-                        grid-cols-2
-                        gap-2
-
-                        sm:grid-cols-4
-                    "
-                >
-
-                    <div
-                        className="
-                            rounded-xl
-                            border
-                            border-white/[0.05]
-                            bg-black/15
-                            px-3
-                            py-2.5
-                        "
-                    >
-                        <p
-                            className="
-                                text-[9px]
-                                font-black
-                                uppercase
-                                tracking-wider
-                                text-gray-700
-                            "
-                        >
-                            Jami
-                        </p>
-
-                        <p
-                            className="
-                                mt-1
-                                text-sm
-                                font-black
-                                text-white
-                            "
-                        >
-                            {
-                                roadmapStats.total
-                            }
-                        </p>
-                    </div>
-
-
-                    <div
-                        className="
-                            rounded-xl
-                            border
-                            border-indigo-400/[0.08]
-                            bg-indigo-500/[0.025]
-                            px-3
-                            py-2.5
-                        "
-                    >
-                        <p
-                            className="
-                                text-[9px]
-                                font-black
-                                uppercase
-                                tracking-wider
-                                text-gray-700
-                            "
-                        >
-                            Learning
-                        </p>
-
-                        <p
-                            className="
-                                mt-1
-                                text-sm
-                                font-black
-                                text-indigo-300
-                            "
-                        >
-                            {
-                                roadmapStats.learning
-                            }
-                        </p>
-                    </div>
-
-
-                    <div
-                        className="
-                            rounded-xl
-                            border
-                            border-emerald-400/[0.08]
-                            bg-emerald-500/[0.025]
-                            px-3
-                            py-2.5
-                        "
-                    >
-                        <p
-                            className="
-                                text-[9px]
-                                font-black
-                                uppercase
-                                tracking-wider
-                                text-gray-700
-                            "
-                        >
-                            Experience
-                        </p>
-
-                        <p
-                            className="
-                                mt-1
-                                text-sm
-                                font-black
-                                text-emerald-300
-                            "
-                        >
-                            {
-                                roadmapStats.experience
-                            }
-                        </p>
-                    </div>
-
-
-                    <div
-                        className="
-                            rounded-xl
-                            border
-                            border-violet-400/[0.08]
-                            bg-violet-500/[0.025]
-                            px-3
-                            py-2.5
-                        "
-                    >
-                        <p
-                            className="
-                                text-[9px]
-                                font-black
-                                uppercase
-                                tracking-wider
-                                text-gray-700
-                            "
-                        >
-                            Yakunlangan
-                        </p>
-
-                        <p
-                            className="
-                                mt-1
-                                text-sm
-                                font-black
-                                text-violet-300
-                            "
-                        >
-                            {
-                                roadmapStats.completed
-                            }
-                        </p>
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            {/* =================================================
-                REDUX ERRORS
-            ================================================== */}
-
-            {(deleteError || likeError) && (
-                <div
-                    className="
-                        flex
-                        items-start
-                        gap-3
-                        rounded-2xl
-                        border
-                        border-red-400/15
-                        bg-red-500/[0.05]
-                        p-4
-                    "
-                >
-
-                    <AlertTriangle
-                        size={17}
-                        className="
-                            mt-0.5
-                            shrink-0
-                            text-red-300
-                        "
-                    />
-
-
-                    <div>
-                        <p
-                            className="
-                                text-[10px]
-                                font-black
-                                uppercase
-                                tracking-wider
-                                text-red-300
-                            "
-                        >
-                            Xatolik
-                        </p>
-
-
-                        <p
-                            className="
-                                mt-1
-                                text-xs
-                                font-medium
-                                leading-5
-                                text-red-200/70
-                            "
-                        >
-                            {
-                                deleteError
-                                ||
-                                likeError
-                            }
-                        </p>
-                    </div>
-
-                </div>
-            )}
-
-
-            {/* =================================================
-                TIMELINE
-            ================================================== */}
-
-            <div
-                className="
-                    relative
-                    overflow-hidden
-                    rounded-[28px]
-                    border
-                    border-white/[0.07]
-                    bg-[#0b1018]/75
-                    p-5
-                    shadow-2xl
-                    shadow-black/20
-
-                    md:p-8
-                "
-            >
-
-                {/* GLOWS */}
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -right-24
-                        -top-24
-                        h-56
-                        w-56
-                        rounded-full
-                        bg-indigo-500/[0.06]
-                        blur-[90px]
-                    "
-                />
-
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -bottom-24
-                        -left-24
-                        h-56
-                        w-56
-                        rounded-full
-                        bg-violet-500/[0.05]
-                        blur-[90px]
-                    "
-                />
-
-
-                {/* TIMELINE */}
-
-                <div
-                    className="
-                        relative
-                        z-10
-                    "
-                >
-
-                    <div
-                        className="
-                            absolute
-                            bottom-5
-                            left-4
-                            top-5
-                            w-px
-                            bg-gradient-to-b
-                            from-indigo-400/30
-                            via-white/[0.06]
-                            to-violet-400/20
-                        "
-                    />
-
-
-                    {safeRoadmaps.map(
-                        (
-                            event,
-                            index
-                        ) => (
-                            <RoadmapItem
-                                key={
-                                    event.id
-                                }
-                                event={
-                                    event
-                                }
-                                index={
-                                    index
-                                }
-                                isLikeLoading={
-                                    isLiking
-                                    &&
-                                    likingRoadmapId ===
-                                    event.id
-                                }
-                                onEdit={
-                                    handleEditClick
-                                }
-                                onDelete={
-                                    handleDeleteClick
-                                }
-                                onToggleLike={
-                                    handleToggleLike
-                                }
-                            />
-                        )
+                    {deleteError && (
+                        <ProfileRoadmapError
+                            variant="action"
+                            error={deleteError}
+                        />
                     )}
 
-                </div>
+                    {/* =============================
+                        4. LIKE ERROR
+                    ============================== */}
 
-
-                {/* =============================================
-                    BOTTOM TIP
-                ============================================== */}
-
-                {isOwner && (
-                    <div
-                        className="
-                            relative
-                            z-10
-                            mt-5
-                            flex
-                            items-start
-                            gap-3
-                            rounded-2xl
-                            border
-                            border-indigo-400/[0.08]
-                            bg-indigo-500/[0.025]
-                            px-4
-                            py-3
-                        "
-                    >
-
-                        <Sparkles
-                            size={15}
-                            className="
-                                mt-0.5
-                                shrink-0
-                                text-indigo-400
-                            "
+                    {likeError && (
+                        <ProfileRoadmapError
+                            variant="action"
+                            error={likeError}
                         />
+                    )}
 
+                    {/* =============================
+                        5. EMPTY STATE
+                    ============================== */}
 
-                        <p
-                            className="
-                                text-[10px]
-                                font-medium
-                                leading-5
-                                text-gray-600
-                            "
-                        >
-                            Roadmap profilingizdagi texnik rivojlanish tarixini ko‘rsatadi.
-                            Yangi texnologiya yoki ish tajribasini boshlaganingizda timeline’ga qo‘shib boring.
-                        </p>
+                    {safeRoadmaps.length === 0 ? (
+                        <ProfileRoadmapEmpty
+                            isOwner={isOwner}
+                            onCreate={
+                                handleCreateClick
+                            }
+                        />
+                    ) : (
+                        // =========================
+                        // 6. TIMELINE
+                        // =========================
 
-                    </div>
-                )}
+                        <ProfileRoadmapTimeline
+                            roadmaps={safeRoadmaps}
+                            isOwner={isOwner}
+                            isLiking={isLiking}
+                            likingRoadmapId={
+                                likingRoadmapId
+                            }
+                            onEdit={
+                                handleEditClick
+                            }
+                            onDelete={
+                                handleDeleteClick
+                            }
+                            onToggleLike={
+                                handleToggleLike
+                            }
+                        />
+                    )}
+                </>
+            )}
 
-            </div>
-
-
-            {/* =================================================
+            {/* =========================================
                 CREATE / EDIT MODAL
-            ================================================== */}
 
-            <RoadmapFormModal
+                New location:
+                ./roadmap/RoadmapCreateModal.jsx
+
+                Kept mounted across:
+                - Loading
+                - Empty
+                - Fetch error
+                - Timeline
+            ========================================== */}
+
+            <RoadmapCreateModal
                 isOpen={
                     isFormModalOpen
                 }
@@ -2665,10 +1574,9 @@ const ProfileRoadmap = ({
                 }
             />
 
-
-            {/* =================================================
-                DELETE MODAL
-            ================================================== */}
+            {/* =========================================
+                DELETE CONFIRMATION MODAL
+            ========================================== */}
 
             <DeleteConfirmationModal
                 isOpen={
@@ -2681,9 +1589,7 @@ const ProfileRoadmap = ({
                     handleConfirmDelete
                 }
                 itemTitle={
-                    deletingRoadmap
-                        ?.title
-                    ||
+                    deletingRoadmap?.title ||
                     ""
                 }
                 isProcessing={
@@ -2691,130 +1597,163 @@ const ProfileRoadmap = ({
                 }
             />
 
-
-            {/* =================================================
+            {/* =========================================
                 DELETE PROCESS OVERLAY
-            ================================================== */}
+            ========================================== */}
 
             {isDeleting && (
                 <div
+                    role="status"
+                    aria-live="polite"
                     className="
                         fixed
                         inset-0
                         z-[90]
+
                         flex
                         items-center
                         justify-center
+
                         bg-black/65
+
                         p-4
+
                         backdrop-blur-sm
                     "
                 >
-
                     <div
                         className="
                             relative
+                            w-full
+                            max-w-sm
+
                             overflow-hidden
+
                             rounded-2xl
                             border
-                            border-white/[0.08]
-                            bg-[#0c1119]/95
+
+                            border-slate-200
+                            bg-white
+
                             px-6
                             py-5
+
                             shadow-2xl
-                            shadow-black/50
+
+                            dark:border-white/[0.08]
+                            dark:bg-[#0c1119]/95
                         "
                     >
+                        {/* BACKGROUND GLOW */}
 
                         <div
+                            aria-hidden="true"
                             className="
                                 pointer-events-none
                                 absolute
+
                                 -right-10
                                 -top-10
+
                                 h-24
                                 w-24
+
                                 rounded-full
-                                bg-indigo-500/[0.10]
+
+                                bg-indigo-500/10
                                 blur-[35px]
                             "
                         />
 
+                        {/* CONTENT */}
 
                         <div
                             className="
                                 relative
                                 z-10
+
                                 flex
                                 items-center
                                 gap-3
                             "
                         >
+                            {/* LOADING ICON */}
 
-                            <div
+                            <span
                                 className="
                                     flex
                                     h-10
                                     w-10
+                                    shrink-0
+
                                     items-center
                                     justify-center
+
                                     rounded-xl
                                     border
-                                    border-indigo-400/15
-                                    bg-indigo-500/[0.07]
-                                    text-indigo-300
+
+                                    border-indigo-200
+                                    bg-indigo-50
+
+                                    text-indigo-700
+
+                                    dark:border-indigo-400/15
+                                    dark:bg-indigo-500/[0.07]
+                                    dark:text-indigo-300
                                 "
                             >
                                 <Loader2
                                     size={19}
+                                    aria-hidden="true"
                                     className="
                                         animate-spin
+                                        motion-reduce:animate-none
                                     "
                                 />
-                            </div>
+                            </span>
 
+                            {/* TEXT */}
 
-                            <div>
+                            <div className="min-w-0">
                                 <p
                                     className="
                                         text-sm
                                         font-black
-                                        text-white
+
+                                        text-slate-900
+                                        dark:text-white
                                     "
                                 >
                                     Roadmap o‘chirilmoqda
                                 </p>
 
-
                                 <p
                                     className="
                                         mt-0.5
-                                        max-w-xs
+
                                         truncate
-                                        text-[10px]
+
+                                        text-[11px]
                                         font-medium
-                                        text-gray-600
+
+                                        text-slate-500
+                                        dark:text-slate-400
                                     "
                                 >
-                                    {
-                                        deletingRoadmap
-                                            ?.title
-                                        ||
-                                        "Iltimos kuting..."
-                                    }
+                                    {deletingRoadmap?.title ||
+                                        "Iltimos kuting..."}
                                 </p>
                             </div>
-
                         </div>
-
                     </div>
-
                 </div>
             )}
-
         </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default ProfileRoadmap;

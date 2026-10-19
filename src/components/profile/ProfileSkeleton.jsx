@@ -1,9 +1,14 @@
+
 // src/components/profile/ProfileSkeleton.jsx
 
 import React from "react";
 
 // =========================================================
 // SKELETON BLOCK
+//
+// - Light Mode: light gray
+// - Dark Mode: subtle white
+// - Reduced motion support
 // =========================================================
 
 const SkeletonBlock = ({
@@ -14,8 +19,10 @@ const SkeletonBlock = ({
             aria-hidden="true"
             className={`
                 animate-pulse
+                motion-reduce:animate-none
                 rounded-xl
-                bg-white/[0.055]
+                bg-slate-200/90
+                dark:bg-white/[0.075]
                 ${className}
             `}
         />
@@ -24,6 +31,21 @@ const SkeletonBlock = ({
 
 // =========================================================
 // PROFILE SKELETON
+//
+// Sections:
+//
+// 1. Profile Hero
+// 2. Cover
+// 3. Avatar and user metadata
+// 4. Five info pills
+// 5. Five profile statistics
+// 6. Sidebar profile information
+// 7. Skills
+// 8. Badges
+// 9. Content tabs
+// 10. Three content cards
+//
+// All original skeleton sections are preserved.
 // =========================================================
 
 const ProfileSkeleton = () => {
@@ -33,15 +55,33 @@ const ProfileSkeleton = () => {
             aria-label="Profil yuklanmoqda"
             className="
                 min-h-screen
-                bg-[#06080d]
+                w-full
+                min-w-0
+
+                bg-[#f4f7fc]
+                text-slate-900
+
+                dark:bg-[#0d1117]
+                dark:text-[#e6edf3]
+
                 px-3
                 py-4
+
                 font-sans
+
                 sm:px-4
                 md:px-6
                 md:py-6
             "
         >
+            {/* =============================================
+                ACCESSIBLE LOADING STATUS
+            ============================================== */}
+
+            <span className="sr-only">
+                Profil ma’lumotlari yuklanmoqda...
+            </span>
+
             <div
                 className="
                     mx-auto
@@ -58,8 +98,14 @@ const ProfileSkeleton = () => {
                         overflow-hidden
                         rounded-3xl
                         border
-                        border-white/[0.06]
-                        bg-white/[0.02]
+
+                        border-slate-200
+                        bg-white/90
+                        shadow-sm
+
+                        dark:border-white/[0.06]
+                        dark:bg-white/[0.02]
+                        dark:shadow-none
                     "
                 >
                     {/* =====================================
@@ -70,6 +116,7 @@ const ProfileSkeleton = () => {
                         className="
                             h-44
                             rounded-none
+
                             sm:h-52
                             md:h-72
                         "
@@ -90,29 +137,40 @@ const ProfileSkeleton = () => {
                         <div
                             className="
                                 -mt-12
+
                                 flex
                                 items-end
                                 gap-4
+
                                 sm:-mt-16
                                 sm:gap-5
                             "
                         >
-                            {/* AVATAR */}
+                            {/* =============================
+                                AVATAR
+                            ============================== */}
 
                             <SkeletonBlock
                                 className="
                                     h-24
                                     w-24
                                     shrink-0
+
                                     rounded-full
+
                                     border-4
-                                    border-[#0b0e14]
+                                    border-white
+
+                                    dark:border-[#0b0e14]
+
                                     sm:h-32
                                     sm:w-32
                                 "
                             />
 
-                            {/* USER META */}
+                            {/* =============================
+                                USER META
+                            ============================== */}
 
                             <div
                                 className="
@@ -126,6 +184,7 @@ const ProfileSkeleton = () => {
                                     className="
                                         h-7
                                         w-44
+
                                         sm:h-9
                                         sm:w-64
                                     "
@@ -135,6 +194,7 @@ const ProfileSkeleton = () => {
                                     className="
                                         h-4
                                         w-36
+
                                         sm:w-52
                                     "
                                 />
@@ -167,13 +227,17 @@ const ProfileSkeleton = () => {
 
                         {/* =================================
                             INFO PILLS
+
+                            Original count: 5
                         ================================== */}
 
                         <div
                             className="
                                 mt-6
+
                                 grid
                                 gap-3
+
                                 sm:grid-cols-2
                                 xl:grid-cols-5
                             "
@@ -181,23 +245,25 @@ const ProfileSkeleton = () => {
                             {Array.from({
                                 length: 5,
                             }).map(
-                                (
-                                    _,
-                                    index
-                                ) => (
+                                (_, index) => (
                                     <div
-                                        key={
-                                            index
-                                        }
+                                        key={index}
                                         className="
                                             flex
                                             min-h-[78px]
+
                                             items-center
                                             gap-4
+
                                             rounded-2xl
                                             border
-                                            border-white/[0.05]
-                                            bg-white/[0.015]
+
+                                            border-slate-200
+                                            bg-slate-50/80
+
+                                            dark:border-white/[0.05]
+                                            dark:bg-white/[0.015]
+
                                             p-4
                                         "
                                     >
@@ -236,40 +302,48 @@ const ProfileSkeleton = () => {
                     </div>
 
                     {/* =====================================
-                        STATS
+                        PROFILE STATS
+
+                        Original count: 5
                     ====================================== */}
 
                     <div
                         className="
                             grid
                             grid-cols-2
+
                             border-t
-                            border-white/[0.05]
+                            border-slate-200
+
+                            dark:border-white/[0.05]
+
                             md:grid-cols-5
                         "
                     >
                         {Array.from({
                             length: 5,
                         }).map(
-                            (
-                                _,
-                                index
-                            ) => (
+                            (_, index) => (
                                 <div
-                                    key={
-                                        index
-                                    }
+                                    key={index}
                                     className="
                                         flex
                                         min-h-[115px]
+
                                         flex-col
                                         items-center
                                         justify-center
                                         gap-2
+
                                         border-b
                                         border-r
-                                        border-white/[0.05]
+
+                                        border-slate-200
+
+                                        dark:border-white/[0.05]
+
                                         p-4
+
                                         md:border-b-0
                                     "
                                 >
@@ -300,15 +374,27 @@ const ProfileSkeleton = () => {
                 </section>
 
                 {/* =========================================
-                    BODY
+                    PROFILE BODY
+
+                    Mobile:
+                    - One column
+
+                    Desktop:
+                    - Sidebar + Content
+
+                    Same structure as Profile.jsx.
                 ========================================== */}
 
                 <div
                     className="
                         mt-6
+
                         grid
+                        min-w-0
+                        grid-cols-1
                         gap-6
-                        lg:grid-cols-[380px_1fr]
+
+                        lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]
                     "
                 >
                     {/* =====================================
@@ -317,21 +403,36 @@ const ProfileSkeleton = () => {
 
                     <aside
                         className="
+                            min-w-0
                             space-y-6
                         "
                     >
-                        {/* PROFILE INFO */}
+                        {/* =============================
+                            PROFILE INFO
+                        ============================== */}
 
                         <section
                             className="
                                 space-y-4
+
                                 rounded-3xl
                                 border
-                                border-white/[0.06]
-                                bg-white/[0.02]
+
+                                border-slate-200
+                                bg-white/90
+                                shadow-sm
+
+                                dark:border-white/[0.06]
+                                dark:bg-white/[0.02]
+                                dark:shadow-none
+
                                 p-5
                             "
                         >
+                            {/* =========================
+                                PROFILE INFO HEADER
+                            ========================== */}
+
                             <div
                                 className="
                                     flex
@@ -368,17 +469,18 @@ const ProfileSkeleton = () => {
                                 </div>
                             </div>
 
+                            {/* =========================
+                                PROFILE INFORMATION ROWS
+
+                                Original count: 6
+                            ========================== */}
+
                             {Array.from({
                                 length: 6,
                             }).map(
-                                (
-                                    _,
-                                    index
-                                ) => (
+                                (_, index) => (
                                     <div
-                                        key={
-                                            index
-                                        }
+                                        key={index}
                                         className="
                                             flex
                                             items-center
@@ -418,6 +520,10 @@ const ProfileSkeleton = () => {
                                 )
                             )}
 
+                            {/* =========================
+                                PROFILE INFO PLACEHOLDER
+                            ========================== */}
+
                             <SkeletonBlock
                                 className="
                                     mt-4
@@ -436,11 +542,22 @@ const ProfileSkeleton = () => {
                             className="
                                 rounded-3xl
                                 border
-                                border-white/[0.06]
-                                bg-white/[0.02]
+
+                                border-slate-200
+                                bg-white/90
+                                shadow-sm
+
+                                dark:border-white/[0.06]
+                                dark:bg-white/[0.02]
+                                dark:shadow-none
+
                                 p-5
                             "
                         >
+                            {/* =========================
+                                SKILLS HEADER
+                            ========================== */}
+
                             <div
                                 className="
                                     flex
@@ -465,9 +582,16 @@ const ProfileSkeleton = () => {
                                 />
                             </div>
 
+                            {/* =========================
+                                SKILL TAGS
+
+                                Original count: 5
+                            ========================== */}
+
                             <div
                                 className="
                                     mt-5
+
                                     flex
                                     flex-wrap
                                     gap-2
@@ -515,17 +639,30 @@ const ProfileSkeleton = () => {
                             </div>
                         </section>
 
-                        {/* BADGES */}
+                        {/* =================================
+                            BADGES
+                        ================================== */}
 
                         <section
                             className="
                                 rounded-3xl
                                 border
-                                border-white/[0.06]
-                                bg-white/[0.02]
+
+                                border-slate-200
+                                bg-white/90
+                                shadow-sm
+
+                                dark:border-white/[0.06]
+                                dark:bg-white/[0.02]
+                                dark:shadow-none
+
                                 p-5
                             "
                         >
+                            {/* =========================
+                                BADGES HEADER
+                            ========================== */}
+
                             <SkeletonBlock
                                 className="
                                     h-6
@@ -533,9 +670,16 @@ const ProfileSkeleton = () => {
                                 "
                             />
 
+                            {/* =========================
+                                BADGE IMAGES
+
+                                Original count: 3
+                            ========================== */}
+
                             <div
                                 className="
                                     mt-5
+
                                     grid
                                     grid-cols-3
                                     gap-3
@@ -544,14 +688,9 @@ const ProfileSkeleton = () => {
                                 {Array.from({
                                     length: 3,
                                 }).map(
-                                    (
-                                        _,
-                                        index
-                                    ) => (
+                                    (_, index) => (
                                         <SkeletonBlock
-                                            key={
-                                                index
-                                            }
+                                            key={index}
                                             className="
                                                 h-20
                                                 rounded-2xl
@@ -572,15 +711,22 @@ const ProfileSkeleton = () => {
                             min-w-0
                         "
                     >
-                        {/* TABS */}
+                        {/* =================================
+                            TABS
+                        ================================== */}
 
                         <div
                             className="
                                 flex
                                 gap-4
+
                                 overflow-hidden
+
                                 border-b
-                                border-white/[0.05]
+                                border-slate-200
+
+                                dark:border-white/[0.05]
+
                                 pb-4
                             "
                         >
@@ -606,7 +752,11 @@ const ProfileSkeleton = () => {
                             />
                         </div>
 
-                        {/* CARDS */}
+                        {/* =================================
+                            CONTENT CARDS
+
+                            Original count: 3
+                        ================================== */}
 
                         <div
                             className="
@@ -617,19 +767,21 @@ const ProfileSkeleton = () => {
                             {Array.from({
                                 length: 3,
                             }).map(
-                                (
-                                    _,
-                                    index
-                                ) => (
+                                (_, index) => (
                                     <div
-                                        key={
-                                            index
-                                        }
+                                        key={index}
                                         className="
                                             rounded-3xl
                                             border
-                                            border-white/[0.06]
-                                            bg-white/[0.02]
+
+                                            border-slate-200
+                                            bg-white/90
+                                            shadow-sm
+
+                                            dark:border-white/[0.06]
+                                            dark:bg-white/[0.02]
+                                            dark:shadow-none
+
                                             p-5
                                         "
                                     >
@@ -640,6 +792,10 @@ const ProfileSkeleton = () => {
                                                 gap-4
                                             "
                                         >
+                                            {/* =================
+                                                CARD AVATAR
+                                            ================== */}
+
                                             <SkeletonBlock
                                                 className="
                                                     h-11
@@ -648,17 +804,26 @@ const ProfileSkeleton = () => {
                                                 "
                                             />
 
+                                            {/* =================
+                                                CARD CONTENT
+                                            ================== */}
+
                                             <div
                                                 className="
+                                                    min-w-0
                                                     flex-1
                                                 "
                                             >
+                                                {/* TITLE */}
+
                                                 <SkeletonBlock
                                                     className="
                                                         h-5
                                                         w-1/3
                                                     "
                                                 />
+
+                                                {/* DESCRIPTION */}
 
                                                 <SkeletonBlock
                                                     className="
@@ -676,9 +841,12 @@ const ProfileSkeleton = () => {
                                                     "
                                                 />
 
+                                                {/* TAGS */}
+
                                                 <div
                                                     className="
                                                         mt-5
+
                                                         flex
                                                         flex-wrap
                                                         gap-2

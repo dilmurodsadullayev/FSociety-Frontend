@@ -1,123 +1,42 @@
-// src/components/posts/CreatePostModal.jsx
 
 import React, {
+    useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
 import {
-    AlignLeft,
     AlertTriangle,
-    BriefcaseBusiness,
-    Check,
-    Cpu,
-    Dumbbell,
-    Gamepad2,
-    Layers3,
-    Loader2,
-    PenLine,
-    Save,
-    Send,
-    Sparkles,
-    Type,
-    X,
 } from "lucide-react";
+
+// =========================================================
+// TOAST
+// =========================================================
 
 import {
     siteToast,
 } from "../ui/AuthToast";
 
+// =========================================================
+// MODAL COMPONENTS
+// =========================================================
+
+import PostCreateHeader from "./create/PostCreateHeader";
+
+import PostCreateTypeSelector, {
+    POST_TYPES,
+} from "./create/PostCreateTypeSelector";
+
+import PostCreateFields from "./create/PostCreateFields";
+
+import PostCreatePreview from "./create/PostCreatePreview";
+
+import PostCreateFooter from "./create/PostCreateFooter";
 
 // =========================================================
-// POST TYPES
-// =========================================================
-
-const POST_TYPES = [
-    {
-        value: "TEX",
-        label: "Texnologiya",
-        description: "Dasturlash, IT va texnologiyalar",
-        Icon: Cpu,
-
-        activeClass:
-            "border-indigo-400/50 bg-indigo-500/15 text-indigo-200",
-
-        iconClass:
-            "border-indigo-400/20 bg-indigo-500/10 text-indigo-300",
-
-        glowClass:
-            "bg-indigo-500/20",
-    },
-
-    {
-        value: "SPO",
-        label: "Sport",
-        description: "Sport, mashg‘ulot va faol hayot",
-        Icon: Dumbbell,
-
-        activeClass:
-            "border-emerald-400/50 bg-emerald-500/15 text-emerald-200",
-
-        iconClass:
-            "border-emerald-400/20 bg-emerald-500/10 text-emerald-300",
-
-        glowClass:
-            "bg-emerald-500/20",
-    },
-
-    {
-        value: "BIZ",
-        label: "Biznes",
-        description: "Biznes, startup va freelancing",
-        Icon: BriefcaseBusiness,
-
-        activeClass:
-            "border-amber-400/50 bg-amber-500/15 text-amber-200",
-
-        iconClass:
-            "border-amber-400/20 bg-amber-500/10 text-amber-300",
-
-        glowClass:
-            "bg-amber-500/20",
-    },
-
-    {
-        value: "ENT",
-        label: "O‘yin-kulgi",
-        description: "Gaming, media va qiziqarli mavzular",
-        Icon: Gamepad2,
-
-        activeClass:
-            "border-pink-400/50 bg-pink-500/15 text-pink-200",
-
-        iconClass:
-            "border-pink-400/20 bg-pink-500/10 text-pink-300",
-
-        glowClass:
-            "bg-pink-500/20",
-    },
-
-    {
-        value: "OTH",
-        label: "Boshqa",
-        description: "Boshqa turdagi foydali kontent",
-        Icon: Layers3,
-
-        activeClass:
-            "border-cyan-400/50 bg-cyan-500/15 text-cyan-200",
-
-        iconClass:
-            "border-cyan-400/20 bg-cyan-500/10 text-cyan-300",
-
-        glowClass:
-            "bg-cyan-500/20",
-    },
-];
-
-
-// =========================================================
-// EMPTY FORM
+// CONSTANTS
 // =========================================================
 
 const EMPTY_FORM = {
@@ -126,9 +45,190 @@ const EMPTY_FORM = {
     content: "",
 };
 
+const TITLE_MIN_LENGTH = 3;
+const TITLE_MAX_LENGTH = 150;
+
+// =========================================================
+// INITIAL FORM DATA
+//
+// Create:
+//   Empty form.
+//
+// Edit:
+//   Existing post information.
+//
+// Backend field names are preserved.
+// =========================================================
+
+const getInitialFormData = (initialData) => {
+    if (!initialData) {
+        return {
+            ...EMPTY_FORM,
+        };
+    }
+
+    return {
+        post_type:
+            initialData.post_type || "TEX",
+
+        title:
+            initialData.title || "",
+
+        content:
+            initialData.content || "",
+    };
+};
 
 // =========================================================
 // ERROR PARSER
+//
+// Supports:
+//
+// - Normal JavaScript Error
+// - Axios error
+// - DRF response.data
+// - Field validation errors
+// - JSON serialized error messages
+//
+// Prevents [object Object] appearing in UI.
+// =========================================================
+
+const ERROR_FIELD_LABELS = {
+    post_type: "Post turi",
+    title: "Sarlavha",
+    content: "Kontent",
+    non_field_errors: "Xatolik",
+};
+
+const parseErrorValue = (
+    value,
+    depth = 0
+) => {
+    if (
+        value == null ||
+        depth > 5
+    ) {
+        return "";
+    }
+
+    // =====================================================
+    // STRING
+    // =====================================================
+
+    if (typeof value === "string") {
+        const text = value.trim();
+
+        if (!text) {
+            return "";
+        }
+
+        if (
+            (
+                text.startsWith("{") &&
+                text.endsWith("}")
+            ) ||
+            (
+                text.startsWith("[") &&
+                text.endsWith("]")
+            )
+        ) {
+            try {
+                return parseErrorValue(
+                    JSON.parse(text),
+                    depth + 1
+                );
+            } catch {
+                return text;
+            }
+        }
+
+        return text;
+    }
+
+    // =====================================================
+    // NUMBER / BOOLEAN
+    // =====================================================
+
+    if (
+        typeof value === "number" ||
+        typeof value === "boolean"
+    ) {
+        return String(value);
+    }
+
+    // =====================================================
+    // ARRAY
+    // =====================================================
+
+    if (Array.isArray(value)) {
+        return value
+            .map((item) =>
+                parseErrorValue(
+                    item,
+                    depth + 1
+                )
+            )
+            .filter(Boolean)
+            .join("; ");
+    }
+
+    // =====================================================
+    // OBJECT
+    // =====================================================
+
+    if (typeof value === "object") {
+        for (const key of [
+            "detail",
+            "message",
+            "error",
+            "non_field_errors",
+        ]) {
+            if (value[key]) {
+                const message = parseErrorValue(
+                    value[key],
+                    depth + 1
+                );
+
+                if (message) {
+                    return message;
+                }
+            }
+        }
+
+        return Object.entries(value)
+            .filter(
+                ([key]) =>
+                    ![
+                        "request",
+                        "response",
+                        "config",
+                        "stack",
+                    ].includes(key)
+            )
+            .map(([field, fieldError]) => {
+                const message = parseErrorValue(
+                    fieldError,
+                    depth + 1
+                );
+
+                if (!message) {
+                    return "";
+                }
+
+                return `${
+                    ERROR_FIELD_LABELS[field] ||
+                    field
+                }: ${message}`;
+            })
+            .filter(Boolean)
+            .join("; ");
+    }
+
+    return "";
+};
+
+// =========================================================
+// GET ERROR MESSAGE
 // =========================================================
 
 const getErrorMessage = (
@@ -140,165 +240,32 @@ const getErrorMessage = (
     }
 
     const serverData =
-        error?.serverData ||
+        error?.serverData ??
         error?.response?.data;
 
-    if (
-        typeof serverData === "string" &&
-        serverData.trim()
-    ) {
-        return serverData;
-    }
-
-    if (serverData?.detail) {
-        return String(
-            serverData.detail
-        );
-    }
-
-    if (serverData?.message) {
-        return String(
-            serverData.message
-        );
-    }
-
-    if (serverData?.error) {
-        return String(
-            serverData.error
-        );
-    }
-
-    if (serverData?.title) {
-        const value =
-            serverData.title;
-
-        return Array.isArray(value)
-            ? `Sarlavha: ${value[0]}`
-            : `Sarlavha: ${value}`;
-    }
-
-    if (serverData?.content) {
-        const value =
-            serverData.content;
-
-        return Array.isArray(value)
-            ? `Kontent: ${value[0]}`
-            : `Kontent: ${value}`;
-    }
-
-    if (
-        serverData &&
-        typeof serverData === "object"
-    ) {
-        const firstValue =
-            Object.values(
-                serverData
-            )[0];
-
-        if (
-            Array.isArray(firstValue) &&
-            firstValue.length > 0
-        ) {
-            return String(
-                firstValue[0]
-            );
-        }
-
-        if (
-            typeof firstValue === "string" &&
-            firstValue.trim()
-        ) {
-            return firstValue;
-        }
-    }
-
-    if (error?.message) {
-        try {
-            const parsed =
-                JSON.parse(
-                    error.message
-                );
-
-            if (parsed?.detail) {
-                return String(
-                    parsed.detail
-                );
-            }
-
-            if (parsed?.message) {
-                return String(
-                    parsed.message
-                );
-            }
-
-            if (parsed?.error) {
-                return String(
-                    parsed.error
-                );
-            }
-
-            if (parsed?.title) {
-                const value =
-                    parsed.title;
-
-                return Array.isArray(value)
-                    ? `Sarlavha: ${value[0]}`
-                    : `Sarlavha: ${value}`;
-            }
-
-            if (parsed?.content) {
-                const value =
-                    parsed.content;
-
-                return Array.isArray(value)
-                    ? `Kontent: ${value[0]}`
-                    : `Kontent: ${value}`;
-            }
-
-            if (
-                parsed &&
-                typeof parsed === "object"
-            ) {
-                const firstValue =
-                    Object.values(
-                        parsed
-                    )[0];
-
-                if (
-                    Array.isArray(firstValue) &&
-                    firstValue.length > 0
-                ) {
-                    return String(
-                        firstValue[0]
-                    );
-                }
-
-                if (
-                    typeof firstValue ===
-                    "string"
-                ) {
-                    return firstValue;
-                }
-            }
-        } catch {
-            return String(
-                error.message
-            );
-        }
-    }
-
-    return fallback;
+    return (
+        parseErrorValue(serverData) ||
+        parseErrorValue(error?.message) ||
+        fallback
+    );
 };
-
 
 // =========================================================
 // HTML -> TEXT
+//
+// Original behavior preserved.
+//
+// Used for:
+//
+// - Live preview
+// - Word count
+//
+// Never render untrusted HTML using
+// dangerouslySetInnerHTML.
 // =========================================================
 
-const stripHtml = (
-    html = ""
-) => {
-    return String(html)
+const stripHtml = (html = "") => {
+    return String(html ?? "")
         .replace(
             /<style[^>]*>.*?<\/style>/gis,
             ""
@@ -311,44 +278,157 @@ const stripHtml = (
             /<[^>]+>/g,
             " "
         )
-        .replace(
-            /&nbsp;/g,
-            " "
-        )
-        .replace(
-            /&amp;/g,
-            "&"
-        )
-        .replace(
-            /&lt;/g,
-            "<"
-        )
-        .replace(
-            /&gt;/g,
-            ">"
-        )
-        .replace(
-            /&quot;/g,
-            "\""
-        )
-        .replace(
-            /&#039;/g,
-            "'"
-        )
-        .replace(
-            /\s+/g,
-            " "
-        )
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#039;/gi, "'")
+        .replace(/\s+/g, " ")
         .trim();
 };
 
+// =========================================================
+// VALIDATE FORM
+//
+// Original rules:
+//
+// post_type:
+//   Valid backend category.
+//
+// title:
+//   Required.
+//   At least 3 characters.
+//   Maximum 150 characters.
+//
+// content:
+//   Required.
+//
+// Validation remains centralized here.
+// =========================================================
+
+const validatePostForm = (formData) => {
+    const postType =
+        formData.post_type;
+
+    const title =
+        String(formData.title ?? "").trim();
+
+    const content =
+        String(formData.content ?? "").trim();
+
+    // =====================================================
+    // CATEGORY
+    // =====================================================
+
+    const isValidCategory =
+        POST_TYPES.some(
+            (item) =>
+                item.value === postType
+        );
+
+    if (!isValidCategory) {
+        return "Post turini to‘g‘ri tanlang.";
+    }
+
+    // =====================================================
+    // TITLE REQUIRED
+    // =====================================================
+
+    if (!title) {
+        return "Post sarlavhasini kiriting.";
+    }
+
+    // =====================================================
+    // TITLE MIN LENGTH
+    // =====================================================
+
+    if (
+        title.length <
+        TITLE_MIN_LENGTH
+    ) {
+        return (
+            "Sarlavha kamida 3 ta belgidan " +
+            "iborat bo‘lishi kerak."
+        );
+    }
+
+    // =====================================================
+    // TITLE MAX LENGTH
+    // =====================================================
+
+    if (
+        title.length >
+        TITLE_MAX_LENGTH
+    ) {
+        return (
+            "Sarlavha 150 ta belgidan " +
+            "oshmasligi kerak."
+        );
+    }
+
+    // =====================================================
+    // CONTENT REQUIRED
+    // =====================================================
+
+    if (!content) {
+        return "Post kontentini kiriting.";
+    }
+
+    return null;
+};
+
+// =========================================================
+// BUILD BACKEND PAYLOAD
+//
+// Preserve existing backend contract.
+//
+// No extra frontend-only fields.
+// =========================================================
+
+const buildPostPayload = (formData) => {
+    return {
+        post_type:
+            formData.post_type,
+
+        title:
+            formData.title.trim(),
+
+        content:
+            formData.content.trim(),
+    };
+};
 
 // =========================================================
 // CREATE POST MODAL
+//
+// Existing props:
+//
+// isOpen
+// onClose
+// onSubmit
+// isSubmitting
+// initialData
+//
+// CREATE MODE:
+//
+// - No initialData.
+// - Modal handles toast.
+// - Parent handles POST and Redux.
+// - Parent closes modal after success.
+//
+// EDIT MODE:
+//
+// - initialData is provided.
+// - PostDetail handles toast.
+// - Parent handles PATCH and Redux.
+// - Parent closes modal after success.
+//
+// This preserves the original behavior.
 // =========================================================
 
 const CreatePostModal = ({
-    isOpen,
+    isOpen = false,
     onClose,
     onSubmit,
     isSubmitting = false,
@@ -359,10 +439,7 @@ const CreatePostModal = ({
     // =====================================================
 
     const isEditMode =
-        Boolean(
-            initialData
-        );
-
+        Boolean(initialData);
 
     // =====================================================
     // FORM STATE
@@ -371,568 +448,579 @@ const CreatePostModal = ({
     const [
         formData,
         setFormData,
-    ] = useState(
-        EMPTY_FORM
-    );
+    ] = useState(() => ({
+        ...EMPTY_FORM,
+    }));
 
+    // =====================================================
+    // ERROR STATE
+    // =====================================================
 
     const [
         error,
         setError,
-    ] = useState(
-        ""
-    );
+    ] = useState("");
 
+    // =====================================================
+    // INTERNAL PROCESSING STATE
+    //
+    // Parent isSubmitting may update only after
+    // React rerenders.
+    //
+    // Internal state and ref prevent duplicate
+    // submission before that happens.
+    // =====================================================
+
+    const [
+        isProcessing,
+        setIsProcessing,
+    ] = useState(false);
+
+    // =====================================================
+    // REFS
+    // =====================================================
+
+    const modalRef =
+        useRef(null);
+
+    const submittingRef =
+        useRef(false);
+
+    // =====================================================
+    // BUSY STATE
+    // =====================================================
+
+    const busy =
+        Boolean(isSubmitting) ||
+        isProcessing;
 
     // =====================================================
     // INITIAL DATA
+    //
+    // Reset form whenever the modal opens or
+    // the selected post changes.
+    //
+    // Primitive dependencies prevent unnecessary
+    // resets when initialData is recreated.
     // =====================================================
 
-    useEffect(
-        () => {
-            if (!isOpen) {
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        setFormData(
+            getInitialFormData(initialData)
+        );
+
+        setError("");
+    }, [
+        isOpen,
+        initialData?.post_type,
+        initialData?.title,
+        initialData?.content,
+    ]);
+
+    // =====================================================
+    // BODY SCROLL LOCK
+    // =====================================================
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        const oldOverflow =
+            document.body.style.overflow;
+
+        document.body.style.overflow =
+            "hidden";
+
+        return () => {
+            document.body.style.overflow =
+                oldOverflow;
+        };
+    }, [
+        isOpen,
+    ]);
+
+    // =====================================================
+    // CLOSE MODAL
+    //
+    // Prevent close during POST/PATCH.
+    // =====================================================
+
+    const handleClose = useCallback(() => {
+        if (
+            busy ||
+            submittingRef.current
+        ) {
+            return;
+        }
+
+        setError("");
+
+        onClose?.();
+    }, [
+        busy,
+        onClose,
+    ]);
+
+    // =====================================================
+    // ESC KEY
+    //
+    // Keep same behavior as original modal.
+    // =====================================================
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key !== "Escape") {
                 return;
             }
 
-            if (initialData) {
-                setFormData({
-                    post_type:
-                        initialData?.post_type ||
-                        "TEX",
+            event.preventDefault();
 
-                    title:
-                        initialData?.title ||
-                        "",
+            handleClose();
+        };
 
-                    content:
-                        initialData?.content ||
-                        "",
-                });
-            } else {
-                setFormData({
-                    ...EMPTY_FORM,
-                });
-            }
+        window.addEventListener(
+            "keydown",
+            handleKeyDown
+        );
 
-            setError("");
-        },
-        [
-            isOpen,
-            initialData?.post_type,
-            initialData?.title,
-            initialData?.content,
-        ]
-    );
-
-
-    // =====================================================
-    // BODY LOCK + ESC
-    // =====================================================
-
-    useEffect(
-        () => {
-            if (!isOpen) {
-                return undefined;
-            }
-
-            const oldOverflow =
-                document
-                    .body
-                    .style
-                    .overflow;
-
-            document
-                .body
-                .style
-                .overflow =
-                "hidden";
-
-
-            const handleKeyDown =
-                (event) => {
-                    if (
-                        event.key ===
-                            "Escape" &&
-                        !isSubmitting
-                    ) {
-                        onClose?.();
-                    }
-                };
-
-
-            window.addEventListener(
+        return () => {
+            window.removeEventListener(
                 "keydown",
                 handleKeyDown
             );
-
-
-            return () => {
-                document
-                    .body
-                    .style
-                    .overflow =
-                    oldOverflow;
-
-                window.removeEventListener(
-                    "keydown",
-                    handleKeyDown
-                );
-            };
-        },
-        [
-            isOpen,
-            isSubmitting,
-            onClose,
-        ]
-    );
-
+        };
+    }, [
+        isOpen,
+        handleClose,
+    ]);
 
     // =====================================================
-    // SELECTED TYPE
+    // FOCUS MANAGEMENT
+    //
+    // Focus the modal when opened.
+    //
+    // Restore previous focus when closed.
     // =====================================================
 
-    const selectedType =
-        useMemo(
-            () => {
-                return (
-                    POST_TYPES.find(
-                        (item) =>
-                            item.value ===
-                            formData.post_type
-                    ) ||
-                    POST_TYPES[0]
-                );
-            },
-            [
-                formData.post_type,
-            ]
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        const previousElement =
+            document.activeElement;
+
+        modalRef.current?.focus();
+
+        return () => {
+            if (
+                previousElement &&
+                typeof previousElement.focus ===
+                    "function" &&
+                previousElement.isConnected
+            ) {
+                previousElement.focus();
+            }
+        };
+    }, [
+        isOpen,
+    ]);
+
+    // =====================================================
+    // SELECTED CATEGORY
+    //
+    // Category configuration is defined in
+    // PostCreateTypeSelector.
+    // =====================================================
+
+    const selectedType = useMemo(() => {
+        return (
+            POST_TYPES.find(
+                (item) =>
+                    item.value ===
+                    formData.post_type
+            ) || POST_TYPES[0]
         );
-
+    }, [
+        formData.post_type,
+    ]);
 
     // =====================================================
     // PREVIEW CONTENT
     // =====================================================
 
-    const cleanPreviewContent =
-        useMemo(
-            () => {
-                return stripHtml(
-                    formData.content
-                );
-            },
-            [
-                formData.content,
-            ]
+    const cleanPreviewContent = useMemo(() => {
+        return stripHtml(
+            formData.content
         );
-
+    }, [
+        formData.content,
+    ]);
 
     // =====================================================
     // WORD COUNT
+    //
+    // Preserve original stripHtml-based counting.
     // =====================================================
 
-    const wordCount =
-        useMemo(
-            () => {
-                const content =
-                    stripHtml(
-                        formData.content
-                    ).trim();
+    const wordCount = useMemo(() => {
+        const content =
+            cleanPreviewContent.trim();
 
-                if (!content) {
-                    return 0;
-                }
+        if (!content) {
+            return 0;
+        }
 
-                return content
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .length;
-            },
-            [
-                formData.content,
-            ]
-        );
-
+        return content
+            .split(/\s+/)
+            .filter(Boolean)
+            .length;
+    }, [
+        cleanPreviewContent,
+    ]);
 
     // =====================================================
-    // CHANGE
+    // INPUT CHANGE
+    //
+    // Works with:
+    //
+    // name="title"
+    // name="content"
+    //
+    // These names are preserved in PostCreateFields.
     // =====================================================
 
-    const handleChange =
-        (event) => {
-            const {
-                name,
-                value,
-            } = event.target;
+    const handleChange = (event) => {
+        if (busy) {
+            return;
+        }
 
-            setFormData(
-                (previous) => ({
-                    ...previous,
+        const {
+            name,
+            value,
+        } = event.target;
 
-                    [name]:
-                        value,
-                })
-            );
+        // =================================================
+        // ONLY ACCEPT EXPECTED FIELDS
+        // =================================================
 
-            if (error) {
-                setError("");
-            }
-        };
+        if (
+            name !== "title" &&
+            name !== "content"
+        ) {
+            return;
+        }
 
+        setFormData((previous) => ({
+            ...previous,
+            [name]: value,
+        }));
+
+        if (error) {
+            setError("");
+        }
+    };
 
     // =====================================================
     // CATEGORY CHANGE
+    //
+    // Receives category value directly from
+    // PostCreateTypeSelector.
     // =====================================================
 
-    const handleCategoryChange =
-        (value) => {
-            if (isSubmitting) {
-                return;
-            }
+    const handleCategoryChange = (value) => {
+        if (busy) {
+            return;
+        }
 
-            setFormData(
-                (previous) => ({
-                    ...previous,
-
-                    post_type:
-                        value,
-                })
+        const isValid =
+            POST_TYPES.some(
+                (item) =>
+                    item.value === value
             );
 
-            if (error) {
-                setError("");
-            }
-        };
+        if (!isValid) {
+            return;
+        }
 
+        setFormData((previous) => ({
+            ...previous,
 
-    // =====================================================
-    // CLOSE
-    // =====================================================
+            post_type: value,
+        }));
 
-    const handleClose =
-        () => {
-            if (isSubmitting) {
-                return;
-            }
-
+        if (error) {
             setError("");
-
-            onClose?.();
-        };
-
+        }
+    };
 
     // =====================================================
-    // BACKDROP
+    // BACKDROP CLICK
+    //
+    // Close only when clicking outside the dialog.
     // =====================================================
 
-    const handleBackdropClick =
-        (event) => {
-            if (
-                event.target ===
-                event.currentTarget
-            ) {
-                handleClose();
-            }
-        };
-
-
-    // =====================================================
-    // VALIDATE
-    // =====================================================
-
-    const validateForm =
-        () => {
-            const cleanTitle =
-                formData
-                    .title
-                    .trim();
-
-            const cleanContent =
-                formData
-                    .content
-                    .trim();
-
-
-            if (!cleanTitle) {
-                return (
-                    "Post sarlavhasini kiriting."
-                );
-            }
-
-
-            if (
-                cleanTitle.length < 3
-            ) {
-                return (
-                    "Sarlavha kamida 3 ta belgidan iborat bo‘lishi kerak."
-                );
-            }
-
-
-            if (
-                cleanTitle.length > 150
-            ) {
-                return (
-                    "Sarlavha 150 ta belgidan oshmasligi kerak."
-                );
-            }
-
-
-            if (!cleanContent) {
-                return (
-                    "Post kontentini kiriting."
-                );
-            }
-
-
-            return null;
-        };
-
+    const handleBackdropClick = (event) => {
+        if (
+            event.target ===
+            event.currentTarget
+        ) {
+            handleClose();
+        }
+    };
 
     // =====================================================
     // SUBMIT
+    //
+    // Steps:
+    //
+    // 1. Prevent default.
+    // 2. Prevent duplicate submission.
+    // 3. Validate fields.
+    // 4. Build backend payload.
+    // 5. Call parent's onSubmit.
+    // 6. Create mode: display toast.
+    // 7. Edit mode: let PostDetail display toast.
+    // 8. Keep modal open when API fails.
     // =====================================================
 
-    const handleSubmit =
-        async (event) => {
-            event.preventDefault();
+    const handleSubmit = async (event) => {
+        event.preventDefault();
 
-            if (isSubmitting) {
-                return;
-            }
+        // =================================================
+        // SUBMISSION GUARD
+        // =================================================
 
-            setError("");
+        if (
+            busy ||
+            submittingRef.current
+        ) {
+            return;
+        }
 
+        setError("");
 
-            // =============================================
-            // VALIDATION
-            // =============================================
+        // =================================================
+        // PARENT CALLBACK
+        // =================================================
 
-            const validationError =
-                validateForm();
+        if (
+            typeof onSubmit !== "function"
+        ) {
+            const message =
+                "Postni saqlash funksiyasi mavjud emas.";
 
+            setError(message);
 
-            if (validationError) {
-                setError(
-                    validationError
-                );
+            return;
+        }
 
-                siteToast.warning(
-                    validationError,
+        // =================================================
+        // VALIDATE FORM
+        // =================================================
+
+        const validationError =
+            validatePostForm(formData);
+
+        if (validationError) {
+            setError(validationError);
+
+            siteToast.warning(
+                validationError,
+                {
+                    title:
+                        "Post ma’lumotlarini tekshiring",
+
+                    duration: 4000,
+                }
+            );
+
+            return;
+        }
+
+        // =================================================
+        // BUILD PAYLOAD
+        // =================================================
+
+        const payload =
+            buildPostPayload(formData);
+
+        // =================================================
+        // PREVENT DUPLICATE POST/PATCH
+        // =================================================
+
+        submittingRef.current = true;
+
+        setIsProcessing(true);
+
+        // =================================================
+        // CREATE TOAST
+        //
+        // In edit mode, PostDetail handles toasts.
+        // =================================================
+
+        let loadingToastId = null;
+
+        if (!isEditMode) {
+            loadingToastId =
+                siteToast.loading(
+                    "Yangi post serverga yuborilmoqda...",
                     {
                         title:
-                            "Post ma’lumotlarini tekshiring",
-
-                        duration:
-                            4000,
+                            "Post yaratilmoqda",
                     }
                 );
+        }
+
+        try {
+            // =============================================
+            // PARENT CALLBACK
+            // =============================================
+
+            const result = await onSubmit(
+                payload
+            );
+
+            // =============================================
+            // PARENT RETURNED FALSE
+            //
+            // Do not show success.
+            // =============================================
+
+            if (result === false) {
+                if (
+                    loadingToastId !== null &&
+                    loadingToastId !== undefined
+                ) {
+                    siteToast.dismiss(
+                        loadingToastId
+                    );
+                }
 
                 return;
             }
 
-
             // =============================================
-            // PAYLOAD
+            // CREATE SUCCESS
+            //
+            // Edit mode has its own success toast in
+            // PostDetail.
             // =============================================
-
-            const payload = {
-                post_type:
-                    formData.post_type,
-
-                title:
-                    formData
-                        .title
-                        .trim(),
-
-                content:
-                    formData
-                        .content
-                        .trim(),
-            };
-
-
-            /*
-                CREATE rejimida API jarayoni shu modalga tegishli,
-                shuning uchun loading toast chiqaramiz.
-
-                EDIT rejimida esa PostDetail hozircha o‘zining
-                success/error toastini boshqaryapti.
-
-                Shu sabab editda duplicate toast chiqarmaymiz.
-            */
-
-            let loadingToastId =
-                null;
-
 
             if (!isEditMode) {
-                loadingToastId =
-                    siteToast.loading(
-                        "Yangi post serverga yuborilmoqda...",
-                        {
-                            title:
-                                "Post yaratilmoqda",
-                        }
-                    );
-            }
+                siteToast.success(
+                    "Yangi postingiz community uchun muvaffaqiyatli chop etildi.",
+                    {
+                        id: loadingToastId,
 
+                        title:
+                            "Post chop etildi",
 
-            try {
-                const result =
-                    await onSubmit?.(
-                        payload
-                    );
-
-
-                // =========================================
-                // PARENT FALSE QAYTARSA
-                // =========================================
-
-                if (result === false) {
-                    if (
-                        loadingToastId
-                    ) {
-                        siteToast.dismiss(
-                            loadingToastId
-                        );
+                        duration: 3800,
                     }
-
-                    return;
-                }
-
-
-                // =========================================
-                // CREATE SUCCESS
-                // =========================================
-
-                if (!isEditMode) {
-                    siteToast.success(
-                        "Yangi postingiz community uchun muvaffaqiyatli chop etildi.",
-                        {
-                            id:
-                                loadingToastId,
-
-                            title:
-                                "Post chop etildi",
-
-                            duration:
-                                3800,
-                        }
-                    );
-
-                    setFormData({
-                        ...EMPTY_FORM,
-                    });
-                }
-
-
-                /*
-                    Edit success uchun hozir bu modal toast
-                    chiqarmaydi.
-
-                    Sababi PostDetail edit jarayonini boshqaradi.
-                    Keyingi refactorda PostDetaildagi toastni ham
-                    siteToastga almashtiramiz.
-                */
-
-            } catch (
-                submitError
-            ) {
-                const message =
-                    getErrorMessage(
-                        submitError,
-
-                        isEditMode
-                            ? (
-                                "Postni tahrirlashda xato yuz berdi."
-                            )
-                            : (
-                                "Post yaratishda xato yuz berdi."
-                            )
-                    );
-
-
-                setError(
-                    message
                 );
 
-
                 // =========================================
-                // CREATE ERROR
+                // RESET CREATE FORM
                 // =========================================
 
-                if (!isEditMode) {
-                    siteToast.error(
-                        message,
-                        {
-                            id:
-                                loadingToastId,
+                setFormData({
+                    ...EMPTY_FORM,
+                });
 
-                            title:
-                                "Post yaratilmadi",
-
-                            duration:
-                                5000,
-                        }
-                    );
-                }
-
-                /*
-                    Edit error ham hozircha PostDetail tomonidan
-                    chiqariladi. Duplicate alert chiqmasligi uchun
-                    shu yerda edit error toast bermaymiz.
-                */
+                setError("");
             }
-        };
 
+            // =============================================
+            // MODAL CLOSING
+            //
+            // Do not call onClose here.
+            //
+            // Existing parents manage this:
+            //
+            // ProfilePosts:
+            //   closes after create success.
+            //
+            // PostDetail:
+            //   closes after update success.
+            //
+            // This preserves their existing contracts.
+            // =============================================
+        } catch (submitError) {
+            // =============================================
+            // API ERROR
+            // =============================================
+
+            const message = getErrorMessage(
+                submitError,
+
+                isEditMode
+                    ? "Postni tahrirlashda xato yuz berdi."
+                    : "Post yaratishda xato yuz berdi."
+            );
+
+            console.error(
+                isEditMode
+                    ? "Post update xato:"
+                    : "Post create xato:",
+                submitError
+            );
+
+            // =============================================
+            // KEEP FORM VALUES
+            // =============================================
+
+            setError(message);
+
+            // =============================================
+            // CREATE ERROR TOAST
+            //
+            // Edit error toast remains in PostDetail.
+            // =============================================
+
+            if (!isEditMode) {
+                siteToast.error(
+                    message,
+                    {
+                        id: loadingToastId,
+
+                        title:
+                            "Post yaratilmadi",
+
+                        duration: 5000,
+                    }
+                );
+            }
+        } finally {
+            // =============================================
+            // RELEASE SUBMISSION LOCK
+            // =============================================
+
+            submittingRef.current = false;
+
+            setIsProcessing(false);
+        }
+    };
 
     // =====================================================
-    // CLOSED
+    // CLOSED MODAL
     // =====================================================
 
     if (!isOpen) {
         return null;
     }
 
-
     // =====================================================
-    // TEXTS
-    // =====================================================
-
-    const modalTitle =
-        isEditMode
-            ? "Postni tahrirlash"
-            : "Yangi post yaratish";
-
-
-    const modalDescription =
-        isEditMode
-            ? (
-                "Postingizni yangilang va o‘zgarishlarni saqlang."
-            )
-            : (
-                "Bilimingiz, tajribangiz yoki g‘oyangizni F.Society community bilan ulashing."
-            );
-
-
-    const submitText =
-        isEditMode
-            ? "O‘zgarishlarni saqlash"
-            : "Postni chop etish";
-
-
-    const SubmitIcon =
-        isEditMode
-            ? Save
-            : Send;
-
-
-    const SelectedIcon =
-        selectedType.Icon;
-
-
-    // =====================================================
-    // JSX
+    // RENDER
     // =====================================================
 
     return (
@@ -944,1421 +1032,349 @@ const CreatePostModal = ({
                 fixed
                 inset-0
                 z-[100]
+
                 flex
-                items-center
+                items-start
                 justify-center
+
                 overflow-y-auto
-                bg-black/80
+
+                bg-black/75
+
                 px-3
-                py-6
+                py-5
+
                 backdrop-blur-md
+
                 sm:px-6
+                sm:py-8
+
+                lg:items-center
             "
         >
-
-            {/* =================================================
+            {/* =====================================
                 BACKGROUND GLOWS
-            ================================================== */}
+            ====================================== */}
 
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
+
                     fixed
                     left-1/2
                     top-1/4
+
                     h-[450px]
                     w-[450px]
+
                     -translate-x-1/2
+
                     rounded-full
+
                     bg-indigo-600/10
+
                     blur-[130px]
                 "
             />
 
-
             <div
+                aria-hidden="true"
                 className="
                     pointer-events-none
+
                     fixed
                     bottom-0
                     right-0
+
                     h-[350px]
                     w-[350px]
+
                     rounded-full
+
                     bg-purple-600/10
+
                     blur-[120px]
                 "
             />
 
-
-            {/* =================================================
-                MODAL
-            ================================================== */}
+            {/* =====================================
+                MAIN MODAL
+            ====================================== */}
 
             <div
-                onMouseDown={
-                    (event) =>
-                        event
-                            .stopPropagation()
-                }
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="post-create-modal-title"
+                aria-describedby="post-create-modal-description"
+                tabIndex={-1}
                 className="
                     relative
                     my-auto
+
                     w-full
                     max-w-6xl
+                    min-w-0
+
                     overflow-hidden
+
                     rounded-[32px]
                     border
-                    border-white/[0.08]
-                    bg-[#0a0d14]/95
-                    shadow-[0_35px_100px_rgba(0,0,0,0.75)]
+
+                    border-slate-200
+                    bg-white/95
+
+                    shadow-[0_35px_100px_rgba(15,23,42,0.25)]
+
+                    outline-none
+
                     backdrop-blur-2xl
+
+                    dark:border-white/[0.08]
+                    dark:bg-[#0a0d14]/95
+
+                    dark:shadow-[0_35px_100px_rgba(0,0,0,0.75)]
                 "
             >
-
-                {/* =============================================
+                {/* =================================
                     TOP GLOW
-                ============================================== */}
+                ================================== */}
 
                 <div
+                    aria-hidden="true"
                     className="
                         pointer-events-none
+
                         absolute
                         left-1/2
                         top-0
+
                         h-40
                         w-[70%]
+
                         -translate-x-1/2
                         -translate-y-1/2
+
                         rounded-full
+
                         bg-indigo-500/15
+
                         blur-[80px]
                     "
                 />
 
+                {/* =================================
+                    1. MODAL HEADER
+                ================================== */}
 
-                {/* =============================================
-                    HEADER
-                ============================================== */}
+                <PostCreateHeader
+                    isEditMode={isEditMode}
+                    isSubmitting={busy}
+                    onClose={handleClose}
+                />
 
-                <header
-                    className="
-                        relative
-                        z-10
-                        flex
-                        items-start
-                        justify-between
-                        gap-4
-                        border-b
-                        border-white/[0.06]
-                        px-5
-                        py-5
-                        sm:px-7
-                        sm:py-6
-                    "
-                >
-
-                    <div
-                        className="
-                            flex
-                            min-w-0
-                            items-start
-                            gap-4
-                        "
-                    >
-
-                        <div
-                            className="
-                                flex
-                                h-12
-                                w-12
-                                shrink-0
-                                items-center
-                                justify-center
-                                rounded-2xl
-                                border
-                                border-indigo-400/25
-                                bg-indigo-500/10
-                                text-indigo-300
-                                shadow-lg
-                                shadow-indigo-500/10
-                            "
-                        >
-                            {isEditMode ? (
-                                <PenLine
-                                    size={22}
-                                />
-                            ) : (
-                                <Sparkles
-                                    size={22}
-                                />
-                            )}
-                        </div>
-
-
-                        <div
-                            className="
-                                min-w-0
-                            "
-                        >
-
-                            <div
-                                className="
-                                    mb-1.5
-                                    inline-flex
-                                    items-center
-                                    gap-2
-                                    rounded-full
-                                    border
-                                    border-indigo-400/20
-                                    bg-indigo-500/[0.08]
-                                    px-2.5
-                                    py-1
-                                    text-[9px]
-                                    font-black
-                                    uppercase
-                                    tracking-[0.18em]
-                                    text-indigo-300
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        h-1.5
-                                        w-1.5
-                                        rounded-full
-                                        bg-indigo-400
-                                        shadow-[0_0_8px_rgba(129,140,248,0.8)]
-                                    "
-                                />
-
-                                F.Society Posts
-
-                            </div>
-
-
-                            <h2
-                                className="
-                                    truncate
-                                    text-xl
-                                    font-black
-                                    tracking-tight
-                                    text-white
-                                    sm:text-2xl
-                                "
-                            >
-                                {modalTitle}
-                            </h2>
-
-
-                            <p
-                                className="
-                                    mt-1
-                                    max-w-xl
-                                    text-xs
-                                    font-medium
-                                    leading-5
-                                    text-gray-500
-                                    sm:text-sm
-                                "
-                            >
-                                {modalDescription}
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <button
-                        type="button"
-                        onClick={
-                            handleClose
-                        }
-                        disabled={
-                            isSubmitting
-                        }
-                        className="
-                            flex
-                            h-10
-                            w-10
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-xl
-                            border
-                            border-white/[0.07]
-                            bg-white/[0.03]
-                            text-gray-500
-                            transition-all
-                            duration-200
-                            hover:border-red-400/30
-                            hover:bg-red-500/10
-                            hover:text-red-300
-                            active:scale-95
-                            disabled:cursor-not-allowed
-                            disabled:opacity-40
-                        "
-                        aria-label="Modalni yopish"
-                    >
-                        <X
-                            size={19}
-                        />
-                    </button>
-
-                </header>
-
-
-                {/* =============================================
-                    FORM
-                ============================================== */}
+                {/* =================================
+                    POST FORM
+                ================================== */}
 
                 <form
-                    onSubmit={
-                        handleSubmit
-                    }
+                    onSubmit={handleSubmit}
                 >
+                    {/* =============================
+                        TWO-COLUMN LAYOUT
+
+                        Left:
+                        - Post type
+                        - Title
+                        - Content
+                        - Error
+
+                        Right:
+                        - Live preview
+                    ============================== */}
 
                     <div
                         className="
                             grid
+                            min-w-0
+
                             lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.7fr)]
                         "
                     >
-
-                        {/* =====================================
-                            LEFT
-                        ====================================== */}
+                        {/* =========================
+                            LEFT PANEL
+                        ========================== */}
 
                         <div
                             className="
+                                min-w-0
+
                                 space-y-7
+
                                 p-5
+
                                 sm:p-7
+
                                 lg:border-r
-                                lg:border-white/[0.06]
+                                lg:border-slate-200
+
+                                dark:lg:border-white/[0.06]
                             "
                         >
-
-                            {/* =================================
-                                CATEGORY
-                            ================================== */}
-
-                            <section>
-
-                                <div
-                                    className="
-                                        mb-3
-                                        flex
-                                        items-center
-                                        justify-between
-                                        gap-4
-                                    "
-                                >
-
-                                    <div>
-
-                                        <label
-                                            className="
-                                                text-xs
-                                                font-black
-                                                uppercase
-                                                tracking-[0.16em]
-                                                text-gray-400
-                                            "
-                                        >
-                                            Post turi
-                                        </label>
-
-
-                                        <p
-                                            className="
-                                                mt-1
-                                                text-xs
-                                                text-gray-600
-                                            "
-                                        >
-                                            Postingizga eng mos kategoriyani tanlang.
-                                        </p>
-
-                                    </div>
-
-
-                                    <div
-                                        className="
-                                            hidden
-                                            items-center
-                                            gap-1.5
-                                            rounded-full
-                                            border
-                                            border-emerald-400/15
-                                            bg-emerald-500/[0.06]
-                                            px-3
-                                            py-1
-                                            text-[10px]
-                                            font-bold
-                                            text-emerald-300
-                                            sm:flex
-                                        "
-                                    >
-
-                                        <Check
-                                            size={12}
-                                        />
-
-                                        {
-                                            selectedType.label
-                                        }
-
-                                    </div>
-
-                                </div>
-
-
-                                <div
-                                    className="
-                                        grid
-                                        gap-3
-                                        sm:grid-cols-2
-                                        xl:grid-cols-3
-                                    "
-                                >
-
-                                    {POST_TYPES.map(
-                                        ({
-                                            value,
-                                            label,
-                                            description,
-                                            Icon,
-                                            activeClass,
-                                            iconClass,
-                                            glowClass,
-                                        }) => {
-                                            const active =
-                                                formData.post_type ===
-                                                value;
-
-
-                                            return (
-                                                <button
-                                                    key={
-                                                        value
-                                                    }
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleCategoryChange(
-                                                            value
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        isSubmitting
-                                                    }
-                                                    className={`
-                                                        group
-                                                        relative
-                                                        overflow-hidden
-                                                        rounded-2xl
-                                                        border
-                                                        p-3.5
-                                                        text-left
-                                                        transition-all
-                                                        duration-300
-                                                        active:scale-[0.98]
-                                                        disabled:cursor-not-allowed
-                                                        disabled:opacity-50
-
-                                                        ${
-                                                            active
-                                                                ? activeClass
-                                                                : `
-                                                                    border-white/[0.07]
-                                                                    bg-white/[0.025]
-                                                                    text-gray-300
-                                                                    hover:border-white/[0.12]
-                                                                    hover:bg-white/[0.045]
-                                                                `
-                                                        }
-                                                    `}
-                                                >
-
-                                                    <div
-                                                        className={`
-                                                            pointer-events-none
-                                                            absolute
-                                                            -right-8
-                                                            -top-8
-                                                            h-20
-                                                            w-20
-                                                            rounded-full
-                                                            blur-2xl
-                                                            transition-opacity
-
-                                                            ${
-                                                                active
-                                                                    ? "opacity-100"
-                                                                    : "opacity-0 group-hover:opacity-60"
-                                                            }
-
-                                                            ${glowClass}
-                                                        `}
-                                                    />
-
-
-                                                    <div
-                                                        className="
-                                                            relative
-                                                            z-10
-                                                            flex
-                                                            items-start
-                                                            gap-3
-                                                        "
-                                                    >
-
-                                                        <div
-                                                            className={`
-                                                                flex
-                                                                h-10
-                                                                w-10
-                                                                shrink-0
-                                                                items-center
-                                                                justify-center
-                                                                rounded-xl
-                                                                border
-                                                                ${iconClass}
-                                                            `}
-                                                        >
-                                                            <Icon
-                                                                size={18}
-                                                            />
-                                                        </div>
-
-
-                                                        <div
-                                                            className="
-                                                                min-w-0
-                                                                flex-1
-                                                            "
-                                                        >
-
-                                                            <div
-                                                                className="
-                                                                    flex
-                                                                    items-center
-                                                                    justify-between
-                                                                    gap-2
-                                                                "
-                                                            >
-
-                                                                <p
-                                                                    className="
-                                                                        text-sm
-                                                                        font-black
-                                                                        text-white
-                                                                    "
-                                                                >
-                                                                    {label}
-                                                                </p>
-
-
-                                                                {active && (
-                                                                    <div
-                                                                        className="
-                                                                            flex
-                                                                            h-5
-                                                                            w-5
-                                                                            items-center
-                                                                            justify-center
-                                                                            rounded-full
-                                                                            bg-white/10
-                                                                        "
-                                                                    >
-                                                                        <Check
-                                                                            size={12}
-                                                                        />
-                                                                    </div>
-                                                                )}
-
-                                                            </div>
-
-
-                                                            <p
-                                                                className="
-                                                                    mt-1
-                                                                    text-[10px]
-                                                                    font-medium
-                                                                    leading-4
-                                                                    text-gray-500
-                                                                "
-                                                            >
-                                                                {description}
-                                                            </p>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                </button>
-                                            );
-                                        }
-                                    )}
-
-                                </div>
-
-                            </section>
-
-
-                            {/* =================================
-                                TITLE
-                            ================================== */}
-
-                            <section>
-
-                                <div
-                                    className="
-                                        mb-2.5
-                                        flex
-                                        items-center
-                                        justify-between
-                                        gap-3
-                                    "
-                                >
-
-                                    <label
-                                        htmlFor="title"
-                                        className="
-                                            flex
-                                            items-center
-                                            gap-2
-                                            text-xs
-                                            font-black
-                                            uppercase
-                                            tracking-[0.16em]
-                                            text-gray-400
-                                        "
-                                    >
-
-                                        <Type
-                                            size={14}
-                                            className="
-                                                text-indigo-300
-                                            "
-                                        />
-
-                                        Sarlavha
-
-                                    </label>
-
-
-                                    <span
-                                        className={`
-                                            text-[10px]
-                                            font-bold
-
-                                            ${
-                                                formData.title.length >= 140
-                                                    ? "text-amber-300"
-                                                    : "text-gray-600"
-                                            }
-                                        `}
-                                    >
-                                        {
-                                            formData.title.length
-                                        }
-                                        /150
-                                    </span>
-
-                                </div>
-
-
-                                <div
-                                    className="
-                                        group
-                                        relative
-                                    "
-                                >
-
-                                    <div
-                                        className="
-                                            pointer-events-none
-                                            absolute
-                                            inset-0
-                                            rounded-2xl
-                                            bg-indigo-500/0
-                                            blur-xl
-                                            transition
-                                            group-focus-within:bg-indigo-500/[0.06]
-                                        "
-                                    />
-
-
-                                    <input
-                                        type="text"
-                                        id="title"
-                                        name="title"
-                                        value={
-                                            formData.title
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
-                                        maxLength={150}
-                                        disabled={
-                                            isSubmitting
-                                        }
-                                        autoComplete="off"
-                                        placeholder="Masalan: Django REST Framework’da JWT authentication..."
-                                        className="
-                                            relative
-                                            z-10
-                                            w-full
-                                            rounded-2xl
-                                            border
-                                            border-white/[0.08]
-                                            bg-black/20
-                                            px-4
-                                            py-3.5
-                                            text-sm
-                                            font-semibold
-                                            text-white
-                                            outline-none
-                                            transition-all
-                                            placeholder:text-gray-700
-                                            focus:border-indigo-400/40
-                                            focus:bg-indigo-500/[0.025]
-                                            focus:ring-4
-                                            focus:ring-indigo-500/[0.06]
-                                            disabled:cursor-not-allowed
-                                            disabled:opacity-50
-                                            sm:text-base
-                                        "
-                                    />
-
-                                </div>
-
-                            </section>
-
-
-                            {/* =================================
-                                CONTENT
-                            ================================== */}
-
-                            <section>
-
-                                <div
-                                    className="
-                                        mb-2.5
-                                        flex
-                                        items-center
-                                        justify-between
-                                        gap-3
-                                    "
-                                >
-
-                                    <label
-                                        htmlFor="content"
-                                        className="
-                                            flex
-                                            items-center
-                                            gap-2
-                                            text-xs
-                                            font-black
-                                            uppercase
-                                            tracking-[0.16em]
-                                            text-gray-400
-                                        "
-                                    >
-
-                                        <AlignLeft
-                                            size={14}
-                                            className="
-                                                text-purple-300
-                                            "
-                                        />
-
-                                        Post mazmuni
-
-                                    </label>
-
-
-                                    <span
-                                        className="
-                                            text-[10px]
-                                            font-bold
-                                            text-gray-600
-                                        "
-                                    >
-                                        {wordCount}
-                                        {" "}
-                                        so‘z
-                                    </span>
-
-                                </div>
-
-
-                                <div
-                                    className="
-                                        group
-                                        relative
-                                    "
-                                >
-
-                                    <div
-                                        className="
-                                            pointer-events-none
-                                            absolute
-                                            inset-0
-                                            rounded-2xl
-                                            bg-purple-500/0
-                                            blur-xl
-                                            transition
-                                            group-focus-within:bg-purple-500/[0.05]
-                                        "
-                                    />
-
-
-                                    <textarea
-                                        id="content"
-                                        name="content"
-                                        value={
-                                            formData.content
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
-                                        rows={11}
-                                        disabled={
-                                            isSubmitting
-                                        }
-                                        placeholder={`O‘z fikringizni yozing...
-
-Masalan:
-• Muammo nima edi?
-• Qanday yechim topdingiz?
-• Code snippet yoki tavsiyalar
-• Boshqalarga qanday foyda beradi?`}
-                                        className="
-                                            relative
-                                            z-10
-                                            min-h-[260px]
-                                            w-full
-                                            resize-y
-                                            rounded-2xl
-                                            border
-                                            border-white/[0.08]
-                                            bg-black/20
-                                            px-4
-                                            py-4
-                                            text-sm
-                                            font-medium
-                                            leading-7
-                                            text-gray-200
-                                            outline-none
-                                            transition-all
-                                            placeholder:text-gray-700
-                                            focus:border-purple-400/40
-                                            focus:bg-purple-500/[0.02]
-                                            focus:ring-4
-                                            focus:ring-purple-500/[0.05]
-                                            disabled:cursor-not-allowed
-                                            disabled:opacity-50
-                                        "
-                                    />
-
-                                </div>
-
-                            </section>
-
-
-                            {/* =================================
+                            {/* =====================
+                                2. CATEGORY SELECTOR
+                            ====================== */}
+
+                            <PostCreateTypeSelector
+                                value={
+                                    selectedType.value
+                                }
+                                onChange={
+                                    handleCategoryChange
+                                }
+                                disabled={busy}
+                            />
+
+                            {/* =====================
+                                3. FORM FIELDS
+                            ====================== */}
+
+                            <PostCreateFields
+                                formData={formData}
+                                onChange={handleChange}
+                                wordCount={wordCount}
+                                disabled={busy}
+                            />
+
+                            {/* =====================
                                 INLINE ERROR
-                            ================================== */}
+                            ====================== */}
 
                             {error && (
                                 <div
+                                    role="alert"
                                     className="
                                         flex
+                                        min-w-0
+
                                         items-start
                                         gap-3
+
                                         rounded-2xl
                                         border
-                                        border-red-400/20
-                                        bg-red-500/[0.08]
+
+                                        border-red-200
+                                        bg-red-50
+
                                         p-4
+
+                                        dark:border-red-400/20
+                                        dark:bg-red-500/[0.08]
                                     "
                                 >
+                                    {/* ERROR ICON */}
 
-                                    <div
+                                    <span
+                                        aria-hidden="true"
                                         className="
                                             mt-0.5
+
                                             flex
                                             h-8
                                             w-8
                                             shrink-0
+
                                             items-center
                                             justify-center
+
                                             rounded-xl
-                                            bg-red-500/10
-                                            text-red-300
+
+                                            bg-red-100
+                                            text-red-600
+
+                                            dark:bg-red-500/10
+                                            dark:text-red-300
                                         "
                                     >
                                         <AlertTriangle
                                             size={17}
                                         />
-                                    </div>
+                                    </span>
 
+                                    {/* ERROR MESSAGE */}
 
-                                    <div>
-
+                                    <div className="min-w-0">
                                         <p
                                             className="
                                                 text-xs
                                                 font-black
+
                                                 uppercase
                                                 tracking-wider
-                                                text-red-300
+
+                                                text-red-700
+
+                                                dark:text-red-300
                                             "
                                         >
                                             Xatolik
                                         </p>
 
-
                                         <p
                                             className="
                                                 mt-1
+
+                                                break-words
+
                                                 text-sm
                                                 font-medium
                                                 leading-6
-                                                text-red-200/80
+
+                                                text-red-700
+
+                                                dark:text-red-200
                                             "
                                         >
                                             {error}
                                         </p>
-
                                     </div>
-
                                 </div>
                             )}
-
                         </div>
 
+                        {/* =========================
+                            RIGHT PANEL
+                        ========================== */}
 
-                        {/* =====================================
-                            RIGHT — LIVE PREVIEW
-                        ====================================== */}
-
-                        <aside
-                            className="
-                                hidden
-                                bg-black/10
-                                p-6
-                                lg:block
-                            "
-                        >
-
-                            <div
-                                className="
-                                    sticky
-                                    top-4
-                                "
-                            >
-
-                                {/* =================================
-                                    PREVIEW HEADER
-                                ================================== */}
-
-                                <div
-                                    className="
-                                        mb-4
-                                        flex
-                                        items-center
-                                        justify-between
-                                        gap-3
-                                    "
-                                >
-
-                                    <div>
-
-                                        <p
-                                            className="
-                                                text-xs
-                                                font-black
-                                                uppercase
-                                                tracking-[0.16em]
-                                                text-gray-400
-                                            "
-                                        >
-                                            Live preview
-                                        </p>
-
-
-                                        <p
-                                            className="
-                                                mt-1
-                                                text-[10px]
-                                                text-gray-600
-                                            "
-                                        >
-                                            Post kartada taxminan shunday ko‘rinadi
-                                        </p>
-
-                                    </div>
-
-
-                                    <span
-                                        className="
-                                            rounded-full
-                                            border
-                                            border-white/[0.07]
-                                            bg-white/[0.03]
-                                            px-2.5
-                                            py-1
-                                            text-[9px]
-                                            font-bold
-                                            uppercase
-                                            tracking-wider
-                                            text-gray-500
-                                        "
-                                    >
-                                        Preview
-                                    </span>
-
-                                </div>
-
-
-                                {/* =================================
-                                    PREVIEW CARD
-                                ================================== */}
-
-                                <div
-                                    className="
-                                        relative
-                                        overflow-hidden
-                                        rounded-[26px]
-                                        border
-                                        border-white/[0.08]
-                                        bg-[#101521]
-                                        p-5
-                                        shadow-2xl
-                                        shadow-black/30
-                                    "
-                                >
-
-                                    <div
-                                        className={`
-                                            pointer-events-none
-                                            absolute
-                                            -right-16
-                                            -top-16
-                                            h-40
-                                            w-40
-                                            rounded-full
-                                            blur-[55px]
-                                            ${selectedType.glowClass}
-                                        `}
-                                    />
-
-
-                                    <div
-                                        className="
-                                            relative
-                                            z-10
-                                        "
-                                    >
-
-                                        {/* CATEGORY */}
-
-                                        <div
-                                            className="
-                                                flex
-                                                items-center
-                                                justify-between
-                                                gap-3
-                                            "
-                                        >
-
-                                            <div
-                                                className={`
-                                                    inline-flex
-                                                    items-center
-                                                    gap-2
-                                                    rounded-full
-                                                    border
-                                                    px-3
-                                                    py-1.5
-                                                    text-[10px]
-                                                    font-black
-                                                    uppercase
-                                                    tracking-wider
-                                                    ${selectedType.activeClass}
-                                                `}
-                                            >
-
-                                                <SelectedIcon
-                                                    size={12}
-                                                />
-
-                                                {
-                                                    selectedType.label
-                                                }
-
-                                            </div>
-
-
-                                            <span
-                                                className="
-                                                    text-[10px]
-                                                    font-bold
-                                                    text-gray-600
-                                                "
-                                            >
-                                                Hozir
-                                            </span>
-
-                                        </div>
-
-
-                                        {/* TITLE */}
-
-                                        <h3
-                                            className={`
-                                                mt-5
-                                                break-words
-                                                font-black
-                                                leading-tight
-
-                                                ${
-                                                    formData.title.trim()
-                                                        ? "text-xl text-white"
-                                                        : "text-lg text-gray-700"
-                                                }
-                                            `}
-                                        >
-                                            {
-                                                formData.title.trim() ||
-                                                "Post sarlavhasi shu yerda ko‘rinadi..."
-                                            }
-                                        </h3>
-
-
-                                        {/* CONTENT */}
-
-                                        <div
-                                            className="
-                                                mt-4
-                                                border-l-2
-                                                border-indigo-400/40
-                                                pl-4
-                                            "
-                                        >
-
-                                            <p
-                                                className={`
-                                                    line-clamp-6
-                                                    whitespace-pre-wrap
-                                                    break-words
-                                                    text-sm
-                                                    font-medium
-                                                    leading-7
-
-                                                    ${
-                                                        cleanPreviewContent
-                                                            ? "text-gray-400"
-                                                            : "text-gray-700"
-                                                    }
-                                                `}
-                                            >
-                                                {
-                                                    cleanPreviewContent ||
-                                                    "Post mazmunini yozishni boshlaganingizda preview shu yerda paydo bo‘ladi."
-                                                }
-                                            </p>
-
-                                        </div>
-
-
-                                        {/* STATS PREVIEW */}
-
-                                        <div
-                                            className="
-                                                mt-6
-                                                flex
-                                                items-center
-                                                gap-4
-                                                border-t
-                                                border-white/[0.06]
-                                                pt-4
-                                                text-xs
-                                                font-bold
-                                                text-gray-600
-                                            "
-                                        >
-                                            <span>
-                                                ♡ 0
-                                            </span>
-
-                                            <span>
-                                                ◉ 0
-                                            </span>
-
-                                            <span>
-                                                ◯ 0
-                                            </span>
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* =================================
-                                    TIPS
-                                ================================== */}
-
-                                <div
-                                    className="
-                                        mt-4
-                                        rounded-2xl
-                                        border
-                                        border-indigo-400/15
-                                        bg-indigo-500/[0.05]
-                                        p-4
-                                    "
-                                >
-
-                                    <div
-                                        className="
-                                            flex
-                                            items-center
-                                            gap-2
-                                            text-xs
-                                            font-black
-                                            text-indigo-300
-                                        "
-                                    >
-
-                                        <Sparkles
-                                            size={14}
-                                        />
-
-                                        Yaxshi post uchun
-
-                                    </div>
-
-
-                                    <p
-                                        className="
-                                            mt-2
-                                            text-xs
-                                            font-medium
-                                            leading-5
-                                            text-gray-500
-                                        "
-                                    >
-                                        Aniq sarlavha yozing, muammoni tushuntiring
-                                        va boshqalarga foyda beradigan yechim yoki
-                                        tajribani ulashing.
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-                        </aside>
-
+                        <PostCreatePreview
+                            formData={formData}
+                            cleanPreviewContent={
+                                cleanPreviewContent
+                            }
+                        />
                     </div>
 
+                    {/* =================================
+                        4. MODAL FOOTER
 
-                    {/* =============================================
-                        FOOTER
-                    ============================================== */}
+                        The submit button remains
+                        inside the form.
+                    ================================== */}
 
-                    <footer
-                        className="
-                            flex
-                            flex-col-reverse
-                            gap-3
-                            border-t
-                            border-white/[0.06]
-                            bg-black/15
-                            px-5
-                            py-4
-                            sm:flex-row
-                            sm:items-center
-                            sm:justify-between
-                            sm:px-7
-                        "
-                    >
-
-                        <div
-                            className="
-                                text-center
-                                text-[10px]
-                                font-medium
-                                text-gray-600
-                                sm:text-left
-                            "
-                        >
-                            ESC orqali ham yopishingiz mumkin.
-                        </div>
-
-
-                        <div
-                            className="
-                                flex
-                                flex-col
-                                gap-2
-                                sm:flex-row
-                            "
-                        >
-
-                            {/* =================================
-                                CANCEL
-                            ================================== */}
-
-                            <button
-                                type="button"
-                                onClick={
-                                    handleClose
-                                }
-                                disabled={
-                                    isSubmitting
-                                }
-                                className="
-                                    inline-flex
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    rounded-2xl
-                                    border
-                                    border-white/[0.08]
-                                    bg-white/[0.03]
-                                    px-5
-                                    py-3
-                                    text-sm
-                                    font-black
-                                    text-gray-400
-                                    transition-all
-                                    hover:border-white/[0.14]
-                                    hover:bg-white/[0.06]
-                                    hover:text-white
-                                    active:scale-[0.98]
-                                    disabled:cursor-not-allowed
-                                    disabled:opacity-40
-                                "
-                            >
-
-                                <X
-                                    size={17}
-                                />
-
-                                Bekor qilish
-
-                            </button>
-
-
-                            {/* =================================
-                                SUBMIT
-                            ================================== */}
-
-                            <button
-                                type="submit"
-                                disabled={
-                                    isSubmitting
-                                }
-                                className="
-                                    group
-                                    relative
-                                    inline-flex
-                                    min-w-[210px]
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    overflow-hidden
-                                    rounded-2xl
-                                    border
-                                    border-indigo-400/30
-                                    bg-gradient-to-r
-                                    from-indigo-600
-                                    via-violet-600
-                                    to-purple-600
-                                    px-6
-                                    py-3
-                                    text-sm
-                                    font-black
-                                    text-white
-                                    shadow-xl
-                                    shadow-indigo-600/20
-                                    transition-all
-                                    duration-300
-                                    hover:-translate-y-0.5
-                                    hover:shadow-indigo-500/30
-                                    active:translate-y-0
-                                    active:scale-[0.98]
-                                    disabled:cursor-not-allowed
-                                    disabled:opacity-60
-                                    disabled:hover:translate-y-0
-                                "
-                            >
-
-                                {/* SHINE */}
-
-                                <div
-                                    className="
-                                        pointer-events-none
-                                        absolute
-                                        inset-y-0
-                                        -left-20
-                                        w-16
-                                        rotate-12
-                                        bg-white/15
-                                        blur-md
-                                        transition-all
-                                        duration-700
-                                        group-hover:left-[120%]
-                                    "
-                                />
-
-
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2
-                                            size={18}
-                                            className="
-                                                animate-spin
-                                            "
-                                        />
-
-                                        {
-                                            isEditMode
-                                                ? "Saqlanmoqda..."
-                                                : "Chop etilmoqda..."
-                                        }
-                                    </>
-                                ) : (
-                                    <>
-                                        <SubmitIcon
-                                            size={18}
-                                        />
-
-                                        {
-                                            submitText
-                                        }
-                                    </>
-                                )}
-
-                            </button>
-
-                        </div>
-
-                    </footer>
-
+                    <PostCreateFooter
+                        isEditMode={isEditMode}
+                        isSubmitting={busy}
+                        onClose={handleClose}
+                    />
                 </form>
-
             </div>
-
         </div>
     );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default CreatePostModal;

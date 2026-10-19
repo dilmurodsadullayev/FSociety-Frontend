@@ -133,7 +133,7 @@ export {
 
 export {
     default as Profile,
-} from "./profile/Profile";
+} from "./Profile";
 
 export {
     default as ProfileProjects,

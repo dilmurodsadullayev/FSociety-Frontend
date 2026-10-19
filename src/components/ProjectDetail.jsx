@@ -13,7 +13,7 @@ import PageGridBackground from "./ui/PageGridBackground";
 
 import ProjectDiscussion from "./ProjectDiscussion";
 
-import ProjectLoadingSkeleton from "./ProjectLoadingSkeleton";
+import ProjectLoadingSkeleton from "./projects/ProjectLoadingSkeleton";
 
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 

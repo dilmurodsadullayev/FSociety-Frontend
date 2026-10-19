@@ -1,203 +1,136 @@
-// src/components/profile/ProfileContent.jsx
 
-import React from "react";
+ // src/components/profile/ProfileContent.jsx
+
+import React, { memo, useId } from "react";
 
 import ProfilePosts from "./ProfilePosts";
 import ProfileProjects from "./ProfileProjects";
 import ProfileRoadmap from "./ProfileRoadmap";
 
+import ProfileContentTabs from "./content/ProfileContentTabs";
 
 // =========================================================
-// TAB
-// =========================================================
-
-const TabButton = ({
-    active,
-    children,
-    onClick,
-}) => {
-    return (
-        <button
-            type="button"
-            onClick={
-                onClick
-            }
-            className={`
-                whitespace-nowrap
-
-                border-b-2
-
-                px-5
-                py-4
-
-                text-sm
-                font-black
-
-                transition-all
-
-                ${
-                    active
-                        ? "border-indigo-400 text-white"
-                        : "border-transparent text-gray-400 hover:text-white"
-                }
-            `}
-        >
-            {children}
-        </button>
-    );
-};
-
-
-// =========================================================
-// CONTENT
+// PROFILE CONTENT
+//
+// Original parent contract is unchanged:
+// - username
+// - activeTab
+// - onTabChange
+//
+// The existing Posts / Projects / Roadmap components
+// retain ownership of their API calls, pagination,
+// Redux state, loading states and modals.
+//
+// Only the active child component is mounted, matching
+// the previous behavior when users switch tabs.
 // =========================================================
 
 const ProfileContent = ({
     username,
-    activeTab,
+    activeTab = "projects",
     onTabChange,
 }) => {
+    const generatedId = useId();
+
+    const idPrefix = `profile-content-${generatedId}`;
+
+    // =====================================================
+    // RENDER
+    // =====================================================
+
     return (
         <section
-            className="
-                min-w-0
-            "
+            aria-label="Profil kontenti"
+            className="min-w-0"
         >
-            {/* =============================================
-                TABS
-            ============================================== */}
+            {/* =====================================
+                TAB NAVIGATION
+
+                - Projects
+                - Posts / Answers
+                - Roadmap
+            ====================================== */}
+
+            <ProfileContentTabs
+                activeTab={activeTab}
+                onTabChange={onTabChange}
+                idPrefix={idPrefix}
+            />
+
+            {/* =====================================
+                CONTENT PANELS
+
+                All three panel elements exist for
+                valid accessibility references.
+
+                Their inner components mount only
+                when the corresponding tab is active.
+            ====================================== */}
+
+            {/* =====================================
+                PROJECTS
+            ====================================== */}
 
             <div
+                id={`${idPrefix}-panel-projects`}
+                role="tabpanel"
+                aria-labelledby={`${idPrefix}-tab-projects`}
+                tabIndex={0}
+                hidden={activeTab !== "projects"}
                 className="
-                    mb-5
-
-                    flex
-                    flex-col
-
-                    gap-4
-
-                    border-b
-                    border-gray-700/70
-
-                    sm:flex-row
-                    sm:items-center
-                    sm:justify-between
+                    min-w-0 space-y-4
                 "
             >
-                <div
-                    className="
-                        flex
-                        min-w-0
-
-                        overflow-x-auto
-                    "
-                >
-                    <TabButton
-                        active={
-                            activeTab ===
-                            "projects"
-                        }
-                        onClick={
-                            () => (
-                                onTabChange(
-                                    "projects"
-                                )
-                            )
-                        }
-                    >
-                        Loyihalar
-                    </TabButton>
-
-
-                    <TabButton
-                        active={
-                            activeTab ===
-                            "posts"
-                        }
-                        onClick={
-                            () => (
-                                onTabChange(
-                                    "posts"
-                                )
-                            )
-                        }
-                    >
-                        Postlar / Javoblar
-                    </TabButton>
-
-
-                    <TabButton
-                        active={
-                            activeTab ===
-                            "roadmap"
-                        }
-                        onClick={
-                            () => (
-                                onTabChange(
-                                    "roadmap"
-                                )
-                            )
-                        }
-                    >
-                        Yo‘l xaritasi
-                    </TabButton>
-                </div>
+                {activeTab === "projects" && (
+                    <ProfileProjects
+                        username={username}
+                    />
+                )}
             </div>
 
-
-            {/* =============================================
-                CONTENT
-            ============================================== */}
+            {/* =====================================
+                POSTS / ANSWERS
+            ====================================== */}
 
             <div
+                id={`${idPrefix}-panel-posts`}
+                role="tabpanel"
+                aria-labelledby={`${idPrefix}-tab-posts`}
+                tabIndex={0}
+                hidden={activeTab !== "posts"}
                 className="
-                    space-y-4
+                    min-w-0 space-y-4
                 "
             >
-                {
-                    activeTab ===
-                    "projects"
-                    &&
-                    (
-                        <ProfileProjects
-                            username={
-                                username
-                            }
-                        />
-                    )
-                }
+                {activeTab === "posts" && (
+                    <ProfilePosts
+                        username={username}
+                    />
+                )}
+            </div>
 
+            {/* =====================================
+                ROADMAP
+            ====================================== */}
 
-                {
-                    activeTab ===
-                    "posts"
-                    &&
-                    (
-                        <ProfilePosts
-                            username={
-                                username
-                            }
-                        />
-                    )
-                }
-
-
-                {
-                    activeTab ===
-                    "roadmap"
-                    &&
-                    (
-                        <ProfileRoadmap
-                            username={
-                                username
-                            }
-                        />
-                    )
-                }
+            <div
+                id={`${idPrefix}-panel-roadmap`}
+                role="tabpanel"
+                aria-labelledby={`${idPrefix}-tab-roadmap`}
+                tabIndex={0}
+                hidden={activeTab !== "roadmap"}
+                className="
+                    min-w-0 space-y-4
+                "
+            >
+                {activeTab === "roadmap" && (
+                    <ProfileRoadmap
+                        username={username}
+                    />
+                )}
             </div>
         </section>
     );
 };
 
-
-export default ProfileContent;
+export default memo(ProfileContent);

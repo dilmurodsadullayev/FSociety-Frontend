@@ -1,7 +1,11 @@
+
+ // src/components/profile/ProfileProjects.jsx
+
 import React, {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
@@ -14,192 +18,262 @@ import {
     getProjectFailure,
     getProjectStart,
     getProjectSuccess,
+    PROFILE_PROJECT_PAGE_SIZE,
 } from "../../features/projects";
 
 import ProjectService from "../../services/project";
 
 import CreateProjectModal from "../projects/CreateProjectModal";
 
-import ProjectCard from "../projects/ProjectCard";
-
-import {
-    AlertTriangle,
-    Eye,
-    FolderKanban,
-    MessageCircle,
-    Plus,
-    RefreshCcw,
-    Search,
-    Sparkles,
-    Star,
-} from "lucide-react";
-
-
 // =========================================================
-// SELECTOR
+// PROFILE PROJECTS COMPONENTS
+//
+// The existing modular UI is preserved.
 // =========================================================
 
-const selectProjectState = (
-    state
-) => state.project;
-
+import ProfileProjectsHeader from "./projects/ProfileProjectsHeader";
+import ProfileProjectsStats from "./projects/ProfileProjectsStats";
+import ProfileProjectsSkeleton from "./projects/ProfileProjectsSkeleton";
+import ProfileProjectsEmpty from "./projects/ProfileProjectsEmpty";
+import ProfileProjectsError from "./projects/ProfileProjectsError";
+import ProfileProjectCard from "./projects/ProfileProjectCard";
+import ProfileProjectsPagination from "./projects/ProfileProjectsPagination";
 
 // =========================================================
-// PROJECT TITLE
+// CONSTANTS
 // =========================================================
 
-const getProjectTitle = (
-    project
-) => {
-    return (
-        project?.title
-        ||
-        project?.name
-        ||
-        "Noma’lum loyiha"
-    );
+const EMPTY_PROJECTS = [];
+const SEARCH_DEBOUNCE_MS = 350;
+
+const DEFAULT_STATS = {
+    total: 0,
+    stars: 0,
+    views: 0,
+    comments: 0,
 };
 
+// =========================================================
+// REDUX SELECTORS
+// =========================================================
+
+const selectProjectState = (state) => state.project || {};
+const selectAuthState = (state) => state.auth || {};
 
 // =========================================================
-// PROJECT DESCRIPTION
+// API ERROR MESSAGE
+//
+// Keep DRF field errors and common Axios error formats.
 // =========================================================
 
-const getProjectDescription = (
-    project
+const getErrorMessage = (
+    error,
+    fallback = "Kutilmagan xatolik yuz berdi."
 ) => {
-    return (
-        project?.description
-        ||
-        project?.short_description
-        ||
-        "Bu loyiha uchun tavsif hali kiritilmagan."
-    );
-};
-
-
-// =========================================================
-// STACK NAMES
-// =========================================================
-
-const getStackNames = (
-    items
-) => {
-    if (
-        !Array.isArray(
-            items
-        )
-    ) {
-        return "";
+    if (typeof error === "string" && error.trim()) {
+        return error.trim();
     }
 
-    return items
-        .map(
-            (item) =>
-                item?.name
-                ||
-                item?.title
-                ||
-                ""
-        )
-        .filter(
-            Boolean
-        )
-        .join(" ")
-        .toLowerCase();
+    const data = error?.serverData ?? error?.response?.data;
+
+    if (typeof data === "string" && data.trim()) {
+        return data.trim();
+    }
+
+    if (
+        typeof data?.detail === "string" &&
+        data.detail.trim()
+    ) {
+        return data.detail.trim();
+    }
+
+    if (
+        typeof data?.message === "string" &&
+        data.message.trim()
+    ) {
+        return data.message.trim();
+    }
+
+    if (data && typeof data === "object") {
+        const fields = [
+            "name",
+            "title",
+            "description",
+            "main_features",
+            "languages",
+            "technologies",
+            "images",
+            "non_field_errors",
+        ];
+
+        for (const field of fields) {
+            const value = data[field];
+
+            if (Array.isArray(value) && value.length > 0) {
+                const first = value[0];
+
+                if (typeof first === "string") {
+                    return first;
+                }
+
+                if (first && typeof first === "object") {
+                    const nested = Object.values(first)
+                        .flat()
+                        .find((item) => typeof item === "string");
+
+                    if (nested) {
+                        return String(nested);
+                    }
+                }
+            }
+
+            if (typeof value === "string" && value.trim()) {
+                return value.trim();
+            }
+        }
+    }
+
+    return error?.message || fallback;
 };
 
-
 // =========================================================
-// PROJECT SEARCH TEXT
+// CANCELED REQUEST CHECK
 // =========================================================
 
-const getProjectSearchText = (
-    project
-) => {
-    const title =
-        getProjectTitle(
-            project
-        );
-
-    const description =
-        getProjectDescription(
-            project
-        );
-
-    const primaryLanguage =
-        project?.language_data?.name
-        ||
-        project?.language_data
-        ||
-        "";
-
-    const primaryTechnology =
-        project?.technology_data?.name
-        ||
-        project?.technology_data
-        ||
-        "";
-
-    const languages =
-        getStackNames(
-            project?.languages_data
-        );
-
-    const technologies =
-        getStackNames(
-            project?.technologies_data
-        );
-
-    return [
-        title,
-        description,
-        primaryLanguage,
-        primaryTechnology,
-        languages,
-        technologies,
-    ]
-        .join(" ")
-        .toLowerCase();
+const isCanceledRequest = (error) => {
+    return (
+        error?.code === "ERR_CANCELED" ||
+        error?.name === "CanceledError" ||
+        error?.name === "AbortError"
+    );
 };
 
+// =========================================================
+// SAFE PROJECTS
+//
+// Redux slice stores the current page's result array.
+// Legacy paginated-object input is supported too.
+// =========================================================
+
+const getSafeProjects = (projects) => {
+    if (Array.isArray(projects)) {
+        return projects;
+    }
+
+    if (Array.isArray(projects?.results)) {
+        return projects.results;
+    }
+
+    return EMPTY_PROJECTS;
+};
 
 // =========================================================
-// PROFILE PROJECTS
+// SAFE COUNTS
 // =========================================================
 
-const ProfileProjects = ({
+const safeNonNegativeNumber = (value, fallback = 0) => {
+    if (value === null || value === undefined || value === "") {
+        return fallback;
+    }
+
+    const number = Number(value);
+
+    return Number.isFinite(number) && number >= 0
+        ? number
+        : fallback;
+};
+
+// =========================================================
+// SAFE PROFILE STATS
+//
+// These values belong to ALL projects, not just the
+// current page. Do not sum the four visible cards.
+// =========================================================
+
+const getSafeStats = (stats, fallbackTotal = 0) => {
+    const source =
+        stats && typeof stats === "object" && !Array.isArray(stats)
+            ? stats
+            : DEFAULT_STATS;
+
+    return {
+        total: safeNonNegativeNumber(
+            source.total,
+            fallbackTotal
+        ),
+        stars: safeNonNegativeNumber(source.stars),
+        views: safeNonNegativeNumber(source.views),
+        comments: safeNonNegativeNumber(source.comments),
+    };
+};
+
+// =========================================================
+// NORMALIZE SEARCH INPUT
+//
+// Header sends a string, but the previous event-style
+// callback is also accepted for compatibility.
+// =========================================================
+
+const normalizeSearchInput = (value) => {
+    const raw =
+        typeof value === "string"
+            ? value
+            : value?.target?.value ?? "";
+
+    return String(raw);
+};
+
+// =========================================================
+// BUILD REQUEST KEY
+//
+// A request is considered visually complete ONLY when
+// the currently displayed results match all these values.
+// This avoids stale flashes on page changes and refresh.
+// =========================================================
+
+const buildRequestKey = (
     username,
-}) => {
+    page,
+    search,
+    refreshKey
+) => JSON.stringify([username, page, search, refreshKey]);
 
-    const dispatch =
-        useDispatch();
+// =========================================================
+// PROFILE PROJECTS CONTENT
+//
+// The wrapper at the bottom assigns a key to the profile.
+// Every username receives fresh local page/search/modal
+// state; the old component's requests are aborted.
+// =========================================================
 
+const ProfileProjectsContent = ({ username }) => {
+    const dispatch = useDispatch();
 
     // =====================================================
-    // REDUX
+    // REDUX: PROJECTS
     // =====================================================
 
     const {
-        projects,
-        project_isLoading,
-        project_error,
-    } = useSelector(
-        selectProjectState
-    );
+        projects = EMPTY_PROJECTS,
+        project_isLoading = false,
+        project_error = null,
+        projectCount = 0,
+        projectPage = 1,
+        projectPageSize = PROFILE_PROJECT_PAGE_SIZE,
+        projectStats = DEFAULT_STATS,
+    } = useSelector(selectProjectState);
 
+    // =====================================================
+    // REDUX: AUTH
+    // =====================================================
 
     const {
         isLoggedIn,
         user,
-    } = useSelector(
-        (state) =>
-            state.auth
-    );
-
+    } = useSelector(selectAuthState);
 
     // =====================================================
-    // STATE
+    // LOCAL STATE: CREATE PROJECT MODAL
     // =====================================================
 
     const [
@@ -207,1524 +281,658 @@ const ProfileProjects = ({
         setIsCreateModalOpen,
     ] = useState(false);
 
-
     const [
-        search,
-        setSearch,
-    ] = useState("");
-
+        isSubmitting,
+        setIsSubmitting,
+    ] = useState(false);
 
     const [
         createError,
         setCreateError,
     ] = useState(null);
 
-
-    const [
-        isSubmitting,
-        setIsSubmitting,
-    ] = useState(false);
-
+    // Immediate lock prevents repeated POST requests
+    // within the same React render batch.
+    const submitLockRef = useRef(false);
 
     // =====================================================
-    // SAFE PROJECTS
+    // LOCAL STATE: PAGINATION
+    //
+    // Redux's projectPage describes the loaded response.
+    // This page state describes the requested response.
     // =====================================================
 
-    const safeProjects =
-        Array.isArray(
-            projects
-        )
-            ? projects
-            : [];
-
+    const [page, setPage] = useState(1);
 
     // =====================================================
-    // OWNER
+    // LOCAL STATE: CONTROLLED SEARCH
     // =====================================================
 
-    const isOwner =
-        Boolean(
-            isLoggedIn
-            &&
-            user?.username
-            &&
-            username
-        )
-        &&
-        user.username.toLowerCase()
-        ===
-        username.toLowerCase();
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
+    // Changes the controlled search input's identity when
+    // we explicitly clear it; prevents browser restoration.
+    const [searchResetKey, setSearchResetKey] = useState(0);
 
     // =====================================================
-    // GET PROJECTS
+    // LOCAL STATE: REFRESH
+    //
+    // Allows a new GET even when page and search are
+    // already unchanged (for example, after CREATE).
     // =====================================================
 
-    const getProject =
-        useCallback(
-            async () => {
+    const [refreshKey, setRefreshKey] = useState(0);
 
-                if (!username) {
+    // =====================================================
+    // LOCAL STATE: LAST COMPLETED REQUEST
+    //
+    // null means that this profile has never finished a GET.
+    // The UI shows skeleton until the correct request ends.
+    // =====================================================
+
+    const [completedRequestKey, setCompletedRequestKey] =
+        useState(null);
+
+    // =====================================================
+    // NORMALIZED USERNAME
+    // =====================================================
+
+    const profileUsername = String(username ?? "").trim();
+
+    // =====================================================
+    // SAFE PROJECT DATA
+    // =====================================================
+
+    const safeProjects = useMemo(
+        () => getSafeProjects(projects),
+        [projects]
+    );
+
+    // =====================================================
+    // SAFE PAGINATION METADATA
+    // =====================================================
+
+    const safeProjectCount = safeNonNegativeNumber(projectCount);
+
+    const safePageSize =
+        Number.isSafeInteger(Number(projectPageSize)) &&
+        Number(projectPageSize) > 0
+            ? Number(projectPageSize)
+            : PROFILE_PROJECT_PAGE_SIZE;
+
+    const totalPages = Math.ceil(
+        safeProjectCount / safePageSize
+    );
+
+    // =====================================================
+    // SAFE AGGREGATE STATS
+    // =====================================================
+
+    const safeStats = useMemo(
+        () => getSafeStats(projectStats, safeProjectCount),
+        [projectStats, safeProjectCount]
+    );
+
+    // =====================================================
+    // PROFILE OWNER
+    // =====================================================
+
+    const isOwner = useMemo(() => {
+        if (
+            !isLoggedIn ||
+            !user?.username ||
+            !profileUsername
+        ) {
+            return false;
+        }
+
+        return (
+            String(user.username).toLowerCase() ===
+            profileUsername.toLowerCase()
+        );
+    }, [isLoggedIn, user?.username, profileUsername]);
+
+    // =====================================================
+    // RESET SEARCH
+    // =====================================================
+
+    const resetSearch = useCallback(() => {
+        setSearch("");
+        setDebouncedSearch("");
+        setSearchResetKey((current) => current + 1);
+    }, []);
+
+    // =====================================================
+    // TRIGGER REFRESH
+    // =====================================================
+
+    const refreshProjects = useCallback(() => {
+        setRefreshKey((current) => current + 1);
+    }, []);
+
+    // =====================================================
+    // SEARCH DEBOUNCE
+    //
+    // The input stays responsive immediately; a request
+    // is sent only after the user stops typing for 350 ms.
+    // =====================================================
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search.trim());
+        }, SEARCH_DEBOUNCE_MS);
+
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // =====================================================
+    // REQUEST IDENTITY / DEBOUNCE STATUS
+    // =====================================================
+
+    const normalizedSearch = search.trim();
+    const isSearchPending = normalizedSearch !== debouncedSearch;
+
+    const requestedKey = buildRequestKey(
+        profileUsername,
+        page,
+        debouncedSearch,
+        refreshKey
+    );
+
+    // =====================================================
+    // FETCH PROFILE PROJECTS
+    //
+    // Triggers:
+    // - Initial mount and browser refresh
+    // - Page change
+    // - Debounced search
+    // - Manual refresh
+    // - Successful project creation
+    //
+    // When search is still being typed:
+    // - Cancel any older request immediately
+    // - Keep the skeleton visible
+    // - Wait for the 350 ms debounce to finish
+    //
+    // An AbortController prevents an outdated response
+    // from overwriting the next page/search results.
+    // =====================================================
+
+    useEffect(() => {
+        // ================================================
+        // USERNAME NOT AVAILABLE
+        // ================================================
+
+        if (!profileUsername) {
+            dispatch(
+                getProjectSuccess({
+                    count: 0,
+                    next: null,
+                    previous: null,
+                    results: [],
+                    stats: { ...DEFAULT_STATS },
+                    page: 1,
+                    pageSize: PROFILE_PROJECT_PAGE_SIZE,
+                    search: "",
+                })
+            );
+
+            setCompletedRequestKey(requestedKey);
+            return undefined;
+        }
+
+        // ================================================
+        // WAIT FOR SEARCH INPUT TO SETTLE
+        //
+        // Calling start here keeps Redux and the visual
+        // skeleton synchronized while typing. No GET yet.
+        // ================================================
+
+        if (isSearchPending) {
+            dispatch(getProjectStart());
+            return undefined;
+        }
+
+        // ================================================
+        // ACTUAL API REQUEST
+        // ================================================
+
+        const controller = new AbortController();
+        let active = true;
+
+        dispatch(getProjectStart());
+
+        const loadProjects = async () => {
+            try {
+                const response = await ProjectService.getProjects(
+                    profileUsername,
+                    {
+                        page,
+                        search: debouncedSearch,
+                        signal: controller.signal,
+                    }
+                );
+
+                if (!active || controller.signal.aborted) {
                     return;
                 }
 
-
-                dispatch(
-                    getProjectStart()
-                );
-
-
-                setCreateError(
-                    null
-                );
-
-
-                try {
-
-                    const response =
-                        await ProjectService
-                            .getProjects(
-                                username
-                            );
-
-
-                    dispatch(
-                        getProjectSuccess(
-                            response
-                        )
-                    );
-
-                } catch (err) {
-
-                    console.error(
-                        "Project olishda xato:",
-                        err
-                    );
-
-
-                    dispatch(
-                        getProjectFailure(
-                            err?.response
-                                ?.data
-                                ?.detail
-                            ||
-                            err?.message
-                            ||
-                            "Loyihalarni yuklashda xato yuz berdi."
-                        )
-                    );
+                dispatch(getProjectSuccess(response));
+                setCompletedRequestKey(requestedKey);
+            } catch (error) {
+                if (
+                    !active ||
+                    controller.signal.aborted ||
+                    isCanceledRequest(error)
+                ) {
+                    return;
                 }
 
-            },
-            [
-                dispatch,
-                username,
-            ]
-        );
+                // =========================================
+                // OUT-OF-RANGE PAGE
+                //
+                // For example, deleting the only project
+                // on the last page can make it invalid.
+                // =========================================
 
+                if (
+                    error?.response?.status === 404 &&
+                    page > 1
+                ) {
+                    setPage(1);
+                    return;
+                }
+
+                dispatch(
+                    getProjectFailure(
+                        getErrorMessage(
+                            error,
+                            "Loyihalarni yuklashda xatolik yuz berdi."
+                        )
+                    )
+                );
+
+                setCompletedRequestKey(requestedKey);
+            }
+        };
+
+        void loadProjects();
+
+        // ================================================
+        // CANCEL OUTDATED REQUEST
+        // ================================================
+
+        return () => {
+            active = false;
+            controller.abort();
+        };
+    }, [
+        dispatch,
+        profileUsername,
+        page,
+        debouncedSearch,
+        requestedKey,
+        isSearchPending,
+    ]);
 
     // =====================================================
-    // INITIAL FETCH
+    // SEARCH CHANGE
+    //
+    // Search runs on the server across all profile
+    // projects, not only the current four cards.
     // =====================================================
 
-    useEffect(
-        () => {
+    const handleSearchChange = useCallback((value) => {
+        setSearch(normalizeSearchInput(value));
+        setPage(1);
+    }, []);
 
-            getProject();
+    // =====================================================
+    // CLEAR SEARCH
+    // =====================================================
 
+    const handleClearSearch = useCallback(() => {
+        resetSearch();
+        setPage(1);
+    }, [resetSearch]);
+
+    // =====================================================
+    // PAGE CHANGE
+    //
+    // Do not slice client-side arrays. Each page is
+    // fetched from the backend with ?page=N.
+    // =====================================================
+
+    const handlePageChange = useCallback(
+        (nextPage) => {
+            if (project_isLoading || isSearchPending) {
+                return;
+            }
+
+            const parsedPage = Number(nextPage);
+
+            if (
+                !Number.isSafeInteger(parsedPage) ||
+                parsedPage < 1 ||
+                parsedPage > totalPages ||
+                parsedPage === page
+            ) {
+                return;
+            }
+
+            setPage(parsedPage);
         },
-        [
-            getProject,
-        ]
+        [page, totalPages, project_isLoading, isSearchPending]
     );
-
 
     // =====================================================
     // OPEN CREATE MODAL
+    //
+    // Reset search and select the first page so that
+    // the created project cannot be hidden by a filter.
     // =====================================================
 
-    const handleCreateProject =
-        () => {
+    const handleCreateProject = useCallback(() => {
+        if (!isOwner || submitLockRef.current) {
+            return;
+        }
 
-            setCreateError(
-                null
-            );
+        resetSearch();
+        setPage(1);
+        setCreateError(null);
+        setIsCreateModalOpen(true);
+    }, [isOwner, resetSearch]);
 
-            setIsCreateModalOpen(
-                true
-            );
-        };
+    // =====================================================
+    // CLOSE CREATE MODAL
+    // =====================================================
 
+    const handleCloseCreateModal = useCallback(() => {
+        if (submitLockRef.current) {
+            return;
+        }
+
+        setIsCreateModalOpen(false);
+    }, []);
 
     // =====================================================
     // CREATE PROJECT
+    //
+    // On success:
+    // - Reset search
+    // - Return to page 1
+    // - Start a new GET (even if already on page 1)
+    // - Show four-card skeleton
+    // - Update count and aggregate stats from backend
+    //
+    // A successful POST is not treated as failed if the
+    // subsequent GET fails. The GET has its own error UI.
     // =====================================================
 
-    const handleProjectSubmit =
-        async (
-            formDataWithImages
-        ) => {
+    const handleProjectSubmit = async (formDataWithImages) => {
+        if (!isOwner) {
+            throw new Error(
+                "Loyiha yaratish uchun ruxsat yo‘q."
+            );
+        }
 
-            if (!isOwner) {
-                return false;
-            }
+        if (submitLockRef.current) {
+            throw new Error(
+                "Loyiha allaqachon saqlanmoqda."
+            );
+        }
 
+        submitLockRef.current = true;
+        setIsSubmitting(true);
+        setCreateError(null);
 
-            setIsSubmitting(
-                true
+        try {
+            const response = await ProjectService.createProject(
+                formDataWithImages
             );
 
-            setCreateError(
-                null
+            // =============================================
+            // CREATE SUCCEEDED
+            // =============================================
+
+            resetSearch();
+            setPage(1);
+            refreshProjects();
+
+            setCreateError(null);
+            setIsCreateModalOpen(false);
+
+            return response?.data ?? response;
+        } catch (error) {
+            const message = getErrorMessage(
+                error,
+                "Loyihani yaratishda xatolik yuz berdi."
             );
 
+            setCreateError(message);
 
-            try {
-
-                const response =
-                    await ProjectService
-                        .createProject(
-                            formDataWithImages
-                        );
-
-
-                setIsCreateModalOpen(
-                    false
-                );
-
-
-                await getProject();
-
-
-                return (
-                    response?.data
-                    ||
-                    response
-                );
-
-            } catch (err) {
-
-                console.error(
-                    "Yangi loyiha yaratishda xato:",
-                    err
-                );
-
-
-                const responseData =
-                    err?.response?.data;
-
-
-                let message =
-                    responseData?.detail
-                    ||
-                    responseData?.name?.[0]
-                    ||
-                    responseData?.title?.[0]
-                    ||
-                    responseData?.languages?.[0]
-                    ||
-                    responseData?.technologies?.[0]
-                    ||
-                    err?.message
-                    ||
-                    "Loyihani yaratishda kutilmagan xato.";
-
-
-                if (
-                    Array.isArray(
-                        message
-                    )
-                ) {
-                    message =
-                        message[0];
-                }
-
-
-                if (
-                    typeof message !==
-                    "string"
-                ) {
-                    message =
-                        JSON.stringify(
-                            message
-                        );
-                }
-
-
-                setCreateError(
-                    message
-                );
-
-
-                throw new Error(
-                    message
-                );
-
-            } finally {
-
-                setIsSubmitting(
-                    false
-                );
-            }
-        };
-
-
-    // =====================================================
-    // FILTER PROJECTS
-    //
-    // Endi:
-    //
-    // name
-    // description
-    // primary language
-    // primary technology
-    // languages_data[]
-    // technologies_data[]
-    //
-    // bo‘yicha qidiradi.
-    // =====================================================
-
-    const filteredProjects =
-        useMemo(
-            () => {
-
-                const query =
-                    search
-                        .trim()
-                        .toLowerCase();
-
-
-                if (!query) {
-                    return safeProjects;
-                }
-
-
-                return safeProjects.filter(
-                    (
-                        project
-                    ) => {
-
-                        const searchableText =
-                            getProjectSearchText(
-                                project
-                            );
-
-
-                        return (
-                            searchableText.includes(
-                                query
-                            )
-                        );
-                    }
-                );
-
-            },
-            [
-                safeProjects,
-                search,
-            ]
-        );
-
-
-    // =====================================================
-    // STATS
-    // =====================================================
-
-    const stats =
-        useMemo(
-            () => {
-
-                return {
-
-                    total:
-                        safeProjects.length,
-
-
-                    stars:
-                        safeProjects.reduce(
-                            (
-                                sum,
-                                project
-                            ) =>
-                                sum
-                                +
-                                Number(
-                                    project?.stars_count
-                                    ||
-                                    0
-                                ),
-                            0
-                        ),
-
-
-                    views:
-                        safeProjects.reduce(
-                            (
-                                sum,
-                                project
-                            ) =>
-                                sum
-                                +
-                                Number(
-                                    project?.views_count
-                                    ||
-                                    0
-                                ),
-                            0
-                        ),
-
-
-                    comments:
-                        safeProjects.reduce(
-                            (
-                                sum,
-                                project
-                            ) =>
-                                sum
-                                +
-                                Number(
-                                    project?.comments_count
-                                    ||
-                                    0
-                                ),
-                            0
-                        ),
-                };
-
-            },
-            [
-                safeProjects,
-            ]
-        );
-
+            // Preserve Axios/DRF validation details for
+            // CreateProjectModal's own error handling.
+            throw error;
+        } finally {
+            submitLockRef.current = false;
+            setIsSubmitting(false);
+        }
+    };
 
     // =====================================================
     // LOADING
+    //
+    // Four-card skeleton is shown while:
+    // - The first request is not complete
+    // - Search debounce is pending
+    // - The requested page/search/refresh is not complete
+    // - Redux is fetching the current response
+    //
+    // The request-key comparison prevents a one-frame
+    // flash of old projects when page/refresh changes.
     // =====================================================
 
-    if (
-        project_isLoading
-    ) {
-        return (
-            <ProjectsSkeleton />
-        );
-    }
+    const isRequestedPagePending =
+        Number(projectPage) !== Number(page);
 
+    const showSkeleton =
+        completedRequestKey !== requestedKey ||
+        isSearchPending ||
+        isRequestedPagePending ||
+        project_isLoading;
 
     // =====================================================
-    // ERROR
+    // EMPTY STATE FLAGS
     // =====================================================
 
-    if (
-        project_error
-    ) {
-
-        return (
-
-            <div
-                className="
-                    rounded-3xl
-                    border
-                    border-red-500/30
-                    bg-red-500/10
-                    p-8
-                    text-center
-                    shadow-2xl
-                    shadow-black/30
-                "
-            >
-
-                <div
-                    className="
-                        mx-auto
-                        mb-5
-                        flex
-                        h-20
-                        w-20
-                        items-center
-                        justify-center
-                        rounded-full
-                        border
-                        border-red-400/25
-                        bg-red-500/10
-                        text-red-300
-                    "
-                >
-                    <AlertTriangle
-                        size={42}
-                    />
-                </div>
-
-
-                <h3
-                    className="
-                        text-2xl
-                        font-black
-                        text-white
-                    "
-                >
-                    Loyihalar yuklanmadi
-                </h3>
-
-
-                <p
-                    className="
-                        mx-auto
-                        mt-3
-                        max-w-xl
-                        text-sm
-                        font-semibold
-                        leading-7
-                        text-red-200/80
-                    "
-                >
-                    {project_error}
-                </p>
-
-
-                <button
-                    type="button"
-                    onClick={
-                        getProject
-                    }
-                    className="
-                        mt-6
-                        inline-flex
-                        items-center
-                        gap-2
-                        rounded-2xl
-                        border
-                        border-red-400/40
-                        bg-red-600
-                        px-5
-                        py-3
-                        text-sm
-                        font-black
-                        text-white
-                        transition
-
-                        hover:bg-red-500
-                        active:scale-95
-                    "
-                >
-                    <RefreshCcw
-                        size={17}
-                    />
-
-                    Qayta urinish
-                </button>
-
-            </div>
-        );
-    }
-
+    const hasAnyProjects = safeStats.total > 0;
+    const hasVisibleProjects = safeProjects.length > 0;
+    const hasSearchQuery = debouncedSearch.length > 0;
+    const hasSearchResults = safeProjectCount > 0;
 
     // =====================================================
     // RENDER
     // =====================================================
 
     return (
-
-        <div
-            className="
-                space-y-5
-            "
-        >
-
-            {/* =================================================
+        <div className="min-w-0 space-y-5">
+            {/* =============================================
                 HEADER
-            ================================================== */}
+            ============================================== */}
 
-            <section
-                className="
-                    relative
-                    overflow-hidden
-                    rounded-3xl
-                    border
-                    border-gray-700/70
-                    bg-gray-900/70
-                    p-5
-                    shadow-xl
-                    shadow-black/30
-                "
-            >
+            <ProfileProjectsHeader
+                key={`${profileUsername || "profile"}-${searchResetKey}`}
+                search={search}
+                onSearchChange={handleSearchChange}
+                isOwner={isOwner}
+                onCreateProject={handleCreateProject}
+                isLoading={showSkeleton}
+                isSubmitting={isSubmitting}
+            />
 
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -right-24
-                        -top-24
-                        h-52
-                        w-52
-                        rounded-full
-                        bg-indigo-500/10
-                        blur-3xl
-                    "
-                />
-
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -bottom-24
-                        -left-24
-                        h-52
-                        w-52
-                        rounded-full
-                        bg-purple-500/10
-                        blur-3xl
-                    "
-                />
-
-
-                <div
-                    className="
-                        relative
-                        z-10
-                        flex
-                        flex-col
-                        gap-5
-
-                        lg:flex-row
-                        lg:items-center
-                        lg:justify-between
-                    "
-                >
-
-                    <div>
-
-                        <div
-                            className="
-                                mb-3
-                                inline-flex
-                                items-center
-                                gap-2
-                                rounded-full
-                                border
-                                border-indigo-400/30
-                                bg-indigo-500/10
-                                px-3
-                                py-1
-                                text-[11px]
-                                font-black
-                                uppercase
-                                tracking-wider
-                                text-indigo-300
-                            "
-                        >
-                            <Sparkles
-                                size={14}
-                            />
-
-                            Profile Projects
-                        </div>
-
-
-                        <h3
-                            className="
-                                text-2xl
-                                font-black
-                                text-white
-                            "
-                        >
-                            Loyihalar
-                        </h3>
-
-
-                        <p
-                            className="
-                                mt-1
-                                text-sm
-                                font-semibold
-                                text-gray-500
-                            "
-                        >
-                            Portfolio, real ishlar va community uchun yaratilgan loyihalar
-                        </p>
-
-                    </div>
-
-
-                    <div
-                        className="
-                            flex
-                            flex-col
-                            gap-3
-
-                            sm:flex-row
-                            sm:items-center
-                        "
-                    >
-
-                        {/* SEARCH */}
-
-                        <div
-                            className="
-                                relative
-                            "
-                        >
-
-                            <Search
-                                size={17}
-                                className="
-                                    pointer-events-none
-                                    absolute
-                                    left-4
-                                    top-1/2
-                                    -translate-y-1/2
-                                    text-gray-500
-                                "
-                            />
-
-
-                            <input
-                                type="text"
-
-                                value={
-                                    search
-                                }
-
-                                onChange={
-                                    (
-                                        event
-                                    ) =>
-                                        setSearch(
-                                            event.target.value
-                                        )
-                                }
-
-                                placeholder="Loyiha qidirish..."
-
-                                className="
-                                    w-full
-                                    rounded-2xl
-                                    border
-                                    border-gray-700
-                                    bg-gray-950/60
-                                    py-3
-                                    pl-11
-                                    pr-4
-                                    text-sm
-                                    font-semibold
-                                    text-white
-                                    outline-none
-                                    transition
-
-                                    placeholder:text-gray-600
-
-                                    focus:border-indigo-500
-                                    focus:ring-2
-                                    focus:ring-indigo-500/20
-
-                                    sm:w-64
-                                "
-                            />
-
-                        </div>
-
-
-                        {/* CREATE */}
-
-                        {isOwner && (
-
-                            <button
-                                type="button"
-
-                                onClick={
-                                    handleCreateProject
-                                }
-
-                                className="
-                                    inline-flex
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    rounded-2xl
-                                    border
-                                    border-indigo-400/40
-                                    bg-indigo-600
-                                    px-5
-                                    py-3
-                                    text-sm
-                                    font-black
-                                    text-white
-                                    shadow-lg
-                                    shadow-indigo-600/20
-                                    transition
-
-                                    hover:bg-indigo-500
-                                    active:scale-95
-                                "
-                            >
-                                <Plus
-                                    size={18}
-                                />
-
-                                Yangi loyiha
-                            </button>
-                        )}
-
-                    </div>
-
-                </div>
-
-            </section>
-
-
-            {/* =================================================
+            {/* =============================================
                 CREATE ERROR
-            ================================================== */}
+            ============================================== */}
 
             {createError && (
-
-                <div
-                    className="
-                        rounded-2xl
-                        border
-                        border-red-500/30
-                        bg-red-500/10
-                        p-4
-                        text-sm
-                        font-semibold
-                        text-red-300
-                    "
-                >
-
-                    <AlertTriangle
-                        size={17}
-                        className="
-                            mr-2
-                            inline-block
-                        "
-                    />
-
-                    Loyiha yaratishda xato:{" "}
-                    {createError}
-
-                </div>
-            )}
-
-
-            {/* =================================================
-                STATS
-            ================================================== */}
-
-            {safeProjects.length > 0 && (
-
-                <section
-                    className="
-                        grid
-                        gap-3
-
-                        sm:grid-cols-2
-                        xl:grid-cols-4
-                    "
-                >
-
-                    <MiniStat
-                        icon={
-                            FolderKanban
-                        }
-                        label="Jami loyihalar"
-                        value={
-                            stats.total
-                        }
-                        tone="indigo"
-                    />
-
-
-                    <MiniStat
-                        icon={
-                            Star
-                        }
-                        label="Starlar"
-                        value={
-                            stats.stars
-                        }
-                        tone="yellow"
-                    />
-
-
-                    <MiniStat
-                        icon={
-                            Eye
-                        }
-                        label="Ko‘rishlar"
-                        value={
-                            stats.views
-                        }
-                        tone="cyan"
-                    />
-
-
-                    <MiniStat
-                        icon={
-                            MessageCircle
-                        }
-                        label="Izohlar"
-                        value={
-                            stats.comments
-                        }
-                        tone="emerald"
-                    />
-
-                </section>
-            )}
-
-
-            {/* =================================================
-                EMPTY
-            ================================================== */}
-
-            {safeProjects.length === 0 && (
-
-                <EmptyProjects
-                    isOwner={
-                        isOwner
-                    }
-
-                    onCreate={
-                        handleCreateProject
-                    }
-
-                    message={
-                        isOwner
-
-                            ? (
-                                "Sizda hali hech qanday loyiha mavjud emas. "
-                                +
-                                "Birinchi loyihangizni yarating!"
-                            )
-
-                            : (
-                                "Foydalanuvchida hali hech qanday loyiha mavjud emas."
-                            )
-                    }
+                <ProfileProjectsError
+                    variant="create"
+                    error={createError}
                 />
             )}
 
+            {/* =============================================
+                PROJECT CONTENT
+            ============================================== */}
 
-            {/* =================================================
-                FILTER EMPTY
-            ================================================== */}
+            {showSkeleton ? (
+                // =========================================
+                // FOUR-CARD LOADING SKELETON
+                // =========================================
 
-            {safeProjects.length > 0
-                &&
-                filteredProjects.length === 0
-                && (
+                <ProfileProjectsSkeleton
+                    isOwner={isOwner}
+                    count={PROFILE_PROJECT_PAGE_SIZE}
+                    showStats
+                />
+            ) : project_error ? (
+                // =========================================
+                // FETCH ERROR
+                // =========================================
 
-                <div
-                    className="
-                        rounded-3xl
-                        border
-                        border-dashed
-                        border-gray-700/70
-                        bg-gray-900/50
-                        p-8
-                        text-center
-                    "
-                >
+                <ProfileProjectsError
+                    variant="fetch"
+                    error={project_error}
+                    onRetry={refreshProjects}
+                    isLoading={project_isLoading}
+                />
+            ) : (
+                <>
+                    {/* =====================================
+                        COMPLETE PROFILE STATISTICS
+                    ====================================== */}
 
-                    <Search
-                        className="
-                            mx-auto
-                            mb-3
-                            text-gray-600
-                        "
-                        size={42}
-                    />
-
-
-                    <h4
-                        className="
-                            text-xl
-                            font-black
-                            text-white
-                        "
-                    >
-                        Qidiruv bo‘yicha loyiha topilmadi
-                    </h4>
-
-
-                    <p
-                        className="
-                            mt-2
-                            text-sm
-                            font-semibold
-                            text-gray-500
-                        "
-                    >
-                        Boshqa kalit so‘z bilan urinib ko‘ring.
-                    </p>
-
-                </div>
-            )}
-
-
-            {/* =================================================
-                PROJECTS
-            ================================================== */}
-
-            {filteredProjects.length > 0 && (
-
-                <div
-                    id="projects"
-                    className="
-                        grid
-                        gap-6
-
-                        md:grid-cols-2
-                    "
-                >
-
-                    {filteredProjects.map(
-                        (
-                            project,
-                            index
-                        ) => (
-
-                            <ProjectCard
-                                key={
-                                    project.id
-                                    ||
-                                    index
-                                }
-
-                                project={
-                                    project
-                                }
-
-                                index={
-                                    index
-                                }
-                            />
-                        )
+                    {hasAnyProjects && (
+                        <ProfileProjectsStats
+                            stats={safeStats}
+                            projects={safeProjects}
+                            totalCount={safeStats.total}
+                        />
                     )}
 
-                </div>
-            )}
+                    {/* =====================================
+                        NO PROJECTS IN PROFILE
+                    ====================================== */}
 
-
-            {/* =================================================
-                CREATE MODAL
-            ================================================== */}
-
-            <CreateProjectModal
-
-                isOpen={
-                    isCreateModalOpen
-                }
-
-                onClose={() =>
-                    setIsCreateModalOpen(
-                        false
-                    )
-                }
-
-                onSubmit={
-                    handleProjectSubmit
-                }
-
-                isSubmitting={
-                    isSubmitting
-                }
-            />
-
-        </div>
-    );
-};
-
-
-// =========================================================
-// PROJECTS SKELETON
-// =========================================================
-
-const ProjectsSkeleton = () => {
-
-    return (
-
-        <div
-            className="
-                space-y-5
-            "
-        >
-
-            <div
-                className="
-                    rounded-3xl
-                    border
-                    border-gray-700/70
-                    bg-gray-900/70
-                    p-5
-                "
-            >
-
-                <div
-                    className="
-                        flex
-                        flex-col
-                        gap-4
-
-                        lg:flex-row
-                        lg:items-center
-                        lg:justify-between
-                    "
-                >
-
-                    <div
-                        className="
-                            space-y-3
-                        "
-                    >
-                        <div
-                            className="
-                                h-5
-                                w-36
-                                animate-pulse
-                                rounded-xl
-                                bg-gray-800
-                            "
-                        />
-
-                        <div
-                            className="
-                                h-8
-                                w-56
-                                animate-pulse
-                                rounded-xl
-                                bg-gray-800
-                            "
-                        />
-
-                        <div
-                            className="
-                                h-4
-                                w-80
-                                max-w-full
-                                animate-pulse
-                                rounded-xl
-                                bg-gray-800
-                            "
-                        />
-                    </div>
-
-
-                    <div
-                        className="
-                            h-12
-                            w-40
-                            animate-pulse
-                            rounded-2xl
-                            bg-gray-800
-                        "
-                    />
-
-                </div>
-
-            </div>
-
-
-            <div
-                className="
-                    grid
-                    gap-6
-
-                    md:grid-cols-2
-                "
-            >
-
-                {[
-                    1,
-                    2,
-                ].map(
-                    (
-                        item
-                    ) => (
-
-                        <div
-                            key={
-                                item
+                    {!hasAnyProjects && (
+                        <ProfileProjectsEmpty
+                            variant="projects"
+                            isOwner={isOwner}
+                            onCreate={handleCreateProject}
+                            onCreateProject={handleCreateProject}
+                            message={
+                                isOwner
+                                    ? "Sizda hali loyiha mavjud emas. Birinchi loyihangizni yarating!"
+                                    : "Foydalanuvchida hali loyiha mavjud emas."
                             }
+                        />
+                    )}
+
+                    {/* =====================================
+                        SEARCH RESULT EMPTY STATE
+                    ====================================== */}
+
+                    {hasAnyProjects &&
+                        hasSearchQuery &&
+                        !hasSearchResults && (
+                            <ProfileProjectsEmpty
+                                variant="search"
+                                isOwner={isOwner}
+                                search={debouncedSearch}
+                                searchQuery={debouncedSearch}
+                                onClearSearch={handleClearSearch}
+                            />
+                        )}
+
+                    {/* =====================================
+                        PROJECT GRID
+                    ====================================== */}
+
+                    {hasVisibleProjects && (
+                        <div
+                            id="profile-projects-list"
                             className="
-                                overflow-hidden
-                                rounded-3xl
-                                border
-                                border-gray-700/70
-                                bg-gray-900/60
-                                shadow-xl
-                                shadow-black/20
+                                grid
+                                min-w-0
+                                gap-5
+                                sm:gap-6
+                                md:grid-cols-2
                             "
                         >
-
-                            <div
-                                className="
-                                    h-48
-                                    animate-pulse
-                                    bg-gray-800
-                                "
-                            />
-
-
-                            <div
-                                className="
-                                    space-y-4
-                                    p-5
-                                "
-                            >
-
-                                <div
-                                    className="
-                                        h-7
-                                        w-3/4
-                                        animate-pulse
-                                        rounded-xl
-                                        bg-gray-800
-                                    "
+                            {safeProjects.map((project, index) => (
+                                <ProfileProjectCard
+                                    key={project?.id ?? `project-${index}`}
+                                    project={project}
+                                    index={index}
                                 />
-
-                                <div
-                                    className="
-                                        h-4
-                                        w-full
-                                        animate-pulse
-                                        rounded-xl
-                                        bg-gray-800
-                                    "
-                                />
-
-                                <div
-                                    className="
-                                        h-4
-                                        w-5/6
-                                        animate-pulse
-                                        rounded-xl
-                                        bg-gray-800
-                                    "
-                                />
-
-
-                                <div
-                                    className="
-                                        flex
-                                        gap-2
-                                    "
-                                >
-
-                                    <div
-                                        className="
-                                            h-7
-                                            w-20
-                                            animate-pulse
-                                            rounded-full
-                                            bg-gray-800
-                                        "
-                                    />
-
-                                    <div
-                                        className="
-                                            h-7
-                                            w-24
-                                            animate-pulse
-                                            rounded-full
-                                            bg-gray-800
-                                        "
-                                    />
-
-                                </div>
-
-
-                                <div
-                                    className="
-                                        h-12
-                                        w-full
-                                        animate-pulse
-                                        rounded-2xl
-                                        bg-gray-800
-                                    "
-                                />
-
-                            </div>
-
+                            ))}
                         </div>
-                    )
-                )}
+                    )}
 
-            </div>
+                    {/* =====================================
+                        PAGINATION
+                        - Four projects per page
+                        - Server-provided result count
+                        - Responsive navigation
+                    ====================================== */}
 
+                    {hasVisibleProjects &&
+                        totalPages > 1 && (
+                            <ProfileProjectsPagination
+                                page={page}
+                                totalCount={safeProjectCount}
+                                pageSize={safePageSize}
+                                isLoading={project_isLoading}
+                                onPageChange={handlePageChange}
+                            />
+                        )}
+                </>
+            )}
+
+            {/* =============================================
+                CREATE PROJECT MODAL
+                Keep the existing create/edit form contract.
+            ============================================== */}
+
+            <CreateProjectModal
+                isOpen={isCreateModalOpen}
+                onClose={handleCloseCreateModal}
+                onSubmit={handleProjectSubmit}
+                isSubmitting={isSubmitting}
+            />
         </div>
     );
 };
 
-
 // =========================================================
-// EMPTY PROJECTS
+// EXPORTED PROFILE PROJECTS
+//
+// The key resets local state when navigating between
+// usernames without unmounting the surrounding profile.
+// The old ProfileProjectsContent cleanup aborts its GET.
 // =========================================================
 
-const EmptyProjects = ({
-    message,
-    isOwner,
-    onCreate,
-}) => {
+const ProfileProjects = ({ username }) => {
+    const profileUsername = String(username ?? "").trim();
 
     return (
-
-        <div
-            className="
-                relative
-                overflow-hidden
-                rounded-3xl
-                border
-                border-dashed
-                border-gray-700/70
-                bg-gray-900/60
-                p-8
-                text-center
-                shadow-2xl
-                shadow-black/30
-            "
-        >
-
-            <div
-                className="
-                    pointer-events-none
-                    absolute
-                    -right-24
-                    -top-24
-                    h-52
-                    w-52
-                    rounded-full
-                    bg-indigo-500/10
-                    blur-3xl
-                "
-            />
-
-
-            <div
-                className="
-                    pointer-events-none
-                    absolute
-                    -bottom-24
-                    -left-24
-                    h-52
-                    w-52
-                    rounded-full
-                    bg-purple-500/10
-                    blur-3xl
-                "
-            />
-
-
-            <div
-                className="
-                    relative
-                    z-10
-                "
-            >
-
-                <div
-                    className="
-                        mx-auto
-                        mb-5
-                        flex
-                        h-20
-                        w-20
-                        items-center
-                        justify-center
-                        rounded-full
-                        border
-                        border-gray-700
-                        bg-gray-950/70
-                        text-gray-500
-                    "
-                >
-                    <FolderKanban
-                        size={42}
-                    />
-                </div>
-
-
-                <h4
-                    className="
-                        text-2xl
-                        font-black
-                        text-white
-                    "
-                >
-                    Loyihalar mavjud emas
-                </h4>
-
-
-                <p
-                    className="
-                        mx-auto
-                        mt-2
-                        max-w-xl
-                        text-sm
-                        font-semibold
-                        leading-7
-                        text-gray-500
-                    "
-                >
-                    {message}
-                </p>
-
-
-                {isOwner && (
-
-                    <button
-                        type="button"
-                        onClick={
-                            onCreate
-                        }
-                        className="
-                            mt-6
-                            inline-flex
-                            items-center
-                            gap-2
-                            rounded-2xl
-                            border
-                            border-indigo-400/40
-                            bg-indigo-600
-                            px-5
-                            py-3
-                            text-sm
-                            font-black
-                            text-white
-                            shadow-lg
-                            shadow-indigo-600/20
-                            transition
-
-                            hover:bg-indigo-500
-                            active:scale-95
-                        "
-                    >
-                        <Plus
-                            size={18}
-                        />
-
-                        Yangi loyiha yaratish
-                    </button>
-                )}
-
-            </div>
-
-        </div>
+        <ProfileProjectsContent
+            key={profileUsername || "__no_username__"}
+            username={profileUsername}
+        />
     );
 };
-
-
-// =========================================================
-// MINI STAT
-// =========================================================
-
-const MiniStat = ({
-    icon: Icon,
-    label,
-    value,
-    tone = "indigo",
-}) => {
-
-    const tones = {
-
-        indigo:
-            "border-indigo-400/20 bg-indigo-500/10 text-indigo-300",
-
-        yellow:
-            "border-yellow-400/20 bg-yellow-500/10 text-yellow-300",
-
-        cyan:
-            "border-cyan-400/20 bg-cyan-500/10 text-cyan-300",
-
-        emerald:
-            "border-emerald-400/20 bg-emerald-500/10 text-emerald-300",
-    };
-
-
-    return (
-
-        <div
-            className="
-                rounded-3xl
-                border
-                border-gray-700/70
-                bg-gray-900/60
-                p-4
-                shadow-xl
-                shadow-black/20
-            "
-        >
-
-            <div
-                className="
-                    flex
-                    items-center
-                    gap-4
-                "
-            >
-
-                <div
-                    className={`
-                        flex
-                        h-12
-                        w-12
-                        items-center
-                        justify-center
-                        rounded-2xl
-                        border
-
-                        ${
-                            tones[
-                                tone
-                            ]
-                            ||
-                            tones.indigo
-                        }
-                    `}
-                >
-                    <Icon
-                        size={22}
-                    />
-                </div>
-
-
-                <div>
-
-                    <p
-                        className="
-                            text-2xl
-                            font-black
-                            text-white
-                        "
-                    >
-                        {Number(
-                            value
-                            ||
-                            0
-                        ).toLocaleString()}
-                    </p>
-
-
-                    <p
-                        className="
-                            text-xs
-                            font-bold
-                            uppercase
-                            tracking-wider
-                            text-gray-500
-                        "
-                    >
-                        {label}
-                    </p>
-
-                </div>
-
-            </div>
-
-        </div>
-    );
-};
-
 
 export default ProfileProjects;
