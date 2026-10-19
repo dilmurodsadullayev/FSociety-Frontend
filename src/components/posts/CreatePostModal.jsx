@@ -9,6 +9,8 @@ import React, {
     useState,
 } from "react";
 
+import { createPortal } from "react-dom";
+
 import {
     AlertTriangle,
 } from "lucide-react";
@@ -50,6 +52,15 @@ const EMPTY_FORM = {
 const TITLE_MIN_LENGTH = 3;
 const TITLE_MAX_LENGTH = 150;
 
+const FOCUSABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'textarea:not([disabled])',
+    'select:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(", ");
+
 // =========================================================
 // INITIAL FORM DATA
 //
@@ -89,9 +100,9 @@ const getInitialFormData = (initialData) => {
 // - Axios error
 // - DRF response.data
 // - Field validation errors
-// - JSON serialized error messages
+// - JSON serialized messages
 //
-// Prevents [object Object] from appearing in UI.
+// Prevents [object Object] appearing in UI.
 // =========================================================
 
 const ERROR_FIELD_LABELS = {
@@ -258,8 +269,7 @@ const getErrorMessage = (
 // - Live preview
 // - Word count
 //
-// Do not render untrusted HTML with
-// dangerouslySetInnerHTML.
+// Never render untrusted HTML directly.
 // =========================================================
 
 const stripHtml = (html = "") => {
@@ -284,7 +294,7 @@ const stripHtml = (html = "") => {
 };
 
 // =========================================================
-// VALIDATE FORM
+// VALIDATE POST FORM
 //
 // Existing rules:
 //
@@ -293,7 +303,7 @@ const stripHtml = (html = "") => {
 //
 // title:
 // - Required.
-// - At least 3 characters.
+// - Minimum 3 characters.
 // - Maximum 150 characters.
 //
 // content:
@@ -301,24 +311,23 @@ const stripHtml = (html = "") => {
 // =========================================================
 
 const validatePostForm = (formData) => {
-    const postType =
-        formData.post_type;
+    const postType = formData.post_type;
 
-    const title =
-        String(formData.title ?? "").trim();
+    const title = String(
+        formData.title ?? ""
+    ).trim();
 
-    const content =
-        String(formData.content ?? "").trim();
+    const content = String(
+        formData.content ?? ""
+    ).trim();
 
     // =====================================================
     // CATEGORY
     // =====================================================
 
-    const isValidCategory =
-        POST_TYPES.some(
-            (item) =>
-                item.value === postType
-        );
+    const isValidCategory = POST_TYPES.some(
+        (item) => item.value === postType
+    );
 
     if (!isValidCategory) {
         return "Post turini to‘g‘ri tanlang.";
@@ -336,10 +345,7 @@ const validatePostForm = (formData) => {
     // TITLE MINIMUM
     // =====================================================
 
-    if (
-        title.length <
-        TITLE_MIN_LENGTH
-    ) {
+    if (title.length < TITLE_MIN_LENGTH) {
         return (
             "Sarlavha kamida 3 ta belgidan " +
             "iborat bo‘lishi kerak."
@@ -350,10 +356,7 @@ const validatePostForm = (formData) => {
     // TITLE MAXIMUM
     // =====================================================
 
-    if (
-        title.length >
-        TITLE_MAX_LENGTH
-    ) {
+    if (title.length > TITLE_MAX_LENGTH) {
         return (
             "Sarlavha 150 ta belgidan " +
             "oshmasligi kerak."
@@ -381,53 +384,50 @@ const validatePostForm = (formData) => {
 
 const buildPostPayload = (formData) => {
     return {
-        post_type:
-            formData.post_type,
+        post_type: formData.post_type,
 
-        title:
-            formData.title.trim(),
+        title: formData.title.trim(),
 
-        content:
-            formData.content.trim(),
+        content: formData.content.trim(),
     };
 };
 
 // =========================================================
 // CREATE POST MODAL
 //
-// Existing props:
-//
-// isOpen
-// onClose
-// onSubmit
-// isSubmitting
-// initialData
+// Props:
+// - isOpen
+// - onClose
+// - onSubmit
+// - isSubmitting
+// - initialData
 //
 // CREATE MODE:
-//
-// - initialData is null
-// - Modal manages create toast
+// - Empty post form
 // - Parent performs POST and Redux updates
-// - Parent closes modal after success
+// - Modal shows create toast
+// - Parent manages closing after success
 //
 // EDIT MODE:
-//
-// - initialData is provided
-// - PostDetail manages edit toast
+// - Existing post values
 // - Parent performs PATCH and Redux updates
-// - Parent closes modal after success
+// - Parent handles edit toast and closing
 //
 // RESPONSIVE:
 //
 // Mobile:
-// - Full-screen modal
-// - Scrollable content
-// - Header and footer always accessible
+// - Full-screen dialog
+// - Internal scrolling
+// - Header/footer always visible
 //
 // Tablet / Desktop:
 // - Centered modal
-// - Maximum viewport height
+// - Maximum height: 780px
 // - Two columns on large screens
+//
+// IMPORTANT:
+// - Portal renders outside Navbar stacking context.
+// - Existing callback contracts remain unchanged.
 // =========================================================
 
 const CreatePostModal = ({
@@ -441,8 +441,7 @@ const CreatePostModal = ({
     // MODE
     // =====================================================
 
-    const isEditMode =
-        Boolean(initialData);
+    const isEditMode = Boolean(initialData);
 
     // =====================================================
     // FORM STATE
@@ -466,11 +465,6 @@ const CreatePostModal = ({
 
     // =====================================================
     // INTERNAL SUBMISSION STATE
-    //
-    // Parent isSubmitting may update after a render.
-    //
-    // Local state + ref prevent duplicate submits
-    // during the same event cycle.
     // =====================================================
 
     const [
@@ -480,23 +474,17 @@ const CreatePostModal = ({
 
     // =====================================================
     // REFS
-    //
-    // modalRef:
-    // - Focus management
-    //
-    // contentScrollRef:
-    // - Scrollable modal body
-    // - Error visibility
-    //
-    // submittingRef:
-    // - Duplicate submission protection
     // =====================================================
 
     const modalRef = useRef(null);
 
     const contentScrollRef = useRef(null);
 
+    const previousFocusedElementRef = useRef(null);
+
     const submittingRef = useRef(false);
+
+    const sessionRef = useRef(0);
 
     // =====================================================
     // BUSY STATE
@@ -507,21 +495,23 @@ const CreatePostModal = ({
         isProcessing;
 
     // =====================================================
-    // INITIAL DATA
+    // INITIAL FORM DATA
     //
     // Reset when:
     // - Modal opens
-    // - Post changes
-    // - Existing post fields change
+    // - Edited post changes
+    // - Initial post fields change
     //
-    // Primitive dependencies prevent unnecessary
-    // resets caused by recreated initialData objects.
+    // Primitive dependencies prevent unnecessary resets
+    // caused by recreated initialData objects.
     // =====================================================
 
     useEffect(() => {
         if (!isOpen) {
-            return;
+            return undefined;
         }
+
+        sessionRef.current += 1;
 
         setFormData(
             getInitialFormData(initialData)
@@ -529,11 +519,13 @@ const CreatePostModal = ({
 
         setError("");
 
-        // Reset scroll position for every new session.
-
         if (contentScrollRef.current) {
             contentScrollRef.current.scrollTop = 0;
         }
+
+        return () => {
+            sessionRef.current += 1;
+        };
     }, [
         isOpen,
         initialData?.id,
@@ -545,9 +537,8 @@ const CreatePostModal = ({
     // =====================================================
     // BODY SCROLL LOCK
     //
-    // Page behind the modal must not scroll.
-    //
-    // Modal content has its own scroll container.
+    // Prevent background page scrolling.
+    // The modal has its own scrollable content.
     // =====================================================
 
     useEffect(() => {
@@ -565,9 +556,7 @@ const CreatePostModal = ({
             document.body.style.overflow =
                 previousOverflow;
         };
-    }, [
-        isOpen,
-    ]);
+    }, [isOpen]);
 
     // =====================================================
     // CLOSE MODAL
@@ -592,9 +581,50 @@ const CreatePostModal = ({
     ]);
 
     // =====================================================
-    // ESC KEY
+    // FOCUS MANAGEMENT
     //
-    // Preserve original keyboard behavior.
+    // Focus the dialog itself instead of an input.
+    // Avoid triggering the mobile keyboard on open.
+    // Restore previous focus when closing.
+    // =====================================================
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        previousFocusedElementRef.current =
+            document.activeElement;
+
+        const frameId =
+            window.requestAnimationFrame(() => {
+                modalRef.current?.focus({
+                    preventScroll: true,
+                });
+            });
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+
+            const previous =
+                previousFocusedElementRef.current;
+
+            if (
+                previous?.isConnected &&
+                typeof previous.focus === "function"
+            ) {
+                previous.focus({
+                    preventScroll: true,
+                });
+            }
+        };
+    }, [isOpen]);
+
+    // =====================================================
+    // ESCAPE + FOCUS TRAP
+    //
+    // - ESC closes only when not submitting.
+    // - TAB stays inside the active modal.
     // =====================================================
 
     useEffect(() => {
@@ -603,13 +633,86 @@ const CreatePostModal = ({
         }
 
         const handleKeyDown = (event) => {
-            if (event.key !== "Escape") {
+            // =============================================
+            // ESCAPE
+            // =============================================
+
+            if (event.key === "Escape") {
+                if (
+                    !busy &&
+                    !submittingRef.current
+                ) {
+                    event.preventDefault();
+                    handleClose();
+                }
+
                 return;
             }
 
-            event.preventDefault();
+            // =============================================
+            // TAB
+            // =============================================
 
-            handleClose();
+            if (
+                event.key !== "Tab" ||
+                !modalRef.current
+            ) {
+                return;
+            }
+
+            const focusable = Array.from(
+                modalRef.current.querySelectorAll(
+                    FOCUSABLE_SELECTOR
+                )
+            ).filter(
+                (element) =>
+                    element.getClientRects().length > 0 &&
+                    element.getAttribute("aria-hidden") !==
+                        "true"
+            );
+
+            if (focusable.length === 0) {
+                event.preventDefault();
+                modalRef.current.focus();
+                return;
+            }
+
+            const first = focusable[0];
+
+            const last =
+                focusable[focusable.length - 1];
+
+            const active =
+                document.activeElement;
+
+            if (
+                active === modalRef.current ||
+                !modalRef.current.contains(active)
+            ) {
+                event.preventDefault();
+
+                (
+                    event.shiftKey
+                        ? last
+                        : first
+                ).focus();
+
+                return;
+            }
+
+            if (
+                event.shiftKey &&
+                active === first
+            ) {
+                event.preventDefault();
+                last.focus();
+            } else if (
+                !event.shiftKey &&
+                active === last
+            ) {
+                event.preventDefault();
+                first.focus();
+            }
         };
 
         window.addEventListener(
@@ -625,42 +728,8 @@ const CreatePostModal = ({
         };
     }, [
         isOpen,
+        busy,
         handleClose,
-    ]);
-
-    // =====================================================
-    // FOCUS MANAGEMENT
-    //
-    // - Focus modal on opening
-    // - Restore previous focus on closing
-    // =====================================================
-
-    useEffect(() => {
-        if (!isOpen) {
-            return undefined;
-        }
-
-        const previousElement =
-            document.activeElement;
-
-        modalRef.current?.focus({
-            preventScroll: true,
-        });
-
-        return () => {
-            if (
-                previousElement &&
-                typeof previousElement.focus ===
-                    "function" &&
-                previousElement.isConnected
-            ) {
-                previousElement.focus({
-                    preventScroll: true,
-                });
-            }
-        };
-    }, [
-        isOpen,
     ]);
 
     // =====================================================
@@ -680,7 +749,7 @@ const CreatePostModal = ({
     ]);
 
     // =====================================================
-    // PREVIEW CONTENT
+    // CLEAN PREVIEW CONTENT
     // =====================================================
 
     const cleanPreviewContent = useMemo(() => {
@@ -714,10 +783,9 @@ const CreatePostModal = ({
     // =====================================================
     // INPUT CHANGE
     //
-    // Expected fields:
-    //
-    // name="title"
-    // name="content"
+    // Expected field names:
+    // - title
+    // - content
     // =====================================================
 
     const handleChange = (event) => {
@@ -756,11 +824,10 @@ const CreatePostModal = ({
             return;
         }
 
-        const isValid =
-            POST_TYPES.some(
-                (item) =>
-                    item.value === value
-            );
+        const isValid = POST_TYPES.some(
+            (item) =>
+                item.value === value
+        );
 
         if (!isValid) {
             return;
@@ -793,9 +860,6 @@ const CreatePostModal = ({
 
     // =====================================================
     // SCROLL TO FORM TOP
-    //
-    // Useful when validation/API errors occur
-    // on smaller mobile screens.
     // =====================================================
 
     const scrollToFormTop = useCallback(() => {
@@ -813,16 +877,15 @@ const CreatePostModal = ({
     // SUBMIT
     //
     // Steps:
-    //
     // 1. Prevent default
-    // 2. Prevent duplicates
-    // 3. Validate
-    // 4. Build payload
+    // 2. Prevent duplicate submissions
+    // 3. Validate form
+    // 4. Build backend payload
     // 5. Call parent onSubmit
     // 6. Handle create toast
-    // 7. Keep modal open on failure
+    // 7. Preserve form on failure
     //
-    // Existing parent contracts are preserved.
+    // Existing parent callback contracts preserved.
     // =====================================================
 
     const handleSubmit = async (event) => {
@@ -842,7 +905,7 @@ const CreatePostModal = ({
         setError("");
 
         // =================================================
-        // PARENT CALLBACK
+        // CALLBACK CHECK
         // =================================================
 
         if (
@@ -858,7 +921,7 @@ const CreatePostModal = ({
         }
 
         // =================================================
-        // VALIDATE FORM
+        // VALIDATION
         // =================================================
 
         const validationError =
@@ -882,51 +945,77 @@ const CreatePostModal = ({
         }
 
         // =================================================
-        // PAYLOAD
+        // BACKEND PAYLOAD
         // =================================================
 
         const payload =
             buildPostPayload(formData);
 
         // =================================================
-        // PREVENT DUPLICATE SUBMISSIONS
+        // LOCK SUBMISSION
         // =================================================
+
+        const currentSession =
+            sessionRef.current;
 
         submittingRef.current = true;
 
         setIsProcessing(true);
 
         // =================================================
-        // CREATE TOAST
+        // CREATE LOADING TOAST
         //
-        // Edit mode toast is handled in PostDetail.
+        // Edit mode toast is handled by PostDetail.
         // =================================================
 
         let loadingToastId = null;
 
         if (!isEditMode) {
-            loadingToastId =
-                siteToast.loading(
-                    "Yangi post serverga yuborilmoqda...",
-                    {
-                        title:
-                            "Post yaratilmoqda",
-                    }
-                );
+            loadingToastId = siteToast.loading(
+                "Yangi post serverga yuborilmoqda...",
+                {
+                    title: "Post yaratilmoqda",
+                }
+            );
         }
 
         try {
             // =============================================
-            // PARENT CALLBACK
+            // PARENT SUBMIT CALLBACK
             // =============================================
 
             const result =
                 await onSubmit(payload);
 
             // =============================================
+            // IGNORE STALE SUBMISSION
+            //
+            // A previous request must not reset a newly
+            // opened modal session.
+            // =============================================
+
+            if (
+                sessionRef.current !==
+                currentSession
+            ) {
+                if (
+                    loadingToastId !== null &&
+                    loadingToastId !== undefined
+                ) {
+                    siteToast.dismiss(
+                        loadingToastId
+                    );
+                }
+
+                return;
+            }
+
+            // =============================================
             // PARENT RETURNED FALSE
             //
-            // Do not display success.
+            // Preserve original behavior:
+            // Do not display a success toast.
+            // Do not reset the form.
             // =============================================
 
             if (result === false) {
@@ -971,16 +1060,35 @@ const CreatePostModal = ({
             // =============================================
             // MODAL CLOSING
             //
-            // Do NOT call onClose here.
+            // Do not close here.
             //
             // Existing parents manage closing:
-            //
-            // ProfilePosts after creating a post.
-            // PostDetail after editing a post.
+            // - ProfilePosts on create
+            // - PostDetail on edit
             // =============================================
         } catch (submitError) {
             // =============================================
-            // API ERROR
+            // IGNORE ERRORS FROM AN OLD SESSION
+            // =============================================
+
+            if (
+                sessionRef.current !==
+                currentSession
+            ) {
+                if (
+                    loadingToastId !== null &&
+                    loadingToastId !== undefined
+                ) {
+                    siteToast.dismiss(
+                        loadingToastId
+                    );
+                }
+
+                return;
+            }
+
+            // =============================================
+            // API ERROR MESSAGE
             // =============================================
 
             const message = getErrorMessage(
@@ -1034,7 +1142,7 @@ const CreatePostModal = ({
     // =====================================================
     // CLOSED MODAL
     //
-    // All hooks remain above this condition.
+    // Keep all hooks above this condition.
     // =====================================================
 
     if (!isOpen) {
@@ -1042,18 +1150,29 @@ const CreatePostModal = ({
     }
 
     // =====================================================
-    // RENDER
+    // PORTAL RENDER
+    //
+    // Solves:
+    // - Navbar overlap
+    // - Parent stacking context
+    // - Modal being clipped by Profile containers
+    //
+    // document.body is used only while the modal is open.
     // =====================================================
 
-    return (
+    return createPortal(
         <div
-            onMouseDown={handleBackdropClick}
+            onMouseDown={
+                handleBackdropClick
+            }
             className="
                 fixed
                 inset-0
-                z-[100]
+
+                z-[99999]
 
                 flex
+
                 items-stretch
                 justify-center
 
@@ -1068,9 +1187,11 @@ const CreatePostModal = ({
                 dark:bg-black/80
 
                 sm:items-center
-                sm:p-4
+                sm:px-5
+                sm:py-10
 
-                lg:p-6
+                lg:px-8
+                lg:py-12
             "
         >
             {/* =============================================
@@ -1122,24 +1243,29 @@ const CreatePostModal = ({
             {/* =============================================
                 MAIN MODAL PANEL
 
-                MOBILE:
-                - Full-screen
-                - Dynamic viewport
-                - No border radius
+                Mobile:
+                - Full screen
+                - Dynamic viewport height
+                - No rounded corners
 
-                TABLET / DESKTOP:
+                Tablet/Desktop:
                 - Centered
-                - Limited height
-                - Rounded corners
+                - Max height: 780px
+                - Responsive available viewport
             ============================================== */}
 
             <div
                 ref={modalRef}
+
                 role="dialog"
                 aria-modal="true"
+
                 aria-labelledby="post-create-modal-title"
+
                 aria-describedby="post-create-modal-description"
+
                 tabIndex={-1}
+
                 className="
                     relative
                     isolate
@@ -1148,6 +1274,9 @@ const CreatePostModal = ({
 
                     h-screen
                     max-h-screen
+
+                    h-[100dvh]
+                    max-h-[100dvh]
 
                     w-full
                     min-w-0
@@ -1158,7 +1287,6 @@ const CreatePostModal = ({
                     overflow-hidden
 
                     rounded-none
-
                     border-0
 
                     bg-white
@@ -1168,15 +1296,14 @@ const CreatePostModal = ({
                     outline-none
 
                     dark:bg-[#0a0d14]
+
                     dark:shadow-[0_35px_100px_rgba(0,0,0,0.75)]
 
-                    h-[100dvh]
-                    max-h-[100dvh]
-
-                    sm:h-[92dvh]
-                    sm:max-h-[900px]
+                    sm:h-[min(780px,calc(100dvh-80px))]
+                    sm:max-h-[calc(100dvh-80px)]
 
                     sm:rounded-[26px]
+
                     sm:border
                     sm:border-slate-200
 
@@ -1195,6 +1322,7 @@ const CreatePostModal = ({
                         pointer-events-none
 
                         absolute
+
                         left-1/2
                         top-0
 
@@ -1215,8 +1343,8 @@ const CreatePostModal = ({
                 {/* =========================================
                     1. HEADER
 
-                    Header remains outside the form's
-                    scrollable body.
+                    Outside the scrollable body.
+                    Always visible on mobile.
                 ========================================== */}
 
                 <div
@@ -1232,7 +1360,9 @@ const CreatePostModal = ({
                 >
                     <PostCreateHeader
                         isEditMode={isEditMode}
+
                         isSubmitting={busy}
+
                         onClose={handleClose}
                     />
                 </div>
@@ -1240,12 +1370,13 @@ const CreatePostModal = ({
                 {/* =========================================
                     FORM
 
-                    Footer remains inside the form
-                    so type="submit" continues working.
+                    Footer stays inside the form so
+                    type="submit" continues working.
                 ========================================== */}
 
                 <form
                     onSubmit={handleSubmit}
+
                     className="
                         relative
                         z-10
@@ -1264,16 +1395,13 @@ const CreatePostModal = ({
                     {/* =====================================
                         SCROLLABLE CONTENT
 
-                        Only this area scrolls.
-
-                        Header stays above.
-                        Footer stays below.
-
-                        Prevent horizontal overflow.
+                        Header and footer stay fixed
+                        within the modal panel.
                     ====================================== */}
 
                     <div
                         ref={contentScrollRef}
+
                         className="
                             min-h-0
                             min-w-0
@@ -1296,13 +1424,15 @@ const CreatePostModal = ({
                             - One column
 
                             Large desktop:
-                            - Fields / Live preview
+                            - Fields and live preview
                         ================================== */}
 
                         <div
                             className="
                                 grid
+
                                 min-w-0
+
                                 grid-cols-1
 
                                 items-start
@@ -1329,57 +1459,27 @@ const CreatePostModal = ({
                                     sm:p-6
 
                                     lg:space-y-7
+
                                     lg:border-r
                                     lg:border-slate-200
+
                                     lg:p-7
 
                                     dark:lg:border-white/[0.06]
                                 "
                             >
                                 {/* =========================
-                                    2. POST CATEGORY
-                                ========================== */}
-
-                                <div
-                                    className="
-                                        min-w-0
-                                        w-full
-                                    "
-                                >
-                                    <PostCreateTypeSelector
-                                        value={selectedType.value}
-                                        onChange={
-                                            handleCategoryChange
-                                        }
-                                        disabled={busy}
-                                    />
-                                </div>
-
-                                {/* =========================
-                                    3. POST FORM FIELDS
-                                ========================== */}
-
-                                <div
-                                    className="
-                                        min-w-0
-                                        w-full
-                                    "
-                                >
-                                    <PostCreateFields
-                                        formData={formData}
-                                        onChange={handleChange}
-                                        wordCount={wordCount}
-                                        disabled={busy}
-                                    />
-                                </div>
-
-                                {/* =========================
                                     INLINE FORM ERROR
+
+                                    Moved to the top so the
+                                    scroll-to-top action
+                                    reveals the error.
                                 ========================== */}
 
                                 {error && (
                                     <div
                                         role="alert"
+
                                         className="
                                             flex
                                             min-w-0
@@ -1401,12 +1501,11 @@ const CreatePostModal = ({
                                             sm:p-4
                                         "
                                     >
-                                        {/* =================
-                                            ERROR ICON
-                                        ================== */}
+                                        {/* ERROR ICON */}
 
                                         <span
                                             aria-hidden="true"
+
                                             className="
                                                 mt-0.5
 
@@ -1433,9 +1532,7 @@ const CreatePostModal = ({
                                             />
                                         </span>
 
-                                        {/* =================
-                                            ERROR CONTENT
-                                        ================== */}
+                                        {/* ERROR CONTENT */}
 
                                         <div
                                             className="
@@ -1464,6 +1561,7 @@ const CreatePostModal = ({
                                                     mt-1
 
                                                     break-words
+                                                    [overflow-wrap:anywhere]
 
                                                     text-sm
                                                     font-medium
@@ -1479,29 +1577,75 @@ const CreatePostModal = ({
                                         </div>
                                     </div>
                                 )}
+
+                                {/* =========================
+                                    2. POST CATEGORY
+                                ========================== */}
+
+                                <div
+                                    className="
+                                        min-w-0
+                                        w-full
+                                    "
+                                >
+                                    <PostCreateTypeSelector
+                                        value={
+                                            selectedType.value
+                                        }
+
+                                        onChange={
+                                            handleCategoryChange
+                                        }
+
+                                        disabled={busy}
+                                    />
+                                </div>
+
+                                {/* =========================
+                                    3. POST FIELDS
+                                ========================== */}
+
+                                <div
+                                    className="
+                                        min-w-0
+                                        w-full
+                                    "
+                                >
+                                    <PostCreateFields
+                                        formData={formData}
+
+                                        onChange={
+                                            handleChange
+                                        }
+
+                                        wordCount={
+                                            wordCount
+                                        }
+
+                                        disabled={busy}
+                                    />
+                                </div>
                             </div>
 
                             {/* =============================
-                                RIGHT PANEL — LIVE PREVIEW
+                                RIGHT PANEL
+                                LIVE PREVIEW
 
-                                Below form on mobile.
-
-                                Right column on desktop.
-
-                                Preview component keeps
-                                its original props.
+                                On mobile the preview
+                                appears below the form.
                             ============================== */}
 
                             <div
                                 className="
-                                    min-w-0
                                     w-full
+                                    min-w-0
 
                                     overflow-hidden
                                 "
                             >
                                 <PostCreatePreview
                                     formData={formData}
+
                                     cleanPreviewContent={
                                         cleanPreviewContent
                                     }
@@ -1513,12 +1657,11 @@ const CreatePostModal = ({
                     {/* =====================================
                         4. FOOTER
 
-                        Must stay inside <form>.
+                        Inside the form but outside
+                        the scrollable area.
 
-                        Does not scroll with content.
-
-                        Mobile safe area padding is handled
-                        by PostCreateFooter.
+                        The Footer component handles
+                        mobile safe-area padding.
                     ====================================== */}
 
                     <div
@@ -1534,13 +1677,16 @@ const CreatePostModal = ({
                     >
                         <PostCreateFooter
                             isEditMode={isEditMode}
+
                             isSubmitting={busy}
+
                             onClose={handleClose}
                         />
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
