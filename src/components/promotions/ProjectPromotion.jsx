@@ -1,2022 +1,974 @@
-// src/components/promotions/ProjectPromotion.jsx
 
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+import React from "react";
 
 import {
-    useDispatch,
-    useSelector,
-} from "react-redux";
-
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Coins,
-    Loader2,
-    RefreshCw,
-    Rocket,
-    ShieldCheck,
-    Sparkles,
+  AlertTriangle,
+  CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 
-import {
-    clearProjectPromotion,
-    getProjectPromotionFailure,
-    getProjectPromotionStart,
-    getProjectPromotionSuccess,
-    purchasePromotionFailure,
-    purchasePromotionStart,
-    purchasePromotionSuccess,
-    selectPromotionState,
-} from "../../features/promotions";
+// =========================================================
+// CUSTOM HOOKS
+// =========================================================
 
-import {
-    signUserSuccess,
-} from "../../features/auth/Auth";
+import useProjectPromotionData from "./projectPromotion/hooks/useProjectPromotionData";
 
-import PromotionService from "../../services/promotion";
+import useProjectPromotionPurchase from "./projectPromotion/hooks/useProjectPromotionPurchase";
 
-import {
-    getPromotionDurationLabel,
-    safePromotionPositiveNumber,
-} from "../../utils/promotion";
+// =========================================================
+// PROJECT PROMOTION COMPONENTS
+// =========================================================
 
-import {
-    siteToast,
-} from "../ui/AuthToast";
+import ProjectPromotionHeader from "./projectPromotion/ProjectPromotionHeader";
 
-import PurchaseConfirmationModal from "../ui/PurchaseConfirmationModal";
+import ProjectPromotionAlert from "./projectPromotion/ProjectPromotionAlert";
+
+import ProjectPromotionLoading from "./projectPromotion/ProjectPromotionLoading";
+
+import ProjectPromotionEmptyActive from "./projectPromotion/ProjectPromotionEmptyActive";
+
+import ProjectPromotionPlans from "./projectPromotion/ProjectPromotionPlans";
+
+import ProjectPromotionPurchaseButton from "./projectPromotion/ProjectPromotionPurchaseButton";
+
+import ProjectPromotionConfirmation from "./projectPromotion/ProjectPromotionConfirmation";
+
+// =========================================================
+// EXISTING PROMOTION COMPONENTS
+// =========================================================
 
 import PromotionActiveCard from "./PromotionActiveCard";
-import PromotionHistory from "./PromotionHistory";
-import PromotionPlanCard from "./PromotionPlanCard";
+
 import PromotionQueue from "./PromotionQueue";
 
+import PromotionHistory from "./PromotionHistory";
 
 // =========================================================
-// ERROR MESSAGE
+// FSOCIETY — PROJECT PROMOTION
+// =========================================================
+//
+// This is the main promotion container.
+//
+// Public props:
+// - projectId
+// - projectName
+// - userCoins
+// - onPromotionChange
+//
+// Responsibilities:
+// - Connect Data Hook
+// - Connect Purchase Hook
+// - Render promotion sections
+// - Handle initial loading / retry
+// - Handle refresh states
+// - Handle purchase status messages
+// - Show uncertain purchase warning
+// - Connect confirmation modal
+//
+// No direct API request here.
+// No direct Redux dispatch here.
+//
+// Light / Dark Mode
+// Responsive: 320px+
+//
 // =========================================================
 
-const getErrorMessage = (
-    error,
-    fallback = "Promotion bilan ishlashda xatolik yuz berdi."
-) => {
+// =========================================================
+// STYLES
+// =========================================================
 
-    const data =
-        error?.serverData
-        ??
-        error?.response?.data;
+const PANEL_CLASS = `
+  relative
+  isolate
+  w-full
+  min-w-0
+  max-w-full
+  overflow-hidden
+  rounded-3xl
+  border
+  border-slate-200
+  bg-white/95
+  p-4
+  shadow-[0_20px_70px_rgba(15,23,42,0.06)]
 
+  sm:p-5
 
-    if (
-        typeof data ===
-            "string"
-        &&
-        data.trim()
-    ) {
+  dark:border-white/[0.07]
+  dark:bg-[#0b1018]
+  dark:shadow-[0_25px_80px_rgba(0,0,0,0.24)]
+`;
 
-        return data;
-    }
+const SECTION_CLASS = `
+  mt-4
+  w-full
+  min-w-0
+  max-w-full
 
+  sm:mt-5
+`;
 
-    if (
-        typeof data?.detail ===
-            "string"
-    ) {
+// =========================================================
+// UNKNOWN PURCHASE WARNING
+// =========================================================
 
-        return data.detail;
-    }
-
-
-    if (
-        Array.isArray(
-            data?.detail
-        )
-        &&
-        data.detail.length >
-            0
-    ) {
-
-        return String(
-            data.detail[0]
-        );
-    }
-
-
-    if (
-        typeof data?.message ===
-            "string"
-    ) {
-
-        return data.message;
-    }
-
-
-    if (
-        typeof data?.error ===
-            "string"
-    ) {
-
-        return data.error;
-    }
-
-
-    if (
-        data
-        &&
-        typeof data ===
-            "object"
-    ) {
-
-        const firstValue =
-            Object.values(
-                data
-            )[0];
-
-
-        if (
-            Array.isArray(
-                firstValue
-            )
-            &&
-            firstValue.length >
-                0
-        ) {
-
-            return String(
-                firstValue[0]
-            );
-        }
-
-
-        if (
-            typeof firstValue ===
-                "string"
-        ) {
-
-            return firstValue;
-        }
-    }
-
-
+const UnknownPurchaseWarning = React.memo(
+  function UnknownPurchaseWarning({
+    onAcknowledge,
+    disabled = false,
+  }) {
     return (
-        error?.message
-        ||
-        fallback
+      <div
+        role="alert"
+        className="
+          mt-4
+          w-full
+          min-w-0
+          max-w-full
+          overflow-hidden
+          rounded-2xl
+          border
+          border-amber-200
+          bg-amber-50
+          p-4
+
+          dark:border-amber-400/20
+          dark:bg-amber-400/[0.055]
+        "
+      >
+        <div
+          className="
+            flex
+            min-w-0
+            items-start
+            gap-3
+          "
+        >
+          {/* WARNING ICON */}
+
+          <div
+            className="
+              grid
+              h-9
+              w-9
+              shrink-0
+              place-items-center
+              rounded-xl
+              border
+              border-amber-200
+              bg-amber-100
+              text-amber-700
+
+              dark:border-amber-400/20
+              dark:bg-amber-400/[0.08]
+              dark:text-amber-300
+            "
+          >
+            <ShieldAlert
+              size={19}
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* CONTENT */}
+
+          <div className="min-w-0 flex-1">
+            <h3
+              className="
+                break-words
+                text-xs
+                font-black
+                leading-5
+                text-amber-900
+
+                dark:text-amber-200
+              "
+            >
+              Oldingi xaridni tekshirish kerak
+            </h3>
+
+            <p
+              className="
+                mt-1.5
+                break-words
+                text-xs
+                font-medium
+                leading-5
+                text-amber-800
+
+                dark:text-amber-100/80
+              "
+            >
+              Xarid so‘rovi yuborilgan, ammo uning
+              natijasini tasdiqlashning imkoni
+              bo‘lmadi. FCoin allaqachon yechilgan
+              bo‘lishi mumkin.
+            </p>
+
+            {/* INSTRUCTIONS */}
+
+            <div
+              className="
+                mt-3
+                rounded-xl
+                border
+                border-amber-200
+                bg-white/65
+                p-3
+
+                dark:border-amber-400/15
+                dark:bg-black/10
+              "
+            >
+              <p
+                className="
+                  text-[11px]
+                  font-bold
+                  leading-5
+                  text-amber-900
+
+                  dark:text-amber-100
+                "
+              >
+                Yangi xarid qilishdan oldin:
+              </p>
+
+              <ul
+                className="
+                  mt-2
+                  list-inside
+                  list-disc
+                  space-y-1
+                  text-[11px]
+                  font-medium
+                  leading-5
+                  text-amber-800
+
+                  dark:text-amber-200/85
+                "
+              >
+                <li>
+                  Joriy FCoin balansingizni
+                  tekshiring.
+                </li>
+
+                <li>
+                  Promotion History bo‘limidagi
+                  xaridlarni ko‘ring.
+                </li>
+
+                <li>
+                  Kerak bo‘lsa sahifani yangilang.
+                </li>
+              </ul>
+            </div>
+
+            {/* ACKNOWLEDGE */}
+
+            <button
+              type="button"
+              onClick={onAcknowledge}
+              disabled={
+                disabled ||
+                typeof onAcknowledge !==
+                  "function"
+              }
+              className="
+                mt-3
+                inline-flex
+                min-h-11
+                w-full
+                min-w-0
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                border
+                border-amber-300
+                bg-amber-200
+                px-4
+                py-2.5
+                text-center
+                text-xs
+                font-black
+                text-amber-950
+                transition-colors
+
+                hover:bg-amber-300
+
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-amber-500
+                focus-visible:ring-offset-2
+
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+
+                sm:w-auto
+
+                dark:border-amber-400/25
+                dark:bg-amber-400/15
+                dark:text-amber-200
+
+                dark:hover:bg-amber-400/25
+                dark:focus-visible:ring-offset-[#0b1018]
+              "
+            >
+              <CheckCircle2
+                size={16}
+                className="shrink-0"
+                aria-hidden="true"
+              />
+
+              <span className="min-w-0 break-words">
+                Balans va tarixni tekshirdim
+              </span>
+            </button>
+
+            <p
+              className="
+                mt-2
+                text-[10px]
+                font-medium
+                leading-4
+                text-amber-700
+
+                dark:text-amber-300/75
+              "
+            >
+              Bu tugma xaridni takrorlamaydi.
+              Faqat yangi xarid boshlashga
+              qo‘yilgan vaqtinchalik
+              cheklovni olib tashlaydi.
+            </p>
+          </div>
+        </div>
+      </div>
     );
-};
-
+  }
+);
 
 // =========================================================
-// CANCELED REQUEST
+// INVALID PROJECT STATE
 // =========================================================
 
-const isCanceledRequest = (
-    error
-) => {
-
+const InvalidProjectNotice = React.memo(
+  function InvalidProjectNotice() {
     return (
+      <div
+        role="alert"
+        className="
+          mt-5
+          flex
+          min-w-0
+          items-start
+          gap-3
+          rounded-2xl
+          border
+          border-red-200
+          bg-red-50
+          p-4
 
-        error?.code ===
-            "ERR_CANCELED"
+          dark:border-red-400/20
+          dark:bg-red-400/[0.05]
+        "
+      >
+        <AlertTriangle
+          size={18}
+          className="
+            mt-0.5
+            shrink-0
+            text-red-600
 
-        ||
+            dark:text-red-300
+          "
+          aria-hidden="true"
+        />
 
-        error?.name ===
-            "CanceledError"
+        <div className="min-w-0 flex-1">
+          <p
+            className="
+              text-xs
+              font-black
+              text-red-800
 
-        ||
+              dark:text-red-200
+            "
+          >
+            Project topilmadi
+          </p>
 
-        error?.name ===
-            "AbortError"
+          <p
+            className="
+              mt-1
+              break-words
+              text-xs
+              font-medium
+              leading-5
+              text-red-700
+
+              dark:text-red-300
+            "
+          >
+            Promotion ma’lumotlarini olish
+            uchun to‘g‘ri Project ID kerak.
+          </p>
+        </div>
+      </div>
     );
-};
-
+  }
+);
 
 // =========================================================
-// PROJECT PROMOTION
+// MAIN PROJECT PROMOTION
 // =========================================================
 
 const ProjectPromotion = ({
+  projectId,
 
-    projectId,
+  projectName = "Project",
 
-    projectName =
-        "Project",
+  userCoins = 0,
 
-    userCoins = 0,
-
-    onPromotionChange = null,
-
+  onPromotionChange = null,
 }) => {
+  // =======================================================
+  // DATA HOOK
+  // =======================================================
 
-    const dispatch =
-        useDispatch();
+  const promotionData = useProjectPromotionData({
+    projectId,
+    userCoins,
+  });
 
+  // =======================================================
+  // PURCHASE HOOK
+  // =======================================================
 
-    // =====================================================
-    // AUTH
-    // =====================================================
+  const promotionPurchase =
+    useProjectPromotionPurchase({
+      projectId,
+      projectName,
 
-    const {
-        user,
-    } = useSelector(
-        (
-            state
-        ) =>
-            state.auth
+      plans: promotionData.plans,
+
+      currentBalance:
+        promotionData.currentBalance,
+
+      user: promotionData.user,
+
+      manageLoading:
+        promotionData.manageLoading,
+
+      isLoadedForCurrentProject:
+        promotionData.isLoadedForCurrentProject,
+
+      loadPromotionData:
+        promotionData.loadPromotionData,
+
+      onPromotionChange,
+    });
+
+  // =======================================================
+  // PROJECT STATE
+  // =======================================================
+
+  const hasProjectId = Boolean(
+    promotionData.hasProjectId
+  );
+
+  const isProjectReady =
+    hasProjectId &&
+    Boolean(
+      promotionData.isLoadedForCurrentProject
     );
 
+  // =======================================================
+  // LOADING STATE
+  // =======================================================
 
-    // =====================================================
-    // PROMOTION REDUX
-    // =====================================================
+  const hasInitialError =
+    hasProjectId &&
+    !isProjectReady &&
+    promotionData.requestStatus === "error";
 
-    const {
+  const isInitialLoading =
+    hasProjectId &&
+    !isProjectReady &&
+    !hasInitialError;
 
-        projectId:
-            loadedProjectId,
+  const isRefreshing =
+    isProjectReady &&
+    Boolean(promotionData.isRefreshing);
 
-        balance,
+  const isManageLoading = Boolean(
+    promotionData.manageLoading
+  );
 
-        plans,
+  const isPurchaseLoading = Boolean(
+    promotionPurchase.purchaseLoading
+  );
 
-        activeCampaign,
+  const isPurchaseLocked = Boolean(
+    promotionPurchase.isPurchaseLocked
+  );
 
-        queue,
+  // =======================================================
+  // UNKNOWN PURCHASE STATE
+  // =======================================================
 
-        history,
-
-        totalPurchases,
-
-        totalSpent,
-
-        manageLoading,
-
-        manageError,
-
-        purchaseLoading,
-
-        purchaseError,
-
-    } = useSelector(
-        selectPromotionState
+  const isPurchaseOutcomeUnknown =
+    hasProjectId &&
+    Boolean(
+      promotionPurchase.isPurchaseOutcomeUnknown
     );
 
+  // =======================================================
+  // INTERACTION AVAILABILITY
+  // =======================================================
 
-    // =====================================================
-    // LOCAL STATE
-    // =====================================================
+  const isInteractionDisabled =
+    !isProjectReady ||
+    isManageLoading ||
+    isPurchaseLoading ||
+    isPurchaseLocked ||
+    isPurchaseOutcomeUnknown;
 
-    const [
-        selectedPlanCode,
-        setSelectedPlanCode,
-    ] = useState(
-        null
-    );
+  const canRefresh =
+    hasProjectId &&
+    !isManageLoading &&
+    !isPurchaseLoading &&
+    !isPurchaseLocked;
 
+  const canAcknowledgeUnknown =
+    isPurchaseOutcomeUnknown &&
+    !isManageLoading &&
+    !isPurchaseLoading &&
+    !isPurchaseLocked;
 
-    const [
-        isConfirmOpen,
-        setIsConfirmOpen,
-    ] = useState(
-        false
-    );
+  // =======================================================
+  // ERROR STATES
+  // =======================================================
 
-
-    const [
-        successMessage,
-        setSuccessMessage,
-    ] = useState(
-        ""
-    );
-
-
-    // =====================================================
-    // CURRENT PROJECT STATE
-    // =====================================================
-
-    const isLoadedForCurrentProject =
-
-        String(
-            loadedProjectId
-            ??
-            ""
+  const initialErrorMessage =
+    hasInitialError
+      ? (
+          promotionData.manageError ||
+          "Promotion ma’lumotlarini yuklab bo‘lmadi."
         )
+      : "";
 
-        ===
+  const refreshErrorMessage =
+    isProjectReady
+      ? promotionData.manageError
+      : null;
 
-        String(
-            projectId
-            ??
-            ""
-        );
+  const purchaseErrorMessage =
+    isProjectReady &&
+    !isPurchaseOutcomeUnknown
+      ? promotionPurchase.purchaseError
+      : null;
 
+  // =======================================================
+  // SUCCESS
+  // =======================================================
 
-    // =====================================================
-    // BALANCE
-    // =====================================================
+  const successMessage =
+    isProjectReady
+      ? promotionPurchase.successMessage
+      : "";
 
-    const currentBalance =
+  // =======================================================
+  // REFRESH HANDLER
+  // =======================================================
 
-        isLoadedForCurrentProject
+  const handleRefresh = () => {
+    if (!canRefresh) {
+      return;
+    }
 
-            ? safePromotionPositiveNumber(
-                balance
-            )
+    promotionData.handleRefresh();
+  };
 
-            : safePromotionPositiveNumber(
-                user?.coins
-                ??
-                userCoins
-            );
+  // =======================================================
+  // CONFIRMATION VISIBILITY
+  // =======================================================
 
-
-    // =====================================================
-    // PLANS
-    // =====================================================
-
-    const safePlans =
-
-        useMemo(
-            () => {
-
-                return Array.isArray(
-                    plans
-                )
-
-                    ? plans
-
-                    : [];
-
-            },
-            [
-                plans,
-            ]
-        );
-
-
-    // =====================================================
-    // DEFAULT SELECTED PLAN
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            if (
-                safePlans.length ===
-                0
-            ) {
-
-                setSelectedPlanCode(
-                    null
-                );
-
-
-                return;
-            }
-
-
-            const exists =
-
-                safePlans.some(
-                    (
-                        plan
-                    ) => {
-
-                        return (
-
-                            String(
-                                plan.code
-                                ??
-                                plan.id
-                            )
-
-                            ===
-
-                            String(
-                                selectedPlanCode
-                            )
-                        );
-                    }
-                );
-
-
-            if (
-                exists
-            ) {
-
-                return;
-            }
-
-
-            const premium =
-
-                safePlans.find(
-                    (
-                        plan
-                    ) => {
-
-                        return (
-
-                            String(
-                                plan.code
-                                ??
-                                plan.id
-                            )
-
-                            ===
-
-                            "premium"
-                        );
-                    }
-                );
-
-
-            setSelectedPlanCode(
-
-                premium?.code
-
-                ??
-
-                premium?.id
-
-                ??
-
-                safePlans[0]?.code
-
-                ??
-
-                safePlans[0]?.id
-
-                ??
-
-                null
-            );
-
-        },
-        [
-            safePlans,
-            selectedPlanCode,
-        ]
+  const showConfirmation =
+    isProjectReady &&
+    Boolean(
+      promotionPurchase.isConfirmOpen
     );
 
+  // =======================================================
+  // RENDER
+  // =======================================================
 
-    // =====================================================
-    // SELECTED PLAN
-    // =====================================================
+  return (
+    <>
+      {/* ===================================================
+          MAIN PROMOTION PANEL
+      =================================================== */}
 
-    const selectedPlan =
+      <section
+        aria-label="Project promotion boshqaruvi"
+        aria-busy={
+          isInitialLoading ||
+          isRefreshing ||
+          isPurchaseLoading
+        }
+        className={PANEL_CLASS}
+      >
+        {/* =====================================
+            BACKGROUND EFFECTS
+        ===================================== */}
 
-        useMemo(
-            () => {
+        <div
+          aria-hidden="true"
+          className="
+            pointer-events-none
+            absolute
+            -right-24
+            -top-24
+            h-52
+            w-52
+            rounded-full
+            bg-purple-300/15
+            blur-[90px]
 
-                if (
-                    !selectedPlanCode
-                ) {
+            dark:bg-purple-500/[0.07]
+          "
+        />
 
-                    return null;
-                }
+        <div
+          aria-hidden="true"
+          className="
+            pointer-events-none
+            absolute
+            -bottom-28
+            -left-24
+            h-52
+            w-52
+            rounded-full
+            bg-indigo-300/10
+            blur-[90px]
 
+            dark:bg-indigo-500/[0.05]
+          "
+        />
 
-                return (
+        {/* =====================================
+            CONTENT
+        ===================================== */}
 
-                    safePlans.find(
-                        (
-                            plan
-                        ) => {
+        <div
+          className="
+            relative
+            z-10
+            w-full
+            min-w-0
+          "
+        >
+          {/* =================================
+              HEADER
+          ================================= */}
 
-                            return (
-
-                                String(
-                                    plan.code
-                                    ??
-                                    plan.id
-                                )
-
-                                ===
-
-                                String(
-                                    selectedPlanCode
-                                )
-                            );
-                        }
-                    )
-
-                    ??
-
-                    null
-                );
-
-            },
-            [
-                safePlans,
-                selectedPlanCode,
-            ]
-        );
-
-
-    const selectedPrice =
-
-        safePromotionPositiveNumber(
-            selectedPlan
-                ?.price
-        );
-
-
-    const hasEnoughCoins =
-
-        Boolean(
-            selectedPlan
-        )
-
-        &&
-
-        currentBalance >=
-            selectedPrice;
-
-
-    // =====================================================
-    // LOAD PROMOTION DATA
-    // =====================================================
-
-    const loadPromotionData =
-
-        useCallback(
-            async (
-                {
-                    signal = undefined,
-                    silent = false,
-                } = {}
-            ) => {
-
-                if (
-                    !projectId
-                ) {
-
-                    return false;
-                }
-
-
-                dispatch(
-                    getProjectPromotionStart()
-                );
-
-
-                try {
-
-                    const response =
-
-                        await PromotionService
-                            .getProjectPromotionManage(
-
-                                projectId,
-
-                                {
-                                    signal,
-                                }
-                            );
-
-
-                    dispatch(
-                        getProjectPromotionSuccess(
-                            response
-                        )
-                    );
-
-
-                    return true;
-
-
-                } catch (
-                    error
-                ) {
-
-                    if (
-                        isCanceledRequest(
-                            error
-                        )
-                    ) {
-
-                        return false;
-                    }
-
-
-                    const message =
-
-                        getErrorMessage(
-                            error,
-
-                            "Promotion ma’lumotlarini yuklab bo‘lmadi."
-                        );
-
-
-                    dispatch(
-                        getProjectPromotionFailure(
-                            message
-                        )
-                    );
-
-
-                    if (
-                        !silent
-                    ) {
-
-                        siteToast.error(
-                            message,
-                            {
-                                title:
-                                    "Promotion yuklanmadi",
-
-                                duration:
-                                    4500,
-                            }
-                        );
-                    }
-
-
-                    return false;
-                }
-            },
-            [
-                dispatch,
-                projectId,
-            ]
-        );
-
-
-    // =====================================================
-    // INITIAL LOAD
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            if (
-                !projectId
-            ) {
-
-                return undefined;
+          <ProjectPromotionHeader
+            currentBalance={
+              promotionData.currentBalance
             }
-
-
-            const controller =
-                new AbortController();
-
-
-            loadPromotionData({
-                signal:
-                    controller.signal,
-
-                silent:
-                    true,
-            });
-
-
-            return () => {
-
-                controller.abort();
-
-
-                dispatch(
-                    clearProjectPromotion()
-                );
-            };
-
-        },
-        [
-            dispatch,
-            projectId,
-            loadPromotionData,
-        ]
-    );
-
-
-    // =====================================================
-    // SELECT PLAN
-    // =====================================================
-
-    const handleSelectPlan =
-        (
-            plan
-        ) => {
-
-            if (
-                purchaseLoading
-                ||
-                manageLoading
-            ) {
-
-                return;
+            manageLoading={
+              isManageLoading
             }
-
-
-            setSelectedPlanCode(
-
-                plan?.code
-
-                ??
-
-                plan?.id
-
-                ??
-
-                null
-            );
-
-
-            setSuccessMessage(
-                ""
-            );
-        };
-
-
-    // =====================================================
-    // OPEN PURCHASE MODAL
-    // =====================================================
-
-    const handlePurchaseRequest =
-        () => {
-
-            setSuccessMessage(
-                ""
-            );
-
-
-            if (
-                !projectId
-            ) {
-
-                siteToast.error(
-                    "Project ID topilmadi.",
-                    {
-                        title:
-                            "Promotion boshlanmadi",
-                    }
-                );
-
-
-                return;
+            purchaseLoading={
+              isPurchaseLoading
             }
-
-
-            if (
-                manageLoading
-            ) {
-
-                siteToast.info(
-                    "Promotion ma’lumotlari hali yuklanmoqda.",
-                    {
-                        title:
-                            "Biroz kuting",
-                    }
-                );
-
-
-                return;
+            isRefreshing={
+              isRefreshing
             }
-
-
-            if (
-                !selectedPlan
-            ) {
-
-                siteToast.warning(
-                    "Avval promotion rejasini tanlang.",
-                    {
-                        title:
-                            "Reja tanlanmagan",
-                    }
-                );
-
-
-                return;
+            onRefresh={
+              canRefresh
+                ? handleRefresh
+                : undefined
             }
-
-
-            if (
-                !hasEnoughCoins
-            ) {
-
-                const missing =
-
-                    Math.max(
-                        0,
-
-                        selectedPrice -
-                            currentBalance
-                    );
-
-
-                siteToast.warning(
-                    `Balansingiz yetarli emas. Yana ${missing} FCoin kerak.`,
-                    {
-                        title:
-                            "FCoin yetarli emas",
-
-                        duration:
-                            4500,
-                    }
-                );
-
-
-                return;
-            }
-
-
-            setIsConfirmOpen(
-                true
-            );
-        };
-
-
-    // =====================================================
-    // CLOSE MODAL
-    // =====================================================
-
-    const handleCloseConfirmation =
-        () => {
-
-            if (
-                purchaseLoading
-            ) {
-
-                return;
-            }
-
-
-            setIsConfirmOpen(
-                false
-            );
-        };
-
-
-    // =====================================================
-    // PURCHASE
-    // =====================================================
-
-    const handleConfirmPurchase =
-        async () => {
-
-            if (
-                purchaseLoading
-
-                ||
-
-                !projectId
-
-                ||
-
-                !selectedPlan
-            ) {
-
-                return;
-            }
-
-
-            if (
-                !hasEnoughCoins
-            ) {
-
-                setIsConfirmOpen(
-                    false
-                );
-
-
-                siteToast.warning(
-                    "FCoin balansingiz yetarli emas.",
-                    {
-                        title:
-                            "Promotion sotib olinmadi",
-                    }
-                );
-
-
-                return;
-            }
-
-
-            dispatch(
-                purchasePromotionStart()
-            );
-
-
-            setSuccessMessage(
-                ""
-            );
-
-
-            const toastId =
-
-                siteToast.loading(
-                    `"${projectName}" uchun promotion xarid qilinmoqda...`,
-                    {
-                        title:
-                            `${selectedPlan.name} xarid qilinmoqda`,
-                    }
-                );
-
-
-            try {
-
-                const response =
-
-                    await PromotionService
-                        .purchaseProjectPromotion(
-
-                            projectId,
-
-                            selectedPlan.code
-                            ??
-                            selectedPlan.id
-                        );
-
-
-                // =========================================
-                // PROMOTION REDUX
-                // =========================================
-
-                dispatch(
-                    purchasePromotionSuccess(
-                        response
-                    )
-                );
-
-
-                // =========================================
-                // AUTH BALANCE
-                // =========================================
-
-                if (
-                    user
-
-                    &&
-
-                    response
-                        ?.new_balance
-                    !==
-                    undefined
-                ) {
-
-                    dispatch(
-                        signUserSuccess({
-
-                            ...user,
-
-                            coins:
-                                safePromotionPositiveNumber(
-                                    response
-                                        .new_balance
-                                ),
-                        })
-                    );
-                }
-
-
-                // =========================================
-                // CLOSE MODAL
-                // =========================================
-
-                setIsConfirmOpen(
-                    false
-                );
-
-
-                // =========================================
-                // SUCCESS
-                // =========================================
-
-                const message =
-
-                    response?.detail
-
-                    ||
-
-                    `${selectedPlan.name} muvaffaqiyatli sotib olindi.`;
-
-
-                setSuccessMessage(
-                    message
-                );
-
-
-                siteToast.success(
-                    message,
-                    {
-                        id:
-                            toastId,
-
-                        title:
-                            "Promotion xarid qilindi",
-
-                        duration:
-                            4200,
-                    }
-                );
-
-
-                // =========================================
-                // RELOAD PROMOTION
-                // =========================================
-
-                await loadPromotionData({
-                    silent:
-                        true,
-                });
-
-
-                // =========================================
-                // RELOAD PROJECT DETAIL
-                //
-                // Headerdagi is_promoted ham darhol
-                // yangilanadi.
-                // =========================================
-
-                if (
-                    typeof onPromotionChange ===
-                        "function"
-                ) {
-
-                    await onPromotionChange();
-                }
-
-
-            } catch (
-                error
-            ) {
-
-                const message =
-
-                    getErrorMessage(
-                        error,
-
-                        "Promotion sotib olishda xatolik yuz berdi."
-                    );
-
-
-                dispatch(
-                    purchasePromotionFailure(
-                        message
-                    )
-                );
-
-
-                setIsConfirmOpen(
-                    false
-                );
-
-
-                siteToast.error(
-                    message,
-                    {
-                        id:
-                            toastId,
-
-                        title:
-                            "Promotion xarid qilinmadi",
-
-                        duration:
-                            5000,
-                    }
-                );
-
-
-                // =========================================
-                // SERVER STATE BILAN RE-SYNC
-                // =========================================
-
-                await loadPromotionData({
-                    silent:
-                        true,
-                });
-            }
-        };
-
-
-    // =====================================================
-    // REFRESH
-    // =====================================================
-
-    const handleRefresh =
-        async () => {
-
-            if (
-                manageLoading
-                ||
-                purchaseLoading
-            ) {
-
-                return;
-            }
-
-
-            const toastId =
-
-                siteToast.loading(
-                    "Promotion ma’lumotlari yangilanmoqda...",
-                    {
-                        title:
-                            "Yangilanmoqda",
-                    }
-                );
-
-
-            const success =
-
-                await loadPromotionData({
-                    silent:
-                        true,
-                });
-
-
-            if (
-                success
-            ) {
-
-                siteToast.success(
-                    "Promotion ma’lumotlari yangilandi.",
-                    {
-                        id:
-                            toastId,
-
-                        title:
-                            "Yangilandi",
-
-                        duration:
-                            2000,
-                    }
-                );
-
-
-            } else {
-
-                siteToast.error(
-                    "Promotion ma’lumotlarini yangilab bo‘lmadi.",
-                    {
-                        id:
-                            toastId,
-
-                        title:
-                            "Xatolik",
-                    }
-                );
-            }
-        };
-
-
-    // =====================================================
-    // RENDER
-    // =====================================================
-
-    return (
-
-        <>
-
-            {/* =================================================
-                MAIN PROMOTION PANEL
-            ================================================== */}
-
-            <section
-                className="
-                    relative
-                    overflow-hidden
-                    rounded-3xl
-                    border
-                    border-white/[0.07]
-                    bg-[#0b1018]
-                    p-5
-                    shadow-[0_25px_80px_rgba(0,0,0,0.24)]
-                "
-            >
-
-                {/* GLOW */}
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-                        -right-24
-                        -top-24
-                        h-52
-                        w-52
-                        rounded-full
-                        bg-purple-500/[0.07]
-                        blur-[90px]
-                    "
-                />
-
-
-                <div
-                    className="
-                        relative
-                        z-10
-                    "
-                >
-
-                    {/* =========================================
-                        HEADER
-                    ========================================== */}
-
-                    <div
-                        className="
-                            flex
-                            flex-col
-                            gap-4
-
-                            sm:flex-row
-                            sm:items-start
-                            sm:justify-between
-                        "
-                    >
-
-                        <div
-                            className="
-                                flex
-                                items-start
-                                gap-3
-                            "
-                        >
-
-                            <div
-                                className="
-                                    grid
-                                    h-11
-                                    w-11
-                                    flex-shrink-0
-                                    place-items-center
-                                    rounded-2xl
-                                    border
-                                    border-purple-400/15
-                                    bg-purple-400/[0.07]
-                                    text-purple-300
-                                "
-                            >
-
-                                <Rocket
-                                    size={20}
-                                />
-
-                            </div>
-
-
-                            <div>
-
-                                <p
-                                    className="
-                                        font-mono
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        tracking-[0.18em]
-                                        text-purple-300/70
-                                    "
-                                >
-                                    fsociety://promotion
-                                </p>
-
-
-                                <h2
-                                    className="
-                                        mt-1
-                                        text-lg
-                                        font-black
-                                        text-white
-                                    "
-                                >
-                                    Project promotion
-                                </h2>
-
-
-                                <p
-                                    className="
-                                        mt-1
-                                        max-w-lg
-                                        text-[10px]
-                                        font-medium
-                                        leading-5
-                                        text-gray-600
-                                    "
-                                >
-                                    Loyihangizni Projects sahifasi
-                                    va Home reklama joylarida
-                                    yuqoriga olib chiqing.
-                                </p>
-
-                            </div>
-
-                        </div>
-
-
-                        {/* BALANCE + REFRESH */}
-
-                        <div
-                            className="
-                                flex
-                                items-center
-                                gap-2
-                            "
-                        >
-
-                            <div
-                                className="
-                                    inline-flex
-                                    items-center
-                                    gap-2
-                                    rounded-xl
-                                    border
-                                    border-yellow-400/10
-                                    bg-yellow-400/[0.04]
-                                    px-3
-                                    py-2
-                                "
-                            >
-
-                                <Coins
-                                    size={14}
-                                    className="
-                                        text-yellow-300
-                                    "
-                                />
-
-
-                                <span
-                                    className="
-                                        text-xs
-                                        font-black
-                                        text-yellow-300
-                                    "
-                                >
-                                    {currentBalance}
-                                </span>
-
-
-                                <span
-                                    className="
-                                        text-[8px]
-                                        font-black
-                                        uppercase
-                                        tracking-[0.1em]
-                                        text-yellow-200/40
-                                    "
-                                >
-                                    FCoin
-                                </span>
-
-                            </div>
-
-
-                            <button
-                                type="button"
-
-                                onClick={
-                                    handleRefresh
-                                }
-
-                                disabled={
-                                    manageLoading
-                                    ||
-                                    purchaseLoading
-                                }
-
-                                className="
-                                    grid
-                                    h-9
-                                    w-9
-                                    place-items-center
-                                    rounded-xl
-                                    border
-                                    border-white/[0.06]
-                                    bg-white/[0.025]
-                                    text-gray-600
-                                    transition
-
-                                    hover:bg-white/[0.05]
-                                    hover:text-gray-300
-
-                                    disabled:cursor-not-allowed
-                                    disabled:opacity-40
-                                "
-                            >
-
-                                <RefreshCw
-                                    size={14}
-
-                                    className={
-                                        manageLoading
-                                            ? "animate-spin"
-                                            : ""
-                                    }
-                                />
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* =========================================
-                        ERRORS
-                    ========================================== */}
-
-                    {(
-                        manageError
-                        ||
-                        purchaseError
-                    ) && (
-
-                        <div
-                            className="
-                                mt-4
-                                flex
-                                items-start
-                                gap-2
-                                rounded-xl
-                                border
-                                border-red-400/15
-                                bg-red-400/[0.045]
-                                p-3
-                                text-[10px]
-                                font-semibold
-                                leading-5
-                                text-red-300
-                            "
-                        >
-
-                            <AlertTriangle
-                                size={14}
-                                className="
-                                    mt-0.5
-                                    flex-shrink-0
-                                "
-                            />
-
-
-                            {
-                                purchaseError
-                                ||
-                                manageError
-                            }
-
-                        </div>
-                    )}
-
-
-                    {/* =========================================
-                        SUCCESS
-                    ========================================== */}
-
-                    {successMessage && (
-
-                        <div
-                            className="
-                                mt-4
-                                flex
-                                items-start
-                                gap-2
-                                rounded-xl
-                                border
-                                border-emerald-400/15
-                                bg-emerald-400/[0.04]
-                                p-3
-                                text-[10px]
-                                font-semibold
-                                leading-5
-                                text-emerald-300
-                            "
-                        >
-
-                            <CheckCircle2
-                                size={14}
-                                className="
-                                    mt-0.5
-                                    flex-shrink-0
-                                "
-                            />
-
-
-                            {successMessage}
-
-                        </div>
-                    )}
-
-
-                    {/* =========================================
-                        INITIAL LOADING
-                    ========================================== */}
-
-                    {(
-                        manageLoading
-
-                        &&
-
-                        !isLoadedForCurrentProject
-
-                    ) ? (
-
-                        <div
-                            className="
-                                flex
-                                min-h-[220px]
-                                items-center
-                                justify-center
-                            "
-                        >
-
-                            <div
-                                className="
-                                    text-center
-                                "
-                            >
-
-                                <Loader2
-                                    size={24}
-                                    className="
-                                        mx-auto
-                                        animate-spin
-                                        text-purple-300
-                                    "
-                                />
-
-
-                                <p
-                                    className="
-                                        mt-3
-                                        text-[10px]
-                                        font-semibold
-                                        text-gray-600
-                                    "
-                                >
-                                    Promotion ma’lumotlari
-                                    yuklanmoqda...
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                    ) : (
-
-                        <>
-
-                            {/* =================================
-                                ACTIVE CAMPAIGN
-                            ================================== */}
-
-                            {activeCampaign ? (
-
-                                <div
-                                    className="
-                                        mt-5
-                                    "
-                                >
-
-                                    <PromotionActiveCard
-                                        campaign={
-                                            activeCampaign
-                                        }
-
-                                        onRefresh={
-                                            handleRefresh
-                                        }
-
-                                        isRefreshing={
-                                            manageLoading
-                                        }
-                                    />
-
-                                </div>
-
-                            ) : (
-
-                                <div
-                                    className="
-                                        mt-5
-                                        flex
-                                        items-start
-                                        gap-3
-                                        rounded-2xl
-                                        border
-                                        border-dashed
-                                        border-white/[0.065]
-                                        bg-white/[0.015]
-                                        p-4
-                                    "
-                                >
-
-                                    <ShieldCheck
-                                        size={17}
-                                        className="
-                                            mt-0.5
-                                            flex-shrink-0
-                                            text-gray-700
-                                        "
-                                    />
-
-
-                                    <div>
-
-                                        <p
-                                            className="
-                                                text-xs
-                                                font-black
-                                                text-gray-400
-                                            "
-                                        >
-                                            Aktiv promotion yo‘q
-                                        </p>
-
-
-                                        <p
-                                            className="
-                                                mt-1
-                                                text-[9px]
-                                                font-medium
-                                                leading-5
-                                                text-gray-700
-                                            "
-                                        >
-                                            Pastdagi rejalardan
-                                            birini tanlab reklama
-                                            kampaniyasini
-                                            boshlashingiz mumkin.
-                                        </p>
-
-                                    </div>
-
-                                </div>
-                            )}
-
-
-                            {/* =================================
-                                PLANS
-                            ================================== */}
-
-                            <div
-                                className="
-                                    mt-6
-                                "
-                            >
-
-                                <div
-                                    className="
-                                        mb-3
-                                        flex
-                                        items-center
-                                        gap-2
-                                    "
-                                >
-
-                                    <Sparkles
-                                        size={14}
-                                        className="
-                                            text-purple-300
-                                        "
-                                    />
-
-
-                                    <h3
-                                        className="
-                                            text-xs
-                                            font-black
-                                            uppercase
-                                            tracking-[0.12em]
-                                            text-gray-400
-                                        "
-                                    >
-                                        Promotion rejalari
-                                    </h3>
-
-                                </div>
-
-
-                                {safePlans.length ===
-                                0 ? (
-
-                                    <div
-                                        className="
-                                            rounded-2xl
-                                            border
-                                            border-dashed
-                                            border-white/[0.06]
-                                            p-6
-                                            text-center
-                                            text-[10px]
-                                            font-semibold
-                                            text-gray-700
-                                        "
-                                    >
-                                        Aktiv promotion rejasi
-                                        topilmadi.
-                                    </div>
-
-                                ) : (
-
-                                    <div
-                                        className="
-                                            grid
-                                            gap-3
-                                        "
-                                    >
-
-                                        {safePlans.map(
-                                            (
-                                                plan
-                                            ) => {
-
-                                                const planCode =
-
-                                                    plan.code
-
-                                                    ??
-
-                                                    plan.id;
-
-
-                                                return (
-
-                                                    <PromotionPlanCard
-                                                        key={
-                                                            planCode
-                                                        }
-
-                                                        plan={
-                                                            plan
-                                                        }
-
-                                                        selected={
-                                                            String(
-                                                                selectedPlanCode
-                                                            )
-
-                                                            ===
-
-                                                            String(
-                                                                planCode
-                                                            )
-                                                        }
-
-                                                        balance={
-                                                            currentBalance
-                                                        }
-
-                                                        disabled={
-                                                            purchaseLoading
-                                                        }
-
-                                                        onSelect={
-                                                            handleSelectPlan
-                                                        }
-                                                    />
-                                                );
-                                            }
-                                        )}
-
-                                    </div>
-                                )}
-
-                            </div>
-
-
-                            {/* =================================
-                                PURCHASE BUTTON
-                            ================================== */}
-
-                            <button
-                                type="button"
-
-                                onClick={
-                                    handlePurchaseRequest
-                                }
-
-                                disabled={
-                                    purchaseLoading
-                                    ||
-                                    manageLoading
-                                    ||
-                                    !selectedPlan
-                                }
-
-                                className="
-                                    mt-4
-                                    inline-flex
-                                    min-h-[46px]
-                                    w-full
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    rounded-xl
-                                    border
-                                    border-purple-400/20
-                                    bg-purple-600
-                                    px-5
-                                    text-xs
-                                    font-black
-                                    text-white
-                                    transition-all
-
-                                    hover:bg-purple-500
-
-                                    active:scale-[0.99]
-
-                                    disabled:cursor-not-allowed
-                                    disabled:bg-gray-900
-                                    disabled:text-gray-700
-                                "
-                            >
-
-                                {purchaseLoading ? (
-
-                                    <>
-
-                                        <Loader2
-                                            size={15}
-                                            className="
-                                                animate-spin
-                                            "
-                                        />
-
-                                        Xarid qilinmoqda...
-
-                                    </>
-
-                                ) : (
-
-                                    <>
-
-                                        <Rocket
-                                            size={15}
-                                        />
-
-                                        Promotion sotib olish
-
-
-                                        {selectedPlan && (
-
-                                            <span
-                                                className="
-                                                    rounded-full
-                                                    bg-black/20
-                                                    px-2
-                                                    py-0.5
-                                                    text-[9px]
-                                                "
-                                            >
-                                                {selectedPrice} FCoin
-                                            </span>
-                                        )}
-
-                                    </>
-                                )}
-
-                            </button>
-
-                        </>
-                    )}
-
-                </div>
-
-            </section>
-
-
-            {/* =================================================
-                QUEUE
-            ================================================== */}
-
-            <div
-                className="
-                    mt-4
-                "
-            >
-
-                <PromotionQueue
-                    campaigns={
-                        queue
-                    }
-                />
-
-            </div>
-
-
-            {/* =================================================
-                HISTORY
-            ================================================== */}
-
-            <div
-                className="
-                    mt-4
-                "
-            >
-
-                <PromotionHistory
-                    campaigns={
-                        history
-                    }
-
-                    totalPurchases={
-                        totalPurchases
-                    }
-
-                    totalSpent={
-                        totalSpent
-                    }
-                />
-
-            </div>
-
-
-            {/* =================================================
-                PURCHASE CONFIRMATION
-            ================================================== */}
-
-            <PurchaseConfirmationModal
-                isOpen={
-                    isConfirmOpen
-                }
-
-                onClose={
-                    handleCloseConfirmation
-                }
-
-                onConfirm={
-                    handleConfirmPurchase
-                }
-
-                isProcessing={
-                    purchaseLoading
-                }
-
-                title={
-                    "Promotion xaridini tasdiqlaysizmi?"
-                }
-
-                description={
-                    `"${projectName}" loyihasi uchun tanlangan promotion rejasini sotib olmoqchisiz.`
-                }
-
-                itemName={
-                    selectedPlan
-
-                        ? `${selectedPlan.name} — ${projectName}`
-
-                        : projectName
-                }
-
-                price={
-                    selectedPrice
-                }
-
-                balance={
-                    currentBalance
-                }
-
-                duration={
-                    selectedPlan
-
-                        ? getPromotionDurationLabel({
-
-                            durationHours:
-                                selectedPlan
-                                    .duration_hours,
-
-                            days:
-                                selectedPlan
-                                    .days,
-
-                            durationLabel:
-                                selectedPlan
-                                    .duration_label,
-                        })
-
-                        : null
-                }
-
-                confirmText={
-                    selectedPlan
-
-                        ? `${selectedPrice} FCoin sarflash`
-
-                        : "Tasdiqlash"
-                }
-
-                warningText={
-                    selectedPlan
-
-                        ? (
-                            `Tasdiqlaganingizdan so‘ng ${selectedPrice} FCoin balansingizdan yechiladi. Agar aktiv promotion mavjud bo‘lsa, yangi xarid uning ortidan navbatga qo‘shiladi.`
-                        )
-
-                        : null
-                }
+          />
+
+          {/* =================================
+              INVALID PROJECT
+          ================================= */}
+
+          {!hasProjectId && (
+            <InvalidProjectNotice />
+          )}
+
+          {/* =================================
+              INITIAL ERROR + RETRY
+          ================================= */}
+
+          {hasInitialError && (
+            <ProjectPromotionAlert
+              variant="error"
+              title="Promotion yuklanmadi"
+              message={initialErrorMessage}
+              onRetry={
+                canRefresh
+                  ? handleRefresh
+                  : undefined
+              }
+              isRetrying={
+                isManageLoading
+              }
             />
+          )}
 
-        </>
-    );
+          {/* =================================
+              REFRESH ERROR
+          ================================= */}
+
+          {refreshErrorMessage && (
+            <ProjectPromotionAlert
+              variant="error"
+              title="Ma’lumotlarni yangilashda xatolik"
+              message={refreshErrorMessage}
+              onRetry={
+                canRefresh
+                  ? handleRefresh
+                  : undefined
+              }
+              isRetrying={
+                isRefreshing
+              }
+            />
+          )}
+
+          {/* =================================
+              PURCHASE ERROR
+          ================================= */}
+
+          {purchaseErrorMessage && (
+            <ProjectPromotionAlert
+              variant="error"
+              title="Promotion xaridida xatolik"
+              message={purchaseErrorMessage}
+            />
+          )}
+
+          {/* =================================
+              UNKNOWN PURCHASE WARNING
+          ================================= */}
+
+          {isPurchaseOutcomeUnknown && (
+            <UnknownPurchaseWarning
+              disabled={
+                !canAcknowledgeUnknown
+              }
+              onAcknowledge={
+                promotionPurchase
+                  .handleAcknowledgeUnknown
+              }
+            />
+          )}
+
+          {/* =================================
+              PURCHASE SUCCESS
+          ================================= */}
+
+          {successMessage && (
+            <ProjectPromotionAlert
+              variant="success"
+              title="Promotion xarid qilindi"
+              message={successMessage}
+            />
+          )}
+
+          {/* =================================
+              INITIAL SKELETON
+          ================================= */}
+
+          {isInitialLoading && (
+            <ProjectPromotionLoading
+              showActive
+              showPlans
+              planCount={3}
+            />
+          )}
+
+          {/* =================================
+              CURRENT PROJECT
+          ================================= */}
+
+          {isProjectReady && (
+            <>
+              {/* =============================
+                  ACTIVE CAMPAIGN
+              ============================= */}
+
+              <div
+                className="
+                  mt-5
+                  w-full
+                  min-w-0
+                  max-w-full
+                "
+              >
+                {promotionData.activeCampaign ? (
+                  <PromotionActiveCard
+                    campaign={
+                      promotionData.activeCampaign
+                    }
+                    promotionExpiresAt={
+                      promotionData.promotionExpiresAt
+                    }
+                    onRefresh={
+                      canRefresh
+                        ? handleRefresh
+                        : undefined
+                    }
+                    isRefreshing={
+                      isRefreshing ||
+                      isPurchaseLoading
+                    }
+                  />
+                ) : (
+                  <ProjectPromotionEmptyActive />
+                )}
+              </div>
+
+              {/* =============================
+                  PROMOTION PLANS
+              ============================= */}
+
+              <ProjectPromotionPlans
+                plans={
+                  promotionData.plans
+                }
+                selectedPlanCode={
+                  promotionPurchase.selectedPlanCode
+                }
+                balance={
+                  promotionData.currentBalance
+                }
+                disabled={
+                  isInteractionDisabled
+                }
+                onSelect={
+                  promotionPurchase.handleSelectPlan
+                }
+              />
+
+              {/* =============================
+                  PURCHASE BUTTON
+              ============================= */}
+
+              <ProjectPromotionPurchaseButton
+                selectedPlan={
+                  promotionPurchase.selectedPlan
+                }
+                selectedPrice={
+                  promotionPurchase.selectedPrice
+                }
+                hasEnoughCoins={
+                  promotionPurchase.hasEnoughCoins
+                }
+                manageLoading={
+                  isManageLoading ||
+                  isPurchaseOutcomeUnknown
+                }
+                purchaseLoading={
+                  isPurchaseLoading
+                }
+                disabled={
+                  isInteractionDisabled
+                }
+                onPurchase={
+                  promotionPurchase.handlePurchaseRequest
+                }
+              />
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* ===================================================
+          PROMOTION QUEUE
+      =================================================== */}
+
+      {(isProjectReady || isInitialLoading) && (
+        <div className={SECTION_CLASS}>
+          <PromotionQueue
+            campaigns={
+              promotionData.queue
+            }
+            isLoading={
+              isInitialLoading
+            }
+          />
+        </div>
+      )}
+
+      {/* ===================================================
+          PROMOTION HISTORY
+      =================================================== */}
+
+      {(isProjectReady || isInitialLoading) && (
+        <div className={SECTION_CLASS}>
+          <PromotionHistory
+            campaigns={
+              promotionData.history
+            }
+            totalPurchases={
+              promotionData.totalPurchases
+            }
+            totalSpent={
+              promotionData.totalSpent
+            }
+            isLoading={
+              isInitialLoading
+            }
+            isRefreshing={
+              isRefreshing
+            }
+          />
+        </div>
+      )}
+
+      {/* ===================================================
+          PURCHASE CONFIRMATION MODAL
+      =================================================== */}
+
+      <ProjectPromotionConfirmation
+        isOpen={
+          showConfirmation
+        }
+        onClose={
+          promotionPurchase.handleCloseConfirmation
+        }
+        onConfirm={
+          promotionPurchase.handleConfirmPurchase
+        }
+        isProcessing={
+          isPurchaseLoading
+        }
+        projectName={
+          projectName
+        }
+        selectedPlan={
+          promotionPurchase.selectedPlan
+        }
+        selectedPrice={
+          promotionPurchase.selectedPrice
+        }
+        balance={
+          promotionData.currentBalance
+        }
+      />
+    </>
+  );
 };
 
+// =========================================================
+// EXPORT
+// =========================================================
 
-export default ProjectPromotion;
+export default React.memo(
+  ProjectPromotion
+);
