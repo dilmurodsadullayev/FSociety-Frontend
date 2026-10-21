@@ -1,436 +1,384 @@
 
-// src/components/posts/create/PostCreateFooter.jsx
-
 import React, { memo } from "react";
 
 import {
-    Loader2,
-    Save,
-    Send,
-    X,
+  Loader2,
+  Save,
+  Send,
+  X,
 } from "lucide-react";
 
 // =========================================================
-// BUTTON STYLES
+// FSOCIETY — POST CREATE / EDIT FOOTER
+// =========================================================
+//
+// Existing public props:
+// - isEditMode
+// - isSubmitting
+// - onClose
+//
+// Features:
+// - Create / Edit labels
+// - Light / Dark Mode
+// - Responsive 320px+
+// - Mobile safe-area support
+// - Minimum 44px touch targets
+// - Loading protection
+// - Accessible submit button
+// - Site typography
+//
+// IMPORTANT:
+// Submit stays inside the parent form.
+// This component performs no API requests.
 // =========================================================
 
+// =========================================================
+// SHARED BUTTON STYLE
+// =========================================================
+
+const BUTTON_BASE = `
+  relative
+  inline-flex
+  min-h-11
+  w-full
+  min-w-0
+  items-center
+  justify-center
+  gap-2
+  overflow-hidden
+  rounded-xl
+  border
+  px-4
+  py-3
+
+  text-center
+  text-xs
+  font-black
+
+  transition-all
+  duration-200
+
+  focus-visible:outline-none
+  focus-visible:ring-2
+  focus-visible:ring-indigo-500
+  focus-visible:ring-offset-2
+
+  active:scale-[0.98]
+
+  disabled:cursor-not-allowed
+  disabled:opacity-55
+  disabled:active:scale-100
+
+  sm:w-auto
+  sm:rounded-2xl
+  sm:px-5
+  sm:text-sm
+
+  dark:focus-visible:ring-offset-[#0b1018]
+
+  motion-reduce:transform-none
+  motion-reduce:transition-none
+`;
+
 const CANCEL_BUTTON_CLASS = `
-    inline-flex
+  ${BUTTON_BASE}
 
-    min-h-11
-    min-w-0
-    w-full
+  border-slate-200
+  bg-white
+  text-slate-700
 
-    items-center
-    justify-center
-    gap-2
+  hover:border-slate-300
+  hover:bg-slate-100
 
-    rounded-xl
-    border
+  dark:border-white/[0.10]
+  dark:bg-white/[0.04]
+  dark:text-slate-200
 
-    border-slate-200
-    bg-slate-100
-
-    px-3
-    py-2.5
-
-    text-xs
-    font-black
-
-    text-slate-700
-
-    transition-all
-    duration-200
-
-    hover:border-slate-300
-    hover:bg-slate-200
-
-    focus-visible:outline-none
-    focus-visible:ring-2
-    focus-visible:ring-indigo-500/50
-    focus-visible:ring-offset-2
-
-    active:scale-[0.98]
-
-    disabled:cursor-not-allowed
-    disabled:opacity-40
-
-    dark:border-white/[0.08]
-    dark:bg-white/[0.04]
-    dark:text-slate-300
-
-    dark:hover:border-white/[0.14]
-    dark:hover:bg-white/[0.08]
-    dark:hover:text-white
-
-    dark:focus-visible:ring-offset-[#0b1018]
-
-    sm:w-auto
-    sm:rounded-2xl
-    sm:px-5
-    sm:py-3
-    sm:text-sm
-
-    motion-reduce:transform-none
-    motion-reduce:transition-none
+  dark:hover:border-white/[0.18]
+  dark:hover:bg-white/[0.08]
 `;
 
 const SUBMIT_BUTTON_CLASS = `
-    group
-    relative
+  ${BUTTON_BASE}
 
-    inline-flex
+  group
+  border-indigo-600/30
 
-    min-h-11
-    min-w-0
-    w-full
+  bg-gradient-to-r
+  from-indigo-600
+  via-violet-600
+  to-purple-600
 
-    items-center
-    justify-center
-    gap-2
+  text-white
+  shadow-[0_8px_25px_rgba(79,70,229,0.20)]
 
-    overflow-hidden
+  hover:shadow-[0_10px_30px_rgba(79,70,229,0.30)]
 
-    rounded-xl
-    border
+  sm:min-w-[190px]
 
-    border-indigo-400/30
-
-    bg-gradient-to-r
-    from-indigo-600
-    via-violet-600
-    to-purple-600
-
-    px-3
-    py-2.5
-
-    text-xs
-    font-black
-    text-white
-
-    shadow-lg
-    shadow-indigo-600/20
-
-    transition-all
-    duration-300
-
-    hover:shadow-indigo-500/30
-
-    focus-visible:outline-none
-    focus-visible:ring-2
-    focus-visible:ring-indigo-500/50
-    focus-visible:ring-offset-2
-
-    active:scale-[0.98]
-
-    disabled:cursor-not-allowed
-    disabled:opacity-60
-
-    sm:w-auto
-    sm:min-w-[190px]
-    sm:rounded-2xl
-    sm:px-6
-    sm:py-3
-    sm:text-sm
-
-    sm:hover:-translate-y-0.5
-    sm:disabled:hover:translate-y-0
-
-    dark:focus-visible:ring-offset-[#0b1018]
-
-    motion-reduce:transform-none
-    motion-reduce:transition-none
+  dark:border-indigo-400/25
+  dark:shadow-[0_10px_28px_rgba(99,102,241,0.12)]
 `;
 
 // =========================================================
-// POST CREATE FOOTER
-//
-// Props:
-//
-// isEditMode:
-//   false = Create
-//   true  = Edit
-//
-// isSubmitting:
-//   Prevents duplicate submit and closing.
-//
-// onClose:
-//   Parent CreatePostModal handleClose.
-//
-// RESPONSIVE:
-// - Small mobile: stacked buttons
-// - Wide mobile: two equal columns
-// - Desktop: compact horizontal actions
-//
-// IMPORTANT:
-// - Submit button remains type="submit".
-// - Parent form handles onSubmit.
-// - This component performs no API requests.
+// MAIN FOOTER
 // =========================================================
 
 const PostCreateFooter = ({
-    isEditMode = false,
-    isSubmitting = false,
-    onClose,
+  isEditMode = false,
+  isSubmitting = false,
+  onClose,
 }) => {
-    // =====================================================
-    // BUTTON LABELS
-    // =====================================================
+  // =======================================================
+  // STATE
+  // =======================================================
 
-    const submitText = isEditMode
-        ? "O‘zgarishlarni saqlash"
-        : "Postni chop etish";
+  const busy = Boolean(isSubmitting);
 
-    const loadingText = isEditMode
-        ? "Saqlanmoqda..."
-        : "Chop etilmoqda...";
+  const canClose =
+    !busy &&
+    typeof onClose === "function";
 
-    // =====================================================
-    // ICON
-    // =====================================================
+  // =======================================================
+  // MODE LABELS
+  // =======================================================
 
-    const SubmitIcon = isEditMode
-        ? Save
-        : Send;
+  const submitText = isEditMode
+    ? "O‘zgarishlarni saqlash"
+    : "Postni chop etish";
 
-    // =====================================================
-    // CLOSE PERMISSION
-    // =====================================================
+  const loadingText = isEditMode
+    ? "Saqlanmoqda..."
+    : "Chop etilmoqda...";
 
-    const canClose =
-        !isSubmitting &&
-        typeof onClose === "function";
+  const SubmitIcon = isEditMode
+    ? Save
+    : Send;
 
-    // =====================================================
-    // RENDER
-    // =====================================================
+  // =======================================================
+  // HANDLERS
+  // =======================================================
 
-    return (
-        <footer
-            className="
-                relative
-                z-20
+  const handleClose = () => {
+    if (!canClose) {
+      return;
+    }
 
-                w-full
-                min-w-0
-                shrink-0
+    onClose();
+  };
 
-                border-t
-                border-slate-200
+  // =======================================================
+  // RENDER
+  // =======================================================
 
-                bg-slate-50/95
+  return (
+    <footer
+      aria-label={
+        isEditMode
+          ? "Postni tahrirlash amallari"
+          : "Post yaratish amallari"
+      }
+      className="
+        relative
+        z-20
+        w-full
+        min-w-0
+        shrink-0
+        border-t
+        border-slate-200
+        bg-slate-50/95
 
-                px-3
-                pt-3
+        px-3
+        pt-3
+        pb-[max(12px,env(safe-area-inset-bottom))]
 
-                pb-[max(12px,env(safe-area-inset-bottom))]
+        font-sans
+        backdrop-blur-xl
 
-                backdrop-blur-xl
+        min-[380px]:px-4
 
-                dark:border-white/[0.08]
-                dark:bg-[#0b1018]/95
+        sm:px-7
+        sm:py-4
 
-                min-[380px]:px-4
+        dark:border-white/[0.08]
+        dark:bg-[#0b1018]/95
+      "
+    >
+      {/* =====================================
+          FOOTER LAYOUT
+      ===================================== */}
 
-                sm:px-7
-                sm:py-4
-            "
+      <div
+        className="
+          flex
+          w-full
+          min-w-0
+          flex-col
+          gap-3
+
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
+          sm:gap-4
+        "
+      >
+        {/* =================================
+            KEYBOARD / LOADING HINT
+        ================================= */}
+
+        <p
+          role="status"
+          aria-live="polite"
+          className="
+            hidden
+            min-w-0
+            text-[11px]
+            font-medium
+            leading-5
+            text-slate-500
+
+            sm:block
+
+            dark:text-slate-400
+          "
         >
-            {/* =============================================
-                FOOTER LAYOUT
-            ============================================== */}
+          {busy
+            ? "Iltimos, jarayon tugashini kuting."
+            : "ESC tugmasi orqali ham yopishingiz mumkin."}
+        </p>
 
-            <div
-                className="
-                    flex
-                    min-w-0
+        {/* =================================
+            ACTION BUTTONS
+        ================================= */}
 
-                    flex-col
-                    gap-2.5
+        <div
+          className="
+            grid
+            w-full
+            min-w-0
+            grid-cols-1
+            gap-2.5
 
-                    sm:flex-row
-                    sm:items-center
-                    sm:justify-between
-                    sm:gap-4
-                "
+            min-[380px]:grid-cols-2
+
+            sm:flex
+            sm:w-auto
+            sm:items-center
+            sm:gap-3
+          "
+        >
+          {/* =============================
+              CANCEL
+          ============================= */}
+
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={!canClose}
+            aria-label={
+              isEditMode
+                ? "Tahrirlash oynasini yopish"
+                : "Post yaratishni bekor qilish"
+            }
+            className={CANCEL_BUTTON_CLASS}
+          >
+            <X
+              size={17}
+              className="shrink-0"
+              aria-hidden="true"
+            />
+
+            <span className="min-w-0 break-words">
+              Bekor qilish
+            </span>
+          </button>
+
+          {/* =============================
+              SUBMIT
+          ============================= */}
+
+          <button
+            type="submit"
+            disabled={busy}
+            aria-busy={busy}
+            aria-label={
+              busy
+                ? loadingText
+                : submitText
+            }
+            className={SUBMIT_BUTTON_CLASS}
+          >
+            {/* DECORATIVE SHINE */}
+
+            <span
+              aria-hidden="true"
+              className="
+                pointer-events-none
+                absolute
+                inset-y-0
+                -left-20
+                w-16
+                rotate-12
+                bg-white/15
+                blur-md
+                transition-all
+                duration-700
+
+                group-hover:left-[120%]
+
+                group-focus-visible:left-[120%]
+
+                motion-reduce:transition-none
+              "
+            />
+
+            {/* BUTTON CONTENT */}
+
+            <span
+              className="
+                relative
+                z-10
+                inline-flex
+                min-w-0
+                items-center
+                justify-center
+                gap-2
+              "
             >
-                {/* =========================================
-                    KEYBOARD HINT
+              {busy ? (
+                <Loader2
+                  size={18}
+                  className="
+                    shrink-0
+                    motion-safe:animate-spin
+                  "
+                  aria-hidden="true"
+                />
+              ) : (
+                <SubmitIcon
+                  size={18}
+                  className="shrink-0"
+                  aria-hidden="true"
+                />
+              )}
 
-                    Hidden on mobile because vertical
-                    screen space is limited.
-                ========================================== */}
-
-                <p
-                    className="
-                        hidden
-                        shrink-0
-
-                        text-[10px]
-                        font-medium
-
-                        text-slate-500
-
-                        dark:text-slate-400
-
-                        sm:block
-                    "
-                >
-                    {isSubmitting
-                        ? "Iltimos, jarayon tugashini kuting."
-                        : "ESC orqali ham yopishingiz mumkin."}
-                </p>
-
-                {/* =========================================
-                    ACTION BUTTONS
-
-                    Under 380px:
-                    - 1 column
-
-                    380px and above:
-                    - 2 equal columns
-
-                    Desktop:
-                    - Compact horizontal actions
-                ========================================== */}
-
-                <div
-                    className="
-                        grid
-                        w-full
-                        min-w-0
-
-                        grid-cols-1
-                        gap-2
-
-                        min-[380px]:grid-cols-2
-
-                        sm:flex
-                        sm:w-auto
-                        sm:items-center
-                        sm:gap-2.5
-                    "
-                >
-                    {/* =====================================
-                        CANCEL BUTTON
-                    ====================================== */}
-
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={!canClose}
-                        aria-label="Post yaratish yoki tahrirlashni bekor qilish"
-                        className={CANCEL_BUTTON_CLASS}
-                    >
-                        <X
-                            size={17}
-                            aria-hidden="true"
-                            className="shrink-0"
-                        />
-
-                        <span>
-                            Bekor qilish
-                        </span>
-                    </button>
-
-                    {/* =====================================
-                        SUBMIT BUTTON
-
-                        Must remain inside parent form.
-                    ====================================== */}
-
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        aria-busy={isSubmitting}
-                        className={SUBMIT_BUTTON_CLASS}
-                    >
-                        {/* =================================
-                            DECORATIVE SHINE
-                        ================================== */}
-
-                        <span
-                            aria-hidden="true"
-                            className="
-                                pointer-events-none
-
-                                absolute
-                                inset-y-0
-                                -left-20
-
-                                w-16
-                                rotate-12
-
-                                bg-white/15
-                                blur-md
-
-                                transition-all
-                                duration-700
-
-                                group-hover:left-[120%]
-                                group-focus-visible:left-[120%]
-
-                                motion-reduce:transition-none
-                            "
-                        />
-
-                        {/* =================================
-                            BUTTON CONTENT
-                        ================================== */}
-
-                        <span
-                            className="
-                                relative
-                                z-10
-
-                                inline-flex
-                                min-w-0
-
-                                items-center
-                                justify-center
-                                gap-2
-                            "
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2
-                                        size={18}
-                                        aria-hidden="true"
-                                        className="
-                                            shrink-0
-
-                                            animate-spin
-                                            motion-reduce:animate-none
-                                        "
-                                    />
-
-                                    <span className="text-center">
-                                        {loadingText}
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <SubmitIcon
-                                        size={18}
-                                        aria-hidden="true"
-                                        className="shrink-0"
-                                    />
-
-                                    <span className="text-center">
-                                        {submitText}
-                                    </span>
-                                </>
-                            )}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </footer>
-    );
+              <span
+                className="
+                  min-w-0
+                  break-words
+                  text-center
+                "
+              >
+                {busy
+                  ? loadingText
+                  : submitText}
+              </span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </footer>
+  );
 };
-
-// =========================================================
-// EXPORT
-// =========================================================
 
 export default memo(PostCreateFooter);

@@ -1,1250 +1,735 @@
-import React, {
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+
+import React, { memo, useMemo } from "react";
 
 import {
-    useDispatch,
-} from "react-redux";
-
-import {
-    Link,
-} from "react-router-dom";
-
-import toast from "react-hot-toast";
-
-import {
-    Clock3,
-    Crown,
+  Braces,
+  Hash,
+  Terminal,
 } from "lucide-react";
-
-import PostService from "../../../services/post";
-
-import {
-    deleteCommentSuccess,
-    updateCommentSuccess,
-} from "../../../features/posts";
-
-import timeAgo from "../../../utils/timeAgo";
 
 import DeleteConfirmationModal from "../../DeleteConfirmationModal";
 
-import PostCommentActions from "./PostCommentActions";
-import PostCommentEditForm from "./PostCommentEditForm";
+import PostCommentHeader from "./item/PostCommentHeader";
+import PostCommentContent from "./item/PostCommentContent";
+import PostCommentItemActions from "./item/PostCommentItemActions";
+import PostCommentEditForm from "./item/PostCommentEditForm";
 
-import {
-    getCommentAvatarUrl,
-    getCommentErrorMessage,
-    getCommentUserName,
-    handleCommentAvatarError,
-    normalizeLikesCount,
-} from "./commentUtils";
-
+import usePostCommentActions from "./item/usePostCommentActions";
 
 // =========================================================
-// POST COMMENT ITEM
+// FSOCIETY — UNDERGROUND DISCUSSION CARD
+// =========================================================
+//
+// Design:
+// - Mr. Robot inspired
+// - Terminal-style top bar
+// - Monochrome surfaces
+// - Restrained signal-red accents
+// - Subtle technical background
+// - Light / Dark Mode
+// - Responsive from 320px
+//
+// All API / Redux / siteToast logic remains
+// inside usePostCommentActions.
+//
+// =========================================================
+
+// =========================================================
+// DESIGN TOKENS
+// =========================================================
+
+const CARD_CLASS = `
+  group/comment
+  relative
+  isolate
+
+  w-full
+  min-w-0
+  max-w-full
+
+  overflow-hidden
+
+  rounded-[20px]
+  border
+  border-slate-200
+
+  bg-[#fcfcfd]
+  text-slate-900
+
+  shadow-[0_12px_35px_rgba(15,23,42,0.045)]
+
+  transition-[border-color,box-shadow]
+  duration-300
+
+  hover:border-rose-300/70
+  hover:shadow-[0_18px_50px_rgba(15,23,42,0.085)]
+
+  sm:rounded-[24px]
+
+  dark:border-white/[0.09]
+  dark:bg-[#090c12]
+  dark:text-white
+
+  dark:shadow-[0_16px_50px_rgba(0,0,0,0.20)]
+
+  dark:hover:border-rose-400/25
+  dark:hover:shadow-[0_18px_55px_rgba(0,0,0,0.33)]
+
+  motion-reduce:transition-none
+`;
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+const getCommentReference = (commentId) => {
+  if (
+    commentId === null ||
+    commentId === undefined
+  ) {
+    return "UNKNOWN";
+  }
+
+  const value = String(commentId).trim();
+
+  if (!value) {
+    return "UNKNOWN";
+  }
+
+  return value
+    .slice(-8)
+    .toUpperCase();
+};
+
+const getDeleteItemTitle = (value) => {
+  const text = String(value ?? "").trim();
+
+  if (!text) {
+    return "Ushbu sharh";
+  }
+
+  const truncated =
+    text.length > 45
+      ? `${text.slice(0, 45)}...`
+      : text;
+
+  return `Sharh (${truncated})`;
+};
+
+// =========================================================
+// TERMINAL BAR
+// =========================================================
+
+const CommentTerminalBar = memo(
+  function CommentTerminalBar({
+    reference,
+  }) {
+    return (
+      <div
+        className="
+          relative
+          z-10
+
+          flex
+          min-h-10
+          w-full
+          min-w-0
+
+          items-center
+          justify-between
+          gap-2
+
+          border-b
+          border-white/[0.07]
+
+          bg-[#11151c]
+
+          px-3
+          py-2
+
+          font-mono
+
+          sm:px-5
+
+          dark:bg-[#05070b]
+        "
+      >
+        {/* LEFT */}
+
+        <div
+          className="
+            flex
+            min-w-0
+            items-center
+            gap-3
+          "
+        >
+          {/* WINDOW DOTS */}
+
+          <div
+            aria-hidden="true"
+            className="
+              flex
+              shrink-0
+              items-center
+              gap-1.5
+            "
+          >
+            <span
+              className="
+                h-2
+                w-2
+                rounded-full
+                bg-rose-500
+              "
+            />
+
+            <span
+              className="
+                h-2
+                w-2
+                rounded-full
+                bg-white/20
+              "
+            />
+
+            <span
+              className="
+                h-2
+                w-2
+                rounded-full
+                bg-white/20
+              "
+            />
+          </div>
+
+          {/* DIVIDER */}
+
+          <span
+            aria-hidden="true"
+            className="
+              h-4
+              w-px
+              shrink-0
+              bg-white/[0.12]
+            "
+          />
+
+          {/* TERMINAL NAME */}
+
+          <span
+            className="
+              inline-flex
+              min-w-0
+              items-center
+              gap-1.5
+
+              text-[10px]
+              font-black
+              uppercase
+              tracking-[0.08em]
+
+              text-white/90
+
+              sm:text-[11px]
+            "
+          >
+            <Terminal
+              size={13}
+              className="
+                shrink-0
+                text-rose-400
+              "
+              aria-hidden="true"
+            />
+
+            <span className="truncate">
+              FSOCIETY
+            </span>
+
+            <span
+              className="
+                hidden
+                text-white/40
+
+                min-[390px]:inline
+              "
+            >
+              / DISCUSSION
+            </span>
+          </span>
+        </div>
+
+        {/* RIGHT — COMMENT REFERENCE */}
+
+        <span
+          title={`Sharh identifikatori: ${reference}`}
+          className="
+            inline-flex
+            min-w-0
+            max-w-[110px]
+            items-center
+            gap-1
+
+            truncate
+            rounded-md
+
+            border
+            border-white/[0.08]
+
+            bg-white/[0.04]
+
+            px-2
+            py-1
+
+            text-[9px]
+            font-bold
+            tracking-wide
+
+            text-white/55
+
+            sm:max-w-[145px]
+          "
+        >
+          <Hash
+            size={10}
+            className="
+              shrink-0
+              text-rose-400/80
+            "
+            aria-hidden="true"
+          />
+
+          <span className="truncate">
+            {reference}
+          </span>
+        </span>
+      </div>
+    );
+  }
+);
+
+// =========================================================
+// DECORATIVE DETAILS
+// =========================================================
+
+const CommentCardEffects = memo(
+  function CommentCardEffects() {
+    return (
+      <>
+        {/* SIGNAL RED TOP RULE */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            inset-x-0
+            top-10
+            z-10
+
+            h-px
+
+            bg-gradient-to-r
+            from-rose-600/75
+            via-rose-500/20
+            to-transparent
+          "
+        />
+
+        {/* GRID — LIGHT */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            inset-0
+            z-0
+
+            opacity-[0.025]
+
+            dark:hidden
+          "
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #111827 1px, transparent 1px), linear-gradient(to bottom, #111827 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+
+        {/* GRID — DARK */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            inset-0
+            z-0
+
+            hidden
+            opacity-[0.08]
+
+            dark:block
+          "
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #64748b 1px, transparent 1px), linear-gradient(to bottom, #64748b 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        />
+
+        {/* RIGHT CORNER GLOW */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            -right-20
+            top-12
+            z-0
+
+            h-48
+            w-48
+
+            rounded-full
+
+            bg-rose-500/[0.035]
+            blur-[65px]
+
+            dark:bg-rose-500/[0.075]
+          "
+        />
+
+        {/* VERTICAL RED SIGNAL */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            bottom-8
+            left-0
+            top-20
+
+            z-0
+
+            w-[3px]
+
+            rounded-r-full
+
+            bg-gradient-to-b
+            from-rose-600/70
+            via-rose-500/15
+            to-transparent
+          "
+        />
+
+        {/* TOP-RIGHT CORNER DETAIL */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            right-4
+            top-12
+
+            h-4
+            w-4
+
+            border-r
+            border-t
+            border-rose-500/25
+
+            dark:border-rose-400/20
+          "
+        />
+
+        {/* BOTTOM-RIGHT CORNER DETAIL */}
+
+        <span
+          aria-hidden="true"
+          className="
+            pointer-events-none
+
+            absolute
+            bottom-3
+            right-4
+
+            h-4
+            w-4
+
+            border-b
+            border-r
+            border-slate-300/70
+
+            dark:border-white/[0.10]
+          "
+        />
+      </>
+    );
+  }
+);
+
+// =========================================================
+// DISCUSSION FOOTER
+// =========================================================
+
+const CommentSignature = memo(
+  function CommentSignature() {
+    return (
+      <div
+        aria-hidden="true"
+        className="
+          mt-4
+
+          flex
+          min-w-0
+          flex-wrap
+
+          items-center
+          justify-between
+          gap-x-3
+          gap-y-1.5
+
+          border-t
+          border-slate-200/60
+
+          pt-3
+
+          font-mono
+          text-[9px]
+          font-bold
+          uppercase
+          tracking-[0.09em]
+
+          text-slate-400
+
+          dark:border-white/[0.055]
+          dark:text-slate-500
+        "
+      >
+        <span
+          className="
+            inline-flex
+            items-center
+            gap-2
+          "
+        >
+          <span
+            className="
+              h-1.5
+              w-1.5
+
+              rounded-full
+
+              bg-rose-500/80
+            "
+          />
+
+          FS / COMMUNITY
+        </span>
+
+        <span
+          className="
+            inline-flex
+            items-center
+            gap-1.5
+          "
+        >
+          <Braces
+            size={12}
+            aria-hidden="true"
+          />
+
+          IDEAS · CODE · SOLUTIONS
+        </span>
+      </div>
+    );
+  }
+);
+
+// =========================================================
+// MAIN COMPONENT
 // =========================================================
 
 const PostCommentItem = ({
+  comment,
+  postAuthorUsername,
+  currentUser,
+  isLoggedIn,
+}) => {
+  // =======================================================
+  // ACTIONS
+  // =======================================================
+
+  const actions = usePostCommentActions({
     comment,
-    postAuthorUsername,
     currentUser,
     isLoggedIn,
-    onDeleted,
-}) => {
-
-    // =====================================================
-    // REDUX
-    // =====================================================
-
-    const dispatch =
-        useDispatch();
-
-
-    // =====================================================
-    // EDIT STATE
-    // =====================================================
-
-    const [
-        isEditing,
-        setIsEditing,
-    ] = useState(
-        false
-    );
-
-
-    const [
-        editMessage,
-        setEditMessage,
-    ] = useState(
-        comment?.message
-        ||
-        ""
-    );
-
-
-    const [
-        editError,
-        setEditError,
-    ] = useState(
-        ""
-    );
-
-
-    // =====================================================
-    // PROCESSING STATE
-    // =====================================================
-
-    const [
-        isProcessing,
-        setIsProcessing,
-    ] = useState(
-        false
-    );
-
-
-    const [
-        isDeleteModalOpen,
-        setIsDeleteModalOpen,
-    ] = useState(
-        false
-    );
-
-
-    // =====================================================
-    // LIKE STATE
-    // =====================================================
-
-    const [
-        isLiking,
-        setIsLiking,
-    ] = useState(
-        false
-    );
-
-
-    const [
-        isLiked,
-        setIsLiked,
-    ] = useState(
-        Boolean(
-            comment?.is_liked_by_user
-        )
-    );
-
-
-    const [
-        likesCount,
-        setLikesCount,
-    ] = useState(
-        normalizeLikesCount(
-            comment
-        )
-    );
-
-
-    // =====================================================
-    // SYNC COMMENT DATA
-    // =====================================================
-
-    useEffect(
-        () => {
-
-            setEditMessage(
-                comment?.message
-                ||
-                ""
-            );
-
-
-            setIsLiked(
-                Boolean(
-                    comment?.is_liked_by_user
-                )
-            );
-
-
-            setLikesCount(
-                normalizeLikesCount(
-                    comment
-                )
-            );
-
-        },
-        [
-            comment?.id,
-            comment?.message,
-            comment?.is_liked_by_user,
-            comment?.likes_count,
-            comment?.likes,
-        ]
-    );
-
-
-    // =====================================================
-    // COMMENT USER
-    // =====================================================
-
-    const commentUser =
-        comment?.user
-        ||
-        {};
-
-
-    // =====================================================
-    // POST AUTHOR
-    // =====================================================
-
-    const isPostAuthor =
-        Boolean(
-            postAuthorUsername
-            &&
-            commentUser?.username
-            &&
-            postAuthorUsername
-            ===
-            commentUser.username
-        );
-
-
-    // =====================================================
-    // COMMENT OWNER
-    // =====================================================
-
-    const calculatedOwner =
-        Boolean(
-            currentUser?.id
-            &&
-            commentUser?.id
-            &&
-            Number(
-                currentUser.id
-            )
-            ===
-            Number(
-                commentUser.id
-            )
-        );
-
-
-    /*
-        Backend serializer:
-
-        is_owner
-        can_modify
-
-        fieldlarini yuboradi.
-
-        Agar ular mavjud bo‘lsa backend natijasini ishlatamiz.
-        Aks holda currentUser ID orqali tekshiramiz.
-    */
-
-    const isCommentOwner =
-        typeof comment?.is_owner
-        === "boolean"
-
-            ? comment.is_owner
-
-            : typeof comment?.can_modify
-              === "boolean"
-
-                ? comment.can_modify
-
-                : calculatedOwner;
-
-
-    // =====================================================
-    // AVATAR
-    // =====================================================
-
-    const avatarUrl =
-        useMemo(
-            () =>
-                getCommentAvatarUrl(
-                    commentUser
-                ),
-            [
-                commentUser,
-            ]
-        );
-
-
-    // =====================================================
-    // DISPLAY NAME
-    // =====================================================
-
-    const displayName =
-        getCommentUserName(
-            commentUser
-        );
-
-
-    // =====================================================
-    // START EDIT
-    // =====================================================
-
-    const handleStartEdit =
-        () => {
-
-            if (
-                !isCommentOwner
-                ||
-                isProcessing
-                ||
-                isLiking
-            ) {
-                return;
-            }
-
-
-            setEditMessage(
-                comment?.message
-                ||
-                ""
-            );
-
-
-            setEditError(
-                ""
-            );
-
-
-            setIsEditing(
-                true
-            );
-        };
-
-
-    // =====================================================
-    // CANCEL EDIT
-    // =====================================================
-
-    const handleCancelEdit =
-        () => {
-
-            if (
-                isProcessing
-            ) {
-                return;
-            }
-
-
-            setEditMessage(
-                comment?.message
-                ||
-                ""
-            );
-
-
-            setEditError(
-                ""
-            );
-
-
-            setIsEditing(
-                false
-            );
-        };
-
-
-    // =====================================================
-    // SAVE EDIT
-    // =====================================================
-
-    const handleSaveEdit =
-        async () => {
-
-            if (
-                !isCommentOwner
-                ||
-                isProcessing
-            ) {
-                return;
-            }
-
-
-            const cleanMessage =
-                String(
-                    editMessage
-                    ||
-                    ""
-                )
-                    .trim();
-
-
-            const oldMessage =
-                String(
-                    comment?.message
-                    ||
-                    ""
-                )
-                    .trim();
-
-
-            // ---------------------------------------------
-            // EMPTY
-            // ---------------------------------------------
-
-            if (
-                !cleanMessage
-            ) {
-
-                setEditError(
-                    "Sharh matni bo‘sh bo‘lishi mumkin emas."
-                );
-
-                return;
-            }
-
-
-            // ---------------------------------------------
-            // MAX LENGTH
-            // ---------------------------------------------
-
-            if (
-                cleanMessage.length
-                >
-                255
-            ) {
-
-                setEditError(
-                    "Sharh 255 ta belgidan oshmasligi kerak."
-                );
-
-                return;
-            }
-
-
-            // ---------------------------------------------
-            // NOT CHANGED
-            // ---------------------------------------------
-
-            if (
-                cleanMessage
-                ===
-                oldMessage
-            ) {
-
-                setEditError(
-                    ""
-                );
-
-
-                setIsEditing(
-                    false
-                );
-
-                return;
-            }
-
-
-            // ---------------------------------------------
-            // REQUEST
-            // ---------------------------------------------
-
-            setIsProcessing(
-                true
-            );
-
-
-            setEditError(
-                ""
-            );
-
-
-            const toastId =
-                toast.loading(
-                    "Sharh saqlanmoqda..."
-                );
-
-
-            try {
-
-                const updatedComment =
-                    await PostService
-                        .updatePostComment(
-                            comment.id,
-                            {
-                                message:
-                                    cleanMessage,
-                            }
-                        );
-
-
-                // Redux ichidagi commentni yangilaymiz
-                dispatch(
-                    updateCommentSuccess(
-                        updatedComment
-                    )
-                );
-
-
-                setEditMessage(
-                    updatedComment?.message
-                    ??
-                    cleanMessage
-                );
-
-
-                setIsEditing(
-                    false
-                );
-
-
-                toast.success(
-                    "Sharh yangilandi.",
-                    {
-                        id:
-                            toastId,
-                    }
-                );
-
-            } catch (
-                error
-            ) {
-
-                const message =
-                    getCommentErrorMessage(
-                        error,
-                        "Sharhni saqlashda xato yuz berdi."
-                    );
-
-
-                setEditError(
-                    message
-                );
-
-
-                toast.error(
-                    message,
-                    {
-                        id:
-                            toastId,
-                    }
-                );
-
-            } finally {
-
-                setIsProcessing(
-                    false
-                );
-            }
-        };
-
-
-    // =====================================================
-    // OPEN DELETE
-    // =====================================================
-
-    const handleOpenDelete =
-        () => {
-
-            if (
-                !isCommentOwner
-                ||
-                isProcessing
-                ||
-                isLiking
-            ) {
-                return;
-            }
-
-
-            setIsDeleteModalOpen(
-                true
-            );
-        };
-
-
-    // =====================================================
-    // CLOSE DELETE
-    // =====================================================
-
-    const handleCloseDelete =
-        () => {
-
-            if (
-                isProcessing
-            ) {
-                return;
-            }
-
-
-            setIsDeleteModalOpen(
-                false
-            );
-        };
-
-
-    // =====================================================
-    // DELETE COMMENT
-    // =====================================================
-
-    const handleConfirmDelete =
-        async () => {
-
-            if (
-                !isCommentOwner
-                ||
-                isProcessing
-                ||
-                !comment?.id
-            ) {
-                return;
-            }
-
-
-            setIsProcessing(
-                true
-            );
-
-
-            const toastId =
-                toast.loading(
-                    "Sharh o‘chirilmoqda..."
-                );
-
-
-            try {
-
-                await PostService
-                    .deletePostComment(
-                        comment.id
-                    );
-
-
-                // Redux listdan olib tashlaymiz
-                dispatch(
-                    deleteCommentSuccess(
-                        comment.id
-                    )
-                );
-
-
-                setIsDeleteModalOpen(
-                    false
-                );
-
-
-                // Parent component kerak bo‘lsa
-                // comments_count kabi qiymatni
-                // alohida yangilashi mumkin.
-                if (
-                    typeof onDeleted
-                    === "function"
-                ) {
-
-                    onDeleted(
-                        comment.id
-                    );
-                }
-
-
-                toast.success(
-                    "Sharh o‘chirildi.",
-                    {
-                        id:
-                            toastId,
-                    }
-                );
-
-            } catch (
-                error
-            ) {
-
-                const message =
-                    getCommentErrorMessage(
-                        error,
-                        "Sharhni o‘chirishda xato yuz berdi."
-                    );
-
-
-                toast.error(
-                    message,
-                    {
-                        id:
-                            toastId,
-                    }
-                );
-
-            } finally {
-
-                setIsProcessing(
-                    false
-                );
-            }
-        };
-
-
-    // =====================================================
-    // COMMENT LIKE / UNLIKE
-    // =====================================================
-
-    const handleLikeToggle =
-        async () => {
-
-            // ---------------------------------------------
-            // AUTH
-            // ---------------------------------------------
-
-            if (
-                !isLoggedIn
-            ) {
-
-                toast.error(
-                    "Sharhga like bosish uchun avval tizimga kiring."
-                );
-
-                return;
-            }
-
-
-            // ---------------------------------------------
-            // GUARD
-            // ---------------------------------------------
-
-            if (
-                !comment?.id
-                ||
-                isLiking
-            ) {
-                return;
-            }
-
-
-            // ---------------------------------------------
-            // CURRENT STATE
-            // ---------------------------------------------
-
-            const previousLiked =
-                Boolean(
-                    isLiked
-                );
-
-
-            const previousCount =
-                Number.isFinite(
-                    Number(
-                        likesCount
-                    )
-                )
-                    ? Math.max(
-                        0,
-                        Number(
-                            likesCount
-                        )
-                    )
-                    : 0;
-
-
-            // ---------------------------------------------
-            // OPTIMISTIC STATE
-            // ---------------------------------------------
-
-            const optimisticLiked =
-                !previousLiked;
-
-
-            const optimisticCount =
-                Math.max(
-                    0,
-
-                    previousCount
-                    +
-                    (
-                        optimisticLiked
-                            ? 1
-                            : -1
-                    )
-                );
-
-
-            setIsLiked(
-                optimisticLiked
-            );
-
-
-            setLikesCount(
-                optimisticCount
-            );
-
-
-            setIsLiking(
-                true
-            );
-
-
-            try {
-
-                // =========================================
-                // YANGI POST SERVICE
-                // =========================================
-
-                const response =
-                    await PostService
-                        .togglePostCommentLike(
-                            comment.id
-                        );
-
-
-                // =========================================
-                // SERVER STATE
-                // =========================================
-
-                const serverLiked =
-                    response
-                        ?.is_liked_by_user
-                    ??
-                    response
-                        ?.is_liked
-                    ??
-                    optimisticLiked;
-
-
-                const rawServerCount =
-                    Number(
-                        response
-                            ?.likes_count
-                        ??
-                        response
-                            ?.like_count
-                        ??
-                        optimisticCount
-                    );
-
-
-                const serverCount =
-                    Number.isFinite(
-                        rawServerCount
-                    )
-
-                        ? Math.max(
-                            0,
-                            rawServerCount
-                        )
-
-                        : optimisticCount;
-
-
-                // =========================================
-                // LOCAL STATE
-                // =========================================
-
-                setIsLiked(
-                    Boolean(
-                        serverLiked
-                    )
-                );
-
-
-                setLikesCount(
-                    serverCount
-                );
-
-
-                // =========================================
-                // REDUX STATE
-                // =========================================
-                //
-                // Muhim:
-                // faqat local state'da qoldirmaymiz.
-                //
-                // Aks holda boshqa Redux update sodir
-                // bo‘lganda eski like qiymati qaytishi mumkin.
-                // =========================================
-
-                dispatch(
-                    updateCommentSuccess({
-                        ...comment,
-
-                        is_liked_by_user:
-                            Boolean(
-                                serverLiked
-                            ),
-
-                        likes_count:
-                            serverCount,
-                    })
-                );
-
-            } catch (
-                error
-            ) {
-
-                // =========================================
-                // ROLLBACK
-                // =========================================
-
-                setIsLiked(
-                    previousLiked
-                );
-
-
-                setLikesCount(
-                    previousCount
-                );
-
-
-                toast.error(
-                    getCommentErrorMessage(
-                        error,
-                        "Sharhga like bosishda xato yuz berdi."
-                    )
-                );
-
-            } finally {
-
-                setIsLiking(
-                    false
-                );
-            }
-        };
-
-
-    // =====================================================
-    // JSX
-    // =====================================================
-
-    return (
-
-        <article
-            className="
-                group
-                rounded-3xl
-                border
-                border-white/[0.06]
-                bg-white/[0.022]
-                p-4
-                shadow-xl
-                shadow-black/10
-                transition
-                duration-300
-                hover:border-white/[0.10]
-                hover:bg-white/[0.03]
-                sm:p-5
-            "
+  });
+
+  // =======================================================
+  // DATA
+  // =======================================================
+
+  const commentId = comment?.id;
+
+  const commentMessage =
+    comment?.message ?? "";
+
+  const authorUsername =
+    comment?.user?.username || "";
+
+  const reference = useMemo(
+    () => getCommentReference(commentId),
+    [commentId]
+  );
+
+  const deleteItemTitle = useMemo(
+    () => getDeleteItemTitle(commentMessage),
+    [commentMessage]
+  );
+
+  // =======================================================
+  // EDIT FORM
+  // =======================================================
+
+  const editForm = actions.isEditing ? (
+    <PostCommentEditForm
+      value={actions.editMessage}
+      onChange={actions.handleEditMessageChange}
+      onCancel={actions.handleCancelEdit}
+      onSave={actions.handleSaveEdit}
+      isProcessing={actions.isUpdating}
+      error={actions.editError}
+      originalValue={commentMessage}
+    />
+  ) : null;
+
+  // =======================================================
+  // INVALID COMMENT
+  // =======================================================
+
+  if (
+    commentId === null ||
+    commentId === undefined
+  ) {
+    return null;
+  }
+
+  // =======================================================
+  // RENDER
+  // =======================================================
+
+  return (
+    <>
+      <article
+        aria-label={
+          authorUsername
+            ? `${authorUsername} sharhi`
+            : "Foydalanuvchi sharhi"
+        }
+        className={CARD_CLASS}
+      >
+        {/* TERMINAL HEADER */}
+
+        <CommentTerminalBar
+          reference={reference}
+        />
+
+        {/* VISUAL EFFECTS */}
+
+        <CommentCardEffects />
+
+        {/* CARD CONTENT */}
+
+        <div
+          className="
+            relative
+            z-10
+
+            w-full
+            min-w-0
+
+            px-3.5
+            pb-3.5
+            pt-5
+
+            sm:px-6
+            sm:pb-5
+            sm:pt-6
+          "
         >
+          {/* AUTHOR */}
 
-            <div
-                className="
-                    flex
-                    items-start
-                    gap-3
-                    sm:gap-4
-                "
-            >
+          <PostCommentHeader
+            comment={comment}
+            postAuthorUsername={
+              postAuthorUsername
+            }
+          />
 
-                {/* =========================================
-                    AVATAR
-                ========================================== */}
+          {/* CONTENT AND ACTIONS */}
 
-                <Link
-                    to={`/${
-                        commentUser?.username
-                        ||
-                        "user"
-                    }/profile/`}
-                    className="
-                        shrink-0
-                    "
-                >
+          <div
+            className="
+              w-full
+              min-w-0
 
-                    <img
-                        src={
-                            avatarUrl
-                        }
-                        alt={
-                            commentUser?.username
-                            ||
-                            "User"
-                        }
-                        onError={
-                            handleCommentAvatarError
-                        }
-                        className="
-                            h-11
-                            w-11
-                            rounded-full
-                            border-2
-                            border-white/[0.08]
-                            bg-gray-900
-                            object-cover
-                            transition
-                            duration-300
-                            group-hover:border-indigo-400/20
-                            sm:h-12
-                            sm:w-12
-                        "
-                    />
+              sm:pl-[72px]
+            "
+          >
+            <PostCommentContent
+              message={commentMessage}
+              isEditing={actions.isEditing}
+              editForm={editForm}
+            />
 
-                </Link>
+            <PostCommentItemActions
+              isLiked={actions.isLiked}
+              likesCount={actions.likesCount}
+              isLiking={actions.isLiking}
+              isCommentOwner={actions.isCommentOwner}
+              isEditing={actions.isEditing}
+              isProcessing={actions.isProcessing}
+              processingAction={
+                actions.processingAction
+              }
+              onLike={actions.handleLikeToggle}
+              onEdit={actions.handleStartEdit}
+              onDelete={actions.handleOpenDelete}
+            />
+          </div>
 
+          {/* SMALL SIGNATURE */}
 
-                {/* =========================================
-                    CONTENT
-                ========================================== */}
+          <CommentSignature />
+        </div>
+      </article>
 
-                <div
-                    className="
-                        min-w-0
-                        flex-1
-                    "
-                >
+      {/* DELETE CONFIRMATION */}
 
-                    {/* =====================================
-                        USER INFO
-                    ====================================== */}
-
-                    <div
-                        className="
-                            flex
-                            flex-wrap
-                            items-center
-                            gap-x-2
-                            gap-y-1
-                        "
-                    >
-
-                        <Link
-                            to={`/${
-                                commentUser?.username
-                                ||
-                                "user"
-                            }/profile/`}
-                            className="
-                                truncate
-                                text-sm
-                                font-black
-                                text-white
-                                transition
-                                hover:text-indigo-300
-                            "
-                        >
-                            {
-                                displayName
-                            }
-                        </Link>
-
-
-                        <span
-                            className="
-                                text-xs
-                                font-bold
-                                text-gray-600
-                            "
-                        >
-                            @
-                            {
-                                commentUser?.username
-                                ||
-                                "unknown"
-                            }
-                        </span>
-
-
-                        {/* =================================
-                            POST AUTHOR BADGE
-                        ================================== */}
-
-                        {isPostAuthor && (
-
-                            <span
-                                className="
-                                    inline-flex
-                                    items-center
-                                    gap-1
-                                    rounded-full
-                                    border
-                                    border-indigo-400/20
-                                    bg-indigo-500/10
-                                    px-2
-                                    py-0.5
-                                    text-[9px]
-                                    font-black
-                                    uppercase
-                                    tracking-wider
-                                    text-indigo-300
-                                "
-                            >
-
-                                <Crown
-                                    size={10}
-                                />
-
-                                Muallif
-
-                            </span>
-
-                        )}
-
-
-                        {/* =================================
-                            DATE
-                        ================================== */}
-
-                        <span
-                            className="
-                                inline-flex
-                                items-center
-                                gap-1
-                                text-[10px]
-                                font-semibold
-                                text-gray-600
-                            "
-                        >
-
-                            <Clock3
-                                size={11}
-                            />
-
-                            {
-                                timeAgo(
-                                    comment?.created_at
-                                )
-                            }
-
-                        </span>
-
-                    </div>
-
-
-                    {/* =====================================
-                        COMMENT MESSAGE / EDIT
-                    ====================================== */}
-
-                    {isEditing ? (
-
-                        <PostCommentEditForm
-                            value={
-                                editMessage
-                            }
-                            onChange={
-                                setEditMessage
-                            }
-                            onCancel={
-                                handleCancelEdit
-                            }
-                            onSave={
-                                handleSaveEdit
-                            }
-                            isProcessing={
-                                isProcessing
-                            }
-                            error={
-                                editError
-                            }
-                            originalValue={
-                                comment?.message
-                            }
-                        />
-
-                    ) : (
-
-                        <p
-                            className="
-                                mt-3
-                                whitespace-pre-wrap
-                                break-words
-                                text-sm
-                                font-medium
-                                leading-7
-                                text-gray-300
-                            "
-                        >
-                            {
-                                comment?.message
-                                ||
-                                ""
-                            }
-                        </p>
-
-                    )}
-
-
-                    {/* =====================================
-                        COMMENT ACTIONS
-                    ====================================== */}
-
-                    <PostCommentActions
-                        isLiked={
-                            isLiked
-                        }
-                        likesCount={
-                            likesCount
-                        }
-                        isLiking={
-                            isLiking
-                        }
-                        isCommentOwner={
-                            isCommentOwner
-                        }
-                        isEditing={
-                            isEditing
-                        }
-                        isProcessing={
-                            isProcessing
-                        }
-                        onLike={
-                            handleLikeToggle
-                        }
-                        onEdit={
-                            handleStartEdit
-                        }
-                        onDelete={
-                            handleOpenDelete
-                        }
-                    />
-
-                </div>
-
-            </div>
-
-
-            {/* =============================================
-                DELETE MODAL
-            ============================================== */}
-
-            {isCommentOwner && (
-
-                <DeleteConfirmationModal
-                    isOpen={
-                        isDeleteModalOpen
-                    }
-                    onClose={
-                        handleCloseDelete
-                    }
-                    onConfirm={
-                        handleConfirmDelete
-                    }
-                    itemTitle={
-                        `Sharh (${String(
-                            comment?.message
-                            ||
-                            ""
-                        ).slice(
-                            0,
-                            30
-                        )}${
-                            String(
-                                comment?.message
-                                ||
-                                ""
-                            ).length > 30
-                                ? "..."
-                                : ""
-                        })`
-                    }
-                    isProcessing={
-                        isProcessing
-                    }
-                />
-
-            )}
-
-        </article>
-    );
+      {actions.isCommentOwner && (
+        <DeleteConfirmationModal
+          isOpen={actions.isDeleteModalOpen}
+          onClose={actions.handleCloseDelete}
+          onConfirm={actions.handleConfirmDelete}
+          itemTitle={deleteItemTitle}
+          isProcessing={actions.isDeleting}
+        />
+      )}
+    </>
+  );
 };
 
-
-export default PostCommentItem;
+export default memo(PostCommentItem);

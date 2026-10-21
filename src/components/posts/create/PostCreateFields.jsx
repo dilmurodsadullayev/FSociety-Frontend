@@ -1,598 +1,529 @@
 
-// src/components/posts/create/PostCreateFields.jsx
-
 import React, { memo } from "react";
-
 import {
-    AlignLeft,
-    Type,
+  AlignLeft,
+  Code2,
+  Info,
+  Type,
 } from "lucide-react";
 
 // =========================================================
-// CONSTANTS
+// FSOCIETY — POST CREATE / EDIT FIELDS
+// =========================================================
+//
+// Props:
+// - formData
+// - onChange
+// - wordCount
+// - disabled
+//
+// Features:
+// - Create / Edit compatible
+// - Controlled inputs
+// - Title max: 150 characters
+// - Warning after 140 characters
+// - HTML source preservation
+// - Light / Dark Mode
+// - Responsive from 320px
+// - Mobile-safe 16px input text
+// - Accessible labels and counters
+//
+// API and form submission stay in CreatePostModal.
 // =========================================================
 
 const TITLE_MAX_LENGTH = 150;
 const TITLE_WARNING_LENGTH = 140;
 
 // =========================================================
-// SHARED FORM STYLES
+// SHARED STYLES
 // =========================================================
 
 const LABEL_CLASS = `
-    flex
-    min-w-0
-    items-center
-    gap-2
+  inline-flex
+  min-w-0
+  items-center
+  gap-2
+  text-[11px]
+  font-black
+  uppercase
+  tracking-[0.10em]
+  text-slate-700
 
-    text-[11px]
-    font-black
-    uppercase
-    tracking-[0.12em]
+  sm:text-xs
 
-    text-slate-700
-    dark:text-slate-300
-
-    sm:text-xs
-    sm:tracking-[0.16em]
+  dark:text-slate-300
 `;
 
-const INPUT_CLASS = `
-    relative
-    z-10
+const FIELD_CLASS = `
+  relative
+  z-10
+  block
+  w-full
+  min-w-0
+  max-w-full
+  rounded-xl
+  border
+  border-slate-300
+  bg-white/95
+  px-3.5
+  py-3
+  text-base
+  font-medium
+  leading-7
+  text-slate-900
+  outline-none
+  transition-colors
+  duration-200
 
-    block
-    w-full
-    min-w-0
-    max-w-full
+  placeholder:text-slate-400
 
-    rounded-xl
-    border
-    border-slate-300
-    bg-white
+  focus:border-indigo-400
+  focus:ring-4
+  focus:ring-indigo-500/10
 
-    px-3.5
-    py-3
+  disabled:cursor-not-allowed
+  disabled:opacity-55
 
-    text-base
-    font-medium
-    text-slate-900
+  sm:rounded-2xl
+  sm:px-4
 
-    outline-none
+  dark:border-white/[0.12]
+  dark:bg-[#080e18]/75
+  dark:text-slate-100
+  dark:placeholder:text-slate-500
 
-    transition-colors
-    duration-200
+  dark:focus:border-indigo-400/50
+  dark:focus:ring-indigo-400/[0.08]
 
-    placeholder:text-slate-400
-
-    focus:border-indigo-400
-    focus:ring-4
-    focus:ring-indigo-500/[0.08]
-
-    disabled:cursor-not-allowed
-    disabled:opacity-50
-
-    dark:border-white/[0.10]
-    dark:bg-black/20
-    dark:text-white
-    dark:placeholder:text-slate-500
-
-    dark:focus:border-indigo-400/40
-    dark:focus:bg-indigo-500/[0.025]
-    dark:focus:ring-indigo-500/[0.06]
-
-    sm:rounded-2xl
-    sm:px-4
-    sm:py-3.5
-
-    motion-reduce:transition-none
+  motion-reduce:transition-none
 `;
 
 // =========================================================
-// POST TITLE FIELD
-//
-// Features:
-// - Controlled value
-// - 150-character limit
-// - Warning from 140 characters
-// - Accessible label and counter
-// - Disabled state
-// - Mobile-friendly input font size
-// - Light / Dark Mode
+// TITLE FIELD
 // =========================================================
 
 const PostTitleField = memo(
-    function PostTitleField({
-        value = "",
-        onChange,
-        disabled = false,
-    }) {
-        // =================================================
-        // SAFE VALUE
-        // =================================================
+  function PostTitleField({
+    value = "",
+    onChange,
+    disabled = false,
+  }) {
+    const title = String(value ?? "");
 
-        const title = String(value ?? "");
+    const titleLength = title.length;
 
-        const titleLength = title.length;
+    const remaining = Math.max(
+      0,
+      TITLE_MAX_LENGTH - titleLength
+    );
 
-        const remainingCharacters =
-            Math.max(
-                0,
-                TITLE_MAX_LENGTH - titleLength
-            );
+    const nearLimit =
+      titleLength >= TITLE_WARNING_LENGTH;
 
-        const isNearLimit =
-            titleLength >= TITLE_WARNING_LENGTH;
+    return (
+      <section
+        aria-label="Post sarlavhasi"
+        className="w-full min-w-0"
+      >
+        {/* LABEL AND CHARACTER COUNTER */}
 
-        // =================================================
-        // RENDER
-        // =================================================
+        <div
+          className="
+            mb-2.5
+            flex
+            min-w-0
+            flex-wrap
+            items-center
+            justify-between
+            gap-x-3
+            gap-y-2
+          "
+        >
+          <label
+            htmlFor="title"
+            className={LABEL_CLASS}
+          >
+            <Type
+              size={15}
+              aria-hidden="true"
+              className="
+                shrink-0
+                text-indigo-600
 
-        return (
-            <section className="w-full min-w-0">
-                {/* =========================================
-                    LABEL AND CHARACTER COUNTER
-                ========================================== */}
+                dark:text-indigo-300
+              "
+            />
 
-                <div
-                    className="
-                        mb-2.5
+            <span>Sarlavha</span>
+          </label>
 
-                        flex
-                        min-w-0
+          <span
+            id="post-title-counter"
+            className={`
+              shrink-0
+              font-mono
+              text-[11px]
+              font-bold
+              tabular-nums
 
-                        items-center
-                        justify-between
+              ${
+                nearLimit
+                  ? "text-amber-700 dark:text-amber-300"
+                  : "text-slate-500 dark:text-slate-400"
+              }
+            `}
+          >
+            {titleLength} / {TITLE_MAX_LENGTH}
+          </span>
+        </div>
 
-                        gap-2
-                    "
-                >
-                    <label
-                        htmlFor="title"
-                        className={LABEL_CLASS}
-                    >
-                        <Type
-                            size={14}
-                            aria-hidden="true"
-                            className="
-                                shrink-0
-                                text-indigo-600
-                                dark:text-indigo-300
-                            "
-                        />
+        {/* INPUT */}
 
-                        <span>Sarlavha</span>
-                    </label>
+        <div
+          className="
+            group
+            relative
+            w-full
+            min-w-0
+          "
+        >
+          <div
+            aria-hidden="true"
+            className="
+              pointer-events-none
+              absolute
+              inset-0
+              rounded-2xl
+              bg-indigo-400/0
+              blur-xl
+              transition-colors
 
-                    <span
-                        id="post-title-counter"
-                        className={`
-                            shrink-0
+              group-focus-within:bg-indigo-500/[0.07]
 
-                            text-[11px]
-                            font-bold
-                            tabular-nums
+              motion-reduce:transition-none
+            "
+          />
 
-                            ${
-                                isNearLimit
-                                    ? `
-                                        text-amber-700
-                                        dark:text-amber-300
-                                    `
-                                    : `
-                                        text-slate-500
-                                        dark:text-slate-400
-                                    `
-                            }
-                        `}
-                    >
-                        {titleLength}
-                        {" / "}
-                        {TITLE_MAX_LENGTH}
-                    </span>
-                </div>
+          <input
+            id="title"
+            name="title"
+            type="text"
+            value={title}
+            onChange={onChange}
+            disabled={disabled}
+            maxLength={TITLE_MAX_LENGTH}
+            autoComplete="off"
+            aria-describedby="post-title-counter"
+            placeholder="Masalan: Django REST Framework'da JWT authentication..."
+            className={FIELD_CLASS}
+          />
+        </div>
 
-                {/* =========================================
-                    TITLE INPUT
-                ========================================== */}
+        {/* CHARACTER WARNING */}
 
-                <div
-                    className="
-                        group
-                        relative
+        {nearLimit && (
+          <p
+            role="status"
+            className="
+              mt-2
+              break-words
+              text-[11px]
+              font-medium
+              leading-5
+              text-amber-700
 
-                        w-full
-                        min-w-0
-                    "
-                >
-                    {/* FOCUS GLOW */}
-
-                    <div
-                        aria-hidden="true"
-                        className="
-                            pointer-events-none
-
-                            absolute
-                            inset-0
-
-                            rounded-2xl
-
-                            bg-indigo-500/0
-                            blur-xl
-
-                            transition-colors
-
-                            group-focus-within:bg-indigo-500/[0.06]
-
-                            motion-reduce:transition-none
-                        "
-                    />
-
-                    <input
-                        id="title"
-                        name="title"
-                        type="text"
-
-                        value={title}
-                        onChange={onChange}
-
-                        maxLength={TITLE_MAX_LENGTH}
-
-                        disabled={disabled}
-                        aria-describedby="post-title-counter"
-
-                        autoComplete="off"
-
-                        placeholder="Masalan: Django REST Framework’da JWT authentication..."
-
-                        className={INPUT_CLASS}
-                    />
-                </div>
-
-                {/* =========================================
-                    CHARACTER LIMIT WARNING
-                ========================================== */}
-
-                {isNearLimit && (
-                    <p
-                        role="status"
-                        className="
-                            mt-2
-
-                            break-words
-
-                            text-[11px]
-                            font-medium
-                            leading-5
-
-                            text-amber-700
-                            dark:text-amber-300
-                        "
-                    >
-                        Sarlavha uchun{" "}
-                        {remainingCharacters}
-                        {" "}ta belgi qoldi.
-                    </p>
-                )}
-            </section>
-        );
-    }
+              dark:text-amber-300
+            "
+          >
+            {remaining > 0
+              ? `Sarlavha uchun ${remaining} ta belgi qoldi.`
+              : "Sarlavha maksimal 150 ta belgiga yetdi."}
+          </p>
+        )}
+      </section>
+    );
+  }
 );
 
 // =========================================================
-// POST CONTENT FIELD
-//
-// Features:
-// - Controlled textarea
-// - Original 11 rows
-// - Resizable height
-// - Word counter
-// - Existing placeholder
-// - Disabled state
-// - Responsive mobile dimensions
-// - Light / Dark Mode
-//
-// Content parsing and word counting are performed
-// by CreatePostModal.
+// CONTENT FIELD
 // =========================================================
 
 const PostContentField = memo(
-    function PostContentField({
-        value = "",
-        onChange,
-        disabled = false,
-        wordCount = 0,
-    }) {
-        // =================================================
-        // SAFE CONTENT
-        // =================================================
+  function PostContentField({
+    value = "",
+    onChange,
+    disabled = false,
+    wordCount = 0,
+  }) {
+    const content = String(value ?? "");
 
-        const content = String(value ?? "");
+    const count = Number(wordCount);
 
-        // =================================================
-        // SAFE WORD COUNT
-        // =================================================
+    const safeWordCount =
+      Number.isFinite(count)
+        ? Math.max(0, Math.trunc(count))
+        : 0;
 
-        const numericWordCount =
-            Number(wordCount);
+    // Existing backend posts may contain
+    // HTML generated by a rich-text editor.
+    // Preserve that source during editing.
+    const containsHtml =
+      /<\/?[a-z][^>]*>/i.test(content);
 
-        const normalizedWordCount =
-            Number.isFinite(numericWordCount)
-                ? Math.max(
-                    0,
-                    Math.floor(numericWordCount)
-                )
-                : 0;
+    return (
+      <section
+        aria-label="Post mazmuni"
+        className="w-full min-w-0"
+      >
+        {/* LABEL AND WORD COUNT */}
 
-        // =================================================
-        // RENDER
-        // =================================================
+        <div
+          className="
+            mb-2.5
+            flex
+            min-w-0
+            flex-wrap
+            items-center
+            justify-between
+            gap-x-3
+            gap-y-2
+          "
+        >
+          <label
+            htmlFor="content"
+            className={LABEL_CLASS}
+          >
+            <AlignLeft
+              size={15}
+              className="
+                shrink-0
+                text-purple-600
 
-        return (
-            <section className="w-full min-w-0">
-                {/* =========================================
-                    LABEL AND WORD COUNT
-                ========================================== */}
+                dark:text-purple-300
+              "
+              aria-hidden="true"
+            />
 
-                <div
-                    className="
-                        mb-2.5
+            <span>Post mazmuni</span>
+          </label>
 
-                        flex
-                        min-w-0
+          <span
+            id="post-content-word-count"
+            className="
+              shrink-0
+              font-mono
+              text-[11px]
+              font-bold
+              tabular-nums
+              text-slate-500
 
-                        items-center
-                        justify-between
+              dark:text-slate-400
+            "
+          >
+            {safeWordCount.toLocaleString("uz-UZ")} so‘z
+          </span>
+        </div>
 
-                        gap-2
-                    "
-                >
-                    <label
-                        htmlFor="content"
-                        className={LABEL_CLASS}
-                    >
-                        <AlignLeft
-                            size={14}
-                            aria-hidden="true"
-                            className="
-                                shrink-0
-                                text-purple-600
-                                dark:text-purple-300
-                            "
-                        />
+        {/* TEXTAREA */}
 
-                        <span>
-                            Post mazmuni
-                        </span>
-                    </label>
+        <div
+          className="
+            group
+            relative
+            w-full
+            min-w-0
+          "
+        >
+          <div
+            aria-hidden="true"
+            className="
+              pointer-events-none
+              absolute
+              inset-0
+              rounded-2xl
+              bg-purple-400/0
+              blur-xl
+              transition-colors
 
-                    <span
-                        id="post-content-word-count"
-                        className="
-                            shrink-0
+              group-focus-within:bg-purple-500/[0.06]
 
-                            text-[11px]
-                            font-bold
-                            tabular-nums
+              motion-reduce:transition-none
+            "
+          />
 
-                            text-slate-500
-                            dark:text-slate-400
-                        "
-                    >
-                        {normalizedWordCount.toLocaleString()}
-                        {" "}so‘z
-                    </span>
-                </div>
-
-                {/* =========================================
-                    CONTENT TEXTAREA
-                ========================================== */}
-
-                <div
-                    className="
-                        group
-                        relative
-
-                        w-full
-                        min-w-0
-                    "
-                >
-                    {/* FOCUS GLOW */}
-
-                    <div
-                        aria-hidden="true"
-                        className="
-                            pointer-events-none
-
-                            absolute
-                            inset-0
-
-                            rounded-2xl
-
-                            bg-purple-500/0
-                            blur-xl
-
-                            transition-colors
-
-                            group-focus-within:bg-purple-500/[0.05]
-
-                            motion-reduce:transition-none
-                        "
-                    />
-
-                    <textarea
-                        id="content"
-                        name="content"
-
-                        value={content}
-                        onChange={onChange}
-
-                        rows={11}
-
-                        disabled={disabled}
-
-                        aria-describedby="post-content-word-count"
-
-                        spellCheck={true}
-
-                        placeholder={`O‘z fikringizni yozing...
+          <textarea
+            id="content"
+            name="content"
+            value={content}
+            onChange={onChange}
+            disabled={disabled}
+            rows={11}
+            spellCheck
+            aria-describedby={
+              containsHtml
+                ? "post-content-word-count post-content-html-help"
+                : "post-content-word-count"
+            }
+            placeholder={`O‘z fikringizni yozing...
 
 Masalan:
 • Muammo nima edi?
 • Qanday yechim topdingiz?
 • Code snippet yoki tavsiyalar
 • Boshqalarga qanday foyda beradi?`}
+            className={`
+              ${FIELD_CLASS}
 
-                        className="
-                            relative
-                            z-10
+              min-h-[200px]
+              resize-y
+              leading-7
+              [overflow-wrap:anywhere]
 
-                            block
+              focus:border-purple-400
+              focus:ring-purple-500/10
 
-                            min-h-[200px]
-                            max-w-full
-                            min-w-0
-                            w-full
+              sm:min-h-[260px]
+              sm:py-4
 
-                            resize-y
+              dark:focus:border-purple-400/50
+              dark:focus:ring-purple-400/[0.08]
+            `}
+          />
+        </div>
 
-                            rounded-xl
-                            border
+        {/* HTML SOURCE NOTICE */}
 
-                            border-slate-300
-                            bg-white
+        {containsHtml && (
+          <div
+            id="post-content-html-help"
+            className="
+              mt-3
+              flex
+              min-w-0
+              items-start
+              gap-2.5
+              rounded-xl
+              border
+              border-indigo-200
+              bg-indigo-50/75
+              p-3
 
-                            px-3.5
-                            py-3
+              dark:border-indigo-400/20
+              dark:bg-indigo-500/[0.07]
+            "
+          >
+            <Code2
+              size={16}
+              className="
+                mt-0.5
+                shrink-0
+                text-indigo-600
 
-                            text-base
-                            font-medium
-                            leading-7
+                dark:text-indigo-300
+              "
+              aria-hidden="true"
+            />
 
-                            text-slate-800
+            <p
+              className="
+                min-w-0
+                break-words
+                text-[11px]
+                font-medium
+                leading-5
+                text-indigo-800
 
-                            outline-none
+                dark:text-indigo-200
+              "
+            >
+              Ushbu postda HTML formatidagi
+              kontent mavjud. Teglar saqlanadi.
+              Matnni tahrirlashda HTML
+              tuzilishini ham hisobga oling.
+            </p>
+          </div>
+        )}
 
-                            transition-colors
-                            duration-200
+        {/* HELP TEXT */}
 
-                            placeholder:text-slate-400
+        <div
+          className="
+            mt-3
+            flex
+            min-w-0
+            items-start
+            gap-2
+            text-[11px]
+            font-medium
+            leading-5
+            text-slate-500
 
-                            focus:border-purple-400
-                            focus:ring-4
-                            focus:ring-purple-500/[0.08]
+            dark:text-slate-400
+          "
+        >
+          <Info
+            size={14}
+            className="mt-0.5 shrink-0"
+            aria-hidden="true"
+          />
 
-                            disabled:cursor-not-allowed
-                            disabled:opacity-50
-
-                            dark:border-white/[0.10]
-                            dark:bg-black/20
-                            dark:text-slate-200
-                            dark:placeholder:text-slate-500
-
-                            dark:focus:border-purple-400/40
-                            dark:focus:bg-purple-500/[0.02]
-                            dark:focus:ring-purple-500/[0.05]
-
-                            sm:min-h-[260px]
-                            sm:rounded-2xl
-                            sm:px-4
-                            sm:py-4
-
-                            motion-reduce:transition-none
-                        "
-                    />
-                </div>
-            </section>
-        );
-    }
+          <p className="min-w-0 break-words">
+            Kontentdagi o‘zgarishlar
+            “Saqlash” tugmasi bosilgandan
+            keyingina serverga yuboriladi.
+          </p>
+        </div>
+      </section>
+    );
+  }
 );
 
 // =========================================================
-// POST CREATE FIELDS
-//
-// Props:
-//
-// formData:
-// {
-//     post_type: "TEX",
-//     title: "",
-//     content: ""
-// }
-//
-// onChange:
-//   CreatePostModal.handleChange
-//
-// wordCount:
-//   Calculated by CreatePostModal
-//
-// disabled:
-//   Parent modal busy state
-//
-// No API calls or independent form state.
+// MAIN FIELDS
 // =========================================================
 
 const PostCreateFields = ({
-    formData,
-    onChange,
-    wordCount = 0,
-    disabled = false,
+  formData,
+  onChange,
+  wordCount = 0,
+  disabled = false,
 }) => {
-    // =====================================================
-    // SAFE VALUES
-    // =====================================================
+  const title =
+    typeof formData?.title === "string"
+      ? formData.title
+      : "";
 
-    const title =
-        typeof formData?.title === "string"
-            ? formData.title
-            : "";
+  const content =
+    typeof formData?.content === "string"
+      ? formData.content
+      : "";
 
-    const content =
-        typeof formData?.content === "string"
-            ? formData.content
-            : "";
+  return (
+    <div
+      className="
+        w-full
+        min-w-0
+        space-y-5
+        font-sans
 
-    // =====================================================
-    // RENDER
-    // =====================================================
+        sm:space-y-7
+      "
+    >
+      <PostTitleField
+        value={title}
+        onChange={onChange}
+        disabled={disabled}
+      />
 
-    return (
-        <div
-            className="
-                w-full
-                min-w-0
-
-                space-y-5
-
-                sm:space-y-7
-            "
-        >
-            {/* =============================================
-                TITLE FIELD
-            ============================================== */}
-
-            <PostTitleField
-                value={title}
-                onChange={onChange}
-                disabled={disabled}
-            />
-
-            {/* =============================================
-                CONTENT FIELD
-            ============================================== */}
-
-            <PostContentField
-                value={content}
-                onChange={onChange}
-                wordCount={wordCount}
-                disabled={disabled}
-            />
-        </div>
-    );
+      <PostContentField
+        value={content}
+        onChange={onChange}
+        disabled={disabled}
+        wordCount={wordCount}
+      />
+    </div>
+  );
 };
-
-// =========================================================
-// EXPORT
-// =========================================================
 
 export default memo(PostCreateFields);
