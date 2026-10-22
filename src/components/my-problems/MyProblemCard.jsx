@@ -1,1082 +1,609 @@
-// src/components/my-problems/MyProblemCard.jsx
 
-import React from "react";
+import React, {
+  memo,
+  useMemo,
+} from "react";
+
+import MyProblemCardHeader from "./card/MyProblemCardHeader";
+
+import MyProblemCardContent from "./card/MyProblemCardContent";
+
+import MyProblemCardDeadline from "./card/MyProblemCardDeadline";
+
+import MyProblemCardStats from "./card/MyProblemCardStats";
 
 import {
-    Link,
-} from "react-router-dom";
-
-import {
-    limitText,
-} from "../../utils/limitText";
-
-import timeAgo from "../../utils/timeAgo";
-
-import {
-    formatCompactNumber,
-    getDeadlineInfo,
-    getLanguageColor,
-    getMyProblemUserImage,
-    normalizeProblemLanguages,
-    withAlpha,
-} from "./myProblemHelpers";
-
+  getProblemStatusMeta,
+  normalizeProblemText,
+} from "./card/myProblemCardHelpers";
 
 // =========================================================
-// LANGUAGE BADGE
+// FSOCIETY — MY PROBLEM CARD
+// =========================================================
+//
+// Header:
+// - User
+// - Created at (Uzbek date)
+// - Status
+// - Urgent badge
+//
+// Content:
+// - Title
+// - Description
+// - Languages
+// - Technologies
+//
+// Deadline (urgent problems only):
+// - Live countdown
+// - Deadline date and time
+//
+// Stats:
+// - Views
+// - Responses
+// - Stars
+// - FCoin
+//
 // =========================================================
 
-const LanguageBadge = ({
-    language,
-}) => {
+const EMPTY_ARRAY = [];
 
-    const name =
-        typeof language ===
-        "string"
+// =========================================================
+// HELPERS
+// =========================================================
 
-            ? language
+const isObject = (value) =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value);
 
-            : (
-                language?.name
-                ||
-                "Noma’lum"
-            );
+const hasValidId = (value) =>
+  value !== null &&
+  value !== undefined &&
+  value !== "";
 
+const toBoolean = (value) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
 
-    const color =
-        getLanguageColor(
-            language
-        );
+  if (typeof value === "number") {
+    return value === 1;
+  }
 
-
-    return (
-
-        <span
-            style={{
-                color,
-
-                borderColor:
-                    withAlpha(
-                        color,
-                        "55"
-                    ),
-
-                backgroundColor:
-                    withAlpha(
-                        color,
-                        "15"
-                    ),
-            }}
-
-            className="
-                inline-flex
-                items-center
-
-                gap-1.5
-
-                rounded-full
-
-                border
-
-                px-3
-                py-1
-
-                text-[11px]
-                font-black
-
-                transition-all
-                duration-200
-
-                hover:-translate-y-px
-            "
-        >
-
-            <span
-                style={{
-                    backgroundColor:
-                        color,
-
-                    boxShadow:
-                        `0 0 7px ${
-                            withAlpha(
-                                color,
-                                "80"
-                            )
-                        }`,
-                }}
-
-                className="
-                    h-1.5
-                    w-1.5
-
-                    rounded-full
-                "
-            />
-
-
-            {name}
-
-        </span>
+  if (typeof value === "string") {
+    return ["true", "1", "yes"].includes(
+      value.trim().toLowerCase()
     );
+  }
+
+  return false;
 };
 
+// =========================================================
+// ARRAY HELPERS
+// =========================================================
+
+const getFirstAvailableArray = (...values) => {
+  let fallback = EMPTY_ARRAY;
+
+  for (const value of values) {
+    if (!Array.isArray(value)) {
+      continue;
+    }
+
+    if (value.length > 0) {
+      return value;
+    }
+
+    fallback = value;
+  }
+
+  return fallback;
+};
 
 // =========================================================
-// STAT ITEM
+// TAG HELPERS
 // =========================================================
 
-const ProblemStat = ({
-    value,
-    label,
-    valueClassName,
-    active = false,
-}) => {
+const getTagName = (item) => {
+  if (typeof item === "string") {
+    return item.trim();
+  }
 
-    return (
+  if (!isObject(item)) {
+    return "";
+  }
 
+  const value =
+    item.name ??
+    item.title ??
+    item.label ??
+    item.language?.name ??
+    item.technology?.name ??
+    item.language_name ??
+    item.technology_name ??
+    "";
+
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+};
+
+const getTagColor = (item) => {
+  if (!isObject(item)) {
+    return null;
+  }
+
+  const color =
+    item.color ??
+    item.language?.color ??
+    item.technology?.color ??
+    null;
+
+  return typeof color === "string" &&
+    /^#[0-9a-fA-F]{6}$/.test(color)
+    ? color
+    : null;
+};
+
+const mergeProblemTags = (
+  languages,
+  technologies
+) => {
+  const combined = [
+    ...(Array.isArray(languages)
+      ? languages
+      : []),
+
+    ...(Array.isArray(technologies)
+      ? technologies
+      : []),
+  ];
+
+  const seen = new Set();
+
+  return combined.reduce(
+    (result, item) => {
+      const name = getTagName(item);
+
+      if (!name) {
+        return result;
+      }
+
+      const key = name.toLowerCase();
+
+      if (seen.has(key)) {
+        return result;
+      }
+
+      seen.add(key);
+
+      result.push({
+        id: key,
+        name,
+        color: getTagColor(item),
+      });
+
+      return result;
+    },
+    []
+  );
+};
+
+// =========================================================
+// COMPONENT
+// =========================================================
+
+function MyProblemCard({
+  problem = null,
+
+  id = null,
+
+  username = "",
+  firstName = "",
+  lastName = "",
+  image = null,
+
+  name = "",
+  description = "",
+
+  status = false,
+  isSolved,
+
+  views = 0,
+  star = 0,
+  responseCount = 0,
+
+  languages = EMPTY_ARRAY,
+  technologies = EMPTY_ARRAY,
+
+  createdAt = null,
+
+  deadline = null,
+  isUrgent = false,
+
+  offeredCoins = 0,
+
+  detailUrl = null,
+  profileUrl = null,
+
+  className = "",
+}) {
+  // =====================================================
+  // BACKEND OBJECT
+  // =====================================================
+
+  const data = isObject(problem)
+    ? problem
+    : null;
+
+  const user = isObject(data?.user)
+    ? data.user
+    : null;
+
+  // =====================================================
+  // ID
+  // =====================================================
+
+  const problemId =
+    data?.id ?? id;
+
+  // =====================================================
+  // AUTHOR
+  // =====================================================
+
+  const authorUsername =
+    normalizeProblemText(
+      user?.username ?? username
+    );
+
+  const authorFirstName =
+    user?.first_name ?? firstName;
+
+  const authorLastName =
+    user?.last_name ?? lastName;
+
+  const authorImage =
+    user?.image ?? image;
+
+  // =====================================================
+  // PROBLEM CONTENT
+  // =====================================================
+
+  const problemTitle =
+    normalizeProblemText(
+      data?.problem ??
+      data?.title ??
+      name,
+      "Nomsiz muammo"
+    );
+
+  const problemDescription =
+    normalizeProblemText(
+      data?.description ??
+      description
+    );
+
+  // =====================================================
+  // STATUS
+  // =====================================================
+
+  const resolvedStatus =
+    data?.status ??
+    data?.is_solved ??
+    status;
+
+  const resolvedIsSolved =
+    data?.is_solved ??
+    isSolved ??
+    (
+      typeof resolvedStatus === "boolean"
+        ? resolvedStatus
+        : false
+    );
+
+  const statusMeta = useMemo(
+    () =>
+      getProblemStatusMeta({
+        status: resolvedStatus,
+        isSolved: toBoolean(
+          resolvedIsSolved
+        ),
+      }),
+    [
+      resolvedStatus,
+      resolvedIsSolved,
+    ]
+  );
+
+  const solved =
+    statusMeta.key === "solved";
+
+  // =====================================================
+  // URGENT
+  // =====================================================
+
+  const urgent = toBoolean(
+    data?.is_urgent ??
+    isUrgent
+  );
+
+  // =====================================================
+  // DATES
+  // =====================================================
+
+  const resolvedCreatedAt =
+    data?.created_at ??
+    createdAt;
+
+  const resolvedDeadline =
+    data?.deadline ??
+    deadline;
+
+  const hasDeadline =
+    resolvedDeadline !== null &&
+    resolvedDeadline !== undefined &&
+    resolvedDeadline !== "";
+
+  // =====================================================
+  // LANGUAGES
+  // =====================================================
+
+  const resolvedLanguages = useMemo(
+    () =>
+      getFirstAvailableArray(
+        data?.languages_data,
+        data?.language_data,
+        data?.languages,
+        data?.language,
+        languages
+      ),
+    [data, languages]
+  );
+
+  // =====================================================
+  // TECHNOLOGIES
+  // =====================================================
+
+  const resolvedTechnologies = useMemo(
+    () =>
+      getFirstAvailableArray(
+        data?.technologies_data,
+        data?.technology_data,
+        data?.technologies,
+        data?.technology,
+        technologies
+      ),
+    [data, technologies]
+  );
+
+  // =====================================================
+  // TAGS
+  // =====================================================
+
+  const tags = useMemo(
+    () =>
+      mergeProblemTags(
+        resolvedLanguages,
+        resolvedTechnologies
+      ),
+    [
+      resolvedLanguages,
+      resolvedTechnologies,
+    ]
+  );
+
+  // =====================================================
+  // STATS
+  // =====================================================
+
+  const resolvedViews =
+    data?.total_views ??
+    data?.views_count ??
+    data?.views ??
+    views;
+
+  const resolvedResponses =
+    data?.response_count ??
+    data?.total_responses ??
+    data?.responses_count ??
+    responseCount;
+
+  const resolvedStars =
+    data?.star ??
+    data?.total_stars ??
+    data?.stars_count ??
+    star;
+
+  const resolvedCoins =
+    data?.offered_coins ??
+    offeredCoins;
+
+  // =====================================================
+  // ROUTES
+  // =====================================================
+
+  const resolvedDetailUrl =
+    detailUrl ||
+    (
+      hasValidId(problemId)
+        ? `/problem/${encodeURIComponent(
+            String(problemId)
+          )}/detail`
+        : null
+    );
+
+  const resolvedProfileUrl =
+    profileUrl ||
+    (
+      authorUsername
+        ? `/${encodeURIComponent(
+            authorUsername
+          )}/profile`
+        : null
+    );
+
+  // =====================================================
+  // ACCENT
+  // =====================================================
+
+  const accentClass = solved
+    ? "from-emerald-400 via-teal-400 to-cyan-400"
+    : urgent
+      ? "from-orange-400 via-amber-400 to-rose-400"
+      : statusMeta.key === "rejected"
+        ? "from-rose-400 via-red-400 to-orange-400"
+        : "from-blue-500 via-indigo-500 to-cyan-400";
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
+  return (
+    <article
+      aria-label={`Muammo: ${problemTitle}`}
+      data-problem-id={
+        hasValidId(problemId)
+          ? String(problemId)
+          : undefined
+      }
+      className={`
+        group/card relative isolate
+
+        flex h-full
+        min-h-[280px]
+        min-w-0 max-w-full
+
+        flex-col overflow-hidden
+
+        rounded-[20px]
+        border border-slate-200/90
+
+        bg-white/95
+        font-sans text-slate-900
+
+        shadow-[0_8px_25px_rgba(15,23,42,0.045)]
+
+        transition-[transform,box-shadow,border-color]
+        duration-300
+
+        hover:-translate-y-1
+        hover:border-indigo-300/90
+        hover:shadow-[0_16px_34px_rgba(59,130,246,0.12)]
+
+        focus-within:border-indigo-400
+
+        dark:border-white/[0.10]
+        dark:bg-[#091528]/95
+        dark:text-white
+
+        dark:shadow-[0_12px_30px_rgba(0,0,0,0.20)]
+
+        dark:hover:border-cyan-400/35
+        dark:hover:shadow-[0_16px_36px_rgba(6,182,212,0.12)]
+
+        sm:rounded-[22px]
+
+        motion-reduce:transform-none
+        motion-reduce:transition-none
+
+        ${className}
+      `}
+    >
+      {/* TOP ACCENT */}
+
+      <div
+        aria-hidden="true"
+        className={`
+          h-[2px] w-full shrink-0
+          bg-gradient-to-r
+          ${accentClass}
+        `}
+      />
+
+      {/* SUBTLE GLOW */}
+
+      <div
+        aria-hidden="true"
+        className="
+          pointer-events-none
+          absolute inset-0
+          overflow-hidden
+        "
+      >
         <div
-            className={`
-                rounded-2xl
-
-                border
-
-                p-3
-
-                text-center
-
-                ${
-                    active
-
-                        ? (
-                            "border-cyan-400/20 "
-                            +
-                            "bg-cyan-400/10"
-                        )
-
-                        : (
-                            "border-white/10 "
-                            +
-                            "bg-white/[0.035]"
-                        )
-                }
-            `}
-        >
-
-            <p
-                className={`
-                    text-base
-                    font-black
-
-                    ${
-                        valueClassName
-                        ||
-                        "text-gray-200"
-                    }
-                `}
-            >
-                {
-                    formatCompactNumber(
-                        value
-                    )
-                }
-            </p>
-
-
-            <p
-                className="
-                    mt-1
-
-                    text-[10px]
-                    font-black
-
-                    uppercase
-                    tracking-[0.14em]
-
-                    text-gray-500
-                "
-            >
-                {label}
-            </p>
-
-        </div>
-    );
-};
-
-
-// =========================================================
-// MY PROBLEM CARD
-// =========================================================
-
-const MyProblemCard = ({
-    id,
-
-    username,
-
-    firstName,
-
-    lastName,
-
-    image,
-
-    name,
-
-    status,
-
-    views,
-
-    languages,
-
-    createdAt,
-
-    star,
-
-    responseCount,
-
-    deadline,
-
-    isUrgent,
-}) => {
-
-    // =====================================================
-    // DEADLINE
-    // =====================================================
-
-    const deadlineInfo =
-        getDeadlineInfo(
-            deadline
-        );
-
-
-    // =====================================================
-    // FULL NAME
-    // =====================================================
-
-    const fullName =
-        firstName
-        ||
-        lastName
-
-            ? `${
-                firstName
-                ||
-                ""
-            } ${
-                lastName
-                ||
-                ""
-            }`.trim()
-
-            : (
-                username
-                ||
-                "Unknown user"
-            );
-
-
-    // =====================================================
-    // LANGUAGES
-    // =====================================================
-
-    const normalizedLanguages =
-        normalizeProblemLanguages(
-            languages
-        );
-
-
-    // =====================================================
-    // IMAGE
-    // =====================================================
-
-    const imageSrc =
-        getMyProblemUserImage(
-            image
-        );
-
-
-    // =====================================================
-    // JSX
-    // =====================================================
-
-    return (
-
-        <div
-            className="
-                animate-fade-in-up
-
-                h-full
-            "
-        >
-
-            <Link
-                to={
-                    `/problem/${id}/detail`
-                }
-
-                className="
-                    group
-
-                    relative
-
-                    flex
-                    h-full
-                    flex-col
-
-                    overflow-hidden
-
-                    rounded-3xl
-
-                    border
-                    border-white/10
-
-                    bg-[#0d1117]
-
-                    p-5
-
-                    shadow-2xl
-                    shadow-black/20
-
-                    transition-all
-                    duration-300
-
-                    hover:-translate-y-1
-
-                    hover:border-cyan-400/40
-
-                    hover:shadow-cyan-500/10
-                "
-            >
-
-                {/* =================================================
-                    GLOW
-                ================================================== */}
-
-                <div
-                    className="
-                        pointer-events-none
-
-                        absolute
-                        -right-16
-                        -top-16
-
-                        h-40
-                        w-40
-
-                        rounded-full
-
-                        bg-cyan-500/10
-
-                        blur-3xl
-
-                        transition-all
-                        duration-300
-
-                        group-hover:bg-cyan-500/20
-                    "
-                />
-
-
-                <div
-                    className="
-                        pointer-events-none
-
-                        absolute
-                        -bottom-20
-                        -left-20
-
-                        h-44
-                        w-44
-
-                        rounded-full
-
-                        bg-indigo-500/10
-
-                        blur-3xl
-
-                        transition-all
-                        duration-300
-
-                        group-hover:bg-indigo-500/20
-                    "
-                />
-
-
-                <div
-                    className="
-                        relative
-                        z-10
-
-                        flex
-                        h-full
-                        flex-col
-                    "
-                >
-
-                    {/* =================================================
-                        TOP BADGES
-                    ================================================== */}
-
-                    <div
-                        className="
-                            mb-4
-
-                            flex
-                            items-start
-                            justify-between
-
-                            gap-3
-                        "
-                    >
-
-                        <div
-                            className="
-                                flex
-                                min-w-0
-                                flex-wrap
-                                items-center
-
-                                gap-2
-                            "
-                        >
-
-                            <span
-                                className="
-                                    inline-flex
-                                    items-center
-
-                                    gap-2
-
-                                    rounded-full
-
-                                    border
-                                    border-cyan-400/20
-
-                                    bg-cyan-400/10
-
-                                    px-3
-                                    py-1
-
-                                    text-[11px]
-                                    font-black
-
-                                    uppercase
-                                    tracking-[0.16em]
-
-                                    text-cyan-300
-                                "
-                            >
-
-                                <i
-                                    className="
-                                        fa-solid
-                                        fa-terminal
-                                    "
-                                />
-
-                                FSociety
-
-                            </span>
-
-
-                            {isUrgent && (
-
-                                <span
-                                    className="
-                                        inline-flex
-                                        items-center
-
-                                        gap-2
-
-                                        rounded-full
-
-                                        border
-                                        border-yellow-400/30
-
-                                        bg-yellow-400/10
-
-                                        px-3
-                                        py-1
-
-                                        text-[11px]
-                                        font-black
-
-                                        uppercase
-                                        tracking-[0.14em]
-
-                                        text-yellow-300
-                                    "
-                                >
-
-                                    <i
-                                        className="
-                                            fas
-                                            fa-bolt
-                                        "
-                                    />
-
-                                    Tezkor
-
-                                </span>
-
-                            )}
-
-                        </div>
-
-
-                        {/* STATUS */}
-
-                        <span
-                            className={`
-                                shrink-0
-
-                                rounded-full
-
-                                border
-
-                                px-3
-                                py-1
-
-                                text-[11px]
-                                font-black
-
-                                ${
-                                    status
-
-                                        ? (
-                                            "border-green-400/30 "
-                                            +
-                                            "bg-green-500/10 "
-                                            +
-                                            "text-green-300"
-                                        )
-
-                                        : (
-                                            "border-red-400/30 "
-                                            +
-                                            "bg-red-500/10 "
-                                            +
-                                            "text-red-300"
-                                        )
-                                }
-                            `}
-                        >
-                            {
-                                status
-                                    ? "Yechilgan"
-                                    : "Yechilmagan"
-                            }
-                        </span>
-
-                    </div>
-
-
-                    {/* =================================================
-                        USER
-                    ================================================== */}
-
-                    <div
-                        className="
-                            mb-5
-
-                            flex
-                            items-center
-
-                            gap-3
-
-                            rounded-2xl
-
-                            border
-                            border-white/10
-
-                            bg-white/[0.035]
-
-                            p-3
-                        "
-                    >
-
-                        <img
-                            src={
-                                imageSrc
-                            }
-
-                            alt={
-                                `${username || "User"} avatar`
-                            }
-
-                            onError={
-                                (
-                                    event
-                                ) => {
-
-                                    event.currentTarget.src =
-                                        getMyProblemUserImage(
-                                            null
-                                        );
-                                }
-                            }
-
-                            className="
-                                h-12
-                                w-12
-
-                                shrink-0
-
-                                rounded-2xl
-
-                                border
-                                border-cyan-400/20
-
-                                object-cover
-
-                                transition-all
-                                duration-300
-
-                                group-hover:border-cyan-400/50
-                            "
-                        />
-
-
-                        <div
-                            className="
-                                min-w-0
-                                flex-1
-                            "
-                        >
-
-                            <h4
-                                className="
-                                    truncate
-
-                                    text-sm
-                                    font-black
-
-                                    text-white
-                                "
-                            >
-                                {fullName}
-                            </h4>
-
-
-                            <div
-                                className="
-                                    mt-1
-
-                                    flex
-                                    flex-wrap
-                                    items-center
-
-                                    gap-x-3
-                                    gap-y-1
-
-                                    text-[11px]
-                                    font-bold
-
-                                    text-gray-500
-                                "
-                            >
-
-                                <span
-                                    className="
-                                        truncate
-                                    "
-                                >
-                                    @{username || "user"}
-                                </span>
-
-
-                                <span
-                                    className="
-                                        hidden
-
-                                        text-gray-700
-
-                                        sm:inline
-                                    "
-                                >
-                                    /
-                                </span>
-
-
-                                <span>
-                                    {
-                                        timeAgo(
-                                            createdAt
-                                        )
-                                    }
-                                </span>
-
-                            </div>
-
-                        </div>
-
-
-                        <div
-                            className="
-                                flex
-                                h-10
-                                w-10
-
-                                shrink-0
-                                items-center
-                                justify-center
-
-                                rounded-2xl
-
-                                border
-                                border-white/10
-
-                                bg-black/20
-
-                                text-gray-500
-
-                                transition-all
-
-                                group-hover:border-cyan-400/30
-                                group-hover:text-cyan-300
-                            "
-                        >
-
-                            <i
-                                className="
-                                    fas
-                                    fa-code
-                                "
-                            />
-
-                        </div>
-
-                    </div>
-
-
-                    {/* =================================================
-                        TITLE
-                    ================================================== */}
-
-                    <h3
-                        className="
-                            mb-4
-
-                            text-xl
-                            font-black
-
-                            leading-7
-
-                            text-white
-
-                            transition-colors
-                            duration-300
-
-                            group-hover:text-cyan-300
-                        "
-                    >
-                        {
-                            limitText(
-                                name
-                                ||
-                                "Nomsiz muammo",
-
-                                75
-                            )
-                        }
-                    </h3>
-
-
-                    {/* =================================================
-                        DEADLINE
-                    ================================================== */}
-
-                    {deadlineInfo && (
-
-                        <div
-                            className={`
-                                mb-4
-
-                                inline-flex
-                                w-fit
-                                items-center
-
-                                gap-2
-
-                                rounded-2xl
-
-                                border
-
-                                px-3
-                                py-2
-
-                                text-sm
-                                font-black
-
-                                shadow-lg
-
-                                ${
-                                    deadlineInfo
-                                        .className
-                                }
-                            `}
-                        >
-
-                            <i
-                                className={
-                                    deadlineInfo.icon
-                                }
-                            />
-
-
-                            <span>
-                                {
-                                    deadlineInfo.text
-                                }
-                            </span>
-
-                        </div>
-
-                    )}
-
-
-                    {/* =================================================
-                        LANGUAGES
-                    ================================================== */}
-
-                    <div
-                        className="
-                            mb-5
-
-                            flex
-                            flex-wrap
-
-                            gap-2
-                        "
-                    >
-
-                        {normalizedLanguages.length >
-                        0 ? (
-
-                            normalizedLanguages.map(
-                                (
-                                    language,
-                                    index
-                                ) => (
-
-                                    <LanguageBadge
-                                        key={
-                                            language?.id
-                                            ??
-                                            `${
-                                                language?.name
-                                                ||
-                                                language
-                                            }-${index}`
-                                        }
-
-                                        language={
-                                            language
-                                        }
-                                    />
-
-                                )
-                            )
-
-                        ) : (
-
-                            <span
-                                className="
-                                    rounded-full
-
-                                    border
-                                    border-gray-700
-
-                                    bg-white/[0.035]
-
-                                    px-3
-                                    py-1
-
-                                    text-[11px]
-                                    font-bold
-
-                                    text-gray-500
-                                "
-                            >
-                                Til belgilanmagan
-                            </span>
-
-                        )}
-
-                    </div>
-
-
-                    <div
-                        className="
-                            flex-grow
-                        "
-                    />
-
-
-                    {/* =================================================
-                        STATS
-                    ================================================== */}
-
-                    <div
-                        className="
-                            mt-2
-
-                            grid
-                            grid-cols-3
-
-                            gap-3
-
-                            border-t
-                            border-white/10
-
-                            pt-4
-                        "
-                    >
-
-                        <ProblemStat
-                            value={
-                                views
-                            }
-
-                            label="Views"
-
-                            valueClassName="
-                                text-cyan-300
-                            "
-                        />
-
-
-                        <ProblemStat
-                            value={
-                                star
-                            }
-
-                            label="Stars"
-
-                            valueClassName="
-                                text-yellow-300
-                            "
-                        />
-
-
-                        <ProblemStat
-                            value={
-                                responseCount
-                            }
-
-                            label="Answers"
-
-                            valueClassName="
-                                text-cyan-300
-                            "
-
-                            active
-                        />
-
-                    </div>
-
-
-                    {/* =================================================
-                        BOTTOM ACTION
-                    ================================================== */}
-
-                    <div
-                        className="
-                            mt-4
-
-                            flex
-                            items-center
-                            justify-between
-
-                            gap-3
-                        "
-                    >
-
-                        <p
-                            className="
-                                min-w-0
-
-                                truncate
-
-                                text-xs
-                                font-bold
-
-                                text-gray-500
-                            "
-                        >
-
-                            <i
-                                className="
-                                    fas
-                                    fa-shield-halved
-
-                                    mr-1
-
-                                    text-cyan-300
-                                "
-                            />
-
-                            My problem archive
-
-                        </p>
-
-
-                        <span
-                            className="
-                                inline-flex
-                                shrink-0
-                                items-center
-
-                                gap-2
-
-                                rounded-2xl
-
-                                border
-                                border-cyan-400/20
-
-                                bg-cyan-400/10
-
-                                px-4
-                                py-2
-
-                                text-xs
-                                font-black
-
-                                text-cyan-300
-
-                                transition-all
-                                duration-300
-
-                                group-hover:border-cyan-400/40
-
-                                group-hover:bg-cyan-400/20
-                            "
-                        >
-
-                            Batafsil
-
-
-                            <i
-                                className="
-                                    fas
-                                    fa-arrow-right
-
-                                    transition-transform
-                                    duration-300
-
-                                    group-hover:translate-x-1
-                                "
-                            />
-
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </Link>
-
-        </div>
-    );
-};
-
-
-export default MyProblemCard;
+          className="
+            absolute -right-16 -top-20
+            h-44 w-44 rounded-full
+            bg-indigo-500/[0.035]
+            blur-[70px]
+
+            dark:bg-cyan-400/[0.055]
+          "
+        />
+      </div>
+
+      {/* CARD BODY */}
+
+      <div
+        className="
+          relative z-10
+          flex min-h-[278px]
+          min-w-0 flex-1
+          flex-col
+        "
+      >
+        {/* HEADER */}
+
+        <MyProblemCardHeader
+          user={user}
+          username={authorUsername}
+          firstName={authorFirstName}
+          lastName={authorLastName}
+          image={authorImage}
+          createdAt={resolvedCreatedAt}
+
+          status={resolvedStatus}
+          isSolved={solved}
+          statusKey={statusMeta.key}
+          statusLabel={statusMeta.label}
+
+          isUrgent={urgent}
+          profileUrl={resolvedProfileUrl}
+        />
+
+        {/* CONTENT */}
+
+        <MyProblemCardContent
+          name={problemTitle}
+          description={problemDescription}
+          detailUrl={resolvedDetailUrl}
+          tags={tags}
+          maxVisibleTags={3}
+        />
+
+        {/* LIVE DEADLINE
+            Only urgent problems with a deadline.
+        */}
+
+        {urgent && hasDeadline && (
+          <MyProblemCardDeadline
+            deadline={resolvedDeadline}
+            isSolved={solved}
+          />
+        )}
+
+        {/* STATISTICS */}
+
+        <MyProblemCardStats
+          views={resolvedViews}
+          responseCount={resolvedResponses}
+          star={resolvedStars}
+          offeredCoins={resolvedCoins}
+        />
+      </div>
+    </article>
+  );
+}
+
+export default memo(MyProblemCard);
