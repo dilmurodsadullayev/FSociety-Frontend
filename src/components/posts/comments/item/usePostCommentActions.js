@@ -14,13 +14,14 @@ import {
 import PostService from "../../../../services/post";
 
 import {
+  deleteCommentFailure,
   deleteCommentSuccess,
+  toggleCommentLikeSuccess,
+  updateCommentFailure,
   updateCommentSuccess,
 } from "../../../../features/posts";
 
-import {
-  siteToast,
-} from "../../../ui/AuthToast";
+import { siteToast } from "../../../ui/AuthToast";
 
 import {
   getCommentErrorMessage,
@@ -32,20 +33,22 @@ import {
 // =========================================================
 //
 // Location:
-// comments/item/usePostCommentActions.js
+// src/components/posts/comments/item/usePostCommentActions.js
 //
 // Responsibilities:
 // - Comment ownership
-// - Like / Unlike
-// - Edit comment
-// - Delete comment
-// - Edit/Delete modal states
-// - Optimistic like UI
+// - Root comment / Nested reply support
+// - Optimistic Like / Unlike
+// - Edit comment / reply
+// - Soft-delete comment / reply
+// - Edit / Delete modal states
 // - Redux synchronization
 // - Universal siteToast
 // - Loading states
 // - Duplicate request protection
-// - Stale response protection
+// - Stale API response protection
+// - Full API error messages
+// - updated_at preservation
 //
 // No visual JSX.
 // No styling.
@@ -61,7 +64,7 @@ import {
 const MAX_COMMENT_LENGTH = 255;
 
 // =========================================================
-// ID HELPERS
+// HELPERS
 // =========================================================
 
 const normalizeId = (value) => {
@@ -86,10 +89,6 @@ const isSameId = (first, second) => {
   );
 };
 
-// =========================================================
-// USER HELPERS
-// =========================================================
-
 const normalizeUsername = (value) =>
   String(value ?? "")
     .trim()
@@ -112,15 +111,13 @@ const isSameUser = (first, second) => {
     return firstId === secondId;
   }
 
-  const firstUsername =
-    normalizeUsername(
-      first.username
-    );
+  const firstUsername = normalizeUsername(
+    first.username
+  );
 
-  const secondUsername =
-    normalizeUsername(
-      second.username
-    );
+  const secondUsername = normalizeUsername(
+    second.username
+  );
 
   return Boolean(
     firstUsername &&
@@ -128,17 +125,18 @@ const isSameUser = (first, second) => {
   );
 };
 
-// =========================================================
-// NUMBER HELPERS
-// =========================================================
-
 const safeLikesCount = (value) => {
-  const count = Number(value);
+  const number = Number(value);
 
-  return Number.isFinite(count)
-    ? Math.max(0, Math.trunc(count))
+  return Number.isFinite(number)
+    ? Math.max(0, Math.trunc(number))
     : 0;
 };
+
+const isPlainObject = (value) =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value);
 
 // =========================================================
 // ERROR HELPER
@@ -148,10 +146,41 @@ const getRequestError = (
   error,
   fallback
 ) => {
-  return getCommentErrorMessage(
-    error,
-    fallback
-  );
+  // Our updated PostService already collects
+  // all Django REST validation messages.
+
+  if (
+    error?.name === "PostServiceError" &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message.trim();
+  }
+
+  try {
+    const message = getCommentErrorMessage(
+      error,
+      fallback
+    );
+
+    if (
+      typeof message === "string" &&
+      message.trim()
+    ) {
+      return message.trim();
+    }
+  } catch {
+    // Continue with fallback.
+  }
+
+  if (
+    typeof error?.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message.trim();
+  }
+
+  return fallback;
 };
 
 // =========================================================
@@ -163,31 +192,42 @@ const usePostCommentActions = ({
   currentUser = null,
   isLoggedIn = false,
 } = {}) => {
-  // =======================================================
+  // =====================================================
   // REDUX
-  // =======================================================
+  // =====================================================
 
   const dispatch = useDispatch();
   const store = useStore();
 
-  // =======================================================
+  // =====================================================
   // COMMENT IDENTITY
-  // =======================================================
+  // =====================================================
 
   const commentId = comment?.id;
+
   const commentKey = normalizeId(
     commentId
   );
 
-  // =======================================================
-  // PERMISSIONS
-  // =======================================================
+  const isDeleted = Boolean(
+    comment?.is_deleted
+  );
+
+  // =====================================================
+  // USER / PERMISSIONS
+  // =====================================================
 
   const commentUser =
     comment?.user ?? null;
 
+  const resolvedCurrentUser =
+    currentUser?.user &&
+    typeof currentUser.user === "object"
+      ? currentUser.user
+      : currentUser;
+
   const calculatedOwner = isSameUser(
-    currentUser,
+    resolvedCurrentUser,
     commentUser
   );
 
@@ -200,12 +240,13 @@ const usePostCommentActions = ({
 
   const isCommentOwner = Boolean(
     isLoggedIn &&
+    !isDeleted &&
     backendOwner
   );
 
-  // =======================================================
+  // =====================================================
   // EDIT STATE
-  // =======================================================
+  // =====================================================
 
   const [
     isEditing,
@@ -224,29 +265,9 @@ const usePostCommentActions = ({
     setEditError,
   ] = useState("");
 
-  // =======================================================
-  // DELETE MODAL STATE
-  // =======================================================
-
-  const [
-    isDeleteModalOpen,
-    setIsDeleteModalOpen,
-  ] = useState(false);
-
-  // =======================================================
-  // PROCESSING STATE
-  // =======================================================
-
-  // null | "like" | "edit" | "delete"
-
-  const [
-    processingAction,
-    setProcessingAction,
-  ] = useState(null);
-
-  // =======================================================
+  // =====================================================
   // LIKE STATE
-  // =======================================================
+  // =====================================================
 
   const [
     likeState,
@@ -261,8 +282,37 @@ const usePostCommentActions = ({
     ),
   }));
 
-  const isLiked =
-    likeState.isLiked;
+  const [
+    likeError,
+    setLikeError,
+  ] = useState("");
+
+  // =====================================================
+  // DELETE MODAL
+  // =====================================================
+
+  const [
+    isDeleteModalOpen,
+    setIsDeleteModalOpen,
+  ] = useState(false);
+
+  // =====================================================
+  // PROCESSING
+  // =====================================================
+  //
+  // null | "like" | "edit" | "delete"
+  // =====================================================
+
+  const [
+    processingAction,
+    setProcessingAction,
+  ] = useState(null);
+
+  // =====================================================
+  // DERIVED STATE
+  // =====================================================
+
+  const isLiked = likeState.isLiked;
 
   const likesCount =
     likeState.likesCount;
@@ -270,71 +320,76 @@ const usePostCommentActions = ({
   const isLiking =
     processingAction === "like";
 
-  const isProcessing =
-    processingAction === "edit" ||
-    processingAction === "delete";
-
   const isUpdating =
     processingAction === "edit";
 
   const isDeleting =
     processingAction === "delete";
 
-  // =======================================================
+  const isProcessing =
+    processingAction !== null;
+
+  // =====================================================
   // REFS
-  // =======================================================
+  // =====================================================
 
   const mountedRef = useRef(false);
 
-  const latestCommentKeyRef =
-    useRef(commentKey);
+  const latestCommentKeyRef = useRef(
+    commentKey
+  );
 
-  latestCommentKeyRef.current =
-    commentKey;
+  latestCommentKeyRef.current = commentKey;
 
-  // A single comment must not run
-  // Like/Edit/Delete at the same time.
-
+  // One action per comment at a time.
   const requestLockRef = useRef(null);
 
-  // Track pending loading toasts.
-  // Completed success/error toasts
-  // should remain visible after unmount.
-
+  // Track unfinished loading toasts.
   const pendingToastsRef = useRef(
     new Set()
   );
 
-  // =======================================================
+  // =====================================================
   // MOUNT / UNMOUNT
-  // =======================================================
+  // =====================================================
 
   useEffect(() => {
     mountedRef.current = true;
 
+    const pendingToasts =
+      pendingToastsRef.current;
+
     return () => {
       mountedRef.current = false;
 
-      // Dismiss only unfinished loading
-      // toasts when the card unmounts.
+      // Dismiss only unfinished loading toasts.
+      // Completed notifications remain visible.
 
-      pendingToastsRef.current.forEach(
-        (id) => {
-          siteToast.dismiss(id);
-        }
-      );
+      pendingToasts.forEach((id) => {
+        siteToast.dismiss(id);
+      });
 
-      pendingToastsRef.current.clear();
+      pendingToasts.clear();
     };
   }, []);
 
-  // =======================================================
-  // SYNC EDIT DRAFT
-  // =======================================================
+  // =====================================================
+  // RESET MODALS WHEN COMMENT CHANGES
+  // =====================================================
 
   useEffect(() => {
-    // Do not overwrite a draft while
-    // the user is editing.
+    setIsEditing(false);
+    setIsDeleteModalOpen(false);
+    setEditError("");
+    setLikeError("");
+  }, [commentKey]);
+
+  // =====================================================
+  // SYNC EDIT DRAFT
+  // =====================================================
+
+  useEffect(() => {
+    // Never overwrite an active edit draft.
 
     if (isEditing) {
       return;
@@ -351,33 +406,47 @@ const usePostCommentActions = ({
     isEditing,
   ]);
 
-  // =======================================================
-  // RESET MODALS WHEN COMMENT CHANGES
-  // =======================================================
+  // =====================================================
+  // SOFT DELETE UI RESET
+  // =====================================================
 
   useEffect(() => {
+    if (!isDeleted) {
+      return;
+    }
+
     setIsEditing(false);
     setIsDeleteModalOpen(false);
     setEditError("");
-  }, [commentKey]);
+    setLikeError("");
+  }, [isDeleted]);
 
-  // =======================================================
-  // SYNC LIKE DATA
-  // =======================================================
+  // =====================================================
+  // SYNC LIKE WITH REDUX
+  // =====================================================
 
   useEffect(() => {
-    // During an optimistic like request,
-    // do not let an unrelated Redux render
-    // overwrite the temporary UI.
-
     const activeRequest =
       requestLockRef.current;
 
+    // Do not overwrite optimistic Like while
+    // its API request is still pending.
+
     if (
       activeRequest?.type === "like" &&
-      activeRequest.commentKey ===
-        commentKey
+      activeRequest.commentKey === commentKey
     ) {
+      return;
+    }
+
+    if (isDeleted) {
+      setLikeState({
+        isLiked: false,
+        likesCount: safeLikesCount(
+          normalizeLikesCount(comment)
+        ),
+      });
+
       return;
     }
 
@@ -395,12 +464,13 @@ const usePostCommentActions = ({
     comment?.is_liked_by_user,
     comment?.likes_count,
     comment?.likes,
+    isDeleted,
     processingAction,
   ]);
 
-  // =======================================================
-  // GET CURRENT REDUX COMMENT
-  // =======================================================
+  // =====================================================
+  // CURRENT REDUX COMMENT
+  // =====================================================
 
   const getReduxComment = useCallback(
     (requestedId) => {
@@ -424,13 +494,16 @@ const usePostCommentActions = ({
     [store]
   );
 
-  // =======================================================
+  // =====================================================
   // CREATE REQUEST SNAPSHOT
-  // =======================================================
+  // =====================================================
 
   const createRequest = useCallback(
     (type) => {
-      if (!commentKey) {
+      if (
+        !commentKey ||
+        requestLockRef.current
+      ) {
         return null;
       }
 
@@ -440,8 +513,9 @@ const usePostCommentActions = ({
       const postId =
         postState?.postDetail?.id;
 
-      const postKey =
-        normalizeId(postId);
+      const postKey = normalizeId(
+        postId
+      );
 
       if (!postKey) {
         return null;
@@ -451,6 +525,28 @@ const usePostCommentActions = ({
         getReduxComment(commentId);
 
       if (!reduxComment) {
+        return null;
+      }
+
+      // Extra protection when the current
+      // comments list belongs to another post.
+
+      const commentPost =
+        reduxComment.post;
+
+      const commentPostId =
+        isPlainObject(commentPost)
+          ? commentPost.id
+          : commentPost;
+
+      if (
+        commentPostId !== null &&
+        commentPostId !== undefined &&
+        !isSameId(
+          commentPostId,
+          postId
+        )
+      ) {
         return null;
       }
 
@@ -469,9 +565,9 @@ const usePostCommentActions = ({
     ]
   );
 
-  // =======================================================
-  // VERIFY REQUEST
-  // =======================================================
+  // =====================================================
+  // VERIFY REQUEST IS STILL CURRENT
+  // =====================================================
 
   const isCurrentRequest = useCallback(
     (request) => {
@@ -482,8 +578,8 @@ const usePostCommentActions = ({
         return false;
       }
 
-      // Comment component must still
-      // represent the same comment.
+      // Component must still represent
+      // the same comment.
 
       if (
         latestCommentKeyRef.current !==
@@ -495,8 +591,8 @@ const usePostCommentActions = ({
       const postState =
         store.getState()?.post;
 
-      // Do not modify comments if user
-      // navigated to another post.
+      // Prevent old requests from changing
+      // another post after navigation.
 
       if (
         normalizeId(
@@ -506,14 +602,32 @@ const usePostCommentActions = ({
         return false;
       }
 
-      // Comment must still exist in
-      // the current Redux comments list.
-
-      return Boolean(
+      const currentComment =
         getReduxComment(
           request.commentId
+        );
+
+      if (!currentComment) {
+        return false;
+      }
+
+      const currentPost =
+        isPlainObject(currentComment.post)
+          ? currentComment.post.id
+          : currentComment.post;
+
+      if (
+        currentPost !== null &&
+        currentPost !== undefined &&
+        !isSameId(
+          currentPost,
+          request.postKey
         )
-      );
+      ) {
+        return false;
+      }
+
+      return true;
     },
     [
       store,
@@ -521,9 +635,9 @@ const usePostCommentActions = ({
     ]
   );
 
-  // =======================================================
-  // TOAST HELPERS
-  // =======================================================
+  // =====================================================
+  // BEGIN LOADING TOAST
+  // =====================================================
 
   const beginToast = useCallback(
     (message, title) => {
@@ -532,14 +646,16 @@ const usePostCommentActions = ({
         { title }
       );
 
-      pendingToastsRef.current.add(
-        id
-      );
+      pendingToastsRef.current.add(id);
 
       return id;
     },
     []
   );
+
+  // =====================================================
+  // COMPLETE LOADING TOAST
+  // =====================================================
 
   const finishToast = useCallback(
     (
@@ -578,6 +694,10 @@ const usePostCommentActions = ({
     []
   );
 
+  // =====================================================
+  // DISMISS UNFINISHED TOAST
+  // =====================================================
+
   const dismissPendingToast = useCallback(
     (id) => {
       pendingToastsRef.current.delete(
@@ -589,9 +709,9 @@ const usePostCommentActions = ({
     []
   );
 
-  // =======================================================
+  // =====================================================
   // RELEASE REQUEST LOCK
-  // =======================================================
+  // =====================================================
 
   const releaseRequest = useCallback(
     (request) => {
@@ -611,38 +731,43 @@ const usePostCommentActions = ({
     []
   );
 
-  // =======================================================
+  // =====================================================
   // CHANGE EDIT MESSAGE
-  // =======================================================
+  // =====================================================
 
-  const handleEditMessageChange =
-    useCallback(
-      (value) => {
-        if (requestLockRef.current) {
-          return;
-        }
+  const handleEditMessageChange = useCallback(
+    (valueOrEvent) => {
+      if (requestLockRef.current) {
+        return;
+      }
 
-        setEditMessage(
-          String(value ?? "")
-        );
+      const value =
+        typeof valueOrEvent === "string"
+          ? valueOrEvent
+          : valueOrEvent?.target?.value ?? "";
 
-        setEditError("");
-      },
-      []
-    );
+      setEditMessage(
+        String(value ?? "")
+      );
 
-  // =======================================================
-  // OPEN EDIT
-  // =======================================================
+      setEditError("");
+    },
+    []
+  );
+
+  // =====================================================
+  // START EDIT
+  // =====================================================
 
   const handleStartEdit = useCallback(
     () => {
       if (
         !isCommentOwner ||
         !commentKey ||
+        isDeleted ||
         requestLockRef.current
       ) {
-        return;
+        return false;
       }
 
       setIsDeleteModalOpen(false);
@@ -653,22 +778,25 @@ const usePostCommentActions = ({
 
       setEditError("");
       setIsEditing(true);
+
+      return true;
     },
     [
       isCommentOwner,
       commentKey,
+      isDeleted,
       comment?.message,
     ]
   );
 
-  // =======================================================
+  // =====================================================
   // CANCEL EDIT
-  // =======================================================
+  // =====================================================
 
   const handleCancelEdit = useCallback(
     () => {
       if (requestLockRef.current) {
-        return;
+        return false;
       }
 
       setEditMessage(
@@ -677,23 +805,32 @@ const usePostCommentActions = ({
 
       setEditError("");
       setIsEditing(false);
+
+      return true;
     },
     [comment?.message]
   );
 
-  // =======================================================
+  // =====================================================
   // SAVE EDIT
-  // =======================================================
+  // =====================================================
 
   const handleSaveEdit = useCallback(
-    async () => {
+    async (event) => {
+      event?.preventDefault?.();
+
       if (
         !isCommentOwner ||
         !isEditing ||
+        isDeleted ||
         requestLockRef.current
       ) {
         return false;
       }
+
+      // =================================================
+      // MESSAGE
+      // =================================================
 
       const cleanMessage = String(
         editMessage ?? ""
@@ -703,9 +840,9 @@ const usePostCommentActions = ({
         comment?.message ?? ""
       ).trim();
 
-      // =====================================
+      // =================================================
       // VALIDATION
-      // =====================================
+      // =================================================
 
       if (!cleanMessage) {
         setEditError(
@@ -720,11 +857,15 @@ const usePostCommentActions = ({
         MAX_COMMENT_LENGTH
       ) {
         setEditError(
-          "Sharh 255 ta belgidan oshmasligi kerak."
+          `Sharh ${MAX_COMMENT_LENGTH} ta belgidan oshmasligi kerak.`
         );
 
         return false;
       }
+
+      // =================================================
+      // UNCHANGED MESSAGE
+      // =================================================
 
       if (
         cleanMessage ===
@@ -736,9 +877,9 @@ const usePostCommentActions = ({
         return true;
       }
 
-      // =====================================
-      // REQUEST LOCK
-      // =====================================
+      // =================================================
+      // REQUEST SNAPSHOT
+      // =================================================
 
       const request =
         createRequest("edit");
@@ -751,15 +892,18 @@ const usePostCommentActions = ({
         return false;
       }
 
-      requestLockRef.current =
-        request;
+      // =================================================
+      // REQUEST LOCK
+      // =================================================
+
+      requestLockRef.current = request;
 
       setProcessingAction("edit");
       setEditError("");
 
-      // =====================================
+      // =================================================
       // LOADING TOAST
-      // =====================================
+      // =================================================
 
       const toastId = beginToast(
         "Sharhdagi o‘zgarishlar saqlanmoqda...",
@@ -767,9 +911,9 @@ const usePostCommentActions = ({
       );
 
       try {
-        // ===================================
+        // ===============================================
         // API
-        // ===================================
+        // ===============================================
 
         const response =
           await PostService.updatePostComment(
@@ -779,39 +923,35 @@ const usePostCommentActions = ({
             }
           );
 
-        // ===================================
+        // ===============================================
         // STALE RESPONSE
-        // ===================================
+        // ===============================================
 
         if (!isCurrentRequest(request)) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        // ===================================
-        // NORMALIZE RESPONSE
-        // ===================================
+        // ===============================================
+        // NORMALIZE API RESPONSE
+        // ===============================================
 
         const rawUpdated =
           response?.comment ??
           response;
 
-        const updatedFields =
-          rawUpdated &&
-          typeof rawUpdated === "object" &&
-          !Array.isArray(rawUpdated)
-            ? rawUpdated
-            : {};
+        if (!isPlainObject(rawUpdated)) {
+          throw new Error(
+            "Server yangilangan sharh ma’lumotlarini qaytarmadi."
+          );
+        }
 
-        // Reject unexpected comment IDs.
-        // Never replace another user's
-        // comment by mistake.
+        // Reject another comment ID.
 
         if (
-          updatedFields.id != null &&
+          rawUpdated.id != null &&
           !isSameId(
-            updatedFields.id,
+            rawUpdated.id,
             request.commentId
           )
         ) {
@@ -820,41 +960,59 @@ const usePostCommentActions = ({
           );
         }
 
+        // ===============================================
+        // CURRENT REDUX COMMENT
+        // ===============================================
+
         const currentComment =
           getReduxComment(
             request.commentId
           );
 
-        if (!currentComment) {
+        if (
+          !currentComment ||
+          currentComment.is_deleted
+        ) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        // ===================================
-        // MERGE COMMENT FIELDS
-        // ===================================
+        // ===============================================
+        // MERGE COMMENT DATA
+        // ===============================================
+        //
+        // Preserve:
+        // - id
+        // - parent
+        // - post
+        // - ownership
+        // - replies_count
+        // - likes_count
+        //
+        // Keep updated_at from the backend.
+        // Never invent an updated timestamp.
+        // ===============================================
 
         const updatedComment = {
           ...currentComment,
-          ...updatedFields,
-
-          // Preserve the original ID type.
-          // Redux reducer uses strict
-          // equality to find this comment.
+          ...rawUpdated,
 
           id: currentComment.id,
 
           message:
-            typeof updatedFields.message ===
+            typeof rawUpdated.message ===
             "string"
-              ? updatedFields.message
+              ? rawUpdated.message
               : cleanMessage,
+
+          parent: currentComment.parent,
+
+          post: currentComment.post,
         };
 
-        // ===================================
+        // ===============================================
         // REDUX UPDATE
-        // ===================================
+        // ===============================================
 
         dispatch(
           updateCommentSuccess(
@@ -862,9 +1020,9 @@ const usePostCommentActions = ({
           )
         );
 
-        // ===================================
-        // CLOSE EDIT MODE
-        // ===================================
+        // ===============================================
+        // LOCAL STATE
+        // ===============================================
 
         setEditMessage(
           updatedComment.message
@@ -873,9 +1031,9 @@ const usePostCommentActions = ({
         setEditError("");
         setIsEditing(false);
 
-        // ===================================
+        // ===============================================
         // SUCCESS TOAST
-        // ===================================
+        // ===============================================
 
         finishToast(
           toastId,
@@ -886,20 +1044,33 @@ const usePostCommentActions = ({
 
         return true;
       } catch (requestError) {
+        // ===============================================
+        // IGNORE STALE RESPONSE
+        // ===============================================
+
         if (!isCurrentRequest(request)) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        const message =
-          getRequestError(
-            requestError,
-            "Sharhni saqlashda xato yuz berdi."
-          );
+        // ===============================================
+        // ERROR
+        // ===============================================
 
-        // Keep edited text in textarea.
+        const message = getRequestError(
+          requestError,
+          "Sharhni saqlashda xato yuz berdi."
+        );
+
+        // Keep edited text available.
+
         setEditError(message);
+
+        dispatch(
+          updateCommentFailure(
+            message
+          )
+        );
 
         finishToast(
           toastId,
@@ -916,6 +1087,7 @@ const usePostCommentActions = ({
     [
       isCommentOwner,
       isEditing,
+      isDeleted,
       editMessage,
       comment?.message,
       createRequest,
@@ -929,54 +1101,61 @@ const usePostCommentActions = ({
     ]
   );
 
-  // =======================================================
+  // =====================================================
   // OPEN DELETE MODAL
-  // =======================================================
+  // =====================================================
 
   const handleOpenDelete = useCallback(
     () => {
       if (
         !isCommentOwner ||
         !commentKey ||
+        isDeleted ||
         isEditing ||
         requestLockRef.current
       ) {
-        return;
+        return false;
       }
 
       setIsDeleteModalOpen(true);
+
+      return true;
     },
     [
       isCommentOwner,
       commentKey,
+      isDeleted,
       isEditing,
     ]
   );
 
-  // =======================================================
+  // =====================================================
   // CLOSE DELETE MODAL
-  // =======================================================
+  // =====================================================
 
   const handleCloseDelete = useCallback(
     () => {
       if (requestLockRef.current) {
-        return;
+        return false;
       }
 
       setIsDeleteModalOpen(false);
+
+      return true;
     },
     []
   );
 
-  // =======================================================
-  // CONFIRM DELETE
-  // =======================================================
+  // =====================================================
+  // CONFIRM SOFT DELETE
+  // =====================================================
 
   const handleConfirmDelete = useCallback(
     async () => {
       if (
         !isCommentOwner ||
         !isDeleteModalOpen ||
+        isDeleted ||
         requestLockRef.current
       ) {
         return false;
@@ -989,18 +1168,16 @@ const usePostCommentActions = ({
         return false;
       }
 
-      // =====================================
+      // =================================================
       // REQUEST LOCK
-      // =====================================
+      // =================================================
 
-      requestLockRef.current =
-        request;
-
+      requestLockRef.current = request;
       setProcessingAction("delete");
 
-      // =====================================
+      // =================================================
       // LOADING TOAST
-      // =====================================
+      // =================================================
 
       const toastId = beginToast(
         "Sharh o‘chirilmoqda...",
@@ -1008,71 +1185,117 @@ const usePostCommentActions = ({
       );
 
       try {
-        // ===================================
+        // ===============================================
         // API
-        // ===================================
+        // ===============================================
 
-        await PostService.deletePostComment(
-          request.commentId
-        );
+        const response =
+          await PostService.deletePostComment(
+            request.commentId
+          );
 
-        // ===================================
+        // ===============================================
         // STALE RESPONSE
-        // ===================================
+        // ===============================================
 
         if (!isCurrentRequest(request)) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        // ===================================
-        // SUCCESS TOAST
-        // ===================================
+        // ===============================================
+        // VERIFY RESPONSE ID
+        // ===============================================
 
-        // Show success before Redux removal.
-        // Removing the comment unmounts
-        // PostCommentItem and its hook.
+        if (
+          response?.comment_id != null &&
+          !isSameId(
+            response.comment_id,
+            request.commentId
+          )
+        ) {
+          throw new Error(
+            "Server boshqa sharhning o‘chirish natijasini qaytardi."
+          );
+        }
+
+        // ===============================================
+        // CLOSE MODALS
+        // ===============================================
+
+        setIsDeleteModalOpen(false);
+        setIsEditing(false);
+        setEditError("");
+
+        // ===============================================
+        // SUCCESS TOAST
+        // ===============================================
+        //
+        // Complete toast before Redux mutation.
+        // An item can rerender or unmount.
+        // ===============================================
 
         finishToast(
           toastId,
           "success",
-          "Sharhingiz muvaffaqiyatli o‘chirildi.",
+          "Sharh o‘chirildi. Mavjud javoblar saqlandi.",
           "Sharh o‘chirildi"
         );
 
-        setIsDeleteModalOpen(false);
-
-        // ===================================
-        // REDUX DELETE
-        // ===================================
-
-        // This reducer already removes
-        // the comment AND decrements
-        // postDetail.comments_count.
+        // ===============================================
+        // REDUX SOFT DELETE
+        // ===============================================
         //
-        // Do not also dispatch
-        // updatePostDetailLocal.
+        // IMPORTANT:
+        //
+        // Do not filter the comment out.
+        //
+        // deleteCommentSuccess now:
+        // - Sets is_deleted=true
+        // - Masks message and user
+        // - Preserves parent and replies
+        // - Updates comments_count once
+        // ===============================================
 
         dispatch(
-          deleteCommentSuccess(
-            request.commentId
-          )
+          deleteCommentSuccess({
+            ...(
+              isPlainObject(response)
+                ? response
+                : {}
+            ),
+
+            comment_id:
+              request.commentId,
+
+            is_deleted: true,
+          })
         );
 
         return true;
       } catch (requestError) {
+        // ===============================================
+        // STALE RESPONSE
+        // ===============================================
+
         if (!isCurrentRequest(request)) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        const message =
-          getRequestError(
-            requestError,
-            "Sharhni o‘chirishda xato yuz berdi."
-          );
+        const message = getRequestError(
+          requestError,
+          "Sharhni o‘chirishda xato yuz berdi."
+        );
+
+        dispatch(
+          deleteCommentFailure(
+            message
+          )
+        );
+
+        // Keep modal open if deletion failed.
+        // User can retry or cancel.
 
         finishToast(
           toastId,
@@ -1089,6 +1312,7 @@ const usePostCommentActions = ({
     [
       isCommentOwner,
       isDeleteModalOpen,
+      isDeleted,
       createRequest,
       beginToast,
       isCurrentRequest,
@@ -1099,19 +1323,19 @@ const usePostCommentActions = ({
     ]
   );
 
-  // =======================================================
+  // =====================================================
   // LIKE / UNLIKE
-  // =======================================================
+  // =====================================================
 
   const handleLikeToggle = useCallback(
     async () => {
-      // =====================================
-      // AUTH CHECK
-      // =====================================
+      // =================================================
+      // AUTHENTICATION
+      // =================================================
 
       if (!isLoggedIn) {
         siteToast.warning(
-          "Sharhga like bosish uchun avval tizimga kiring.",
+          "Sharhga Like bosish uchun avval tizimga kiring.",
           {
             title: "Kirish talab qilinadi",
             duration: 4000,
@@ -1121,12 +1345,13 @@ const usePostCommentActions = ({
         return false;
       }
 
-      // =====================================
+      // =================================================
       // MUTATION GUARD
-      // =====================================
+      // =================================================
 
       if (
         !commentKey ||
+        isDeleted ||
         isEditing ||
         requestLockRef.current
       ) {
@@ -1140,9 +1365,9 @@ const usePostCommentActions = ({
         return false;
       }
 
-      // =====================================
+      // =================================================
       // SNAPSHOT
-      // =====================================
+      // =================================================
 
       const previousLiked =
         Boolean(isLiked);
@@ -1161,120 +1386,135 @@ const usePostCommentActions = ({
           (nextLiked ? 1 : -1)
       );
 
-      // =====================================
+      // =================================================
       // REQUEST LOCK
-      // =====================================
+      // =================================================
 
-      requestLockRef.current =
-        request;
+      requestLockRef.current = request;
 
       setProcessingAction("like");
+      setLikeError("");
 
-      // =====================================
+      // =================================================
       // OPTIMISTIC UI
-      // =====================================
+      // =================================================
 
       setLikeState({
         isLiked: nextLiked,
         likesCount: nextCount,
       });
 
-      // =====================================
+      // =================================================
       // LOADING TOAST
-      // =====================================
+      // =================================================
 
       const toastId = beginToast(
         nextLiked
-          ? "Sharhga like qo‘yilmoqda..."
-          : "Sharhdan like olib tashlanmoqda...",
+          ? "Sharhga Like qo‘yilmoqda..."
+          : "Sharhdan Like olib tashlanmoqda...",
+
         nextLiked
           ? "Like qo‘yilmoqda"
           : "Like olib tashlanmoqda"
       );
 
       try {
-        // ===================================
+        // ===============================================
         // API
-        // ===================================
+        // ===============================================
 
         const response =
           await PostService.togglePostCommentLike(
             request.commentId
           );
 
-        // ===================================
+        // ===============================================
         // STALE RESPONSE
-        // ===================================
+        // ===============================================
 
         if (!isCurrentRequest(request)) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        // ===================================
+        // ===============================================
         // VERIFY RESPONSE
-        // ===================================
+        // ===============================================
+
+        if (!isPlainObject(response)) {
+          throw new Error(
+            "Server Like holatini qaytarmadi."
+          );
+        }
 
         if (
-          response?.comment_id != null &&
+          response.comment_id != null &&
           !isSameId(
             response.comment_id,
             request.commentId
           )
         ) {
           throw new Error(
-            "Server boshqa sharhning like holatini qaytardi."
+            "Server boshqa sharhning Like holatini qaytardi."
           );
         }
 
-        // ===================================
+        // ===============================================
         // SERVER VALUES
-        // ===================================
+        // ===============================================
 
         const serverLiked = Boolean(
-          response?.is_liked_by_user ??
-          response?.is_liked ??
+          response.is_liked_by_user ??
+          response.is_liked ??
           nextLiked
         );
 
-        const serverCount =
-          safeLikesCount(
-            response?.likes_count ??
-            response?.like_count ??
-            nextCount
-          );
+        const serverCount = safeLikesCount(
+          response.likes_count ??
+          response.like_count ??
+          nextCount
+        );
 
-        // ===================================
-        // LOCAL STATE
-        // ===================================
-
-        setLikeState({
-          isLiked: serverLiked,
-          likesCount: serverCount,
-        });
-
-        // ===================================
-        // REDUX SYNC
-        // ===================================
+        // ===============================================
+        // VERIFY CURRENT COMMENT
+        // ===============================================
 
         const currentComment =
           getReduxComment(
             request.commentId
           );
 
-        if (!currentComment) {
+        if (
+          !currentComment ||
+          currentComment.is_deleted
+        ) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        dispatch(
-          updateCommentSuccess({
-            ...currentComment,
+        // ===============================================
+        // LOCAL STATE
+        // ===============================================
 
-            // Preserve exact ID type.
-            id: currentComment.id,
+        setLikeState({
+          isLiked: serverLiked,
+          likesCount: serverCount,
+        });
+
+        setLikeError("");
+
+        // ===============================================
+        // REDUX SYNCHRONIZATION
+        // ===============================================
+        //
+        // Update only Like-related fields.
+        // Keep nested relationships untouched.
+        // ===============================================
+
+        dispatch(
+          toggleCommentLikeSuccess({
+            comment_id:
+              currentComment.id,
 
             is_liked_by_user:
               serverLiked,
@@ -1284,16 +1524,18 @@ const usePostCommentActions = ({
           })
         );
 
-        // ===================================
-        // UNIVERSAL SUCCESS TOAST
-        // ===================================
+        // ===============================================
+        // SUCCESS TOAST
+        // ===============================================
 
         finishToast(
           toastId,
           "success",
+
           serverLiked
-            ? "Sharhga muvaffaqiyatli like bosildi."
-            : "Sharhdan like olib tashlandi.",
+            ? "Sharhga muvaffaqiyatli Like bosildi."
+            : "Sharhdan Like olib tashlandi.",
+
           serverLiked
             ? "Like bosildi"
             : "Like olib tashlandi"
@@ -1301,30 +1543,34 @@ const usePostCommentActions = ({
 
         return true;
       } catch (requestError) {
-        // ===================================
-        // STALE REQUEST
-        // ===================================
+        // ===============================================
+        // STALE RESPONSE
+        // ===============================================
 
         if (!isCurrentRequest(request)) {
           dismissPendingToast(toastId);
-
           return false;
         }
 
-        // ===================================
+        // ===============================================
         // OPTIMISTIC ROLLBACK
-        // ===================================
+        // ===============================================
 
         setLikeState({
           isLiked: previousLiked,
           likesCount: previousCount,
         });
 
-        const message =
-          getRequestError(
-            requestError,
-            "Sharhning like holatini o‘zgartirib bo‘lmadi."
-          );
+        // ===============================================
+        // ERROR
+        // ===============================================
+
+        const message = getRequestError(
+          requestError,
+          "Sharhning Like holatini o‘zgartirib bo‘lmadi."
+        );
+
+        setLikeError(message);
 
         finishToast(
           toastId,
@@ -1341,6 +1587,7 @@ const usePostCommentActions = ({
     [
       isLoggedIn,
       commentKey,
+      isDeleted,
       isEditing,
       createRequest,
       isLiked,
@@ -1355,30 +1602,37 @@ const usePostCommentActions = ({
     ]
   );
 
-  // =======================================================
-  // RETURN
-  // =======================================================
+  // =====================================================
+  // RETURN — EXISTING CONTRACT PRESERVED
+  // =====================================================
 
   return {
-    // =====================================
+    // ===================================================
+    // IDENTITY
+    // ===================================================
+
+    commentId,
+
+    // ===================================================
     // PERMISSIONS
-    // =====================================
+    // ===================================================
 
     isCommentOwner,
 
-    // =====================================
+    // ===================================================
     // LIKE
-    // =====================================
+    // ===================================================
 
     isLiked,
     likesCount,
     isLiking,
+    likeError,
 
     handleLikeToggle,
 
-    // =====================================
+    // ===================================================
     // EDIT
-    // =====================================
+    // ===================================================
 
     isEditing,
     editMessage,
@@ -1389,13 +1643,13 @@ const usePostCommentActions = ({
     handleEditMessageChange,
     handleSaveEdit,
 
-    // Optional compatibility:
+    // Legacy compatibility
     setEditMessage:
       handleEditMessageChange,
 
-    // =====================================
+    // ===================================================
     // DELETE
-    // =====================================
+    // ===================================================
 
     isDeleteModalOpen,
 
@@ -1403,9 +1657,9 @@ const usePostCommentActions = ({
     handleCloseDelete,
     handleConfirmDelete,
 
-    // =====================================
-    // LOADING
-    // =====================================
+    // ===================================================
+    // PROCESSING
+    // ===================================================
 
     processingAction,
 

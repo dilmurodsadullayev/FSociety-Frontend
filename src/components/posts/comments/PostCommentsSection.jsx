@@ -16,9 +16,12 @@ import {
 
 import {
   AlertTriangle,
+  ArrowDownUp,
+  CornerDownRight,
   MessageCircle,
   MessageSquarePlus,
   RefreshCcw,
+  Terminal,
 } from "lucide-react";
 
 import PostService from "../../../services/post";
@@ -26,14 +29,13 @@ import PostService from "../../../services/post";
 import {
   addCommentFailure,
   addCommentSuccess,
+  buildPostCommentTree,
   getCommentsFailure,
   getCommentsStart,
   getCommentsSuccess,
 } from "../../../features/posts";
 
-import {
-  siteToast,
-} from "../../ui/AuthToast";
+import { siteToast } from "../../ui/AuthToast";
 
 import PostCommentForm from "./PostCommentForm";
 import PostCommentItem from "./PostCommentItem";
@@ -45,37 +47,50 @@ import {
 
 // =========================================================
 // FSOCIETY — POST COMMENTS SECTION
+// REDDIT x MR. ROBOT DISCUSSION
 // =========================================================
 //
-// Responsibilities:
+// Features:
+// - Compact discussion layout
+// - Nested comments / replies
+// - Reply to reply
+// - Root comment creation
+// - Comment sorting
+// - Manual refresh
+// - Light / Dark mode
+// - Responsive mobile layout
+// - Redux synchronization
+// - Loading skeleton
+// - Full API errors
+// - Universal siteToast
+// - Duplicate request protection
+// - Stale response protection
+// - Soft-delete compatibility
 //
-// - Fetch post comments
-// - Show comments skeleton
-// - Display comments
-// - Create comments
-// - Universal siteToast notifications
-// - Prevent duplicate submissions
-// - Handle refresh errors
-// - Prevent stale API responses
-// - Keep Redux contract unchanged
+// Like / Edit / Delete:
+// Managed by PostCommentItem and
+// usePostCommentActions.js
 //
-// Important:
+// Comment counter:
+// Managed by Redux reducers.
 //
-// addCommentSuccess already increments
-// postDetail.comments_count.
-//
-// deleteCommentSuccess already decrements
-// postDetail.comments_count.
-//
-// Do not increment/decrement those values
-// again in this component.
 // =========================================================
 
 // =========================================================
-// SELECTOR
+// CONSTANTS
 // =========================================================
 
-const selectPostState = (state) => state.post;
+const MAX_COMMENT_LENGTH = 255;
+
+const SORT_NEWEST = "newest";
+const SORT_OLDEST = "oldest";
+
+// =========================================================
+// REDUX SELECTOR
+// =========================================================
+
+const selectPostState = (state) =>
+  state.post;
 
 // =========================================================
 // HELPERS
@@ -92,7 +107,10 @@ const getPostKey = (value) => {
   return String(value);
 };
 
-const safeCount = (value, fallback = 0) => {
+const safeCount = (
+  value,
+  fallback = 0
+) => {
   if (
     value === null ||
     value === undefined ||
@@ -120,6 +138,72 @@ const normalizeCommentList = (response) => {
   return [];
 };
 
+const getCommentPostId = (comment) => {
+  const post = comment?.post;
+
+  if (
+    post === null ||
+    post === undefined
+  ) {
+    return null;
+  }
+
+  if (
+    typeof post === "object"
+  ) {
+    return post.id ?? null;
+  }
+
+  return post;
+};
+
+const extractError = (
+  error,
+  fallback
+) => {
+  // Updated PostService already combines
+  // all Django REST validation errors.
+
+  if (
+    error?.name === "PostServiceError" &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message.trim();
+  }
+
+  try {
+    const message = getCommentErrorMessage(
+      error,
+      fallback
+    );
+
+    if (
+      typeof message === "string" &&
+      message.trim()
+    ) {
+      return message.trim();
+    }
+  } catch {
+    // Continue to the fallback.
+  }
+
+  return error?.message || fallback;
+};
+
+const dismissToast = (toastRef) => {
+  const id = toastRef.current;
+
+  if (
+    id !== null &&
+    id !== undefined
+  ) {
+    siteToast.dismiss(id);
+  }
+
+  toastRef.current = null;
+};
+
 // =========================================================
 // COMMENTS HEADER
 // =========================================================
@@ -128,204 +212,329 @@ const CommentsHeader = memo(
   function CommentsHeader({
     count,
     isLoading,
+    isSubmitting,
+    sort,
+    onSortChange,
     onRefresh,
   }) {
-    return (
-      <header
-        className="
-          mb-6
-          flex
-          w-full
-          min-w-0
-          flex-col
-          gap-4
+    const sortLabel =
+      sort === SORT_NEWEST
+        ? "Yangi avval"
+        : "Eski avval";
 
-          sm:flex-row
-          sm:items-center
-          sm:justify-between
+    return (
+      <div
+        className="
+          relative
+          min-w-0
+          overflow-hidden
+
+          rounded-t-2xl
+
+          border-b
+          border-white/[0.08]
+
+          bg-[#13171e]
+          px-3 py-3
+
+          text-white
+
+          dark:bg-[#080b10]
+
+          sm:px-4
+          sm:py-3.5
         "
       >
-        <div className="min-w-0">
-          <h2
-            id="post-comments-heading"
+        {/* TOP SIGNAL LINE */}
+        <div
+          aria-hidden="true"
+          className="
+            pointer-events-none
+            absolute inset-x-0 top-0
+            h-px
+
+            bg-gradient-to-r
+            from-rose-500
+            via-rose-500/35
+            to-transparent
+          "
+        />
+
+        <div
+          className="
+            flex min-w-0
+            flex-wrap
+            items-center
+            justify-between
+            gap-3
+          "
+        >
+          {/* TITLE */}
+          <div
             className="
-              flex
-              min-w-0
-              items-center
-              gap-3
-
-              text-xl
-              font-black
-              tracking-tight
-              text-slate-900
-
-              sm:text-2xl
-
-              dark:text-white
+              flex min-w-0
+              items-center gap-2.5
             "
           >
-            <span
+            <div
+              aria-hidden="true"
               className="
-                grid
-                h-10
-                w-10
+                relative
+                grid h-9 w-9
                 shrink-0
                 place-items-center
 
                 rounded-xl
-                border
-                border-emerald-200
-                bg-emerald-50
-                text-emerald-700
+                border border-rose-400/20
+                bg-rose-500/[0.09]
 
-                dark:border-emerald-400/20
-                dark:bg-emerald-500/10
-                dark:text-emerald-300
+                text-rose-400
               "
             >
-              <MessageCircle
-                size={21}
-                aria-hidden="true"
+              <Terminal
+                size={17}
+                strokeWidth={1.8}
               />
-            </span>
 
-            <span>Sharhlar</span>
-          </h2>
+              <span
+                className="
+                  absolute -right-0.5 -top-0.5
+                  h-1.5 w-1.5
+                  rounded-full
+                  bg-rose-400
+                "
+              />
+            </div>
 
-          <p
+            <div className="min-w-0">
+              <div
+                className="
+                  flex min-w-0
+                  flex-wrap
+                  items-center
+                  gap-2
+                "
+              >
+                <h2
+                  id="post-comments-heading"
+                  className="
+                    text-sm
+                    font-extrabold
+                    tracking-tight
+
+                    sm:text-[15px]
+                  "
+                >
+                  Muhokama
+                </h2>
+
+                <span
+                  className="
+                    inline-flex
+                    min-h-5
+                    items-center
+                    justify-center
+
+                    rounded-md
+                    border border-white/[0.10]
+                    bg-white/[0.05]
+
+                    px-1.5
+                    font-mono
+                    text-[10px]
+                    font-bold
+                    tabular-nums
+                    text-slate-300
+                  "
+                >
+                  {count.toLocaleString("uz-UZ")}
+                </span>
+              </div>
+
+              <p
+                className="
+                  mt-0.5
+                  truncate
+                  font-mono
+                  text-[9px]
+                  tracking-[0.10em]
+                  text-slate-400
+
+                  sm:text-[10px]
+                "
+              >
+                FSOCIETY / COMMUNITY_THREAD
+              </p>
+            </div>
+          </div>
+
+          {/* CONTROLS */}
+          <div
             className="
-              mt-2
-              text-xs
-              font-medium
-              text-slate-500
-
-              sm:text-sm
-
-              dark:text-slate-400
+              flex min-w-0
+              flex-wrap
+              items-center
+              gap-1.5
             "
           >
-            {count.toLocaleString("uz-UZ")} ta sharh
-          </p>
+            {/* SORT */}
+            <button
+              type="button"
+              onClick={onSortChange}
+              title="Sharhlarni saralash"
+              aria-label={`Saralash: ${sortLabel}`}
+              className="
+                inline-flex
+                min-h-9
+                items-center
+                justify-center
+                gap-1.5
+
+                rounded-lg
+                border border-white/[0.10]
+                bg-white/[0.04]
+
+                px-2.5
+                text-[10px]
+                font-bold
+                text-slate-200
+
+                transition-colors
+
+                hover:border-white/[0.20]
+                hover:bg-white/[0.09]
+
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-rose-400
+
+                sm:text-[11px]
+              "
+            >
+              <ArrowDownUp
+                size={13}
+                aria-hidden="true"
+              />
+
+              <span>{sortLabel}</span>
+            </button>
+
+            {/* REFRESH */}
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={
+                isLoading ||
+                isSubmitting
+              }
+              title="Sharhlarni yangilash"
+              aria-label="Sharhlarni yangilash"
+              aria-busy={isLoading}
+              className="
+                inline-flex
+                min-h-9
+                items-center
+                justify-center
+                gap-1.5
+
+                rounded-lg
+                border border-white/[0.10]
+                bg-white/[0.04]
+
+                px-2.5
+                text-[10px]
+                font-bold
+                text-slate-200
+
+                transition-colors
+
+                hover:border-white/[0.20]
+                hover:bg-white/[0.09]
+
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-rose-400
+
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+
+                sm:text-[11px]
+              "
+            >
+              <RefreshCcw
+                size={13}
+                className={
+                  isLoading
+                    ? "motion-safe:animate-spin"
+                    : ""
+                }
+                aria-hidden="true"
+              />
+
+              <span
+                className="
+                  hidden min-[390px]:inline
+                "
+              >
+                {isLoading
+                  ? "Yuklanmoqda"
+                  : "Yangilash"}
+              </span>
+            </button>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={isLoading}
-          aria-busy={isLoading}
-          className="
-            inline-flex
-            min-h-11
-            w-full
-            min-w-0
-            items-center
-            justify-center
-            gap-2
-
-            self-start
-            rounded-xl
-            border
-            border-slate-200
-            bg-white/80
-
-            px-4
-            py-2.5
-
-            text-xs
-            font-bold
-            text-slate-600
-
-            transition-colors
-
-            hover:border-indigo-200
-            hover:bg-indigo-50
-            hover:text-indigo-700
-
-            focus-visible:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-indigo-500
-            focus-visible:ring-offset-2
-
-            disabled:cursor-not-allowed
-            disabled:opacity-55
-
-            sm:w-auto
-
-            dark:border-white/[0.10]
-            dark:bg-white/[0.035]
-            dark:text-slate-300
-
-            dark:hover:border-indigo-400/20
-            dark:hover:bg-indigo-400/[0.08]
-            dark:hover:text-indigo-300
-
-            motion-reduce:transition-none
-          "
-        >
-          <RefreshCcw
-            size={15}
-            className={
-              isLoading
-                ? "motion-safe:animate-spin"
-                : ""
-            }
-            aria-hidden="true"
-          />
-
-          {isLoading
-            ? "Yangilanmoqda..."
-            : "Yangilash"}
-        </button>
-      </header>
+      </div>
     );
   }
 );
 
 // =========================================================
-// COMMENTS ERROR
+// ERROR PANEL
 // =========================================================
 
 const CommentsError = memo(
-  function CommentsError({ message }) {
+  function CommentsError({
+    message,
+    onRetry,
+    isLoading,
+  }) {
+    if (!message) return null;
+
     return (
       <div
         role="alert"
         className="
-          mb-5
-          flex
-          min-w-0
-          items-start
-          gap-3
-          rounded-2xl
-          border
-          border-red-200
-          bg-red-50
-          p-4
+          mx-3 my-3
+          flex min-w-0
+          items-start gap-2.5
 
-          sm:rounded-3xl
-          sm:p-5
+          rounded-xl
+          border border-red-200
+          bg-red-50
+
+          px-3 py-3
 
           dark:border-red-400/20
-          dark:bg-red-500/[0.08]
+          dark:bg-red-500/[0.07]
+
+          sm:mx-4
         "
       >
         <AlertTriangle
-          size={19}
+          size={17}
           className="
-            mt-0.5
-            shrink-0
-            text-red-700
-
-            dark:text-red-300
+            mt-0.5 shrink-0
+            text-red-600
+            dark:text-red-400
           "
           aria-hidden="true"
         />
 
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p
             className="
-              text-sm
-              font-black
+              text-xs
+              font-extrabold
               text-red-800
 
               dark:text-red-200
@@ -337,10 +546,10 @@ const CommentsError = memo(
           <p
             className="
               mt-1
+              whitespace-pre-line
               break-words
-              text-xs
-              font-medium
-              leading-6
+              text-[11px]
+              leading-5
               text-red-700
 
               dark:text-red-300
@@ -348,6 +557,49 @@ const CommentsError = memo(
           >
             {message}
           </p>
+
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={isLoading}
+            className="
+              mt-2
+              inline-flex
+              min-h-8
+              items-center gap-1.5
+
+              rounded-lg
+              border border-red-200
+              bg-white
+
+              px-2.5
+              text-[11px]
+              font-bold
+              text-red-700
+
+              transition-colors
+
+              hover:bg-red-100
+
+              focus-visible:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-red-400
+
+              disabled:opacity-50
+
+              dark:border-red-400/20
+              dark:bg-red-500/10
+              dark:text-red-200
+              dark:hover:bg-red-500/20
+            "
+          >
+            <RefreshCcw
+              size={12}
+              aria-hidden="true"
+            />
+
+            Qayta urinish
+          </button>
         </div>
       </div>
     );
@@ -355,7 +607,7 @@ const CommentsError = memo(
 );
 
 // =========================================================
-// EMPTY COMMENTS
+// EMPTY STATE
 // =========================================================
 
 const EmptyComments = memo(
@@ -363,80 +615,191 @@ const EmptyComments = memo(
     return (
       <div
         className="
-          w-full
-          min-w-0
-          rounded-3xl
-          border-2
-          border-dashed
-          border-slate-200
-          bg-white/65
+          flex min-w-0
+          flex-col
+          items-center
+          justify-center
 
-          px-4
-          py-10
-
+          px-4 py-10
           text-center
 
-          sm:px-6
-
-          dark:border-white/[0.09]
-          dark:bg-white/[0.02]
+          sm:py-12
         "
       >
         <div
+          aria-hidden="true"
           className="
-            mx-auto
-            grid
-            h-16
-            w-16
+            relative
+            grid h-12 w-12
             place-items-center
 
             rounded-2xl
-            border
-            border-indigo-200
-            bg-indigo-50
-            text-indigo-600
+            border border-slate-200
+            bg-slate-50
 
-            dark:border-indigo-400/20
-            dark:bg-indigo-500/10
-            dark:text-indigo-300
+            text-slate-400
+
+            dark:border-white/[0.09]
+            dark:bg-white/[0.035]
+            dark:text-slate-500
           "
         >
           <MessageSquarePlus
-            size={28}
-            strokeWidth={1.7}
-            aria-hidden="true"
+            size={23}
+            strokeWidth={1.6}
+          />
+
+          <span
+            className="
+              absolute -right-1 -top-1
+              h-2 w-2
+              rounded-full
+              border-2 border-white
+              bg-rose-500
+
+              dark:border-[#10141b]
+            "
           />
         </div>
 
         <h3
           className="
-            mt-5
-            text-base
-            font-black
-            text-slate-900
+            mt-3
+            text-[13px]
+            font-extrabold
+            text-slate-800
 
-            dark:text-white
+            dark:text-slate-100
           "
         >
-          Hali sharhlar mavjud emas
+          Hali muhokama boshlanmagan
         </h3>
 
         <p
           className="
-            mx-auto
-            mt-2
-            max-w-sm
-            text-sm
-            leading-6
+            mx-auto mt-1
+            max-w-xs
+
+            text-[11px]
+            leading-5
             text-slate-500
 
             dark:text-slate-400
           "
         >
-          Muhokamani birinchi bo‘lib
-          boshlang. Fikringiz boshqalarga
-          foydali bo‘lishi mumkin.
+          Birinchi sharhni yozing,
+          savol bering yoki o‘z
+          tajribangizni ulashing.
         </p>
+
+        <span
+          className="
+            mt-4
+            font-mono
+            text-[9px]
+            tracking-[0.12em]
+            text-slate-400
+
+            dark:text-slate-600
+          "
+        >
+          NO_THREADS_FOUND
+        </span>
+      </div>
+    );
+  }
+);
+
+// =========================================================
+// DISCUSSION FOOTER
+// =========================================================
+
+const CommentsFooter = memo(
+  function CommentsFooter({
+    count,
+    rootCount,
+  }) {
+    return (
+      <div
+        className="
+          flex min-w-0
+          flex-wrap
+          items-center
+          justify-between
+
+          gap-x-3 gap-y-2
+
+          border-t
+          border-slate-100
+          bg-slate-50/75
+
+          px-3 py-2.5
+
+          dark:border-white/[0.06]
+          dark:bg-white/[0.015]
+
+          sm:px-4
+        "
+      >
+        <div
+          className="
+            inline-flex
+            min-w-0
+            flex-wrap
+            items-center
+            gap-2
+
+            font-mono
+            text-[9px]
+            font-semibold
+            text-slate-400
+
+            dark:text-slate-500
+          "
+        >
+          <span
+            aria-hidden="true"
+            className="
+              h-1.5 w-1.5
+              shrink-0
+              rounded-full
+              bg-rose-500
+            "
+          />
+
+          FSOCIETY://THREADS
+
+          <span
+            className="
+              text-slate-300
+              dark:text-slate-700
+            "
+          >
+            /
+          </span>
+
+          {rootCount} ROOT
+        </div>
+
+        <span
+          className="
+            inline-flex
+            items-center gap-1.5
+
+            font-mono
+            text-[9px]
+            text-slate-400
+
+            dark:text-slate-500
+          "
+        >
+          <CornerDownRight
+            size={11}
+            aria-hidden="true"
+          />
+
+          {count} COMMENTS
+        </span>
       </div>
     );
   }
@@ -446,27 +809,27 @@ const EmptyComments = memo(
 // MAIN COMPONENT
 // =========================================================
 
-const PostCommentsSection = ({
+function PostCommentsSection({
   postId,
   postAuthorUsername,
   currentUser,
   isLoggedIn,
-}) => {
+}) {
+  // =====================================================
+  // REDUX
+  // =====================================================
+
   const dispatch = useDispatch();
   const store = useStore();
-
-  // =======================================================
-  // REDUX
-  // =======================================================
 
   const {
     comments,
     postDetail,
   } = useSelector(selectPostState);
 
-  // =======================================================
+  // =====================================================
   // POST IDENTITY
-  // =======================================================
+  // =====================================================
 
   const postKey = getPostKey(postId);
 
@@ -478,37 +841,46 @@ const PostCommentsSection = ({
     Boolean(postKey) &&
     postKey === currentPostKey;
 
-  // =======================================================
-  // LOCAL STATE
-  // =======================================================
+  // =====================================================
+  // LOCAL STATES
+  // =====================================================
 
   const [
-    loadState,
-    setLoadState,
-  ] = useState({
-    postKey,
-    status: "idle",
-    error: "",
-    hasLoaded: false,
-  });
+    sort,
+    setSort,
+  ] = useState(SORT_NEWEST);
 
   const [
     isSubmitting,
     setIsSubmitting,
   ] = useState(false);
 
-  // =======================================================
+  const [
+    loadState,
+    setLoadState,
+  ] = useState({
+    postKey: "",
+    status: "idle",
+    error: "",
+    hasLoaded: false,
+  });
+
+  // =====================================================
   // REQUEST REFS
-  // =======================================================
+  // =====================================================
 
   const mountedRef = useRef(false);
 
-  const latestPostKeyRef = useRef(postKey);
+  const latestPostKeyRef = useRef(
+    postKey
+  );
+
   latestPostKeyRef.current = postKey;
 
   const requestVersionRef = useRef(0);
 
-  const listRequestPendingRef = useRef(false);
+  const listRequestPendingRef =
+    useRef(false);
 
   const submitLockRef = useRef(false);
 
@@ -516,9 +888,9 @@ const PostCommentsSection = ({
 
   const submitToastRef = useRef(null);
 
-  // =======================================================
+  // =====================================================
   // LIFECYCLE
-  // =======================================================
+  // =====================================================
 
   useEffect(() => {
     mountedRef.current = true;
@@ -528,27 +900,16 @@ const PostCommentsSection = ({
 
       requestVersionRef.current += 1;
 
-      if (refreshToastRef.current) {
-        siteToast.dismiss(
-          refreshToastRef.current
-        );
+      listRequestPendingRef.current = false;
 
-        refreshToastRef.current = null;
-      }
-
-      if (submitToastRef.current) {
-        siteToast.dismiss(
-          submitToastRef.current
-        );
-
-        submitToastRef.current = null;
-      }
+      dismissToast(refreshToastRef);
+      dismissToast(submitToastRef);
     };
   }, []);
 
-  // =======================================================
+  // =====================================================
   // VERIFY REQUEST TARGET
-  // =======================================================
+  // =====================================================
 
   const isRequestForCurrentPost = useCallback(
     (requestedPostKey) => {
@@ -571,28 +932,53 @@ const PostCommentsSection = ({
     [store]
   );
 
-  // =======================================================
-  // COMMENTS
-  // =======================================================
+  // =====================================================
+  // SAFE COMMENTS
+  // =====================================================
 
-  const safeComments = useMemo(
-    () => (
-      Array.isArray(comments)
-        ? comments.filter(
-            (comment) =>
-              comment &&
-              typeof comment === "object" &&
-              comment.id !== null &&
-              comment.id !== undefined
-          )
-        : []
-    ),
-    [comments]
-  );
+  const safeComments = useMemo(() => {
+    if (!Array.isArray(comments)) {
+      return [];
+    }
 
-  // =======================================================
-  // LOADING STATE FOR CURRENT POST
-  // =======================================================
+    return comments.filter((comment) => {
+      if (
+        !comment ||
+        typeof comment !== "object" ||
+        comment.id === null ||
+        comment.id === undefined
+      ) {
+        return false;
+      }
+
+      // Prevent displaying comments
+      // from another post.
+
+      const commentPostId =
+        getCommentPostId(comment);
+
+      if (
+        commentPostId === null ||
+        commentPostId === undefined
+      ) {
+        // Compatibility with older
+        // serializer responses.
+        return true;
+      }
+
+      return (
+        getPostKey(commentPostId) ===
+        postKey
+      );
+    });
+  }, [
+    comments,
+    postKey,
+  ]);
+
+  // =====================================================
+  // LOADING STATE
+  // =====================================================
 
   const stateMatchesPost =
     loadState.postKey === postKey;
@@ -614,84 +1000,161 @@ const PostCommentsSection = ({
       ? loadState.error
       : "";
 
-  // Do not display comments belonging to
-  // the previously opened post.
+  // =====================================================
+  // VISIBLE COMMENTS
+  // =====================================================
 
-  const visibleComments =
-    isCurrentPost && hasLoaded
-      ? safeComments
-      : [];
+  const visibleComments = useMemo(() => {
+    if (
+      !isCurrentPost ||
+      !hasLoaded
+    ) {
+      return [];
+    }
 
-  const commentsCount =
-    isCurrentPost
-      ? safeCount(
-          postDetail?.comments_count,
-          visibleComments.length
-        )
-      : 0;
+    return safeComments;
+  }, [
+    isCurrentPost,
+    hasLoaded,
+    safeComments,
+  ]);
 
-  // =======================================================
+  // =====================================================
+  // COUNTER
+  // =====================================================
+
+  const activeLocalCount = useMemo(
+    () =>
+      visibleComments.filter(
+        (comment) => !comment.is_deleted
+      ).length,
+    [visibleComments]
+  );
+
+  const commentsCount = isCurrentPost
+    ? safeCount(
+        postDetail?.comments_count,
+        activeLocalCount
+      )
+    : 0;
+
+  // =====================================================
+  // BUILD NESTED TREE
+  // =====================================================
+  //
+  // Redux stores flat comments.
+  //
+  // buildPostCommentTree() groups them
+  // by parent ID.
+  //
+  // This preserves every reply depth,
+  // including replies under deleted parents.
+  // =====================================================
+
+  const commentTree = useMemo(() => {
+    const roots = buildPostCommentTree(
+      visibleComments
+    );
+
+    if (sort === SORT_OLDEST) {
+      return [...roots].reverse();
+    }
+
+    return roots;
+  }, [
+    visibleComments,
+    sort,
+  ]);
+
+  // =====================================================
   // LOAD COMMENTS
-  // =======================================================
+  // =====================================================
 
   const loadComments = useCallback(
     async (showToast = false) => {
       const requestedPostKey = postKey;
 
-      if (!requestedPostKey) {
+      if (
+        !requestedPostKey ||
+        !isRequestForCurrentPost(
+          requestedPostKey
+        )
+      ) {
         return false;
       }
+
+      // -----------------------------------------------
+      // REQUEST VERSION
+      // -----------------------------------------------
 
       const requestId =
         ++requestVersionRef.current;
 
       listRequestPendingRef.current = true;
 
+      // -----------------------------------------------
+      // UI LOADING
+      // -----------------------------------------------
+
       setLoadState((previous) => ({
         postKey: requestedPostKey,
         status: "loading",
         error: "",
         hasLoaded:
-          previous.postKey ===
-            requestedPostKey &&
+          previous.postKey === requestedPostKey &&
           previous.hasLoaded,
       }));
 
-      // Redux contract remains unchanged.
-
       dispatch(getCommentsStart());
+
+      // -----------------------------------------------
+      // OPTIONAL REFRESH TOAST
+      // -----------------------------------------------
 
       let toastId = null;
 
       if (showToast) {
+        dismissToast(refreshToastRef);
+
         toastId = siteToast.loading(
           "Sharhlar yangilanmoqda...",
           {
-            title: "Sharhlar yuklanmoqda",
+            title: "Muhokama yangilanmoqda",
           }
         );
 
-        refreshToastRef.current =
-          toastId;
+        refreshToastRef.current = toastId;
       }
 
-      // Check both route and request version.
+      // -----------------------------------------------
+      // STALE RESPONSE GUARD
+      // -----------------------------------------------
 
-      const isCurrentRequest = () => (
+      const isCurrentRequest = () =>
         requestVersionRef.current ===
           requestId &&
         isRequestForCurrentPost(
           requestedPostKey
-        )
-      );
+        );
 
       try {
+        // ---------------------------------------------
+        // API
+        // ---------------------------------------------
+        //
+        // Keep flat response.
+        //
+        // Redux builds the nested tree
+        // using parent IDs.
+        // ---------------------------------------------
+
         const response =
-          await PostService
-            .getPostComments(postId);
+          await PostService.getPostComments(
+            postId
+          );
 
         if (!isCurrentRequest()) {
-          if (toastId) {
+          if (toastId !== null) {
             siteToast.dismiss(toastId);
           }
 
@@ -701,9 +1164,17 @@ const PostCommentsSection = ({
         const commentList =
           normalizeCommentList(response);
 
+        // ---------------------------------------------
+        // REDUX
+        // ---------------------------------------------
+
         dispatch(
           getCommentsSuccess(commentList)
         );
+
+        // ---------------------------------------------
+        // LOCAL STATE
+        // ---------------------------------------------
 
         setLoadState({
           postKey: requestedPostKey,
@@ -712,9 +1183,13 @@ const PostCommentsSection = ({
           hasLoaded: true,
         });
 
-        if (toastId) {
+        // ---------------------------------------------
+        // SUCCESS TOAST
+        // ---------------------------------------------
+
+        if (toastId !== null) {
           siteToast.success(
-            "Sharhlar ro‘yxati yangilandi.",
+            "Sharhlar yangilandi.",
             {
               id: toastId,
               title: "Yangilandi",
@@ -726,22 +1201,28 @@ const PostCommentsSection = ({
         return true;
       } catch (requestError) {
         if (!isCurrentRequest()) {
-          if (toastId) {
+          if (toastId !== null) {
             siteToast.dismiss(toastId);
           }
 
           return false;
         }
 
-        const message =
-          getCommentErrorMessage(
-            requestError,
-            "Sharhlarni yuklashda xato yuz berdi."
-          );
+        // ---------------------------------------------
+        // ERROR
+        // ---------------------------------------------
+
+        const message = extractError(
+          requestError,
+          "Sharhlarni yuklashda xato yuz berdi."
+        );
 
         dispatch(
           getCommentsFailure(message)
         );
+
+        // Keep the previous list visible
+        // when a manual refresh fails.
 
         setLoadState((previous) => ({
           postKey: requestedPostKey,
@@ -753,12 +1234,15 @@ const PostCommentsSection = ({
             previous.hasLoaded,
         }));
 
-        if (toastId) {
-          siteToast.error(message, {
-            id: toastId,
-            title: "Sharhlar yuklanmadi",
-            duration: 4400,
-          });
+        if (toastId !== null) {
+          siteToast.error(
+            message,
+            {
+              id: toastId,
+              title: "Sharhlar yuklanmadi",
+              duration: 5000,
+            }
+          );
         }
 
         return false;
@@ -773,7 +1257,7 @@ const PostCommentsSection = ({
 
         if (
           refreshToastRef.current ===
-            toastId
+          toastId
         ) {
           refreshToastRef.current = null;
         }
@@ -787,46 +1271,96 @@ const PostCommentsSection = ({
     ]
   );
 
-  // =======================================================
+  // =====================================================
   // INITIAL LOAD / POST CHANGE
-  // =======================================================
+  // =====================================================
 
   useEffect(() => {
-    loadComments();
+    // Wait until the matching postDetail
+    // is loaded into Redux.
+    //
+    // Prevents fetching comments for
+    // the previously opened post.
+
+    if (!isCurrentPost) {
+      return undefined;
+    }
+
+    void loadComments(false);
 
     return () => {
+      // Invalidate the previous list request.
       requestVersionRef.current += 1;
+
+      listRequestPendingRef.current = false;
+
+      dismissToast(refreshToastRef);
     };
-  }, [loadComments]);
+  }, [
+    isCurrentPost,
+    loadComments,
+  ]);
 
-  // =======================================================
+  // =====================================================
   // MANUAL REFRESH
-  // =======================================================
+  // =====================================================
 
-  const handleRefresh = useCallback(
+  const handleRefresh = useCallback(() => {
+    if (
+      !isCurrentPost ||
+      isLoading ||
+      isSubmitting
+    ) {
+      return;
+    }
+
+    void loadComments(true);
+  }, [
+    isCurrentPost,
+    isLoading,
+    isSubmitting,
+    loadComments,
+  ]);
+
+  // =====================================================
+  // SORT COMMENTS
+  // =====================================================
+
+  const handleSortChange = useCallback(
     () => {
-      if (isLoading) {
-        return;
-      }
-
-      loadComments(true);
+      setSort((previous) =>
+        previous === SORT_NEWEST
+          ? SORT_OLDEST
+          : SORT_NEWEST
+      );
     },
-    [isLoading, loadComments]
+    []
   );
 
-  // =======================================================
-  // CREATE COMMENT
-  // =======================================================
+  // =====================================================
+  // CREATE COMMENT / REPLY
+  // =====================================================
+  //
+  // Root:
+  //   handleCreateComment(message)
+  //
+  // Reply:
+  //   handleCreateComment(message, parentId)
+  //
+  // =====================================================
 
   const handleCreateComment = useCallback(
-    async (message) => {
-      // =====================================
-      // AUTH
-      // =====================================
+    async (
+      message,
+      parentId = null
+    ) => {
+      // -----------------------------------------------
+      // AUTHENTICATION
+      // -----------------------------------------------
 
       if (!isLoggedIn) {
         siteToast.warning(
-          "Sharh qoldirish uchun avval tizimga kiring.",
+          "Sharh yoki javob yozish uchun tizimga kiring.",
           {
             title: "Kirish talab qilinadi",
             duration: 4000,
@@ -836,25 +1370,26 @@ const PostCommentsSection = ({
         return false;
       }
 
-      // =====================================
+      // -----------------------------------------------
       // POST / DUPLICATE GUARD
-      // =====================================
+      // -----------------------------------------------
 
       if (
         !postKey ||
         !isCurrentPost ||
-        submitLockRef.current
+        submitLockRef.current ||
+        !isRequestForCurrentPost(postKey)
       ) {
         return false;
       }
 
+      // -----------------------------------------------
+      // MESSAGE VALIDATION
+      // -----------------------------------------------
+
       const cleanMessage = String(
         message ?? ""
       ).trim();
-
-      // =====================================
-      // VALIDATION
-      // =====================================
 
       if (!cleanMessage) {
         siteToast.warning(
@@ -867,9 +1402,12 @@ const PostCommentsSection = ({
         return false;
       }
 
-      if (cleanMessage.length > 255) {
+      if (
+        cleanMessage.length >
+        MAX_COMMENT_LENGTH
+      ) {
         siteToast.warning(
-          "Sharh 255 ta belgidan oshmasligi kerak.",
+          `Sharh ${MAX_COMMENT_LENGTH} ta belgidan oshmasligi kerak.`,
           {
             title: "Matn juda uzun",
           }
@@ -878,37 +1416,59 @@ const PostCommentsSection = ({
         return false;
       }
 
-      // =====================================
+      // -----------------------------------------------
+      // REPLY TYPE
+      // -----------------------------------------------
+
+      const isReply =
+        parentId !== null &&
+        parentId !== undefined;
+
+      // -----------------------------------------------
       // SYNCHRONOUS LOCK
-      // =====================================
+      // -----------------------------------------------
 
       submitLockRef.current = true;
+
       setIsSubmitting(true);
 
       const requestedPostKey = postKey;
 
       const toastId = siteToast.loading(
-        "Sharh yuborilmoqda...",
+        isReply
+          ? "Javob yuborilmoqda..."
+          : "Sharh yuborilmoqda...",
         {
-          title: "Sharh yaratilmoqda",
+          title: isReply
+            ? "Reply yaratilmoqda"
+            : "Sharh yaratilmoqda",
         }
       );
 
       submitToastRef.current = toastId;
 
       try {
-        // ===================================
+        // ---------------------------------------------
+        // REQUEST BODY
+        // ---------------------------------------------
+
+        const payload = {
+          message: cleanMessage,
+        };
+
+        if (isReply) {
+          payload.parent = parentId;
+        }
+
+        // ---------------------------------------------
         // API
-        // ===================================
+        // ---------------------------------------------
 
         const response =
-          await PostService
-            .createPostComment(
-              postId,
-              {
-                message: cleanMessage,
-              }
-            );
+          await PostService.createPostComment(
+            postId,
+            payload
+          );
 
         if (
           !isRequestForCurrentPost(
@@ -919,9 +1479,12 @@ const PostCommentsSection = ({
           return false;
         }
 
+        // ---------------------------------------------
+        // RESPONSE NORMALIZATION
+        // ---------------------------------------------
+
         const newComment =
-          response?.comment ??
-          response;
+          response?.comment ?? response;
 
         const hasValidComment =
           newComment &&
@@ -929,52 +1492,55 @@ const PostCommentsSection = ({
           newComment.id !== null &&
           newComment.id !== undefined;
 
-        // ===================================
-        // REDUX UPDATE
-        // ===================================
+        // ---------------------------------------------
+        // REDUX COMMENT UPDATE
+        // ---------------------------------------------
 
         if (hasValidComment) {
-          // This reducer ALREADY updates
-          // postDetail.comments_count.
-          //
-          // Do NOT dispatch an additional
-          // updatePostDetailLocal here.
+          // Preserve server values.
+          // Provide safe fallbacks if an
+          // older serializer omits these.
 
           dispatch(
-            addCommentSuccess(newComment)
+            addCommentSuccess({
+              ...newComment,
+
+              post:
+                newComment.post ?? postId,
+
+              parent:
+                newComment.parent ??
+                (isReply ? parentId : null),
+            })
           );
         }
 
-        // ===================================
-        // PENDING LIST REQUEST
-        // ===================================
+        // ---------------------------------------------
+        // IN-FLIGHT LIST REQUEST
+        // ---------------------------------------------
+        //
+        // An older GET response may have been
+        // produced before the new comment.
+        //
+        // Invalidate that request, then fetch
+        // the newest server list.
+        //
+        // This avoids:
+        // - New reply disappearing
+        // - Missing older comments
+        // - Duplicate comments
+        // ---------------------------------------------
 
-        if (listRequestPendingRef.current) {
-          // An older list response must not
-          // overwrite the new comment.
+        const hadPendingList =
+          listRequestPendingRef.current;
 
+        if (hadPendingList) {
           requestVersionRef.current += 1;
+
           listRequestPendingRef.current =
             false;
 
-          if (refreshToastRef.current) {
-            siteToast.dismiss(
-              refreshToastRef.current
-            );
-
-            refreshToastRef.current = null;
-          }
-
-          const currentComments =
-            store.getState()?.post?.comments;
-
-          dispatch(
-            getCommentsSuccess(
-              Array.isArray(currentComments)
-                ? currentComments
-                : []
-            )
-          );
+          dismissToast(refreshToastRef);
         }
 
         setLoadState({
@@ -984,26 +1550,27 @@ const PostCommentsSection = ({
           hasLoaded: true,
         });
 
-        // If the server acknowledges creation
-        // without returning the new comment,
-        // fetch the list again rather than
-        // inventing an ID or incrementing
-        // the count locally.
-
-        if (!hasValidComment) {
-          loadComments();
+        if (
+          hadPendingList ||
+          !hasValidComment
+        ) {
+          void loadComments(false);
         }
 
-        // ===================================
-        // UNIVERSAL SUCCESS TOAST
-        // ===================================
+        // ---------------------------------------------
+        // SUCCESS TOAST
+        // ---------------------------------------------
 
         siteToast.success(
-          "Sharhingiz muvaffaqiyatli yuborildi!",
+          isReply
+            ? "Javobingiz muvaffaqiyatli yuborildi!"
+            : "Sharhingiz muvaffaqiyatli yuborildi!",
           {
             id: toastId,
-            title: "Sharh yuborildi",
-            duration: 3200,
+            title: isReply
+              ? "Javob yuborildi"
+              : "Sharh yuborildi",
+            duration: 3000,
           }
         );
 
@@ -1018,11 +1585,12 @@ const PostCommentsSection = ({
           return false;
         }
 
-        const messageText =
-          getCommentErrorMessage(
-            requestError,
-            "Sharh yuborishda xato yuz berdi."
-          );
+        const messageText = extractError(
+          requestError,
+          isReply
+            ? "Javob yuborishda xato yuz berdi."
+            : "Sharh yuborishda xato yuz berdi."
+        );
 
         dispatch(
           addCommentFailure(messageText)
@@ -1032,13 +1600,15 @@ const PostCommentsSection = ({
           messageText,
           {
             id: toastId,
-            title: "Sharh yuborilmadi",
+            title: isReply
+              ? "Javob yuborilmadi"
+              : "Sharh yuborilmadi",
             duration: 5000,
           }
         );
 
-        // Return false so PostCommentForm
-        // keeps the draft text.
+        // Return false so the composer
+        // preserves the user's draft.
 
         return false;
       } finally {
@@ -1062,58 +1632,123 @@ const PostCommentsSection = ({
       postId,
       postKey,
       dispatch,
-      store,
       isRequestForCurrentPost,
       loadComments,
     ]
   );
 
-  // =======================================================
-  // RENDER
-  // =======================================================
+  // =====================================================
+  // RENDER FLAGS
+  // =====================================================
 
   const showSkeleton =
     Boolean(postKey) &&
-    isLoading &&
-    !hasLoaded;
+    !hasLoaded &&
+    !loadError;
 
   const showEmpty =
+    isCurrentPost &&
     hasLoaded &&
     !isLoading &&
     !loadError &&
-    visibleComments.length === 0;
+    commentTree.length === 0;
+
+  const showThreads =
+    isCurrentPost &&
+    hasLoaded &&
+    commentTree.length > 0;
+
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
     <section
       aria-labelledby="post-comments-heading"
       className="
-        mt-10
-        w-full
-        min-w-0
-        max-w-full
+        mt-8
+        w-full min-w-0 max-w-full
 
-        border-t
-        border-slate-200
-        pt-8
+        border-t border-slate-200
+        pt-6
 
         font-sans
 
         dark:border-white/[0.08]
+
+        sm:mt-10 sm:pt-7
       "
     >
-      {/* =====================================
-          HEADER
-      ===================================== */}
+      {/* ==========================================
+          SMALL SECTION LABEL
+         ========================================== */}
 
-      <CommentsHeader
-        count={commentsCount}
-        isLoading={isLoading}
-        onRefresh={handleRefresh}
-      />
+      <div
+        className="
+          mb-3
+          flex min-w-0
+          flex-wrap
+          items-center
+          justify-between
+          gap-2
+        "
+      >
+        <div
+          className="
+            inline-flex
+            min-w-0
+            items-center gap-2
+          "
+        >
+          <span
+            aria-hidden="true"
+            className="
+              h-1.5 w-1.5
+              shrink-0
+              rounded-full
+              bg-rose-500
+            "
+          />
 
-      {/* =====================================
-          CREATE COMMENT FORM
-      ===================================== */}
+          <span
+            className="
+              font-mono
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.12em]
+              text-slate-500
+
+              dark:text-slate-400
+            "
+          >
+            Community / Discussions
+          </span>
+        </div>
+
+        <span
+          className="
+            inline-flex
+            items-center gap-1.5
+            font-mono
+            text-[10px]
+            text-slate-400
+
+            dark:text-slate-500
+          "
+        >
+          <MessageCircle
+            size={12}
+            aria-hidden="true"
+          />
+
+          {commentsCount} ta sharh
+        </span>
+      </div>
+
+      {/* ==========================================
+          ROOT COMMENT COMPOSER
+         ========================================== */}
 
       <PostCommentForm
         currentUser={currentUser}
@@ -1122,62 +1757,117 @@ const PostCommentsSection = ({
         onSubmit={handleCreateComment}
       />
 
-      {/* =====================================
-          INITIAL LIST SKELETON
-      ===================================== */}
+      {/* ==========================================
+          DISCUSSION PANEL
+         ========================================== */}
 
-      {showSkeleton && (
-        <PostCommentsSkeleton
-          count={3}
+      <div
+        className="
+          relative
+          w-full min-w-0 max-w-full
+
+          overflow-hidden
+
+          rounded-2xl
+          border border-slate-200
+
+          bg-white
+
+          shadow-[0_8px_32px_rgba(15,23,42,0.035)]
+
+          dark:border-white/[0.09]
+          dark:bg-[#0c1016]
+          dark:shadow-[0_12px_35px_rgba(0,0,0,0.16)]
+        "
+      >
+        {/* HEADER */}
+        <CommentsHeader
+          count={commentsCount}
+          isLoading={isLoading}
+          isSubmitting={isSubmitting}
+          sort={sort}
+          onSortChange={handleSortChange}
+          onRefresh={handleRefresh}
         />
-      )}
 
-      {/* =====================================
-          LIST LOAD ERROR
-      ===================================== */}
+        {/* ERROR */}
+        {loadError && (
+          <CommentsError
+            message={loadError}
+            onRetry={handleRefresh}
+            isLoading={isLoading}
+          />
+        )}
 
-      {loadError && (
-        <CommentsError
-          message={loadError}
-        />
-      )}
+        {/* INITIAL LOADING */}
+        {showSkeleton && (
+          <div
+            className="
+              min-w-0
+              px-2 py-3
 
-      {/* =====================================
-          COMMENT LIST
-      ===================================== */}
-
-      {hasLoaded && (
-        <div
-          className="
-            w-full
-            min-w-0
-            space-y-4
-          "
-          aria-busy={isLoading}
-        >
-          {visibleComments.map((comment) => (
-            <PostCommentItem
-              key={comment.id}
-              comment={comment}
-              postAuthorUsername={
-                postAuthorUsername
-              }
-              currentUser={currentUser}
-              isLoggedIn={isLoggedIn}
+              sm:px-3 sm:py-4
+            "
+          >
+            <PostCommentsSkeleton
+              count={3}
             />
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* =====================================
-          EMPTY STATE
-      ===================================== */}
+        {/* ======================================
+            NESTED COMMENT THREADS
+           ====================================== */}
 
-      {showEmpty && (
-        <EmptyComments />
-      )}
+        {showThreads && (
+          <div
+            aria-busy={isLoading}
+            className="
+              w-full min-w-0
+              max-w-full
+
+              space-y-0.5
+
+              px-0.5 py-1.5
+
+              sm:px-1 sm:py-2
+            "
+          >
+            {commentTree.map((comment) => (
+              <PostCommentItem
+                key={comment.id}
+                comment={comment}
+                postAuthorUsername={
+                  postAuthorUsername
+                }
+                currentUser={currentUser}
+                isLoggedIn={isLoggedIn}
+                depth={0}
+                onReply={handleCreateComment}
+                isReplySubmitting={
+                  isSubmitting
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        {/* EMPTY */}
+        {showEmpty && (
+          <EmptyComments />
+        )}
+
+        {/* ======================================
+            FOOTER
+           ====================================== */}
+
+        <CommentsFooter
+          count={commentsCount}
+          rootCount={commentTree.length}
+        />
+      </div>
     </section>
   );
-};
+}
 
 export default memo(PostCommentsSection);

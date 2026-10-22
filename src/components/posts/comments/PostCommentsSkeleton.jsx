@@ -2,193 +2,183 @@
 import React, { memo } from "react";
 
 // =========================================================
-// FSOCIETY — POST COMMENTS SKELETON
+// FSOCIETY — COMPACT COMMENT THREAD SKELETON
 // =========================================================
 //
+// Matches the Reddit x Mr. Robot comment layout.
+//
+// Features:
+// - Compact comment cards
+// - Avatar + author skeleton
+// - Message placeholder
+// - Action placeholders
+// - Nested reply placeholders
 // - Light / Dark Mode
-// - Responsive 320px+
-// - Comment card placeholders
 // - Reduced motion support
-// - Accessible loading announcement
-// - No extra background or API logic
+//
+// Usage:
+//   <PostCommentsSkeleton count={3} />
+//
 // =========================================================
 
-const SKELETON_CLASS = `
-  bg-slate-200/85
-  dark:bg-slate-700/45
-  motion-safe:animate-pulse
-  motion-reduce:animate-none
-`;
+// =========================================================
+// UTILITY
+// =========================================================
 
-const SkeletonBlock = ({
+const SHIMMER_CLASS = [
+  "animate-pulse",
+  "rounded-md",
+  "bg-slate-200/80",
+  "dark:bg-white/[0.09]",
+  "motion-reduce:animate-none",
+].join(" ");
+
+const SkeletonBar = memo(function SkeletonBar({
   className = "",
-}) => (
-  <div
-    aria-hidden="true"
-    className={`
-      ${SKELETON_CLASS}
-      ${className}
-    `}
-  />
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`${SHIMMER_CLASS} block ${className}`}
+    />
+  );
+});
+
+// =========================================================
+// AVATAR
+// =========================================================
+
+const SkeletonAvatar = memo(
+  function SkeletonAvatar({ small = false }) {
+    return (
+      <SkeletonBar
+        className={
+          small
+            ? "h-8 w-8 shrink-0 rounded-xl sm:h-9 sm:w-9"
+            : "h-9 w-9 shrink-0 rounded-xl sm:h-10 sm:w-10"
+        }
+      />
+    );
+  }
 );
 
 // =========================================================
-// SINGLE COMMENT PLACEHOLDER
+// SINGLE COMMENT SKELETON
 // =========================================================
 
-const CommentSkeletonCard = memo(
-  function CommentSkeletonCard({ index = 0 }) {
+const CommentSkeletonRow = memo(
+  function CommentSkeletonRow({
+    index,
+    nested = false,
+  }) {
+    const messageWidths = [
+      "w-[78%]",
+      "w-[92%]",
+      "w-[64%]",
+    ];
+
+    const lineWidth =
+      messageWidths[index % messageWidths.length];
+
     return (
       <div
         aria-hidden="true"
-        className="
-          w-full
-          min-w-0
-          rounded-[22px]
-          border
-          border-slate-200
-          bg-white/85
-          p-4
-          shadow-sm
+        className={`
+          relative min-w-0
 
-          sm:rounded-3xl
-          sm:p-5
-
-          dark:border-white/[0.08]
-          dark:bg-white/[0.025]
-          dark:shadow-none
-        "
+          ${
+            nested
+              ? "py-2.5"
+              : "rounded-xl border border-slate-200/80 bg-white/80 px-3 py-3 dark:border-white/[0.08] dark:bg-[#11151c] sm:px-4 sm:py-3.5"
+          }
+        `}
       >
-        {/* AUTHOR */}
+        <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
+          {/* AVATAR */}
+          <SkeletonAvatar small={nested} />
 
-        <div
-          className="
-            flex
-            min-w-0
-            items-center
-            gap-3
-          "
-        >
-          <SkeletonBlock
-            className="
-              h-11
-              w-11
-              shrink-0
-              rounded-full
+          {/* BODY */}
+          <div className="min-w-0 flex-1">
+            {/* HEADER */}
+            <div
+              className="
+                flex min-w-0
+                flex-wrap items-center
+                gap-2
+              "
+            >
+              <SkeletonBar className="h-3 w-20 max-w-[40%]" />
 
-              sm:h-12
-              sm:w-12
-            "
-          />
+              <SkeletonBar className="h-2.5 w-14" />
 
+              <SkeletonBar className="h-2.5 w-16" />
+            </div>
+
+            {/* MESSAGE */}
+            <div className="mt-3 space-y-2">
+              <SkeletonBar
+                className={`h-3 ${lineWidth} max-w-full`}
+              />
+
+              {index % 2 === 0 && (
+                <SkeletonBar className="h-3 w-[48%] max-w-full" />
+              )}
+            </div>
+
+            {/* ACTIONS */}
+            <div
+              className="
+                mt-3 flex min-w-0
+                flex-wrap items-center
+                gap-3
+              "
+            >
+              <SkeletonBar className="h-3 w-12" />
+
+              <SkeletonBar className="h-3 w-20" />
+
+              <SkeletonBar className="h-3 w-14" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
+
+// =========================================================
+// ROOT COMMENT + OPTIONAL NESTED REPLY
+// =========================================================
+
+const SkeletonThread = memo(
+  function SkeletonThread({ index }) {
+    const showNestedReply = index === 0;
+
+    return (
+      <div className="min-w-0">
+        <CommentSkeletonRow index={index} />
+
+        {showNestedReply && (
           <div
+            aria-hidden="true"
             className="
+              ml-5 mt-1
               min-w-0
-              flex-1
-              space-y-2
+              border-l-2
+              border-slate-200
+              pl-3
+
+              dark:border-white/[0.10]
+
+              sm:ml-7 sm:pl-4
             "
           >
-            <SkeletonBlock
-              className="
-                h-4
-                w-32
-                max-w-full
-                rounded-md
-              "
-            />
-
-            <SkeletonBlock
-              className="
-                h-3
-                w-20
-                max-w-full
-                rounded-md
-              "
+            <CommentSkeletonRow
+              nested
+              index={index + 1}
             />
           </div>
-
-          <SkeletonBlock
-            className="
-              h-8
-              w-8
-              shrink-0
-              rounded-lg
-            "
-          />
-        </div>
-
-        {/* MESSAGE */}
-
-        <div
-          className="
-            mt-5
-            min-w-0
-            space-y-3
-          "
-        >
-          <SkeletonBlock
-            className="
-              h-3.5
-              w-full
-              rounded-md
-            "
-          />
-
-          <SkeletonBlock
-            className={`
-              h-3.5
-              rounded-md
-
-              ${
-                index % 2 === 0
-                  ? "w-4/5"
-                  : "w-11/12"
-              }
-            `}
-          />
-
-          {index === 0 && (
-            <SkeletonBlock
-              className="
-                h-3.5
-                w-2/5
-                rounded-md
-              "
-            />
-          )}
-        </div>
-
-        {/* ACTIONS */}
-
-        <div
-          className="
-            mt-5
-            flex
-            items-center
-            gap-3
-            border-t
-            border-slate-100
-            pt-4
-
-            dark:border-white/[0.06]
-          "
-        >
-          <SkeletonBlock
-            className="
-              h-8
-              w-20
-              rounded-lg
-            "
-          />
-
-          <SkeletonBlock
-            className="
-              h-8
-              w-16
-              rounded-lg
-            "
-          />
-        </div>
+        )}
       </div>
     );
   }
@@ -198,15 +188,13 @@ const CommentSkeletonCard = memo(
 // MAIN SKELETON
 // =========================================================
 
-const PostCommentsSkeleton = ({
+function PostCommentsSkeleton({
   count = 3,
   className = "",
-}) => {
+}) {
   const parsedCount = Number(count);
 
-  const itemCount = Number.isFinite(
-    parsedCount
-  )
+  const safeCount = Number.isFinite(parsedCount)
     ? Math.min(
         6,
         Math.max(1, Math.trunc(parsedCount))
@@ -219,29 +207,26 @@ const PostCommentsSkeleton = ({
       aria-label="Sharhlar yuklanmoqda"
       aria-busy="true"
       className={`
-        w-full
-        min-w-0
-        space-y-4
-
+        w-full min-w-0 max-w-full
+        space-y-3
         ${className}
       `}
     >
-      <span className="sr-only">
-        Sharhlar yuklanmoqda.
-        Iltimos, kuting.
-      </span>
-
       {Array.from(
-        { length: itemCount },
+        { length: safeCount },
         (_, index) => (
-          <CommentSkeletonCard
-            key={index}
+          <SkeletonThread
+            key={`comment-skeleton-${index}`}
             index={index}
           />
         )
       )}
+
+      <span className="sr-only">
+        Sharhlar yuklanmoqda, iltimos kuting.
+      </span>
     </div>
   );
-};
+}
 
 export default memo(PostCommentsSkeleton);
