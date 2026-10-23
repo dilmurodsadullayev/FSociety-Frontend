@@ -1,207 +1,331 @@
 
 import React, {
-    createContext,
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useState,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
 } from "react";
 
 // =========================================================
-// FSOCIETY THEME CONFIGURATION
+// FSOCIETY — THEME CONTEXT
+// =========================================================
+//
+// Single source of truth for:
+//
+// - Dark mode
+// - Light mode
+// - Theme persistence
+// - Navbar theme toggle
+// - Cross-tab synchronization
+// - Tailwind dark mode
+// - Browser color scheme
+//
 // =========================================================
 
-export const THEME_STORAGE_KEY = "fsociety-theme";
+// =========================================================
+// CONFIGURATION
+// =========================================================
+
+export const THEME_STORAGE_KEY =
+  "fsociety-theme";
+
+const LEGACY_THEME_STORAGE_KEY =
+  "theme";
 
 export const THEMES = Object.freeze({
-    DARK: "dark",
-    LIGHT: "light",
+  DARK: "dark",
+  LIGHT: "light",
 });
 
-export const DEFAULT_THEME = THEMES.DARK;
-
-export const ThemeContext = createContext(null);
+export const DEFAULT_THEME =
+  THEMES.DARK;
 
 // =========================================================
-// THEME VALIDATION
+// CONTEXT
 // =========================================================
 
-const isValidTheme = (value) => {
-    return (
-        value === THEMES.DARK ||
-        value === THEMES.LIGHT
-    );
-};
+export const ThemeContext =
+  createContext(null);
+
+// =========================================================
+// VALIDATION
+// =========================================================
+
+const isValidTheme = (value) =>
+  value === THEMES.DARK ||
+  value === THEMES.LIGHT;
 
 // =========================================================
 // READ SAVED THEME
 // =========================================================
 
 const getInitialTheme = () => {
-    if (typeof window === "undefined") {
-        return DEFAULT_THEME;
+  if (typeof window === "undefined") {
+    return DEFAULT_THEME;
+  }
+
+  try {
+    const savedTheme =
+      window.localStorage.getItem(
+        THEME_STORAGE_KEY
+      );
+
+    if (isValidTheme(savedTheme)) {
+      return savedTheme;
     }
 
-    try {
-        const savedTheme = window.localStorage.getItem(
-            THEME_STORAGE_KEY
-        );
+    // Compatibility with the old App.js
+    const legacyTheme =
+      window.localStorage.getItem(
+        LEGACY_THEME_STORAGE_KEY
+      );
 
-        return isValidTheme(savedTheme)
-            ? savedTheme
-            : DEFAULT_THEME;
-    } catch {
-        return DEFAULT_THEME;
+    if (isValidTheme(legacyTheme)) {
+      return legacyTheme;
     }
+  } catch {
+    // Storage may be unavailable.
+  }
+
+  // Support a theme already applied
+  // before React mounted.
+  const documentTheme =
+    document.documentElement.getAttribute(
+      "data-theme"
+    );
+
+  if (isValidTheme(documentTheme)) {
+    return documentTheme;
+  }
+
+  return DEFAULT_THEME;
 };
 
 // =========================================================
-// APPLY THEME TO DOCUMENT
+// APPLY THEME
 // =========================================================
 
 const applyThemeToDocument = (theme) => {
-    if (typeof document === "undefined") {
-        return;
-    }
+  if (typeof document === "undefined") {
+    return;
+  }
 
-    const root = document.documentElement;
+  const root =
+    document.documentElement;
 
-    root.setAttribute("data-theme", theme);
+  const isDark =
+    theme === THEMES.DARK;
 
-    // Tailwind darkMode: "class"
-    root.classList.toggle(
-        "dark",
-        theme === THEMES.DARK
-    );
+  // Semantic theme attribute
+  root.setAttribute(
+    "data-theme",
+    theme
+  );
 
-    // Native browser controls
-    root.style.colorScheme = theme;
+  // Tailwind darkMode: "class"
+  root.classList.toggle(
+    "dark",
+    isDark
+  );
+
+  // Native browser controls
+  root.style.colorScheme =
+    isDark ? "dark" : "light";
 };
 
 // =========================================================
 // THEME PROVIDER
 // =========================================================
 
-export const ThemeProvider = ({ children }) => {
-    const [theme, setThemeState] = useState(
-        getInitialTheme
+export const ThemeProvider = ({
+  children,
+}) => {
+  const [
+    theme,
+    setThemeState,
+  ] = useState(getInitialTheme);
+
+  // =====================================================
+  // APPLY BEFORE BROWSER PAINT
+  // =====================================================
+
+  useLayoutEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
+
+  // =====================================================
+  // PERSIST THEME
+  // =====================================================
+
+  useEffect(() => {
+    try {
+      // Canonical storage key
+      window.localStorage.setItem(
+        THEME_STORAGE_KEY,
+        theme
+      );
+
+      // Legacy compatibility
+      window.localStorage.setItem(
+        LEGACY_THEME_STORAGE_KEY,
+        theme
+      );
+    } catch {
+      // Theme remains functional in memory.
+    }
+  }, [theme]);
+
+  // =====================================================
+  // SET THEME
+  // =====================================================
+
+  const setTheme = useCallback(
+    (nextTheme) => {
+      setThemeState((currentTheme) => {
+        const resolvedTheme =
+          typeof nextTheme === "function"
+            ? nextTheme(currentTheme)
+            : nextTheme;
+
+        return isValidTheme(resolvedTheme)
+          ? resolvedTheme
+          : currentTheme;
+      });
+    },
+    []
+  );
+
+  // =====================================================
+  // TOGGLE THEME
+  // =====================================================
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((currentTheme) =>
+      currentTheme === THEMES.DARK
+        ? THEMES.LIGHT
+        : THEMES.DARK
     );
+  }, []);
 
-    // =====================================================
-    // UPDATE DOCUMENT BEFORE PAINT
-    // =====================================================
+  // =====================================================
+  // SYNCHRONIZE ACROSS TABS
+  // =====================================================
 
-    useLayoutEffect(() => {
-        applyThemeToDocument(theme);
-    }, [theme]);
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (
+        event.storageArea !==
+        window.localStorage
+      ) {
+        return;
+      }
 
-    // =====================================================
-    // PERSIST THEME
-    // =====================================================
+      if (
+        event.key !== THEME_STORAGE_KEY &&
+        event.key !==
+          LEGACY_THEME_STORAGE_KEY &&
+        event.key !== null
+      ) {
+        return;
+      }
 
-    useEffect(() => {
-        try {
-            window.localStorage.setItem(
-                THEME_STORAGE_KEY,
-                theme
-            );
-        } catch {
-            // Storage unavailable.
-            // Theme continues working in memory.
-        }
-    }, [theme]);
-
-    // =====================================================
-    // UPDATE THEME
-    // =====================================================
-
-    const setTheme = useCallback((nextTheme) => {
-        setThemeState((currentTheme) => {
-            const resolvedTheme =
-                typeof nextTheme === "function"
-                    ? nextTheme(currentTheme)
-                    : nextTheme;
-
-            return isValidTheme(resolvedTheme)
-                ? resolvedTheme
-                : currentTheme;
-        });
-    }, []);
-
-    // =====================================================
-    // TOGGLE THEME
-    // =====================================================
-
-    const toggleTheme = useCallback(() => {
-        setThemeState((currentTheme) => {
-            return currentTheme === THEMES.DARK
-                ? THEMES.LIGHT
-                : THEMES.DARK;
-        });
-    }, []);
-
-    // =====================================================
-    // SYNC BETWEEN BROWSER TABS
-    // =====================================================
-
-    useEffect(() => {
-        const handleStorage = (event) => {
-            if (
-                event.key !== THEME_STORAGE_KEY &&
-                event.key !== null
-            ) {
-                return;
-            }
-
-            const nextTheme = event.newValue;
-
-            setThemeState(
-                isValidTheme(nextTheme)
-                    ? nextTheme
-                    : DEFAULT_THEME
-            );
-        };
-
-        window.addEventListener(
-            "storage",
-            handleStorage
+      // A changed key takes priority.
+      // This also supports legacy code
+      // that still writes "theme".
+      if (
+        isValidTheme(event.newValue)
+      ) {
+        setThemeState(
+          event.newValue
         );
 
-        return () => {
-            window.removeEventListener(
-                "storage",
-                handleStorage
-            );
-        };
-    }, []);
+        return;
+      }
 
-    // =====================================================
-    // CONTEXT VALUE
-    // =====================================================
+      // Storage item removed or cleared.
+      setThemeState(
+        getInitialTheme()
+      );
+    };
 
-    const value = useMemo(
-        () => ({
-            theme,
-
-            isDark: theme === THEMES.DARK,
-            isLight: theme === THEMES.LIGHT,
-
-            setTheme,
-            toggleTheme,
-        }),
-        [
-            theme,
-            setTheme,
-            toggleTheme,
-        ]
+    window.addEventListener(
+      "storage",
+      handleStorage
     );
 
-    return (
-        <ThemeContext.Provider value={value}>
-            {children}
-        </ThemeContext.Provider>
-    );
+    return () => {
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+    };
+  }, []);
+
+  // =====================================================
+  // CONTEXT VALUE
+  // =====================================================
+
+  const value = useMemo(
+    () => ({
+      theme,
+
+      isDark:
+        theme === THEMES.DARK,
+
+      isLight:
+        theme === THEMES.LIGHT,
+
+      // Compatibility with Navbar/App
+      isDarkMode:
+        theme === THEMES.DARK,
+
+      setTheme,
+      toggleTheme,
+    }),
+    [
+      theme,
+      setTheme,
+      toggleTheme,
+    ]
+  );
+
+  // =====================================================
+  // PROVIDER
+  // =====================================================
+
+  return (
+    <ThemeContext.Provider
+      value={value}
+    >
+      {children}
+    </ThemeContext.Provider>
+  );
 };
+
+// =========================================================
+// USE THEME HOOK
+// =========================================================
+
+export const useTheme = () => {
+  const context = useContext(
+    ThemeContext
+  );
+
+  if (!context) {
+    throw new Error(
+      "useTheme() ThemeProvider ichida " +
+      "ishlatilishi kerak."
+    );
+  }
+
+  return context;
+};
+
+// =========================================================
+// DEFAULT EXPORT
+// =========================================================
 
 export default ThemeProvider;

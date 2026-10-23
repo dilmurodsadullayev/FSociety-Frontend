@@ -1,17 +1,21 @@
 
-import React, { useEffect } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
 
 import {
-    BrowserRouter as Router,
-    Routes,
-    Route,
-    Outlet,
-    Navigate,
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Outlet,
+  Navigate,
 } from "react-router-dom";
 
 import {
-    useDispatch,
-    useSelector,
+  useDispatch,
+  useSelector,
 } from "react-redux";
 
 // =========================================================
@@ -19,27 +23,27 @@ import {
 // =========================================================
 
 import {
-    Main,
-    Navbar,
-    Footer,
-    Login,
-    Register,
-    Problems,
-    Feedback,
-    FCoin,
-    Users,
-    Profile,
-    NotFound,
-    ProblemDetail,
-    ProblemCreate,
-    ProblemSolutionUpdate,
-    FCoinHistory,
-    NotificationsPage,
-    MyProblems,
-    ProjectDetail,
-    PostDetail,
-    Projects,
-    SocialCallback,
+  Main,
+  Navbar,
+  Footer,
+  Login,
+  Register,
+  Problems,
+  Feedback,
+  FCoin,
+  Users,
+  Profile,
+  NotFound,
+  ProblemDetail,
+  ProblemCreate,
+  ProblemSolutionUpdate,
+  FCoinHistory,
+  NotificationsPage,
+  MyProblems,
+  ProjectDetail,
+  PostDetail,
+  Projects,
+  SocialCallback,
 } from "./components";
 
 // =========================================================
@@ -49,14 +53,13 @@ import {
 import AuthService from "./services/auth";
 
 // =========================================================
-// AUTH REDUX ACTIONS
+// REDUX AUTH
 // =========================================================
 
 import {
-    logoutUser,
-    signUserSuccess,
-    signUserStart,
-    signUserFailure,
+  logoutUser,
+  signUserStart,
+  signUserSuccess,
 } from "./features/auth/Auth";
 
 // =========================================================
@@ -64,643 +67,797 @@ import {
 // =========================================================
 
 import {
-    connectWebSocket,
-    disconnectWebSocket,
+  connectWebSocket,
+  disconnectWebSocket,
 } from "./middleware/notificationMiddleware";
 
 // =========================================================
-// GLOBAL UI COMPONENTS
+// GLOBAL UI
 // =========================================================
 
-// Shared loader used throughout the application.
 import AppLoader from "./components/AppLoader";
 
-// Global toast notification system.
 import AuthToast from "./components/ui/AuthToast";
 
 // =========================================================
-// FSOCIETY — APP
-//
-// Global responsibilities:
-//
-// - Application routing
-// - Authentication initialization
-// - Protected routes
-// - Public authentication routes
-// - Notification WebSocket lifecycle
-// - Forced logout event
-// - Shared application layout
-// - Global toast notifications
-//
-// AppLoader is imported from:
-// src/components/AppLoader.jsx
-//
-// Theme management remains in:
-// src/context/ThemeContext.jsx
-//
-// No duplicate loader markup.
-// No independent theme state.
+// THEME CONTEXT
 // =========================================================
+
+import {
+  ThemeContext,
+  ThemeProvider,
+} from "./context/ThemeContext";
+
+// =========================================================
+// FSOCIETY — APPLICATION
+// =========================================================
+//
+// Responsibilities:
+//
+// - Routing
+// - ThemeContext integration
+// - Light / Dark mode
+// - Navbar theme toggle
+// - Authentication bootstrap
+// - Protected routes
+// - Public authentication pages
+// - OAuth callback
+// - WebSocket notifications
+// - Forced logout handling
+// - Global toast
+//
+// IMPORTANT:
+//
+// Theme state is managed ONLY by ThemeContext.
+//
+// App.js does not create another theme state.
+// App.js does not write theme to localStorage.
+// App.js does not directly modify HTML classes.
+//
+// =========================================================
+
+// =========================================================
+// AUTHENTICATED USER NORMALIZER
+// =========================================================
+
+const getAuthenticatedUser = (response) => {
+  const user =
+    response?.user ??
+    response;
+
+  if (
+    !user ||
+    typeof user !== "object" ||
+    Array.isArray(user)
+  ) {
+    return null;
+  }
+
+  if (
+    user.id === null ||
+    user.id === undefined ||
+    user.id === ""
+  ) {
+    return null;
+  }
+
+  return user;
+};
 
 // =========================================================
 // PRIVATE ROUTE
-//
-// Protects authenticated pages.
-//
-// While Redux is checking authentication,
-// display the shared AppLoader.
-//
-// Unauthorized users are redirected to /login.
 // =========================================================
 
 const PrivateRoute = ({ children }) => {
-    const {
-        isLoggedIn,
-        isLoading,
-    } = useSelector((state) => state.auth);
+  const {
+    isLoggedIn,
+    isLoading,
+  } = useSelector(
+    (state) => state.auth
+  );
 
-    // =====================================================
-    // AUTHENTICATION LOADING
-    // =====================================================
+  // =====================================================
+  // INITIAL AUTH LOADING
+  // =====================================================
 
-    if (isLoading) {
-        return <AppLoader />;
-    }
+  if (isLoading) {
+    return <AppLoader />;
+  }
 
-    // =====================================================
-    // AUTHENTICATED / UNAUTHENTICATED
-    // =====================================================
+  // =====================================================
+  // NOT AUTHENTICATED
+  // =====================================================
 
-    if (!isLoggedIn) {
-        return (
-            <Navigate
-                to="/login"
-                replace
-            />
-        );
-    }
+  if (!isLoggedIn) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
+  }
 
-    return children;
+  // =====================================================
+  // AUTHENTICATED
+  // =====================================================
+
+  return children;
 };
 
 // =========================================================
 // PUBLIC AUTH PAGE
+// =========================================================
 //
 // Used by:
 // - Login
 // - Register
 //
-// While authentication is loading,
-// display the same shared AppLoader.
+// Login/Register contain their own AuthPageLayout.
 //
-// Authenticated users are redirected home.
+// ThemeContext applies the HTML "dark" class,
+// so no local theme state is required.
+//
 // =========================================================
 
 const PublicAuthPage = ({ children }) => {
-    const {
-        isLoggedIn,
-        isLoading,
-    } = useSelector((state) => state.auth);
+  const {
+    isLoggedIn,
+    isLoading,
+  } = useSelector(
+    (state) => state.auth
+  );
 
-    // =====================================================
-    // AUTHENTICATION LOADING
-    // =====================================================
+  // =====================================================
+  // AUTH LOADING
+  // =====================================================
 
-    if (isLoading) {
-        return <AppLoader />;
-    }
+  if (isLoading) {
+    return <AppLoader />;
+  }
 
-    // =====================================================
-    // ALREADY AUTHENTICATED
-    // =====================================================
+  // =====================================================
+  // ALREADY AUTHENTICATED
+  // =====================================================
 
-    if (isLoggedIn) {
-        return (
-            <Navigate
-                to="/"
-                replace
-            />
-        );
-    }
-
-    // =====================================================
-    // PUBLIC AUTH LAYOUT
-    //
-    // Light and dark themes are supported.
-    // =====================================================
-
+  if (isLoggedIn) {
     return (
-        <div
-            className="
-                flex
-                min-h-screen
-                min-h-[100dvh]
-                w-full
-                min-w-0
-
-                items-center
-                justify-center
-
-                bg-slate-50
-                text-slate-900
-
-                transition-colors
-                duration-200
-
-                dark:bg-[#0d1117]
-                dark:text-gray-100
-
-                motion-reduce:transition-none
-            "
-        >
-            {children}
-        </div>
+      <Navigate
+        to="/"
+        replace
+      />
     );
+  }
+
+  // =====================================================
+  // PUBLIC PAGE
+  // =====================================================
+
+  return (
+    <div
+      className="
+        relative
+
+        flex min-h-screen
+        min-h-[100dvh]
+
+        w-full min-w-0
+        flex-col
+
+        bg-[#f7faff]
+        text-slate-900
+
+        dark:bg-[#050a14]
+        dark:text-slate-100
+
+        transition-colors
+        duration-200
+
+        motion-reduce:transition-none
+      "
+    >
+      {children}
+    </div>
+  );
 };
 
 // =========================================================
 // APP LAYOUT
+// =========================================================
 //
-// All protected application pages use:
+// Navbar theme props come from ThemeContext.
 //
-// - Navbar
-// - Main content
-// - Footer
+// This preserves the existing Navbar contract:
 //
-// Protected route behavior is preserved.
+// <Navbar
+//   isDarkMode={isDarkMode}
+//   toggleTheme={toggleTheme}
+// />
+//
 // =========================================================
 
 const AppLayout = () => {
-    return (
-        <PrivateRoute>
-            <div
-                className="
-                    flex
-                    min-h-screen
-                    min-h-[100dvh]
-                    w-full
-                    min-w-0
-                    flex-col
-                "
-            >
-                {/* ======================================
-                    NAVBAR
-                ====================================== */}
+  // =====================================================
+  // THEME CONTEXT
+  // =====================================================
 
-                <Navbar />
+  const {
+    isDark,
+    toggleTheme,
+  } = useContext(ThemeContext);
 
-                {/* ======================================
-                    MAIN CONTENT
-                ====================================== */}
+  const isDarkMode = isDark;
 
-                <div
-                    className="
-                        min-w-0
-                        flex-grow
+  // =====================================================
+  // RENDER
+  // =====================================================
 
-                        bg-gray-100
-                        text-gray-800
+  return (
+    <PrivateRoute>
+      <div
+        className="
+          flex min-h-screen
+          min-h-[100dvh]
 
-                        transition-colors
-                        duration-150
+          w-full min-w-0
+          flex-col
 
-                        dark:bg-[#0d1117]
-                        dark:text-gray-200
+          bg-gray-100
+          text-gray-800
 
-                        motion-reduce:transition-none
-                    "
-                >
-                    <Outlet />
-                </div>
+          dark:bg-[#0d1117]
+          dark:text-gray-200
 
-                {/* ======================================
-                    FOOTER
-                ====================================== */}
+          transition-colors
+          duration-300
 
-                <Footer />
-            </div>
-        </PrivateRoute>
-    );
+          motion-reduce:transition-none
+        "
+      >
+        {/* =====================================
+            NAVBAR
+           ===================================== */}
+
+        <Navbar
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
+        />
+
+        {/* =====================================
+            MAIN CONTENT
+           ===================================== */}
+
+        <div
+          className="
+            min-w-0
+            flex-grow
+
+            bg-gray-100
+            text-gray-800
+
+            dark:bg-[#0d1117]
+            dark:text-gray-200
+
+            transition-colors
+            duration-300
+
+            motion-reduce:transition-none
+          "
+        >
+          <Outlet />
+        </div>
+
+        {/* =====================================
+            FOOTER
+           ===================================== */}
+
+        <Footer />
+      </div>
+    </PrivateRoute>
+  );
 };
 
 // =========================================================
 // APP CONTENT
-//
-// Handles:
-//
-// 1. Initial authentication check
-// 2. Force logout events
-// 3. WebSocket notifications
-// 4. Application routes
 // =========================================================
 
-const AppContent = () => {
-    const dispatch = useDispatch();
+function AppContent() {
+  const dispatch = useDispatch();
 
-    // =====================================================
-    // AUTH STATE
-    // =====================================================
+  // =====================================================
+  // AUTH STATE
+  // =====================================================
 
-    const isLoggedIn = useSelector(
-        (state) => Boolean(state.auth?.isLoggedIn)
+  const isLoggedIn = useSelector(
+    (state) =>
+      Boolean(state.auth?.isLoggedIn)
+  );
+
+  // =====================================================
+  // AUTH REQUEST GENERATION
+  //
+  // Prevent an outdated auth response
+  // from restoring a logged-out user.
+  // =====================================================
+
+  const authGenerationRef = useRef(0);
+
+  // =====================================================
+  // FORCE LOGOUT LISTENER
+  // =====================================================
+  //
+  // services/api.js emits "auth:logout"
+  // when refresh authentication fails.
+  //
+  // Register the listener before starting
+  // the initial user session request.
+  //
+  // =====================================================
+
+  useEffect(() => {
+    const handleForceLogout = () => {
+      // Invalidate pending auth checks.
+      ++authGenerationRef.current;
+
+      // Clear Redux authentication.
+      dispatch(logoutUser());
+
+      // Disconnect notification socket.
+      dispatch(
+        disconnectWebSocket()
+      );
+    };
+
+    window.addEventListener(
+      "auth:logout",
+      handleForceLogout
     );
 
-    // =====================================================
-    // THEME
-    //
-    // Theme is managed by ThemeContext.
-    //
-    // Do not create a second theme state here.
-    // =====================================================
+    return () => {
+      window.removeEventListener(
+        "auth:logout",
+        handleForceLogout
+      );
+    };
+  }, [dispatch]);
 
-    // =====================================================
-    // INITIAL AUTHENTICATION CHECK
-    //
-    // Verify current user from backend.
-    //
-    // Preserve:
-    // - signUserStart
-    // - signUserSuccess
-    // - signUserFailure
-    // - logoutUser
-    //
-    // Ignore results after unmount.
-    // =====================================================
+  // =====================================================
+  // INITIAL AUTHENTICATION CHECK
+  // =====================================================
+  //
+  // Verify existing JWT cookie session.
+  //
+  // Existing endpoint:
+  // GET /users/user/
+  //
+  // The Axios instance handles cookies
+  // and token refresh.
+  //
+  // =====================================================
 
-    useEffect(() => {
-        let isMounted = true;
+  useEffect(() => {
+    let isMounted = true;
 
-        const checkUserStatus = async () => {
-            dispatch(signUserStart());
+    const currentGeneration =
+      ++authGenerationRef.current;
 
-            try {
-                const response =
-                    await AuthService.getUser();
+    // ===================================================
+    // REQUEST VALIDITY
+    // ===================================================
 
-                if (!isMounted) {
-                    return;
-                }
+    const isCurrentRequest = () =>
+      isMounted &&
+      currentGeneration ===
+        authGenerationRef.current;
 
-                if (response && response.id) {
-                    dispatch(
-                        signUserSuccess(response)
-                    );
+    // ===================================================
+    // CHECK USER STATUS
+    // ===================================================
 
-                    return;
-                }
+    const checkUserStatus = async () => {
+      dispatch(
+        signUserStart()
+      );
 
-                dispatch(
-                    signUserFailure(
-                        "Foydalanuvchi ma'lumotlari topilmadi."
-                    )
-                );
+      try {
+        const response =
+          await AuthService.getUser();
 
-                dispatch(logoutUser());
-            } catch (error) {
-                if (!isMounted) {
-                    return;
-                }
-
-                dispatch(
-                    signUserFailure(
-                        error?.message ||
-                        "Autentifikatsiya tekshiruvida xatolik yuz berdi."
-                    )
-                );
-
-                dispatch(logoutUser());
-            }
-        };
-
-        checkUserStatus();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [dispatch]);
-
-    // =====================================================
-    // FORCE LOGOUT EVENT
-    //
-    // Event name:
-    // auth:logout
-    //
-    // Preserve:
-    // - Redux logout
-    // - WebSocket disconnect
-    // - Event listener cleanup
-    // =====================================================
-
-    useEffect(() => {
-        const handleForceLogout = () => {
-            dispatch(logoutUser());
-
-            dispatch(
-                disconnectWebSocket()
-            );
-        };
-
-        window.addEventListener(
-            "auth:logout",
-            handleForceLogout
-        );
-
-        return () => {
-            window.removeEventListener(
-                "auth:logout",
-                handleForceLogout
-            );
-        };
-    }, [dispatch]);
-
-    // =====================================================
-    // WEBSOCKET NOTIFICATIONS
-    //
-    // Authenticated:
-    // Connect WebSocket.
-    //
-    // Unauthenticated:
-    // Disconnect WebSocket.
-    //
-    // Cleanup:
-    // Disconnect on effect cleanup.
-    // =====================================================
-
-    useEffect(() => {
-        if (isLoggedIn) {
-            dispatch(
-                connectWebSocket()
-            );
-        } else {
-            dispatch(
-                disconnectWebSocket()
-            );
+        if (!isCurrentRequest()) {
+          return;
         }
 
-        return () => {
-            dispatch(
-                disconnectWebSocket()
-            );
-        };
-    }, [
-        dispatch,
-        isLoggedIn,
-    ]);
+        const authenticatedUser =
+          getAuthenticatedUser(
+            response
+          );
 
-    // =====================================================
-    // APPLICATION ROUTES
-    //
-    // All existing routes preserved.
-    // =====================================================
+        // ===============================================
+        // VALID SESSION
+        // ===============================================
 
-    return (
-        <Routes>
-            {/* ==========================================
-                PUBLIC AUTH ROUTES
-            ========================================== */}
+        if (authenticatedUser) {
+          dispatch(
+            signUserSuccess(
+              authenticatedUser
+            )
+          );
 
-            <Route
-                path="/login"
-                element={
-                    <PublicAuthPage>
-                        <Login />
-                    </PublicAuthPage>
-                }
-            />
+          return;
+        }
 
-            <Route
-                path="/register"
-                element={
-                    <PublicAuthPage>
-                        <Register />
-                    </PublicAuthPage>
-                }
-            />
+        // ===============================================
+        // NO AUTHENTICATED USER
+        // ===============================================
 
-            {/* ==========================================
-                SOCIAL AUTH CALLBACK
-            ========================================== */}
+        dispatch(
+          logoutUser()
+        );
+      } catch (error) {
+        if (!isCurrentRequest()) {
+          return;
+        }
 
-            <Route
-                path="/callback/:provider"
-                element={
-                    <div
-                        className="
-                            flex
-                            min-h-screen
-                            min-h-[100dvh]
-                            w-full
-                            min-w-0
+        // ===============================================
+        // AUTH CHECK FAILED
+        // ===============================================
+        //
+        // A 401 response can mean the visitor
+        // is simply not authenticated.
+        //
+        // Do not show a global error toast.
+        //
+        // Do not use signUserFailure here,
+        // because this is initial auth checking,
+        // not a failed Login form submission.
+        //
+        // ===============================================
 
-                            items-center
-                            justify-center
+        dispatch(
+          logoutUser()
+        );
+      }
+    };
 
-                            bg-slate-50
-                            text-slate-900
+    checkUserStatus();
 
-                            dark:bg-[#0d1117]
-                            dark:text-gray-100
-                        "
-                    >
-                        <SocialCallback />
-                    </div>
-                }
-            />
+    // ===================================================
+    // CLEANUP
+    // ===================================================
 
-            {/* ==========================================
-                PRIVATE APPLICATION ROUTES
-            ========================================== */}
+    return () => {
+      isMounted = false;
 
-            <Route
-                path="/"
-                element={<AppLayout />}
-            >
-                {/* ======================================
-                    HOME
-                ====================================== */}
+      ++authGenerationRef.current;
+    };
+  }, [dispatch]);
 
-                <Route
-                    index
-                    element={<Main />}
-                />
+  // =====================================================
+  // WEBSOCKET NOTIFICATIONS
+  // =====================================================
+  //
+  // Signed in:
+  // - Connect notification WebSocket
+  //
+  // Signed out:
+  // - Disconnect notification WebSocket
+  //
+  // =====================================================
 
-                {/* ======================================
-                    PROBLEMS
-                ====================================== */}
+  useEffect(() => {
+    if (isLoggedIn) {
+      dispatch(
+        connectWebSocket()
+      );
+    } else {
+      dispatch(
+        disconnectWebSocket()
+      );
+    }
 
-                <Route
-                    path="problems"
-                    element={<Problems />}
-                />
+    return () => {
+      dispatch(
+        disconnectWebSocket()
+      );
+    };
+  }, [
+    dispatch,
+    isLoggedIn,
+  ]);
 
-                <Route
-                    path="my-problems"
-                    element={<MyProblems />}
-                />
+  // =====================================================
+  // ROUTES
+  // =====================================================
 
-                {/* CREATE PROBLEM */}
+  return (
+    <Routes>
+      {/* ==========================================
+          PUBLIC AUTHENTICATION
+         ========================================== */}
 
-                <Route
-                    path="problem-create"
-                    element={<ProblemCreate />}
-                />
+      {/* LOGIN */}
 
-                {/* EDIT PROBLEM */}
+      <Route
+        path="/login"
+        element={
+          <PublicAuthPage>
+            <Login />
+          </PublicAuthPage>
+        }
+      />
 
-                <Route
-                    path="problem/:id/edit"
-                    element={<ProblemCreate />}
-                />
+      {/* REGISTER */}
 
-                {/* EDIT SOLUTION */}
+      <Route
+        path="/register"
+        element={
+          <PublicAuthPage>
+            <Register />
+          </PublicAuthPage>
+        }
+      />
 
-                <Route
-                    path="problem/:id/solution/:solutionId/edit"
-                    element={<ProblemSolutionUpdate />}
-                />
+      {/* ==========================================
+          OAUTH CALLBACK
+         ========================================== */}
 
-                {/* PROBLEM DETAIL */}
+      <Route
+        path="/callback/:provider"
+        element={
+          <div
+            className="
+              flex min-h-screen
+              min-h-[100dvh]
 
-                <Route
-                    path="problem/:id/detail"
-                    element={<ProblemDetail />}
-                />
+              w-full min-w-0
 
-                {/* ======================================
-                    FEEDBACK
-                ====================================== */}
+              items-center
+              justify-center
 
-                <Route
-                    path="feedback"
-                    element={<Feedback />}
-                />
+              bg-slate-50
+              text-slate-900
 
-                {/* ======================================
-                    FCOIN
-                ====================================== */}
+              dark:bg-[#0d1117]
+              dark:text-gray-100
 
-                <Route
-                    path="fcoin"
-                    element={<FCoin />}
-                />
+              transition-colors
+              duration-200
+            "
+          >
+            <SocialCallback />
+          </div>
+        }
+      />
 
-                <Route
-                    path="fcoin-history"
-                    element={<FCoinHistory />}
-                />
+      {/* ==========================================
+          PROTECTED APPLICATION
+         ========================================== */}
 
-                {/* ======================================
-                    USERS AND PROFILE
-                ====================================== */}
+      <Route
+        path="/"
+        element={
+          <AppLayout />
+        }
+      >
+        {/* ======================================
+            HOME
+           ====================================== */}
 
-                <Route
-                    path="users"
-                    element={<Users />}
-                />
+        <Route
+          index
+          element={<Main />}
+        />
 
-                <Route
-                    path=":username/profile"
-                    element={<Profile />}
-                />
+        {/* ======================================
+            PROBLEMS
+           ====================================== */}
 
-                {/* ======================================
-                    PROJECTS
-                ====================================== */}
+        <Route
+          path="problems"
+          element={<Problems />}
+        />
 
-                <Route
-                    path="projects"
-                    element={<Projects />}
-                />
+        <Route
+          path="my-problems"
+          element={<MyProblems />}
+        />
 
-                <Route
-                    path="project/:projectId/detail"
-                    element={<ProjectDetail />}
-                />
+        <Route
+          path="problem-create"
+          element={<ProblemCreate />}
+        />
 
-                {/* ======================================
-                    NOTIFICATIONS
-                ====================================== */}
+        <Route
+          path="problem/:id/edit"
+          element={<ProblemCreate />}
+        />
 
-                <Route
-                    path="notifications"
-                    element={<NotificationsPage />}
-                />
+        <Route
+          path="problem/:id/solution/:solutionId/edit"
+          element={
+            <ProblemSolutionUpdate />
+          }
+        />
 
-                {/* ======================================
-                    POSTS
-                ====================================== */}
+        <Route
+          path="problem/:id/detail"
+          element={<ProblemDetail />}
+        />
 
-                <Route
-                    path=":username/post/:slug/"
-                    element={<PostDetail />}
-                />
-            </Route>
+        {/* ======================================
+            FEEDBACK
+           ====================================== */}
 
-            {/* ==========================================
-                NOT FOUND
+        <Route
+          path="feedback"
+          element={<Feedback />}
+        />
 
-                Public 404 fallback.
-                Light/Dark Mode supported.
-            ========================================== */}
+        {/* ======================================
+            FCOIN
+           ====================================== */}
 
-            <Route
-                path="*"
-                element={
-                    <div
-                        className="
-                            flex
-                            min-h-screen
-                            min-h-[100dvh]
-                            w-full
-                            min-w-0
+        <Route
+          path="fcoin"
+          element={<FCoin />}
+        />
 
-                            items-center
-                            justify-center
+        <Route
+          path="fcoin-history"
+          element={<FCoinHistory />}
+        />
 
-                            bg-slate-50
-                            text-slate-900
+        {/* ======================================
+            USERS / PROFILE
+           ====================================== */}
 
-                            dark:bg-[#0d1117]
-                            dark:text-gray-100
-                        "
-                    >
-                        <NotFound />
-                    </div>
-                }
-            />
-        </Routes>
-    );
+        <Route
+          path="users"
+          element={<Users />}
+        />
+
+        <Route
+          path=":username/profile"
+          element={<Profile />}
+        />
+
+        {/* ======================================
+            PROJECTS
+           ====================================== */}
+
+        <Route
+          path="projects"
+          element={<Projects />}
+        />
+
+        <Route
+          path="project/:projectId/detail"
+          element={<ProjectDetail />}
+        />
+
+        {/* ======================================
+            NOTIFICATIONS
+           ====================================== */}
+
+        <Route
+          path="notifications"
+          element={<NotificationsPage />}
+        />
+
+        {/* ======================================
+            POSTS
+           ====================================== */}
+
+        <Route
+          path=":username/post/:slug/"
+          element={<PostDetail />}
+        />
+      </Route>
+
+      {/* ==========================================
+          NOT FOUND
+         ========================================== */}
+
+      <Route
+        path="*"
+        element={
+          <div
+            className="
+              flex min-h-screen
+              min-h-[100dvh]
+
+              w-full min-w-0
+
+              items-center
+              justify-center
+
+              bg-slate-50
+              text-slate-900
+
+              dark:bg-[#0d1117]
+              dark:text-gray-100
+
+              transition-colors
+              duration-200
+            "
+          >
+            <NotFound />
+          </div>
+        }
+      />
+    </Routes>
+  );
+}
+
+// =========================================================
+// ROOT APPLICATION CONTENT
+// =========================================================
+
+const AppInner = () => {
+  return (
+    <Router>
+      {/* =====================================
+          UNIVERSAL TOAST
+         ===================================== */}
+
+      <AuthToast />
+
+      {/* =====================================
+          APPLICATION
+         ===================================== */}
+
+      <AppContent />
+    </Router>
+  );
 };
 
 // =========================================================
 // ROOT APP
+// =========================================================
 //
-// Router is mounted once.
+// ThemeProvider can be installed in index.js:
 //
-// AuthToast remains mounted globally.
+// <ThemeProvider>
+//   <App />
+// </ThemeProvider>
 //
-// AppLoader is rendered by authentication
-// wrappers when Redux auth is loading.
+// Or App can be rendered directly:
 //
-// Existing application routes are preserved.
+// <App />
+//
+// If ThemeProvider already exists above App,
+// reuse it.
+//
+// Otherwise, create one provider.
+//
+// This prevents duplicate theme state.
+//
 // =========================================================
 
-const App = () => {
-    return (
-        <Router>
-            {/* ======================================
-                GLOBAL TOAST SYSTEM
-            ====================================== */}
+function App() {
+  const existingThemeContext =
+    useContext(ThemeContext);
 
-            <AuthToast />
+  // =====================================================
+  // EXISTING THEME PROVIDER
+  // =====================================================
 
-            {/* ======================================
-                APPLICATION
-            ====================================== */}
+  if (existingThemeContext) {
+    return <AppInner />;
+  }
 
-            <AppContent />
-        </Router>
-    );
-};
+  // =====================================================
+  // PROVIDE THEME IF NOT INSTALLED
+  // =====================================================
+
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
+  );
+}
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default App;
