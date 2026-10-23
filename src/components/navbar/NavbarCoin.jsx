@@ -1,214 +1,235 @@
 
-import React from "react";
+import React, { memo, useMemo } from "react";
 
-import {
-    Link,
-} from "react-router-dom";
-
-// =========================================================
-// ASSETS
-// =========================================================
+import { Link } from "react-router-dom";
 
 import FCoinIcon from "../../assests/coin/fcoin.png";
 
+import {
+  formatCompactNumber,
+  formatFullNumber,
+} from "../../utils/formatCompactNumber";
+
 // =========================================================
 // FSOCIETY — NAVBAR FCOIN
+// =========================================================
 //
-// Dark Mode:
-// Original cyber-gold appearance.
+// Location:
+// src/components/navbar/NavbarCoin.jsx
 //
-// Light Mode:
-// Soft amber-gold premium appearance.
+// Features:
+// - Compact FCoin values
+// - Full balance tooltip
+// - Existing FCoin icon
+// - FCoin history navigation
+// - Responsive design
+// - Light / Dark mode
+// - Accessible balance label
 //
-// Performance:
-// CSS transitions only.
+// IMPORTANT:
+// Uses existing formatCompactNumber utility.
+// Backend values are never modified.
 // =========================================================
 
-const NavbarCoin = ({
-    coins = 0,
-}) => {
+function NavbarCoin({
+  coins = 0,
+  className = "",
+}) {
+  // =====================================================
+  // BALANCE FORMATTING
+  // =====================================================
 
-    // =====================================================
-    // COIN BALANCE
-    // =====================================================
+  const {
+    compactBalance,
+    fullBalance,
+  } = useMemo(
+    () => ({
+      compactBalance:
+        formatCompactNumber(coins),
 
-    const balance = coins ?? 0;
+      fullBalance:
+        formatFullNumber(coins),
+    }),
+    [coins]
+  );
 
-    // =====================================================
-    // JSX
-    // =====================================================
+  // =====================================================
+  // RENDER
+  // =====================================================
 
-    return (
-        <Link
-            to="/fcoin-history"
-            aria-label={`FCoin tarixi. Balans: ${balance}`}
-            title="FCoin tarixini ko'rish"
+  return (
+    <Link
+      to="/fcoin-history"
 
-            className="
-                group/fcoin
-                relative
+      aria-label={
+        `FCoin tarixi. Balans: ${fullBalance} FCoin`
+      }
 
-                hidden
-                shrink-0
-                items-center
-                gap-2
+      title={`${fullBalance} FCoin`}
 
-                overflow-hidden
+      className={`
+        group/fcoin
+        relative
 
-                rounded-full
-                border
+        inline-flex
+        h-9
+        min-w-0
+        shrink-0
 
-                border-amber-400/25
-                bg-gradient-to-r
-                from-amber-50
-                to-orange-50/80
+        items-center
+        justify-center
 
-                py-1
-                pl-1
-                pr-3
+        gap-1.5
 
-                shadow-[0_2px_10px_rgba(180,83,9,0.05)]
+        overflow-hidden
+        whitespace-nowrap
 
-                transition-colors
-                duration-150
+        rounded-full
 
-                hover:border-amber-400/50
+        border
+        border-amber-400/30
 
-                sm:flex
+        bg-gradient-to-r
+        from-amber-50
+        to-orange-50/90
 
-                focus-visible:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-amber-500
+        py-1
+        pl-1
+        pr-2.5
 
-                dark:border-amber-400/15
-                dark:from-amber-400/[0.035]
-                dark:to-amber-500/[0.025]
+        shadow-[0_3px_12px_rgba(180,83,9,0.06)]
 
-                dark:shadow-none
+        transition-[border-color,background-color,box-shadow]
+        duration-200
 
-                dark:hover:border-amber-400/30
-            "
-        >
+        hover:border-amber-400/60
+        hover:shadow-[0_5px_18px_rgba(180,83,9,0.10)]
 
-            {/* ==========================================
-                HOVER GLOW
-            ========================================== */}
+        focus-visible:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-amber-500
+        focus-visible:ring-offset-2
 
-            <span
-                aria-hidden="true"
+        dark:border-amber-400/20
+        dark:from-amber-400/[0.06]
+        dark:to-orange-400/[0.03]
 
-                className="
-                    pointer-events-none
-                    absolute
-                    inset-0
+        dark:shadow-none
+        dark:hover:border-amber-400/40
+        dark:focus-visible:ring-offset-[#080c12]
 
-                    bg-amber-400/[0.04]
+        sm:h-10
 
-                    opacity-0
+        ${className}
+      `}
+    >
+      {/* HOVER LIGHT */}
 
-                    transition-opacity
-                    duration-150
+      <span
+        aria-hidden="true"
+        className="
+          pointer-events-none
 
-                    group-hover/fcoin:opacity-100
+          absolute inset-0
 
-                    dark:bg-amber-400/[0.035]
-                "
-            />
+          bg-amber-400/[0.05]
 
-            {/* ==========================================
-                COIN ICON CONTAINER
-            ========================================== */}
+          opacity-0
 
-            <span
-                className="
-                    relative
-                    z-10
+          transition-opacity
+          duration-200
 
-                    grid
-                    h-9
-                    w-9
+          group-hover/fcoin:opacity-100
+        "
+      />
 
-                    shrink-0
-                    place-items-center
+      {/* COIN ICON */}
 
-                    rounded-full
+      <span
+        className="
+          relative z-10
 
-                    border
-                    border-amber-400/25
+          grid
+          h-7 w-7
+          shrink-0
 
-                    bg-amber-400/[0.10]
+          place-items-center
 
-                    shadow-[inset_0_0_12px_rgba(245,158,11,0.04)]
+          rounded-full
 
-                    transition-transform
-                    duration-200
+          border border-amber-400/30
+          bg-amber-400/[0.12]
 
-                    group-hover/fcoin:rotate-[8deg]
-                    group-hover/fcoin:scale-105
+          transition-transform
+          duration-200
 
-                    dark:border-amber-400/20
-                    dark:bg-amber-400/[0.06]
+          group-hover/fcoin:scale-105
+          group-hover/fcoin:rotate-[8deg]
 
-                    motion-reduce:transition-none
-                    motion-reduce:transform-none
-                "
-            >
+          dark:border-amber-400/20
+          dark:bg-amber-400/[0.07]
 
-                {/* ======================================
-                    FCOIN IMAGE
-                ====================================== */}
+          sm:h-8 sm:w-8
 
-                <img
-                    src={FCoinIcon}
-                    alt=""
-                    draggable={false}
+          motion-reduce:transform-none
+          motion-reduce:transition-none
+        "
+      >
+        <img
+          src={FCoinIcon}
+          alt=""
+          draggable={false}
+          width={26}
+          height={26}
+          className="
+            h-5 w-5
+            select-none
+            object-contain
 
-                    className="
-                        h-6
-                        w-6
+            sm:h-6 sm:w-6
+          "
+        />
+      </span>
 
-                        object-contain
-                    "
-                />
+      {/* COMPACT BALANCE */}
 
-            </span>
+      <span
+        className="
+          relative z-10
 
-            {/* ==========================================
-                COIN BALANCE
-            ========================================== */}
+          min-w-0
 
-            <span
-                className="
-                    relative
-                    z-10
+          font-mono
+          text-[12px]
+          font-extrabold
 
-                    min-w-0
+          leading-none
+          tracking-tight
+          tabular-nums
 
-                    text-[15px]
-                    font-bold
+          text-amber-800
 
-                    tracking-tight
+          transition-colors
+          duration-200
 
-                    text-amber-800
+          group-hover/fcoin:text-amber-700
 
-                    transition-colors
-                    duration-150
+          dark:text-amber-300
+          dark:group-hover/fcoin:text-amber-200
 
-                    group-hover/fcoin:text-amber-700
+          sm:text-[13px]
+        "
+      >
+        {compactBalance}
+      </span>
 
-                    dark:text-amber-300
-                    dark:group-hover/fcoin:text-amber-200
-                "
-            >
-                {balance}
-            </span>
+      {/* SR-ONLY FULL BALANCE */}
 
-        </Link>
-    );
-};
+      <span className="sr-only">
+        To‘liq balans: {fullBalance} FCoin
+      </span>
+    </Link>
+  );
+}
 
-// =========================================================
-// EXPORT
-// =========================================================
-
-export default React.memo(NavbarCoin);
+export default memo(NavbarCoin);

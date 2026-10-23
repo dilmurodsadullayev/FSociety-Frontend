@@ -1,255 +1,256 @@
-
-import React from "react";
+import React, {
+    memo,
+    useCallback,
+    useState,
+} from "react";
 
 import {
     Link,
 } from "react-router-dom";
 
+import NavbarLogoGlitch from "./NavbarLogoGlitch";
+
 import FSocietyLogo from "../../assests/logo/f_society.png";
 
 // =========================================================
 // FSOCIETY — NAVBAR BRAND
+// =========================================================
 //
-// Dark Mode:
-// Original cyber appearance.
-//
-// Light Mode:
-// Clean, professional slate-indigo appearance.
-//
-// Performance:
-// CSS animations only.
+// Features:
+// - Bigger logo and text
+// - Hover text swap: FSociety -> Fix Society
+// - Mr. Robot vibe glitch logo
+// - Responsive
+// - Accessible home link
 // =========================================================
 
-const NavbarBrand = () => {
+function NavbarBrand({
+    className = "",
+    logoSrc = FSocietyLogo,
+    showText = true,
+}) {
+    // =====================================================
+    // HOVER / FOCUS STATE
+    // =====================================================
+
+    const [
+        isGlitchActive,
+        setIsGlitchActive,
+    ] = useState(false);
+
+    const [
+        isHovered,
+        setIsHovered,
+    ] = useState(false);
+
+    // =====================================================
+    // ACTIVATE / DEACTIVATE
+    // =====================================================
+
+    const activateBrand = useCallback(() => {
+        setIsGlitchActive(true);
+        setIsHovered(true);
+    }, []);
+
+    const deactivateBrand = useCallback(() => {
+        setIsGlitchActive(false);
+        setIsHovered(false);
+    }, []);
+
+    // =====================================================
+    // RENDER
+    // =====================================================
+
     return (
         <Link
             to="/"
-            aria-label="FSociety — Bosh sahifa"
-            className="
-                group
+            aria-label="FSociety bosh sahifasi"
+            title="FSociety — Fix Society"
+            onMouseEnter={activateBrand}
+            onMouseLeave={deactivateBrand}
+            onFocus={activateBrand}
+            onBlur={deactivateBrand}
+            className={`
+                group/brand
                 relative
-                z-10
-
-                flex
+                inline-flex
+                min-w-0
                 shrink-0
                 items-center
                 gap-3
-
-                rounded-lg
-
-                focus-visible:outline-none
+                rounded-2xl
+                outline-none
+                transition-all
+                duration-200
+                hover:opacity-95
                 focus-visible:ring-2
                 focus-visible:ring-indigo-500
                 focus-visible:ring-offset-2
                 dark:focus-visible:ring-offset-[#080c12]
-            "
+                motion-reduce:transition-none
+                ${className}
+            `}
         >
-
-            {/* ==========================================
-                LOGO CONTAINER
-            ========================================== */}
-
-            <div
+            {/* ======================================
+                LOGO
+               ====================================== */}
+            <NavbarLogoGlitch
+                active={isGlitchActive}
+                logoSrc={logoSrc}
                 className="
-                    relative
+                    h-11 w-11
+                    rounded-xl
 
-                    flex
-                    h-12
-                    w-12
-                    shrink-0
+                    sm:h-12 sm:w-12
+                    sm:rounded-[14px]
 
-                    items-center
-                    justify-center
+                    lg:h-[50px] lg:w-[50px]
                 "
-            >
+            />
 
-                {/* ======================================
-                    LOGO HOVER GLOW
-                ====================================== */}
-
-                <span
-                    aria-hidden="true"
+            {/* ======================================
+                BRAND TEXT
+               ====================================== */}
+            {showText && (
+                <div
                     className="
-                        pointer-events-none
-
-                        absolute
-                        inset-1
-
-                        rounded-full
-
-                        bg-indigo-500/0
-
-                        opacity-0
-                        blur-xl
-
-                        transition-all
-                        duration-300
-
-                        group-hover:scale-125
-                        group-hover:bg-indigo-500/20
-                        group-hover:opacity-100
-
-                        dark:group-hover:bg-indigo-500/25
-
-                        motion-reduce:transition-none
-                    "
-                />
-
-                {/* ======================================
-                    LOGO IMAGE
-                ====================================== */}
-
-                <img
-                    src={FSocietyLogo}
-                    alt=""
-                    draggable={false}
-                    className="
-                        relative
-                        z-10
-
-                        h-11
-                        w-auto
-                        max-w-none
-
-                        object-contain
-
-                        transition-transform
-                        duration-500
-
-                        ease-[cubic-bezier(0.16,1,0.3,1)]
-
-                        group-hover:rotate-[360deg]
-                        group-hover:scale-105
-
-                        motion-reduce:transition-none
-                        motion-reduce:transform-none
-                    "
-                />
-
-            </div>
-
-            {/* ==========================================
-                BRAND TEXT WRAPPER
-            ========================================== */}
-
-            <div
-                className="
-                    relative
-
-                    hidden
-                    h-[36px]
-                    w-[145px]
-
-                    overflow-hidden
-
-                    sm:block
-                "
-            >
-
-                {/* ======================================
-                    ORIGINAL BRAND — FSOCIETY
-                ====================================== */}
-
-                <span
-                    className="
-                        absolute
-                        left-0
-                        top-1/2
-
-                        -translate-y-1/2
-
-                        whitespace-nowrap
-
-                        text-[24px]
-                        font-bold
+                        hidden
+                        min-w-0
+                        sm:flex
+                        flex-col
+                        justify-center
                         leading-none
-
-                        tracking-[-0.055em]
-
-                        text-slate-900
-
-                        opacity-100
-
-                        transition-all
-                        duration-500
-
-                        ease-[cubic-bezier(0.16,1,0.3,1)]
-
-                        group-hover:-translate-y-[160%]
-                        group-hover:opacity-0
-
-                        dark:text-white
-
-                        motion-reduce:transition-none
                     "
                 >
-                    F
-
+                    {/* Top mini label */}
                     <span
                         className="
-                            text-indigo-600
-                            dark:text-indigo-400
+                            mb-1
+                            text-[10px]
+                            font-black
+                            uppercase
+                            tracking-[0.22em]
+                            text-slate-500
+                            transition-colors
+                            duration-200
+                            dark:text-slate-400
+                            group-hover/brand:text-cyan-600
+                            dark:group-hover/brand:text-cyan-400
                         "
                     >
-                        Society
+                        Build • Share • Solve
                     </span>
 
-                </span>
+                    {/* Main brand swap */}
+                    <div
+                        className="
+                            relative
+                            h-[24px]
+                            min-w-[128px]
+                            overflow-hidden
+                        "
+                    >
+                        {/* Default text */}
+                        <span
+                            className={`
+                                absolute
+                                inset-0
+                                flex
+                                items-center
+                                whitespace-nowrap
+                                font-black
+                                tracking-[-0.04em]
+                                text-slate-900
+                                transition-all
+                                duration-300
+                                dark:text-white
 
-                {/* ======================================
-                    HOVER BRAND — FIX SOCIETY
-                ====================================== */}
+                                text-[22px]
+                                lg:text-[24px]
 
-                <span
-                    className="
-                        absolute
-                        left-0
-                        top-1/2
+                                ${
+                                    isHovered
+                                        ? "translate-y-[-110%] opacity-0"
+                                        : "translate-y-0 opacity-100"
+                                }
+                            `}
+                        >
+                            F
+                            <span
+                                className="
+                                    text-indigo-600
+                                    transition-colors
+                                    duration-200
+                                    dark:text-indigo-400
+                                    group-hover/brand:text-cyan-600
+                                    dark:group-hover/brand:text-cyan-400
+                                "
+                            >
+                                Society
+                            </span>
+                        </span>
 
-                        translate-y-[70%]
+                        {/* Hover text */}
+                        <span
+                            className={`
+                                absolute
+                                inset-0
+                                flex
+                                items-center
+                                whitespace-nowrap
+                                font-black
+                                tracking-[-0.04em]
+                                transition-all
+                                duration-300
 
-                        whitespace-nowrap
+                                text-[20px]
+                                lg:text-[22px]
 
-                        text-[24px]
-                        font-bold
-                        leading-none
+                                text-slate-900
+                                dark:text-white
 
-                        tracking-[-0.055em]
+                                ${
+                                    isHovered
+                                        ? "translate-y-0 opacity-100"
+                                        : "translate-y-[110%] opacity-0"
+                                }
+                            `}
+                        >
+                            <span
+                                className="
+                                    text-cyan-600
+                                    dark:text-cyan-400
+                                "
+                            >
+                                Fix
+                            </span>
+                            <span className="ml-1">
+                                Society
+                            </span>
+                        </span>
+                    </div>
 
-                        text-indigo-600
-
-                        opacity-0
-
-                        transition-all
-                        duration-500
-
-                        ease-[cubic-bezier(0.16,1,0.3,1)]
-
-                        group-hover:-translate-y-1/2
-                        group-hover:opacity-100
-
-                        dark:text-indigo-400
-
-                        motion-reduce:transition-none
-                    "
-                >
-                    Fix{" "}
-
+                    {/* Sub text */}
                     <span
                         className="
-                            text-slate-900
-                            dark:text-white
+                            mt-1
+                            text-[11px]
+                            font-semibold
+                            tracking-[0.08em]
+                            text-slate-500
+                            transition-colors
+                            duration-200
+                            dark:text-slate-400
+                            group-hover/brand:text-slate-700
+                            dark:group-hover/brand:text-slate-300
                         "
                     >
-                        Society
+                        Developer community
                     </span>
-
-                </span>
-
-            </div>
-
+                </div>
+            )}
         </Link>
     );
-};
+}
 
-export default React.memo(NavbarBrand);
+export default memo(NavbarBrand);

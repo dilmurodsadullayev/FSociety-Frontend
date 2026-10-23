@@ -1,190 +1,201 @@
 
-import React from "react";
+import React, { memo } from "react";
+import { Link } from "react-router-dom";
 
-import {
-    Link,
-} from "react-router-dom";
-
-import {
-    NAV_LINKS,
-} from "./navConfig";
+import { NAV_LINKS } from "./navConfig";
 
 // =========================================================
-// FSOCIETY — NAVBAR LINKS
+// FSOCIETY — DESKTOP NAVBAR LINKS
+// =========================================================
 //
-// Dark Mode:
-// Original cyber navigation design.
+//  < 1024px : MobileNavbarSidebar
+//  1024–1279 : Compact icon navigation
+//  >= 1280px : Icons + labels
 //
-// Light Mode:
-// Premium slate-indigo navigation.
+// Preserves:
+// - All NAV_LINKS
+// - Active route styling
+// - Light / Dark mode
+// - Keyboard accessibility
+// - Existing isActive prop
 //
-// Performance:
-// Lightweight CSS transitions only.
 // =========================================================
 
-const NavbarLinks = ({
-    isActive,
-}) => {
+function NavbarLinks({
+  isActive,
+  className = "",
+}) {
+  return (
+    <nav
+      aria-label="Asosiy navigatsiya"
+      className={`
+        hidden lg:flex
 
-    // =====================================================
-    // JSX
-    // =====================================================
+        min-w-0 shrink-0
+        items-center justify-center
 
-    return (
-        <nav
-            aria-label="Asosiy navigatsiya"
-            className="
-                hidden
-                items-center
-                gap-1
+        gap-0.5 xl:gap-1
 
-                rounded-2xl
-                border
+        rounded-2xl
+        border border-[#ccd7e9]/90
+        bg-[#f6f8ff]/80
 
-                border-[#ccd7e9]/90
-                bg-[#f6f8ff]/80
+        p-1
 
-                p-1.5
+        shadow-[0_4px_16px_rgba(30,41,59,0.04)]
 
-                shadow-[0_4px_16px_rgba(30,41,59,0.04)]
+        dark:border-white/[0.08]
+        dark:bg-white/[0.025]
+        dark:shadow-none
 
-                lg:flex
+        ${className}
+      `}
+    >
+      {NAV_LINKS.map((link) => {
+        const {
+          path,
+          text,
+          Icon,
+        } = link;
 
-                dark:border-white/[0.06]
-                dark:bg-white/[0.025]
-                dark:shadow-none
-            "
-        >
+        const active =
+          typeof isActive === "function"
+            ? isActive(path)
+            : false;
 
-            {NAV_LINKS.map(({
-                path,
-                text,
-                Icon,
-            }) => {
+        return (
+          <Link
+            key={path}
+            to={path}
+            title={text}
+            aria-label={text}
+            aria-current={
+              active ? "page" : undefined
+            }
+            className={`
+              group/nav
+              relative
 
-                // =========================================
-                // ACTIVE ROUTE
-                // =========================================
+              inline-flex
+              h-10 shrink-0
 
-                const active =
-                    isActive(path);
+              items-center
+              justify-center
 
-                // =========================================
-                // LINK
-                // =========================================
+              gap-0 xl:gap-2
 
-                return (
-                    <Link
-                        key={path}
-                        to={path}
+              whitespace-nowrap
+              rounded-xl
 
-                        aria-current={
-                            active
-                                ? "page"
-                                : undefined
-                        }
+              px-2.5
+              xl:px-3
+              2xl:px-4
 
-                        className={`
-                            group/nav
-                            relative
+              text-[11px]
+              font-bold
+              uppercase
+              tracking-[0.07em]
 
-                            inline-flex
-                            shrink-0
+              outline-none
 
-                            items-center
-                            justify-center
-                            gap-2
+              transition-[background-color,color,box-shadow]
+              duration-200
 
-                            whitespace-nowrap
+              focus-visible:ring-2
+              focus-visible:ring-indigo-500
 
-                            rounded-xl
+              dark:focus-visible:ring-indigo-400
 
-                            px-4
-                            py-2.5
+              motion-reduce:transition-none
 
-                            text-[12px]
-                            font-bold
+              ${
+                active
+                  ? `
+                    bg-indigo-500/[0.11]
+                    text-indigo-700
 
-                            uppercase
-                            tracking-[0.08em]
+                    shadow-[inset_0_0_0_1px_rgba(79,70,229,0.16)]
 
-                            outline-none
+                    dark:bg-indigo-500/15
+                    dark:text-indigo-300
 
-                            transition-colors
-                            duration-150
+                    dark:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.18)]
+                  `
+                  : `
+                    text-slate-600
 
-                            focus-visible:ring-2
-                            focus-visible:ring-indigo-500
+                    hover:bg-white
+                    hover:text-indigo-700
 
-                            ${
-                                active
-                                    ? `
-                                        bg-indigo-500/[0.10]
-                                        text-indigo-700
+                    dark:text-slate-400
 
-                                        shadow-[inset_0_0_0_1px_rgba(79,70,229,0.14)]
+                    dark:hover:bg-white/[0.07]
+                    dark:hover:text-indigo-300
+                  `
+              }
+            `}
+          >
+            {/* ICON */}
 
-                                        dark:bg-indigo-500/15
-                                        dark:text-indigo-300
+            {Icon && (
+              <Icon
+                size={17}
+                strokeWidth={2}
+                aria-hidden="true"
+                className="
+                  shrink-0
 
-                                        dark:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.18)]
-                                    `
-                                    : `
-                                        text-slate-600
+                  transition-transform
+                  duration-200
 
-                                        hover:bg-white/90
-                                        hover:text-indigo-700
+                  group-hover/nav:scale-105
 
-                                        dark:text-gray-500
+                  motion-reduce:transform-none
+                "
+              />
+            )}
 
-                                        dark:hover:bg-white/[0.035]
-                                        dark:hover:text-gray-200
-                                    `
-                            }
-                        `}
-                    >
+            {/* LABEL
+                Hide labels on compact desktops.
+                Keep aria-label on the Link.
+            */}
 
-                        {/* =================================
-                            ICON
-                        ================================= */}
+            <span
+              className="
+                hidden xl:inline
 
-                        <Icon
-                            size={15}
-                            strokeWidth={2}
+                font-semibold
+                leading-none
+              "
+            >
+              {text}
+            </span>
 
-                            aria-hidden="true"
+            {/* ACTIVE INDICATOR */}
 
-                            className="
-                                shrink-0
+            {active && (
+              <span
+                aria-hidden="true"
+                className="
+                  absolute
+                  bottom-[3px]
+                  left-1/2
 
-                                transition-colors
-                                duration-150
-                            "
-                        />
+                  h-[2px] w-4
+                  -translate-x-1/2
 
-                        {/* =================================
-                            LABEL
-                        ================================= */}
+                  rounded-full
+                  bg-indigo-500
 
-                        <span
-                            className="
-                                relative
-                                z-10
-                            "
-                        >
-                            {text}
-                        </span>
+                  dark:bg-indigo-400
+                "
+              />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
-                    </Link>
-                );
-            })}
-
-        </nav>
-    );
-};
-
-// =========================================================
-// EXPORT
-// =========================================================
-
-export default React.memo(NavbarLinks);
+export default memo(NavbarLinks);
