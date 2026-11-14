@@ -89,6 +89,16 @@ import {
 } from "./context/ThemeContext";
 
 // =========================================================
+// NEW YEAR / WINTER EXPERIENCE
+// =========================================================
+
+import {
+  NewYearProvider,
+} from "./features/newYear/context/NewYearContext";
+
+import Snowfall from "./features/newYear/components/Snowfall";
+
+// =========================================================
 // FSOCIETY — APPLICATION
 // =========================================================
 //
@@ -105,14 +115,20 @@ import {
 // - WebSocket notifications
 // - Forced logout handling
 // - Global toast
+// - NewYearProvider integration
+// - Global snowfall integration
 //
 // IMPORTANT:
 //
 // Theme state is managed ONLY by ThemeContext.
 //
+// Winter state is managed ONLY by NewYearProvider.
+//
 // App.js does not create another theme state.
 // App.js does not write theme to localStorage.
 // App.js does not directly modify HTML classes.
+//
+// Snowfall is rendered globally through AppInner.
 //
 // =========================================================
 
@@ -189,6 +205,7 @@ const PrivateRoute = ({ children }) => {
 // =========================================================
 //
 // Used by:
+//
 // - Login
 // - Register
 //
@@ -315,7 +332,7 @@ const AppLayout = () => {
       >
         {/* =====================================
             NAVBAR
-           ===================================== */}
+        ===================================== */}
 
         <Navbar
           isDarkMode={isDarkMode}
@@ -324,7 +341,7 @@ const AppLayout = () => {
 
         {/* =====================================
             MAIN CONTENT
-           ===================================== */}
+        ===================================== */}
 
         <div
           className="
@@ -348,7 +365,7 @@ const AppLayout = () => {
 
         {/* =====================================
             FOOTER
-           ===================================== */}
+        ===================================== */}
 
         <Footer />
       </div>
@@ -467,9 +484,7 @@ function AppContent() {
         }
 
         const authenticatedUser =
-          getAuthenticatedUser(
-            response
-          );
+          getAuthenticatedUser(response);
 
         // ===============================================
         // VALID SESSION
@@ -572,7 +587,7 @@ function AppContent() {
     <Routes>
       {/* ==========================================
           PUBLIC AUTHENTICATION
-         ========================================== */}
+      ========================================== */}
 
       {/* LOGIN */}
 
@@ -598,7 +613,7 @@ function AppContent() {
 
       {/* ==========================================
           OAUTH CALLBACK
-         ========================================== */}
+      ========================================== */}
 
       <Route
         path="/callback/:provider"
@@ -630,7 +645,7 @@ function AppContent() {
 
       {/* ==========================================
           PROTECTED APPLICATION
-         ========================================== */}
+      ========================================== */}
 
       <Route
         path="/"
@@ -640,7 +655,7 @@ function AppContent() {
       >
         {/* ======================================
             HOME
-           ====================================== */}
+        ====================================== */}
 
         <Route
           index
@@ -649,7 +664,7 @@ function AppContent() {
 
         {/* ======================================
             PROBLEMS
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path="problems"
@@ -685,7 +700,7 @@ function AppContent() {
 
         {/* ======================================
             FEEDBACK
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path="feedback"
@@ -694,7 +709,7 @@ function AppContent() {
 
         {/* ======================================
             FCOIN
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path="fcoin"
@@ -708,7 +723,7 @@ function AppContent() {
 
         {/* ======================================
             USERS / PROFILE
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path="users"
@@ -722,7 +737,7 @@ function AppContent() {
 
         {/* ======================================
             PROJECTS
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path="projects"
@@ -736,7 +751,7 @@ function AppContent() {
 
         {/* ======================================
             NOTIFICATIONS
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path="notifications"
@@ -745,7 +760,7 @@ function AppContent() {
 
         {/* ======================================
             POSTS
-           ====================================== */}
+        ====================================== */}
 
         <Route
           path=":username/post/:slug/"
@@ -755,7 +770,7 @@ function AppContent() {
 
       {/* ==========================================
           NOT FOUND
-         ========================================== */}
+      ========================================== */}
 
       <Route
         path="*"
@@ -797,15 +812,38 @@ const AppInner = () => {
     <Router>
       {/* =====================================
           UNIVERSAL TOAST
-         ===================================== */}
+      ===================================== */}
 
       <AuthToast />
 
       {/* =====================================
-          APPLICATION
-         ===================================== */}
+          APPLICATION ROUTES
+      ===================================== */}
 
       <AppContent />
+
+      {/* =====================================
+          GLOBAL WINTER SNOWFALL
+      ===================================== */}
+      {/*
+        Rendered outside individual routes.
+
+        Therefore snowfall can appear on:
+
+        - Home
+        - Problems
+        - Projects
+        - Profiles
+        - Login
+        - Register
+        - OAuth callback
+        - Not found
+
+        Actual animation depends on
+        NewYearContext settings.
+      */}
+
+      <Snowfall />
     </Router>
   );
 };
@@ -813,6 +851,16 @@ const AppInner = () => {
 // =========================================================
 // ROOT APP
 // =========================================================
+//
+// Provider hierarchy:
+//
+// ThemeProvider
+//   └── NewYearProvider
+//         └── AppInner
+//               ├── Router
+//               ├── AuthToast
+//               ├── AppContent
+//               └── Snowfall
 //
 // ThemeProvider can be installed in index.js:
 //
@@ -842,7 +890,11 @@ function App() {
   // =====================================================
 
   if (existingThemeContext) {
-    return <AppInner />;
+    return (
+      <NewYearProvider>
+        <AppInner />
+      </NewYearProvider>
+    );
   }
 
   // =====================================================
@@ -851,7 +903,9 @@ function App() {
 
   return (
     <ThemeProvider>
-      <AppInner />
+      <NewYearProvider>
+        <AppInner />
+      </NewYearProvider>
     </ThemeProvider>
   );
 }

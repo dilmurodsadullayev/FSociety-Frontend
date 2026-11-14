@@ -29,15 +29,24 @@ import NavbarCoin from "./NavbarCoin";
 import NavbarUserMenu from "./NavbarUserMenu";
 
 // =========================================================
+// WINTER EXPERIENCE
+// =========================================================
+
+import WinterExperienceButton from "../../features/newYear/components/WinterExperienceButton";
+
+// =========================================================
 // FSOCIETY — NAVBAR ACTIONS
 // =========================================================
 //
 // Location:
+//
 // src/components/navbar/NavbarActions.jsx
 //
 // Features:
+//
 // - Compact FCoin balance
 // - Light / Dark mode
+// - Winter Experience
 // - Notification dropdown
 // - Avatar / user dropdown
 // - Login navigation
@@ -45,45 +54,78 @@ import NavbarUserMenu from "./NavbarUserMenu";
 // - Accessible buttons
 // - Responsive spacing
 //
-// Existing Navbar.jsx props preserved.
+// Existing Navbar.jsx props are preserved.
 //
-// ThemeToggle manages theme through
-// the existing ThemeContext.
+// New props:
+//
+// - winterSettingsOpen
+// - toggleWinterSettings
 //
 // =========================================================
 
 function NavbarActions({
+  // =======================================================
   // AUTH
+  // =======================================================
+
   isLoggedIn = false,
+
   user = null,
+
   avatarUrl = "",
 
+  // =======================================================
   // USER MENU
+  // =======================================================
+
   openUserMenu = false,
+
   setOpenUserMenu,
+
   userMenuRef,
 
+  // =======================================================
   // NOTIFICATIONS
+  // =======================================================
+
   openNotifications = false,
+
   setOpenNotifications,
+
   notificationsRef,
 
+  // =======================================================
+  // WINTER EXPERIENCE
+  // =======================================================
+
+  winterSettingsOpen = false,
+
+  toggleWinterSettings,
+
+  // =======================================================
   // MOBILE SIDEBAR
+  // =======================================================
+
   isMobileMenuOpen = false,
+
   toggleMobileMenu,
 
+  // =======================================================
   // LOGOUT
+  // =======================================================
+
   handleLogout,
 }) {
-  // =====================================================
+
+  // =======================================================
   // NOTIFICATION MENU EXCLUSIVITY
-  // =====================================================
+  // =======================================================
   //
   // Opening notifications should close the
   // user dropdown, avoiding overlapping
   // popovers on compact screens.
   //
-  // =====================================================
+  // =======================================================
 
   const setNotificationsExclusive =
     useCallback(
@@ -106,9 +148,51 @@ function NavbarActions({
       ]
     );
 
-  // =====================================================
+  // =======================================================
+  // WINTER SETTINGS TOGGLE
+  // =======================================================
+  //
+  // Before opening Winter Experience:
+  //
+  // - Close user menu.
+  // - Close notifications.
+  // - Toggle winter settings sidebar.
+  //
+  // Winter sidebar visibility itself is
+  // controlled by Navbar.jsx.
+  //
+  // =======================================================
+
+  const handleWinterToggle = useCallback(
+    () => {
+      if (
+        typeof setOpenUserMenu === "function"
+      ) {
+        setOpenUserMenu(false);
+      }
+
+      if (
+        typeof setOpenNotifications === "function"
+      ) {
+        setOpenNotifications(false);
+      }
+
+      if (
+        typeof toggleWinterSettings === "function"
+      ) {
+        toggleWinterSettings();
+      }
+    },
+    [
+      setOpenUserMenu,
+      setOpenNotifications,
+      toggleWinterSettings,
+    ]
+  );
+
+  // =======================================================
   // RENDER
-  // =====================================================
+  // =======================================================
 
   return (
     <div
@@ -133,7 +217,7 @@ function NavbarActions({
     >
       {/* ==========================================
           FCOIN BALANCE
-         ========================================== */}
+      ========================================== */}
 
       {isLoggedIn && (
         <div
@@ -155,7 +239,7 @@ function NavbarActions({
 
       {/* ==========================================
           LIGHT / DARK MODE
-         ========================================== */}
+      ========================================== */}
 
       <div
         className="
@@ -172,14 +256,35 @@ function NavbarActions({
       </div>
 
       {/* ==========================================
+          WINTER EXPERIENCE
+      ========================================== */}
+
+      <div
+        className="
+          relative
+
+          flex
+          shrink-0
+
+          items-center
+          justify-center
+        "
+      >
+        <WinterExperienceButton
+          isOpen={winterSettingsOpen}
+          onClick={handleWinterToggle}
+        />
+      </div>
+
+      {/* ==========================================
           AUTHENTICATED USER ACTIONS
-         ========================================== */}
+      ========================================== */}
 
       {isLoggedIn ? (
         <>
           {/* ====================================
               NOTIFICATIONS
-             ==================================== */}
+          ==================================== */}
 
           <NotificationDropdown
             openNotifications={
@@ -197,10 +302,11 @@ function NavbarActions({
 
           {/* ====================================
               USER PROFILE MENU
-             ==================================== */}
+          ==================================== */}
 
           <NavbarUserMenu
             user={user}
+
             avatarUrl={avatarUrl}
 
             openUserMenu={
@@ -226,8 +332,8 @@ function NavbarActions({
         </>
       ) : (
         /* ======================================
-            LOGIN BUTTON
-           ====================================== */
+           LOGIN BUTTON
+        ====================================== */
 
         <Link
           to="/login"
@@ -288,7 +394,9 @@ function NavbarActions({
         >
           <LogIn
             size={17}
+
             strokeWidth={2}
+
             aria-hidden="true"
 
             className="
@@ -319,7 +427,7 @@ function NavbarActions({
 
       {/* ==========================================
           MOBILE SIDEBAR BUTTON
-         ========================================== */}
+      ========================================== */}
 
       <button
         type="button"
@@ -440,5 +548,9 @@ function NavbarActions({
     </div>
   );
 }
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default memo(NavbarActions);

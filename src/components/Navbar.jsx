@@ -1,4 +1,3 @@
-
 import React, {
   memo,
   useCallback,
@@ -35,6 +34,14 @@ import {
 } from "./navbar/navConfig";
 
 // =========================================================
+// WINTER EXPERIENCE
+// =========================================================
+
+import WinterSettingsSidebar from "../features/newYear/components/WinterSettingsSidebar";
+
+import ChristmasLights from "../features/newYear/components/ChristmasLights";
+
+// =========================================================
 // AUTH
 // =========================================================
 
@@ -59,19 +66,18 @@ import {
 // Architecture:
 //
 // Navbar
+// ├── ChristmasLights
 // ├── NavbarBrand
-// │   └── NavbarLogoGlitch
-// │
 // ├── NavbarLinks
-// │   └── navConfig
-// │
 // ├── NavbarActions
 // │   ├── NavbarCoin
 // │   ├── ThemeToggle
+// │   ├── WinterExperienceButton
 // │   ├── NotificationDropdown
 // │   └── NavbarUserMenu
 // │
-// └── MobileNavbarSidebar
+// ├── MobileNavbarSidebar
+// └── WinterSettingsSidebar
 //
 // Features:
 //
@@ -82,7 +88,9 @@ import {
 // - Compact FCoin balance
 // - Notifications
 // - User dropdown
-// - Mobile sidebar
+// - Mobile navigation sidebar
+// - Winter Experience sidebar
+// - Christmas lights decoration
 // - Protected logout
 // - Route-aware active navigation
 // - Outside click handling
@@ -128,34 +136,44 @@ function Navbar() {
   // AUTH STATE
   // =====================================================
 
-  const {
-    isLoggedIn,
-    user,
-  } = useSelector((state) => ({
-    isLoggedIn:
-      Boolean(state.auth?.isLoggedIn),
+  const isLoggedIn = useSelector((state) =>
+    Boolean(state.auth?.isLoggedIn)
+  );
 
-    user:
-      state.auth?.user ?? null,
-  }));
+  const user = useSelector(
+    (state) => state.auth?.user ?? null
+  );
 
   // =====================================================
   // LOCAL UI STATE
   // =====================================================
+
+  // USER MENU
 
   const [
     openUserMenu,
     setOpenUserMenu,
   ] = useState(false);
 
+  // NOTIFICATIONS
+
   const [
     openNotifications,
     setOpenNotifications,
   ] = useState(false);
 
+  // MOBILE NAVIGATION SIDEBAR
+
   const [
     isMobileMenuOpen,
     setIsMobileMenuOpen,
+  ] = useState(false);
+
+  // WINTER EXPERIENCE SIDEBAR
+
+  const [
+    isWinterSettingsOpen,
+    setIsWinterSettingsOpen,
   ] = useState(false);
 
   // =====================================================
@@ -183,17 +201,6 @@ function Navbar() {
   // =====================================================
   // ACTIVE ROUTE
   // =====================================================
-  //
-  // In addition to direct navigation routes,
-  // recognize nested detail pages:
-  //
-  // /project/:id/detail -> Projects
-  // /problem/:id/detail -> Problems
-  // /problem-create    -> Problems
-  // /my-problems       -> Problems
-  // /fcoin-history     -> F Coin
-  //
-  // =====================================================
 
   const currentPath = normalizePath(
     location.pathname
@@ -209,6 +216,7 @@ function Navbar() {
       }
 
       // Direct or nested route
+
       if (
         currentPath === targetPath ||
         currentPath.startsWith(
@@ -219,6 +227,7 @@ function Navbar() {
       }
 
       // Project detail route
+
       if (targetPath === "/projects") {
         return (
           currentPath === "/project" ||
@@ -229,6 +238,7 @@ function Navbar() {
       }
 
       // Problem routes
+
       if (targetPath === "/problems") {
         return (
           currentPath === "/problem" ||
@@ -241,6 +251,7 @@ function Navbar() {
       }
 
       // FCoin history
+
       if (targetPath === "/fcoin") {
         return (
           currentPath === "/fcoin-history"
@@ -250,6 +261,17 @@ function Navbar() {
       return false;
     },
     [currentPath]
+  );
+
+  // =====================================================
+  // CLOSE WINTER SETTINGS
+  // =====================================================
+
+  const closeWinterSettings = useCallback(
+    () => {
+      setIsWinterSettingsOpen(false);
+    },
+    []
   );
 
   // =====================================================
@@ -263,6 +285,8 @@ function Navbar() {
       setOpenNotifications(false);
 
       setIsMobileMenuOpen(false);
+
+      setIsWinterSettingsOpen(false);
     },
     []
   );
@@ -283,16 +307,6 @@ function Navbar() {
   // =====================================================
   // CLICK OUTSIDE
   // =====================================================
-  //
-  // Pointer events support:
-  // - Mouse
-  // - Touch
-  // - Pen
-  //
-  // Mobile sidebar backdrop is handled
-  // independently by MobileNavbarSidebar.
-  //
-  // =====================================================
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -300,6 +314,7 @@ function Navbar() {
         event.target;
 
       // USER MENU
+
       if (
         userMenuRef.current &&
         !userMenuRef.current.contains(target)
@@ -308,6 +323,7 @@ function Navbar() {
       }
 
       // NOTIFICATION DROPDOWN
+
       if (
         notificationsRef.current &&
         !notificationsRef.current.contains(target)
@@ -353,10 +369,12 @@ function Navbar() {
         handleEscape
       );
     };
-  }, [closeAllMenus]);
+  }, [
+    closeAllMenus,
+  ]);
 
   // =====================================================
-  // CLOSE DROPDOWNS WHEN AUTH CHANGES
+  // CLOSE MENUS WHEN AUTH CHANGES
   // =====================================================
 
   useEffect(() => {
@@ -370,16 +388,6 @@ function Navbar() {
 
   // =====================================================
   // LOGOUT
-  // =====================================================
-  //
-  // Prevent repeated logout requests.
-  //
-  // Existing endpoint:
-  // POST /users/logout/
-  //
-  // Even if backend logout fails, clear
-  // frontend auth state, as before.
-  //
   // =====================================================
 
   const handleLogout = useCallback(
@@ -423,24 +431,14 @@ function Navbar() {
   // =====================================================
   // MOBILE MENU TOGGLE
   // =====================================================
-  //
-  // Open sidebar:
-  // - Close user dropdown
-  // - Close notifications
-  //
-  // The sidebar controls:
-  // - Backdrop
-  // - Body scroll lock
-  // - Focus management
-  // - Desktop resize closing
-  //
-  // =====================================================
 
   const toggleMobileMenu = useCallback(
     () => {
       setOpenUserMenu(false);
 
       setOpenNotifications(false);
+
+      setIsWinterSettingsOpen(false);
 
       setIsMobileMenuOpen(
         (previous) => !previous
@@ -450,18 +448,23 @@ function Navbar() {
   );
 
   // =====================================================
-  // OPEN ONLY ONE DROPDOWN
+  // WINTER EXPERIENCE TOGGLE
   // =====================================================
-  //
-  // Existing child components manage
-  // their toggle callbacks.
-  //
-  // NavbarActions provides the exclusive
-  // notification toggle wrapper.
-  //
-  // No duplicate state is introduced.
-  //
-  // =====================================================
+
+  const toggleWinterSettings = useCallback(
+    () => {
+      setOpenUserMenu(false);
+
+      setOpenNotifications(false);
+
+      setIsMobileMenuOpen(false);
+
+      setIsWinterSettingsOpen(
+        (previous) => !previous
+      );
+    },
+    []
+  );
 
   // =====================================================
   // RENDER
@@ -471,13 +474,15 @@ function Navbar() {
     <>
       {/* ==========================================
           NAVBAR HEADER
-         ========================================== */}
+      ========================================== */}
 
       <header
         className="
           sticky
           inset-x-0 top-0
           z-50
+
+          isolate
 
           w-full min-w-0
 
@@ -503,8 +508,14 @@ function Navbar() {
         "
       >
         {/* ======================================
+            CHRISTMAS LIGHTS
+        ====================================== */}
+
+        <ChristmasLights />
+
+        {/* ======================================
             BOTTOM ACCENT LINE
-           ====================================== */}
+        ====================================== */}
 
         <div
           aria-hidden="true"
@@ -512,6 +523,8 @@ function Navbar() {
             pointer-events-none
 
             absolute inset-x-0 bottom-0
+
+            z-[3]
 
             h-px
 
@@ -526,11 +539,12 @@ function Navbar() {
 
         {/* ======================================
             NAVBAR CONTAINER
-           ====================================== */}
+        ====================================== */}
 
         <div
           className="
             relative
+            z-[2]
 
             mx-auto
 
@@ -545,36 +559,38 @@ function Navbar() {
         >
           {/* ====================================
               MAIN NAVBAR ROW
-             ==================================== */}
+          ==================================== */}
 
           <div
             className="
               flex
-              min-h-[64px]
+              min-h-[66px]
               w-full min-w-0
 
               items-center
               justify-between
 
               gap-2
+              pt-1.5
 
-              sm:min-h-[70px]
+              sm:min-h-[72px]
               sm:gap-3
+              sm:pt-2
 
-              lg:min-h-[72px]
+              lg:min-h-[74px]
 
               xl:gap-4
             "
           >
             {/* ================================
                 BRAND
-               ================================ */}
+            ================================ */}
 
             <NavbarBrand />
 
             {/* ================================
                 DESKTOP NAVIGATION
-               ================================ */}
+            ================================ */}
 
             <NavbarLinks
               isActive={isActive}
@@ -582,41 +598,63 @@ function Navbar() {
 
             {/* ================================
                 RIGHT ACTIONS
-               ================================ */}
+            ================================ */}
 
             <NavbarActions
               // AUTH
+
               isLoggedIn={isLoggedIn}
+
               user={user}
+
               avatarUrl={avatarUrl}
 
               // USER MENU
+
               openUserMenu={openUserMenu}
+
               setOpenUserMenu={
                 setOpenUserMenu
               }
+
               userMenuRef={userMenuRef}
 
               // NOTIFICATIONS
+
               openNotifications={
                 openNotifications
               }
+
               setOpenNotifications={
                 setOpenNotifications
               }
+
               notificationsRef={
                 notificationsRef
               }
 
+              // WINTER EXPERIENCE
+
+              winterSettingsOpen={
+                isWinterSettingsOpen
+              }
+
+              toggleWinterSettings={
+                toggleWinterSettings
+              }
+
               // MOBILE SIDEBAR
+
               isMobileMenuOpen={
                 isMobileMenuOpen
               }
+
               toggleMobileMenu={
                 toggleMobileMenu
               }
 
               // LOGOUT
+
               handleLogout={
                 handleLogout
               }
@@ -627,28 +665,38 @@ function Navbar() {
 
       {/* ==========================================
           MOBILE NAVIGATION SIDEBAR
-         ========================================== */}
+      ========================================== */}
 
       <MobileNavbarSidebar
-        // VISIBILITY
         isOpen={isMobileMenuOpen}
+
         setIsOpen={
           setIsMobileMenuOpen
         }
 
-        // NAVIGATION
         navLinks={NAV_LINKS}
+
         isActive={isActive}
 
-        // AUTH
         isLoggedIn={isLoggedIn}
+
         user={user}
+
         avatarUrl={avatarUrl}
 
-        // LOGOUT
         handleLogout={
           handleLogout
         }
+      />
+
+      {/* ==========================================
+          WINTER SETTINGS SIDEBAR
+      ========================================== */}
+
+      <WinterSettingsSidebar
+        isOpen={isWinterSettingsOpen}
+
+        onClose={closeWinterSettings}
       />
     </>
   );
