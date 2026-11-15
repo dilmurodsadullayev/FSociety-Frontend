@@ -29,12 +29,6 @@ import {
 import ProjectService from "../services/project";
 
 // =========================================================
-// SHARED PAGE BACKGROUND
-// =========================================================
-
-import PageGridBackground from "./ui/PageGridBackground";
-
-// =========================================================
 // PROJECT COMPONENTS
 // =========================================================
 
@@ -69,7 +63,8 @@ const EMPTY_PROJECTS = [];
 // FSOCIETY — PROJECTS PAGE
 //
 // Features:
-// - Shared futuristic FSociety background
+//
+// - Global WinterBackground from App.jsx
 // - Global Dark / Light Mode
 // - Responsive project grid
 // - Search with debounce
@@ -82,10 +77,10 @@ const EMPTY_PROJECTS = [];
 //
 // Theme is controlled by ThemeContext.
 //
-// Background is shared with:
-// - Users
-// - Problems
-// - Feedback
+// Background is managed globally by App.jsx.
+//
+// No local PageGridBackground is rendered here.
+//
 // =========================================================
 
 const Projects = () => {
@@ -586,7 +581,7 @@ const Projects = () => {
 
                 overflow-hidden
 
-                bg-[#edf4ff]
+                bg-transparent
                 text-slate-900
 
                 px-4
@@ -600,37 +595,37 @@ const Projects = () => {
 
                 lg:px-8
 
-                dark:bg-[#060b15]
+                dark:bg-transparent
                 dark:text-white
             "
+            style={{
+                backgroundColor: "transparent",
+            }}
         >
             {/* ======================================
-                SHARED FUTURISTIC BACKGROUND
+                GLOBAL SHARED BACKGROUND
 
-                The same component is used on:
-                - Users
-                - Problems
-                - Feedback
+                WinterBackground is managed by App.jsx.
 
-                Includes:
-                - Continuous grid
-                - Circuit / network lines
-                - Glowing nodes
-                - Glass-like 3D cubes
-                - Cyan / Indigo / Violet glows
-                - FS watermark
+                Winter ON:
+                - Dark: winter-dark.webp
+                - Light: winter-light.webp
 
-                Decorative only:
-                Does not intercept clicks or scrolling.
+                Winter OFF:
+                - Original PageGridBackground
+
+                No local PageGridBackground is rendered.
+
+                This page stays transparent so the
+                global background remains visible.
             ====================================== */}
 
-            <PageGridBackground showMonogram />
 
             {/* ======================================
                 CONTENT CONTAINER
 
                 Keep every interactive element
-                above the background.
+                above the global background.
             ====================================== */}
 
             <div

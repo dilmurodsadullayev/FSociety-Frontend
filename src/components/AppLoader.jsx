@@ -10,7 +10,7 @@ import {
 // FSOCIETY — SHARED BACKGROUND
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
+import WinterBackground from "./ui/winter/WinterBackground";
 
 // =========================================================
 // ASSETS
@@ -23,7 +23,9 @@ import FSocietyLogo from "../assests/logo/f_society.png";
 //
 // Features:
 //
-// - Shared futuristic PageGridBackground
+// - Shared WinterBackground
+// - Original PageGridBackground fallback
+// - Winter Forest Background
 // - Light / Dark Mode
 // - Responsive design
 // - Animated outer and inner rings
@@ -35,16 +37,16 @@ import FSocietyLogo from "../assests/logo/f_society.png";
 // - React.memo optimization
 // - Reduced-motion accessibility
 //
+// Background:
+// - Default: PageGridBackground
+// - Winter: WinterForestScene
+//
 // No API calls.
 // No timers.
 // No artificial loading delays.
 //
-// This component can be used in:
-// - App.js
-// - PrivateRoute
-// - PublicAuthPage
-// - Suspense fallback
 // =========================================================
+
 
 // =========================================================
 // ANIMATION CONFIGURATION
@@ -158,8 +160,9 @@ const TITLE_TRANSITION = {
     ease: "easeOut",
 };
 
+
 // =========================================================
-// LOADER LOGO
+// 1. LOADER LOGO
 //
 // Preserves:
 // - Outer rotating ring
@@ -177,7 +180,6 @@ const LoaderLogo = memo(function LoaderLogo({
         <div
             className="
                 relative
-
                 mx-auto
 
                 flex
@@ -196,6 +198,7 @@ const LoaderLogo = memo(function LoaderLogo({
                 md:w-60
             "
         >
+
             {/* ======================================
                 OUTER ROTATING RING
             ====================================== */}
@@ -234,6 +237,7 @@ const LoaderLogo = memo(function LoaderLogo({
                 "
             />
 
+
             {/* ======================================
                 OUTER RING DETAIL
             ====================================== */}
@@ -253,6 +257,7 @@ const LoaderLogo = memo(function LoaderLogo({
                     dark:border-indigo-400/15
                 "
             />
+
 
             {/* ======================================
                 INNER ROTATING RING
@@ -296,6 +301,7 @@ const LoaderLogo = memo(function LoaderLogo({
                 "
             />
 
+
             {/* ======================================
                 INNER GLASS CIRCLE
             ====================================== */}
@@ -324,6 +330,7 @@ const LoaderLogo = memo(function LoaderLogo({
                     dark:shadow-[0_0_45px_rgba(99,102,241,0.16)]
                 "
             />
+
 
             {/* ======================================
                 CENTER LOGO
@@ -376,6 +383,7 @@ const LoaderLogo = memo(function LoaderLogo({
                     dark:drop-shadow-[0_0_20px_rgba(99,102,241,0.28)]
                 "
             />
+
 
             {/* ======================================
                 SCANNING LINE
@@ -433,6 +441,7 @@ const LoaderLogo = memo(function LoaderLogo({
                 />
             </div>
 
+
             {/* ======================================
                 BOTTOM INDICATOR
             ====================================== */}
@@ -489,12 +498,14 @@ const LoaderLogo = memo(function LoaderLogo({
                     "
                 />
             </div>
+
         </div>
     );
 });
 
+
 // =========================================================
-// LOADER TEXT
+// 2. LOADER TEXT
 //
 // Preserves:
 // - FSociety system label
@@ -518,6 +529,7 @@ const LoaderText = memo(function LoaderText({
                 sm:mt-12
             "
         >
+
             {/* ======================================
                 SYSTEM LABEL
             ====================================== */}
@@ -543,6 +555,7 @@ const LoaderText = memo(function LoaderText({
             >
                 fsociety://system.init
             </p>
+
 
             {/* ======================================
                 BRAND TITLE
@@ -605,6 +618,7 @@ const LoaderText = memo(function LoaderText({
                 </span>
             </motion.h1>
 
+
             {/* ======================================
                 SYSTEM MESSAGE
             ====================================== */}
@@ -649,6 +663,7 @@ const LoaderText = memo(function LoaderText({
                 Initializing system scan...
             </motion.p>
 
+
             {/* ======================================
                 DESCRIPTION
             ====================================== */}
@@ -673,16 +688,18 @@ const LoaderText = memo(function LoaderText({
                 FSociety tizimi yuklanmoqda.
                 Iltimos, biroz kuting.
             </p>
+
         </div>
     );
 });
 
+
 // =========================================================
-// LOADING PROGRESS
+// 3. LOADING PROGRESS
 //
-// This is an indeterminate progress indicator.
+// Indeterminate progress indicator.
 //
-// It does not represent a real download percentage.
+// Does not represent a real download percentage.
 // =========================================================
 
 const LoaderProgress = memo(function LoaderProgress({
@@ -700,6 +717,7 @@ const LoaderProgress = memo(function LoaderProgress({
                 sm:max-w-72
             "
         >
+
             {/* ======================================
                 PROGRESS TRACK
             ====================================== */}
@@ -728,6 +746,7 @@ const LoaderProgress = memo(function LoaderProgress({
                     dark:bg-white/[0.06]
                 "
             >
+
                 {/* ==================================
                     PROGRESS ANIMATION
                 ================================== */}
@@ -764,7 +783,9 @@ const LoaderProgress = memo(function LoaderProgress({
                         dark:via-indigo-400
                     "
                 />
+
             </div>
+
 
             {/* ======================================
                 PROGRESS LABELS
@@ -805,12 +826,14 @@ const LoaderProgress = memo(function LoaderProgress({
                     Loading...
                 </span>
             </div>
+
         </div>
     );
 });
 
+
 // =========================================================
-// DECORATIVE BINARY CODE
+// 4. DECORATIVE BINARY CODE
 // =========================================================
 
 const LoaderBinary = memo(function LoaderBinary() {
@@ -855,23 +878,28 @@ const LoaderBinary = memo(function LoaderBinary() {
     );
 });
 
+
 // =========================================================
-// MAIN APPLICATION LOADER
+// 5. MAIN APPLICATION LOADER
 //
-// All visual sections use one shared background.
+// Shared background:
 //
-// PageGridBackground provides:
-// - Grid
-// - Network lines
-// - Glowing nodes
-// - 3D FS cubes
-// - FS watermark
-// - Light / Dark Mode
+// Default:
+// - Original PageGridBackground
 //
-// No duplicate LoaderBackground needed.
+// Winter:
+// - Snow-covered pine trees
+// - Snow accumulation
+// - Digital blueprint grid
+// - Northern lights
+// - 2026 -> 2027 Mr. Robot glitch
+//
+// All loader content stays above the background.
+//
 // =========================================================
 
 const AppLoader = () => {
+
     // =====================================================
     // REDUCED MOTION
     // =====================================================
@@ -879,6 +907,7 @@ const AppLoader = () => {
     const reducedMotion = Boolean(
         useReducedMotion()
     );
+
 
     // =====================================================
     // RENDER
@@ -925,20 +954,30 @@ const AppLoader = () => {
                 dark:text-white
             "
         >
+
             {/* ======================================
-                SHARED FUTURISTIC BACKGROUND
+                SHARED WINTER / DEFAULT BACKGROUND
 
-                Uses the same background component
-                as the rest of FSociety.
+                Default:
+                PageGridBackground
 
-                Background must stay behind the
-                loader and not intercept clicks.
+                Winter:
+                WinterForestScene
+
+                Controlled by NewYearContext.
+
+                - winterBackgroundEnabled
+                - snowfallEnabled
+
+                The original PageGridBackground
+                remains unchanged.
             ====================================== */}
 
-            <PageGridBackground
+            <WinterBackground
                 showMonogram
                 showCubes
             />
+
 
             {/* ======================================
                 LOADER CONTENT
@@ -969,6 +1008,7 @@ const AppLoader = () => {
                     justify-center
                 "
             >
+
                 {/* ==================================
                     ANIMATED FSOCIETY LOGO
                 ================================== */}
@@ -976,6 +1016,7 @@ const AppLoader = () => {
                 <LoaderLogo
                     reducedMotion={reducedMotion}
                 />
+
 
                 {/* ==================================
                     BRAND AND LOADING TEXT
@@ -985,6 +1026,7 @@ const AppLoader = () => {
                     reducedMotion={reducedMotion}
                 />
 
+
                 {/* ==================================
                     LOADING PROGRESS
                 ================================== */}
@@ -993,15 +1035,19 @@ const AppLoader = () => {
                     reducedMotion={reducedMotion}
                 />
 
+
                 {/* ==================================
                     BINARY CODE DECORATION
                 ================================== */}
 
                 <LoaderBinary />
+
             </div>
+
         </main>
     );
 };
+
 
 // =========================================================
 // EXPORT

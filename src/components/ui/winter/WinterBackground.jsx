@@ -1,142 +1,317 @@
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
+import PageGridBackground from "../PageGridBackground";
 
-import WINTER_BACKGROUND_CONFIG from "./data/winterBackgroundConfig";
+// =========================================================
+// FSOCIETY — WINTER BACKGROUND CONFIGURATION
+// =========================================================
 
-import WinterLandscape from "./components/WinterLandscape";
-import WinterAurora from "./components/WinterAurora";
-import WinterDecorations from "./components/WinterDecorations";
-import WinterSnowfall from "./components/WinterSnowfall";
-import WinterBrand from "./components/WinterBrand";
-import NewYearTransition from "./components/NewYearTransition";
+const LIGHT_IMAGE = "/images/winter/winter-light.webp";
+const DARK_IMAGE = "/images/winter/winter-dark.webp";
+
+const LIGHT_BACKGROUND = "#eaf5ff";
+const DARK_BACKGROUND = "#061321";
 
 // =========================================================
 // FSOCIETY — WINTER BACKGROUND
-// Main composition
-// Dark / Light visual environment
 // =========================================================
 
-const WinterBackground = ({
-  className = "",
-  showBrand = true,
-  showNewYear = true,
-}) => {
-  const config = WINTER_BACKGROUND_CONFIG ?? {};
+const WinterBackground = memo(function WinterBackground({
+    enabled = true,
+    showMonogram = true,
+    showCubes = true,
+}) {
 
-  const enabled = config.enabled !== false;
+    // =====================================================
+    // IMAGE LOADING STATES
+    // =====================================================
 
-  const layers = config.layers ?? {};
+    const [lightLoaded, setLightLoaded] = useState(false);
+    const [darkLoaded, setDarkLoaded] = useState(false);
 
-  if (!enabled) {
-    return null;
-  }
+    // =====================================================
+    // DEFAULT BACKGROUND
+    //
+    // Winter mode o'chirilganda eski PageGridBackground
+    // ishlashda davom etadi.
+    // =====================================================
 
-  // =======================================================
-  // LAYER VISIBILITY
-  // =======================================================
+    if (!enabled) {
+        return (
+            <PageGridBackground
+                showMonogram={showMonogram}
+                showCubes={showCubes}
+            />
+        );
+    }
 
-  const showLandscape = layers.landscape !== false;
-  const showAurora = layers.aurora !== false;
-  const showDecorations = layers.decorations !== false;
-  const showSnowfall = layers.snowfall !== false;
-  const showBrandLayer = layers.branding !== false;
-  const showYearTransition = layers.yearTransition !== false;
+    // =====================================================
+    // WINTER BACKGROUND RENDER
+    // =====================================================
 
-  // =======================================================
-  // RENDER
-  // =======================================================
-
-  return (
-    <div
-      aria-hidden="true"
-      className={[
-        "pointer-events-none",
-        "fixed",
-        "inset-0",
-        "z-0",
-        "overflow-hidden",
-        "select-none",
-        "isolate",
-        className,
-      ].join(" ")}
-    >
-      {/* ================================================
-          LAYER 1 — WINTER LANDSCAPE
-          City / Mountains / Forest / Frozen Lake
-      ================================================ */}
-
-      {showLandscape && (
-        <div className="absolute inset-0 z-0">
-          <WinterLandscape />
-        </div>
-      )}
-
-      {/* ================================================
-          LAYER 2 — NORTHERN LIGHTS
-          Aurora / Moon / Sky atmosphere
-      ================================================ */}
-
-      {showAurora && (
-        <div className="absolute inset-0 z-[1]">
-          <WinterAurora />
-        </div>
-      )}
-
-      {/* ================================================
-          LAYER 3 — WINTER DECORATIONS
-          Snowmen / Christmas Tree / Gifts / Lights
-      ================================================ */}
-
-      {showDecorations && (
-        <div className="absolute inset-0 z-[2]">
-          <WinterDecorations />
-        </div>
-      )}
-
-      {/* ================================================
-          LAYER 4 — FSOCIETY BRAND
-          Main watermark
-      ================================================ */}
-
-      {showBrand && showBrandLayer && (
-        <div className="absolute inset-0 z-[4]">
-          <WinterBrand position="center" />
-        </div>
-      )}
-
-      {/* ================================================
-          LAYER 5 — NEW YEAR TRANSITION
-          2026 → 2027
-      ================================================ */}
-
-      {showNewYear && showYearTransition && (
+    return (
         <div
-          className="
-            absolute
-            bottom-[5%]
-            right-[5%]
-            z-[5]
-            flex
-            items-center
-            justify-center
-            sm:bottom-[7%]
-            sm:right-[7%]
-          "
+            aria-hidden="true"
+            className="
+                fixed
+                inset-0
+                z-0
+
+                isolate
+                overflow-hidden
+
+                pointer-events-none
+                select-none
+
+                bg-[#eaf5ff]
+                dark:bg-[#061321]
+            "
         >
-          <NewYearTransition />
+
+            {/* ============================================
+                1. LIGHT MODE FALLBACK
+
+                Rasm yuklanmaganda ko'rinadi.
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-0
+
+                    dark:hidden
+
+                    bg-[#eaf5ff]
+                "
+            />
+
+
+            {/* ============================================
+                2. DARK MODE FALLBACK
+
+                Dark mode uchun asosiy fon.
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-0
+
+                    hidden
+                    dark:block
+
+                    bg-[#061321]
+                "
+            />
+
+
+            {/* ============================================
+                3. LIGHT MODE IMAGE
+
+                Mobile:
+                - Original image width 100%
+                - Natural aspect ratio
+                - No cropping
+
+                Tablet:
+                - Original image proportions preserved
+
+                Desktop:
+                - Full viewport image
+                - Cover behavior
+                - Top centered positioning
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-x-0
+                    top-0
+
+                    xl:inset-0
+
+                    dark:hidden
+                "
+            >
+                <img
+                    src={LIGHT_IMAGE}
+                    alt=""
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                    draggable={false}
+                    onLoad={() => setLightLoaded(true)}
+                    onError={() => setLightLoaded(false)}
+                    className="
+                        block
+
+                        w-full
+                        h-auto
+                        max-w-none
+
+                        xl:w-full
+                        xl:h-full
+
+                        xl:object-cover
+                        xl:object-top
+
+                        transition-opacity
+                        duration-700
+                        ease-out
+                    "
+                    style={{
+                        opacity: lightLoaded ? 1 : 0,
+                    }}
+                />
+            </div>
+
+
+            {/* ============================================
+                4. DARK MODE IMAGE
+
+                Mobile:
+                - Original image width 100%
+                - Natural aspect ratio
+                - No cropping
+
+                Tablet:
+                - Original image proportions preserved
+
+                Desktop:
+                - Full viewport image
+                - Cover behavior
+                - Top centered positioning
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-x-0
+                    top-0
+
+                    xl:inset-0
+
+                    hidden
+                    dark:block
+                "
+            >
+                <img
+                    src={DARK_IMAGE}
+                    alt=""
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                    draggable={false}
+                    onLoad={() => setDarkLoaded(true)}
+                    onError={() => setDarkLoaded(false)}
+                    className="
+                        block
+
+                        w-full
+                        h-auto
+                        max-w-none
+
+                        xl:w-full
+                        xl:h-full
+
+                        xl:object-cover
+                        xl:object-top
+
+                        transition-opacity
+                        duration-700
+                        ease-out
+                    "
+                    style={{
+                        opacity: darkLoaded ? 1 : 0,
+                    }}
+                />
+            </div>
+
+
+            {/* ============================================
+                5. LIGHT MODE ATMOSPHERE
+
+                Rasm pastki qismi sahifa foniga
+                yumshoq o'tishini ta'minlaydi.
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-0
+
+                    dark:hidden
+
+                    bg-gradient-to-b
+
+                    from-transparent
+                    via-transparent
+                    to-[#eaf5ff]/90
+                "
+            />
+
+
+            {/* ============================================
+                6. DARK MODE ATMOSPHERE
+
+                Dark mode uchun yumshoq gradient.
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-0
+
+                    hidden
+                    dark:block
+
+                    bg-gradient-to-b
+
+                    from-transparent
+                    via-transparent
+                    to-[#061321]/90
+                "
+            />
+
+
+            {/* ============================================
+                7. LIGHT MODE DIGITAL GLOW
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-0
+
+                    dark:hidden
+
+                    bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(30,100,150,0.07)_100%)]
+                "
+            />
+
+
+            {/* ============================================
+                8. DARK MODE DIGITAL GLOW
+            ============================================ */}
+
+            <div
+                className="
+                    absolute
+                    inset-0
+
+                    hidden
+                    dark:block
+
+                    bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.22)_100%)]
+                "
+            />
+
         </div>
-      )}
+    );
+});
 
-      {/* ================================================
-          LAYER 6 — LIVE SNOWFALL
-          Foreground snow particles
-      ================================================ */}
+// =========================================================
+// EXPORT
+// =========================================================
 
-      {showSnowfall && (
-        <WinterSnowfall />
-      )}
-    </div>
-  );
-};
-
-export default memo(WinterBackground);
+export default WinterBackground;

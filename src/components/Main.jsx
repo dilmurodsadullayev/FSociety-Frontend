@@ -4,12 +4,6 @@ import React, { memo } from "react";
 import { useSelector } from "react-redux";
 
 // =========================================================
-// FSOCIETY — SHARED PAGE BACKGROUND
-// =========================================================
-
-import PageGridBackground from "./ui/PageGridBackground";
-
-// =========================================================
 // EXISTING HOME COMPONENTS
 // =========================================================
 
@@ -44,11 +38,12 @@ import homeStyles from "./home/main/homeStyles";
 
 // =========================================================
 // FSOCIETY — HOME PAGE
+// =========================================================
 //
 // Architecture:
 //
 // Main.jsx
-// ├── PageGridBackground
+// │
 // ├── HomeSidebar
 // │   ├── Welcome
 // │   ├── Promotions
@@ -74,9 +69,26 @@ import homeStyles from "./home/main/homeStyles";
 //
 // Theme:
 // Existing ThemeContext / Tailwind
+//
+// Background:
+// Managed globally by App.jsx.
+//
+// WinterBackground is NOT rendered here.
+// It is rendered only once in App.jsx.
+//
+// Main page background:
+// Transparent, so the global background
+// remains visible behind the Home page.
+//
+// =========================================================
+
+
+// =========================================================
+// FSOCIETY — HOME COMPONENT
 // =========================================================
 
 const Main = () => {
+
     // =====================================================
     // AUTHENTICATION
     //
@@ -92,6 +104,7 @@ const Main = () => {
         (state) => state.auth?.user ?? null
     );
 
+
     // =====================================================
     // POPULAR PROBLEMS CONTROLLER
     //
@@ -104,6 +117,7 @@ const Main = () => {
     // - Top 3 radar data
     //
     // No duplicate API requests in Main.jsx.
+    //
     // =====================================================
 
     const {
@@ -115,6 +129,7 @@ const Main = () => {
         retry,
     } = useHomePopularProblems();
 
+
     // =====================================================
     // RENDER
     // =====================================================
@@ -125,37 +140,45 @@ const Main = () => {
             className={`
                 ${homeStyles.page}
 
+                relative
+                isolate
+                min-h-screen
                 min-w-0
                 overflow-x-clip
+
+                !bg-transparent
+                dark:!bg-transparent
             `}
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
         >
-            {/* ======================================
-                FUTURISTIC SHARED BACKGROUND
 
-                Same background used in:
-                - Users
-                - Problems
-                - Feedback
-                - Projects
-                - ProjectDetail
+            {/* ============================================
+                GLOBAL BACKGROUND
 
-                Contains:
-                - Grid texture
-                - Network connections
-                - Glowing nodes
-                - Isometric glass cubes
-                - FS watermark
-                - Light / Dark Mode
+                WinterBackground is managed by App.jsx.
 
-                It is decorative only.
-            ====================================== */}
+                Default:
+                - Original PageGridBackground
 
-            <PageGridBackground
-                showMonogram
-                showCubes
-            />
+                Winter mode:
+                - Dark mode: winter-dark.webp
+                - Light mode: winter-light.webp
 
-            {/* ======================================
+                Winter background settings are managed
+                through NewYearContext.
+
+                No duplicate background is rendered here.
+
+                The Main page itself stays transparent
+                so the global background is visible.
+            ============================================ */}
+
+
+            {/* ============================================
                 HOME LAYOUT
 
                 Desktop:
@@ -165,8 +188,8 @@ const Main = () => {
                 Sidebar above main content
 
                 All interactive elements are kept
-                above the background.
-            ====================================== */}
+                above the global background.
+            ============================================ */}
 
             <div
                 className="
@@ -194,7 +217,8 @@ const Main = () => {
                     xl:px-8
                 "
             >
-                {/* ==================================
+
+                {/* ========================================
                     LEFT SIDEBAR
 
                     Existing component preserved.
@@ -202,21 +226,22 @@ const Main = () => {
                     Includes its original API calls,
                     promotion widgets, birthday
                     information and user information.
-                ================================== */}
+                ======================================== */}
 
                 <HomeSidebar
                     isLoggedIn={isLoggedIn}
                     user={user}
                 />
 
-                {/* ==================================
+
+                {/* ========================================
                     MAIN CONTENT WINDOW
 
                     Section order is preserved.
 
                     Shared card styles come from
                     homeStyles.js.
-                ================================== */}
+                ======================================== */}
 
                 <div
                     className={`
@@ -225,7 +250,8 @@ const Main = () => {
                         min-w-0
                     `}
                 >
-                    {/* ==============================
+
+                    {/* ==================================
                         1. HOME HERO
 
                         - Hero title
@@ -233,10 +259,11 @@ const Main = () => {
                         - Current user's FCoin
                         - Popular problems count
                         - Problem radar
-                    ============================== */}
+                    ================================== */}
 
                     <HomeHero
                         isLoggedIn={isLoggedIn}
+
                         user={user}
 
                         popularProblems={
@@ -258,15 +285,16 @@ const Main = () => {
                         onRetry={retry}
                     />
 
-                    {/* ==============================
+
+                    {/* ==================================
                         2. TRENDING PROBLEMS
 
-                        Existing PopularProbelmCard
+                        Existing PopularProblemCard
                         is rendered inside this module.
 
                         Data comes from the same
                         controller as HomeHero.
-                    ============================== */}
+                    ================================== */}
 
                     <HomeTrendingProblems
                         problems={popularProblems}
@@ -278,7 +306,8 @@ const Main = () => {
                         onRetry={retry}
                     />
 
-                    {/* ==============================
+
+                    {/* ==================================
                         3. SITE UPDATES
 
                         Existing component preserved.
@@ -288,22 +317,24 @@ const Main = () => {
                         - Dropdown
                         - Accordion
                         - Loading / Retry
-                    ============================== */}
+                    ================================== */}
 
                     <SiteUpdates />
 
-                    {/* ==============================
+
+                    {/* ==================================
                         4. REWARD SYSTEM
 
                         - Help other developers
                         - FCoin reward system
                         - Reputation / badges
                         - Trust indicators
-                    ============================== */}
+                    ================================== */}
 
                     <HomeRewards />
 
-                    {/* ==============================
+
+                    {/* ==================================
                         5. CALL TO ACTION
 
                         Guest:
@@ -314,13 +345,14 @@ const Main = () => {
 
                         Community:
                         /users
-                    ============================== */}
+                    ================================== */}
 
                     <HomeCallToAction
                         isLoggedIn={isLoggedIn}
                     />
 
-                    {/* ==============================
+
+                    {/* ==================================
                         6. COMMUNITY
 
                         Existing CommentSection
@@ -328,14 +360,18 @@ const Main = () => {
 
                         All comment functionality
                         remains in CommentSection.
-                    ============================== */}
+                    ================================== */}
 
                     <HomeCommunity />
+
                 </div>
+
             </div>
+
         </main>
     );
 };
+
 
 // =========================================================
 // EXPORT

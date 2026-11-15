@@ -2,12 +2,6 @@
 import React, { memo } from "react";
 
 // =========================================================
-// FSOCIETY — SHARED BACKGROUND
-// =========================================================
-
-import PageGridBackground from "./ui/PageGridBackground";
-
-// =========================================================
 // EXISTING COMPONENTS
 // =========================================================
 
@@ -40,6 +34,16 @@ import useProjectDetailController from "./projectDetail/useProjectDetailControll
 // =========================================================
 // SHARED PAGE STYLES
 // =========================================================
+//
+// IMPORTANT:
+//
+// The global WinterBackground is rendered in App.jsx.
+//
+// This page must remain transparent so that the
+// global winter image or original PageGridBackground
+// remains visible behind the page.
+//
+// =========================================================
 
 const PAGE_CLASS = `
     relative
@@ -51,10 +55,10 @@ const PAGE_CLASS = `
 
     overflow-hidden
 
-    bg-[#edf4ff]
+    bg-transparent
     text-slate-900
 
-    dark:bg-[#060b15]
+    dark:bg-transparent
     dark:text-white
 `;
 
@@ -89,30 +93,35 @@ const PROJECT_CONTAINER_CLASS = `
     border
     border-[#dce5f0]
 
-    bg-white/90
+    bg-white/75
 
     shadow-[0_24px_70px_rgba(15,23,42,0.065)]
 
-    backdrop-blur-sm
+    backdrop-blur-md
 
     sm:rounded-[28px]
 
     dark:border-white/[0.07]
-    dark:bg-[#0b1018]/95
+    dark:bg-[#0b1018]/80
 
     dark:shadow-[0_40px_110px_rgba(0,0,0,0.35)]
 `;
 
 // =========================================================
 // PROJECT DETAIL PAGE SHELL
+// =========================================================
 //
 // Shared for:
+//
 // - Initial loading
 // - Invalid project ID
 // - API errors
 // - Main project content
 //
-// The background remains consistent across states.
+// Background is provided globally by App.jsx.
+//
+// No local PageGridBackground is rendered.
+//
 // =========================================================
 
 const ProjectDetailPageShell = memo(
@@ -121,23 +130,30 @@ const ProjectDetailPageShell = memo(
         className = "",
     }) {
         return (
-            <div className={PAGE_CLASS}>
+            <div
+                className={PAGE_CLASS}
+                style={{
+                    background: "transparent",
+                    backgroundColor: "transparent",
+                    backgroundImage: "none",
+                }}
+            >
+
                 {/* ======================================
-                    SHARED FUTURISTIC BACKGROUND
+                    GLOBAL BACKGROUND
 
-                    Contains:
-                    - Grid
-                    - Geometric network lines
-                    - Glowing nodes
-                    - Glass-like 3D cubes
-                    - Cyan / indigo / violet lights
-                    - FS watermark
+                    Managed by App.jsx.
 
-                    The background is decorative and
-                    does not intercept user interactions.
+                    Winter ON:
+                    - Dark: winter-dark.webp
+                    - Light: winter-light.webp
+
+                    Winter OFF:
+                    - Original PageGridBackground
+
+                    No duplicate background here.
                 ====================================== */}
 
-                <PageGridBackground showMonogram />
 
                 {/* ======================================
                     FOREGROUND CONTENT
@@ -155,6 +171,7 @@ const ProjectDetailPageShell = memo(
                 >
                     {children}
                 </div>
+
             </div>
         );
     }
@@ -162,8 +179,12 @@ const ProjectDetailPageShell = memo(
 
 // =========================================================
 // PROJECT DETAIL LOADING
+// =========================================================
 //
 // Keeps the existing ProjectLoadingSkeleton.
+//
+// Uses the same global background as the main page.
+//
 // =========================================================
 
 const ProjectDetailLoading = memo(
@@ -191,8 +212,12 @@ const ProjectDetailLoading = memo(
 
 // =========================================================
 // PROJECT DETAIL ERROR
+// =========================================================
 //
 // Keeps the existing error component and retry support.
+//
+// Uses the same global background as the main page.
+//
 // =========================================================
 
 const ProjectDetailError = memo(
@@ -217,12 +242,13 @@ const ProjectDetailError = memo(
 
 // =========================================================
 // FSOCIETY — PROJECT DETAIL PAGE
+// =========================================================
 //
 // Architecture:
 //
 // ProjectDetail.jsx
 //     ├── ProjectDetailPageShell
-//     │     └── PageGridBackground
+//     │     └── Global WinterBackground
 //     │
 //     ├── useProjectDetailController
 //     │     ├── Redux / API
@@ -240,9 +266,18 @@ const ProjectDetailError = memo(
 //     └── DeleteConfirmationModal
 //
 // Existing behavior is preserved.
+//
+// Background is managed only by App.jsx.
+//
+// =========================================================
+
+
+// =========================================================
+// PROJECT DETAIL COMPONENT
 // =========================================================
 
 const ProjectDetail = () => {
+
     // =====================================================
     // CONTROLLER
     // =====================================================
@@ -327,7 +362,9 @@ const ProjectDetail = () => {
         handleOpenDeleteModal,
         handleCloseDeleteModal,
         handleConfirmDelete,
+
     } = useProjectDetailController();
+
 
     // =====================================================
     // INVALID PROJECT ID
@@ -344,21 +381,27 @@ const ProjectDetail = () => {
         );
     }
 
+
     // =====================================================
     // INITIAL LOADING
+    // =====================================================
     //
     // Keep the existing skeleton while the project
     // data has not been loaded.
+    //
     // =====================================================
 
     if (isLoading && !projectData) {
         return <ProjectDetailLoading />;
     }
 
+
     // =====================================================
     // API ERROR
+    // =====================================================
     //
     // Preserve the existing retry function.
+    //
     // =====================================================
 
     if (error) {
@@ -372,54 +415,75 @@ const ProjectDetail = () => {
         );
     }
 
+
     // =====================================================
     // PROJECT NOT YET AVAILABLE
+    // =====================================================
     //
     // Avoid displaying an error before the initial
     // asynchronous request has started.
+    //
     // =====================================================
 
     if (!projectData?.id) {
         return <ProjectDetailLoading />;
     }
 
+
     // =====================================================
     // MAIN PROJECT PAGE
     // =====================================================
 
     return (
-        <div className={PAGE_CLASS}>
-            {/* ======================================
-                SHARED FUTURISTIC BACKGROUND
+        <div
+            className={PAGE_CLASS}
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
+        >
 
-                Same component used in:
+            {/* ======================================
+                GLOBAL BACKGROUND
+
+                Managed by App.jsx.
+
+                Same background is used across:
+
+                - Home
+                - Projects
+                - ProjectDetail
                 - Users
                 - Problems
                 - Feedback
-                - Projects
-                - ProjectDetail
+
+                No local PageGridBackground is rendered.
             ====================================== */}
 
-            <PageGridBackground showMonogram />
 
             {/* ======================================
                 PROJECT CONTENT
 
                 Existing spacing and layout preserved.
+
                 All interactive content stays above
-                the decorative background.
+                the global decorative background.
             ====================================== */}
 
             <main className={CONTENT_CLASS}>
+
                 {/* ==================================
                     PROJECT CONTAINER
                 ================================== */}
 
                 <div className={PROJECT_CONTAINER_CLASS}>
+
                     {/* ==============================
                         PROJECT HEADER
 
                         Preserved:
+
                         - Title and description
                         - Promotion badge
                         - Owner controls
@@ -467,19 +531,20 @@ const ProjectDetail = () => {
                         }
                     />
 
+
                     {/* ==============================
                         CONTENT GRID
 
                         Left:
-                        Project overview
-                        Collaboration
+                        - Project overview
+                        - Collaboration
 
                         Right:
-                        Promotion
-                        Author
-                        Languages
-                        Technologies
-                        External links
+                        - Promotion
+                        - Author
+                        - Languages
+                        - Technologies
+                        - External links
                     ============================== */}
 
                     <div
@@ -491,6 +556,7 @@ const ProjectDetail = () => {
                             xl:grid-cols-[minmax(0,1fr)_520px]
                         "
                     >
+
                         {/* ==========================
                             MAIN OVERVIEW
                         ========================== */}
@@ -510,6 +576,7 @@ const ProjectDetail = () => {
 
                             projectId={projectId}
                         />
+
 
                         {/* ==========================
                             PROJECT SIDEBAR
@@ -540,7 +607,9 @@ const ProjectDetail = () => {
                                 refreshProject
                             }
                         />
+
                     </div>
+
 
                     {/* ==============================
                         PROJECT DISCUSSION
@@ -549,8 +618,11 @@ const ProjectDetail = () => {
                     <ProjectDiscussion
                         projectId={projectId}
                     />
+
                 </div>
+
             </main>
+
 
             {/* ======================================
                 EDIT PROJECT MODAL
@@ -585,10 +657,12 @@ const ProjectDetail = () => {
                 />
             )}
 
+
             {/* ======================================
                 DELETE PROJECT MODAL
 
                 Confirmation is preserved.
+
                 Only project owners can open it.
             ====================================== */}
 
@@ -615,9 +689,11 @@ const ProjectDetail = () => {
                     }
                 />
             )}
+
         </div>
     );
 };
+
 
 // =========================================================
 // EXPORT

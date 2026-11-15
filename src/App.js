@@ -94,9 +94,16 @@ import {
 
 import {
   NewYearProvider,
+  useNewYear,
 } from "./features/newYear/context/NewYearContext";
 
 import Snowfall from "./features/newYear/components/Snowfall";
+
+// =========================================================
+// GLOBAL SHARED BACKGROUND
+// =========================================================
+
+import WinterBackground from "./components/ui/winter/WinterBackground";
 
 // =========================================================
 // FSOCIETY — APPLICATION
@@ -117,6 +124,7 @@ import Snowfall from "./features/newYear/components/Snowfall";
 // - Global toast
 // - NewYearProvider integration
 // - Global snowfall integration
+// - Global winter background
 //
 // IMPORTANT:
 //
@@ -128,9 +136,12 @@ import Snowfall from "./features/newYear/components/Snowfall";
 // App.js does not write theme to localStorage.
 // App.js does not directly modify HTML classes.
 //
+// WinterBackground is rendered ONCE globally.
+//
 // Snowfall is rendered globally through AppInner.
 //
 // =========================================================
+
 
 // =========================================================
 // AUTHENTICATED USER NORMALIZER
@@ -159,6 +170,7 @@ const getAuthenticatedUser = (response) => {
 
   return user;
 };
+
 
 // =========================================================
 // PRIVATE ROUTE
@@ -200,6 +212,7 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
+
 // =========================================================
 // PUBLIC AUTH PAGE
 // =========================================================
@@ -213,6 +226,9 @@ const PrivateRoute = ({ children }) => {
 //
 // ThemeContext applies the HTML "dark" class,
 // so no local theme state is required.
+//
+// Background is transparent because the global
+// WinterBackground is rendered behind the application.
 //
 // =========================================================
 
@@ -253,6 +269,7 @@ const PublicAuthPage = ({ children }) => {
     <div
       className="
         relative
+        z-10
 
         flex min-h-screen
         min-h-[100dvh]
@@ -260,10 +277,10 @@ const PublicAuthPage = ({ children }) => {
         w-full min-w-0
         flex-col
 
-        bg-[#f7faff]
+        bg-transparent
         text-slate-900
 
-        dark:bg-[#050a14]
+        dark:bg-transparent
         dark:text-slate-100
 
         transition-colors
@@ -276,6 +293,7 @@ const PublicAuthPage = ({ children }) => {
     </div>
   );
 };
+
 
 // =========================================================
 // APP LAYOUT
@@ -290,9 +308,13 @@ const PublicAuthPage = ({ children }) => {
 //   toggleTheme={toggleTheme}
 // />
 //
+// Background is inherited from the global
+// WinterBackground component.
+//
 // =========================================================
 
 const AppLayout = () => {
+
   // =====================================================
   // THEME CONTEXT
   // =====================================================
@@ -312,16 +334,19 @@ const AppLayout = () => {
     <PrivateRoute>
       <div
         className="
+          relative
+          z-10
+
           flex min-h-screen
           min-h-[100dvh]
 
           w-full min-w-0
           flex-col
 
-          bg-gray-100
+          bg-transparent
           text-gray-800
 
-          dark:bg-[#0d1117]
+          dark:bg-transparent
           dark:text-gray-200
 
           transition-colors
@@ -330,6 +355,7 @@ const AppLayout = () => {
           motion-reduce:transition-none
         "
       >
+
         {/* =====================================
             NAVBAR
         ===================================== */}
@@ -338,6 +364,7 @@ const AppLayout = () => {
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
         />
+
 
         {/* =====================================
             MAIN CONTENT
@@ -348,10 +375,10 @@ const AppLayout = () => {
             min-w-0
             flex-grow
 
-            bg-gray-100
+            bg-transparent
             text-gray-800
 
-            dark:bg-[#0d1117]
+            dark:bg-transparent
             dark:text-gray-200
 
             transition-colors
@@ -363,15 +390,18 @@ const AppLayout = () => {
           <Outlet />
         </div>
 
+
         {/* =====================================
             FOOTER
         ===================================== */}
 
         <Footer />
+
       </div>
     </PrivateRoute>
   );
 };
+
 
 // =========================================================
 // APP CONTENT
@@ -412,6 +442,7 @@ function AppContent() {
 
   useEffect(() => {
     const handleForceLogout = () => {
+
       // Invalidate pending auth checks.
       ++authGenerationRef.current;
 
@@ -436,6 +467,7 @@ function AppContent() {
       );
     };
   }, [dispatch]);
+
 
   // =====================================================
   // INITIAL AUTHENTICATION CHECK
@@ -507,6 +539,7 @@ function AppContent() {
         dispatch(
           logoutUser()
         );
+
       } catch (error) {
         if (!isCurrentRequest()) {
           return;
@@ -546,6 +579,7 @@ function AppContent() {
     };
   }, [dispatch]);
 
+
   // =====================================================
   // WEBSOCKET NOTIFICATIONS
   // =====================================================
@@ -579,12 +613,14 @@ function AppContent() {
     isLoggedIn,
   ]);
 
+
   // =====================================================
   // ROUTES
   // =====================================================
 
   return (
     <Routes>
+
       {/* ==========================================
           PUBLIC AUTHENTICATION
       ========================================== */}
@@ -600,6 +636,7 @@ function AppContent() {
         }
       />
 
+
       {/* REGISTER */}
 
       <Route
@@ -611,6 +648,7 @@ function AppContent() {
         }
       />
 
+
       {/* ==========================================
           OAUTH CALLBACK
       ========================================== */}
@@ -620,6 +658,9 @@ function AppContent() {
         element={
           <div
             className="
+              relative
+              z-10
+
               flex min-h-screen
               min-h-[100dvh]
 
@@ -628,10 +669,10 @@ function AppContent() {
               items-center
               justify-center
 
-              bg-slate-50
+              bg-transparent
               text-slate-900
 
-              dark:bg-[#0d1117]
+              dark:bg-transparent
               dark:text-gray-100
 
               transition-colors
@@ -643,6 +684,7 @@ function AppContent() {
         }
       />
 
+
       {/* ==========================================
           PROTECTED APPLICATION
       ========================================== */}
@@ -653,6 +695,7 @@ function AppContent() {
           <AppLayout />
         }
       >
+
         {/* ======================================
             HOME
         ====================================== */}
@@ -661,6 +704,7 @@ function AppContent() {
           index
           element={<Main />}
         />
+
 
         {/* ======================================
             PROBLEMS
@@ -698,6 +742,7 @@ function AppContent() {
           element={<ProblemDetail />}
         />
 
+
         {/* ======================================
             FEEDBACK
         ====================================== */}
@@ -706,6 +751,7 @@ function AppContent() {
           path="feedback"
           element={<Feedback />}
         />
+
 
         {/* ======================================
             FCOIN
@@ -721,6 +767,7 @@ function AppContent() {
           element={<FCoinHistory />}
         />
 
+
         {/* ======================================
             USERS / PROFILE
         ====================================== */}
@@ -734,6 +781,7 @@ function AppContent() {
           path=":username/profile"
           element={<Profile />}
         />
+
 
         {/* ======================================
             PROJECTS
@@ -749,6 +797,7 @@ function AppContent() {
           element={<ProjectDetail />}
         />
 
+
         {/* ======================================
             NOTIFICATIONS
         ====================================== */}
@@ -758,6 +807,7 @@ function AppContent() {
           element={<NotificationsPage />}
         />
 
+
         {/* ======================================
             POSTS
         ====================================== */}
@@ -766,7 +816,9 @@ function AppContent() {
           path=":username/post/:slug/"
           element={<PostDetail />}
         />
+
       </Route>
+
 
       {/* ==========================================
           NOT FOUND
@@ -777,6 +829,9 @@ function AppContent() {
         element={
           <div
             className="
+              relative
+              z-10
+
               flex min-h-screen
               min-h-[100dvh]
 
@@ -785,10 +840,10 @@ function AppContent() {
               items-center
               justify-center
 
-              bg-slate-50
+              bg-transparent
               text-slate-900
 
-              dark:bg-[#0d1117]
+              dark:bg-transparent
               dark:text-gray-100
 
               transition-colors
@@ -799,54 +854,168 @@ function AppContent() {
           </div>
         }
       />
+
     </Routes>
   );
 }
 
+
 // =========================================================
 // ROOT APPLICATION CONTENT
 // =========================================================
+//
+// NewYearProvider already wraps AppInner.
+//
+// Therefore useNewYear() is available here.
+//
+// Global background:
+//
+// - Rendered only once.
+// - Persists during route navigation.
+// - Reads winterBackgroundEnabled.
+// - Uses the existing ThemeContext dark class.
+// - Shows the original PageGridBackground when disabled.
+//
+// =========================================================
 
 const AppInner = () => {
+
+  // =====================================================
+  // WINTER BACKGROUND SETTINGS
+  // =====================================================
+
+  const { settings } = useNewYear();
+
+  // IMPORTANT:
+  //
+  // If the setting has not been initialized yet,
+  // winter background remains enabled.
+  //
+  // Explicit false still disables winter background
+  // and restores PageGridBackground.
+  //
+  const isWinterBackgroundEnabled =
+    settings?.winterBackgroundEnabled ?? true;
+
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
   return (
     <Router>
-      {/* =====================================
-          UNIVERSAL TOAST
-      ===================================== */}
-
-      <AuthToast />
 
       {/* =====================================
-          APPLICATION ROUTES
+          GLOBAL APPLICATION ROOT
       ===================================== */}
 
-      <AppContent />
+      <div
+        className="
+          relative
+          isolate
 
-      {/* =====================================
-          GLOBAL WINTER SNOWFALL
-      ===================================== */}
-      {/*
-        Rendered outside individual routes.
+          min-h-screen
+          min-h-[100dvh]
 
-        Therefore snowfall can appear on:
+          w-full
+          min-w-0
 
-        - Home
-        - Problems
-        - Projects
-        - Profiles
-        - Login
-        - Register
-        - OAuth callback
-        - Not found
+          overflow-x-clip
+        "
+      >
 
-        Actual animation depends on
-        NewYearContext settings.
-      */}
+        {/* =====================================
+            GLOBAL SHARED BACKGROUND
 
-      <Snowfall />
+            Rendered ONCE for the entire app.
+
+            Winter ON:
+            - Dark: winter-dark.webp
+            - Light: winter-light.webp
+
+            Winter OFF:
+            - Original PageGridBackground
+
+            The fixed wrapper keeps the background
+            behind every route and page.
+        ===================================== */}
+
+        <div
+          aria-hidden="true"
+          className="
+            pointer-events-none
+            fixed
+            inset-0
+            z-0
+            overflow-hidden
+          "
+        >
+          <WinterBackground
+            enabled={isWinterBackgroundEnabled}
+            showMonogram
+            showCubes
+          />
+        </div>
+
+
+        {/* =====================================
+            GLOBAL APPLICATION CONTENT
+        ===================================== */}
+
+        <div
+          className="
+            relative
+            z-10
+            min-h-screen
+            min-h-[100dvh]
+          "
+        >
+
+          {/* =====================================
+              UNIVERSAL TOAST
+          ===================================== */}
+
+          <AuthToast />
+
+
+          {/* =====================================
+              APPLICATION ROUTES
+          ===================================== */}
+
+          <AppContent />
+
+
+          {/* =====================================
+              GLOBAL WINTER SNOWFALL
+          ===================================== */}
+          {/*
+            Rendered outside individual routes.
+
+            Therefore snowfall can appear on:
+
+            - Home
+            - Problems
+            - Projects
+            - Profiles
+            - Login
+            - Register
+            - OAuth callback
+            - Not found
+
+            Actual animation depends on
+            NewYearContext settings.
+          */}
+
+          <Snowfall />
+
+        </div>
+
+      </div>
+
     </Router>
   );
 };
+
 
 // =========================================================
 // ROOT APP
@@ -854,34 +1023,29 @@ const AppInner = () => {
 //
 // Provider hierarchy:
 //
-// ThemeProvider
-//   └── NewYearProvider
-//         └── AppInner
-//               ├── Router
-//               ├── AuthToast
-//               ├── AppContent
-//               └── Snowfall
+// index.js
+//   └── Redux Provider
+//         └── ThemeProvider
+//               └── App
+//                     └── NewYearProvider
+//                           └── AppInner
+//                                 └── Router
+//                                       ├── WinterBackground
+//                                       ├── AuthToast
+//                                       ├── AppContent
+//                                       └── Snowfall
 //
-// ThemeProvider can be installed in index.js:
+// ThemeProvider is already installed in index.js.
 //
-// <ThemeProvider>
-//   <App />
-// </ThemeProvider>
+// If it exists above App, reuse it.
+// Otherwise, provide it here.
 //
-// Or App can be rendered directly:
-//
-// <App />
-//
-// If ThemeProvider already exists above App,
-// reuse it.
-//
-// Otherwise, create one provider.
-//
-// This prevents duplicate theme state.
+// This avoids duplicate theme state.
 //
 // =========================================================
 
 function App() {
+
   const existingThemeContext =
     useContext(ThemeContext);
 
@@ -909,6 +1073,7 @@ function App() {
     </ThemeProvider>
   );
 }
+
 
 // =========================================================
 // EXPORT
