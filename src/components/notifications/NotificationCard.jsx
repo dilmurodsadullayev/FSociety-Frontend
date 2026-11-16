@@ -1,3 +1,4 @@
+
 // src/components/notifications/NotificationCard.jsx
 
 import React, { memo } from "react";
@@ -25,50 +26,47 @@ import {
 
 // =========================================================
 // NOTIFICATION TYPE COLORS — LIGHT / DARK MODE
-//
-// Existing notificationUtils styles are preserved.
-// Light-mode overrides ensure readable text and badges.
 // =========================================================
 
 const TYPE_TONES = Object.freeze({
     problem:
         "!border-red-200 !bg-red-50 !text-red-700 " +
-        "dark:!border-red-400/20 dark:!bg-red-500/10 " +
+        "dark:!border-red-400/30 dark:!bg-red-500/15 " +
         "dark:!text-red-300",
 
     solution:
         "!border-emerald-200 !bg-emerald-50 !text-emerald-700 " +
-        "dark:!border-emerald-400/20 dark:!bg-emerald-500/10 " +
+        "dark:!border-emerald-400/30 dark:!bg-emerald-500/15 " +
         "dark:!text-emerald-300",
 
     coin:
         "!border-amber-200 !bg-amber-50 !text-amber-800 " +
-        "dark:!border-amber-400/20 dark:!bg-amber-500/10 " +
+        "dark:!border-amber-400/30 dark:!bg-amber-500/15 " +
         "dark:!text-amber-300",
 
     post:
         "!border-violet-200 !bg-violet-50 !text-violet-700 " +
-        "dark:!border-violet-400/20 dark:!bg-violet-500/10 " +
+        "dark:!border-violet-400/30 dark:!bg-violet-500/15 " +
         "dark:!text-violet-300",
 
     task:
         "!border-blue-200 !bg-blue-50 !text-blue-700 " +
-        "dark:!border-blue-400/20 dark:!bg-blue-500/10 " +
+        "dark:!border-blue-400/30 dark:!bg-blue-500/15 " +
         "dark:!text-blue-300",
 
     star:
         "!border-yellow-200 !bg-yellow-50 !text-yellow-800 " +
-        "dark:!border-yellow-400/20 dark:!bg-yellow-500/10 " +
+        "dark:!border-yellow-400/30 dark:!bg-yellow-500/15 " +
         "dark:!text-yellow-300",
 
     badge:
         "!border-orange-200 !bg-orange-50 !text-orange-700 " +
-        "dark:!border-orange-400/20 dark:!bg-orange-500/10 " +
+        "dark:!border-orange-400/30 dark:!bg-orange-500/15 " +
         "dark:!text-orange-300",
 
     info:
         "!border-indigo-200 !bg-indigo-50 !text-indigo-700 " +
-        "dark:!border-indigo-400/20 dark:!bg-indigo-500/10 " +
+        "dark:!border-indigo-400/30 dark:!bg-indigo-500/15 " +
         "dark:!text-indigo-300",
 });
 
@@ -203,9 +201,6 @@ const NotificationCard = ({
 
     // =====================================================
     // OPEN NOTIFICATION
-    //
-    // Preserve the existing link destination and mark-read
-    // behavior when the notification is opened.
     // =====================================================
 
     const handleOpen = () => {
@@ -213,6 +208,40 @@ const NotificationCard = ({
             onMarkRead(notificationId);
         }
     };
+
+    // =====================================================
+    // CARD SURFACE
+    //
+    // Stronger opacity prevents the winter background
+    // from reducing notification readability.
+    // =====================================================
+
+    const cardSurface = isUnread
+        ? `
+            border-indigo-300/90
+            bg-indigo-50/[0.97]
+
+            shadow-[0_14px_40px_rgba(30,41,100,0.13)]
+
+            ring-1 ring-indigo-200/50
+
+            dark:border-indigo-400/35
+            dark:bg-[#101a32]/[0.96]
+
+            dark:shadow-[0_18px_55px_rgba(0,0,0,0.38)]
+            dark:ring-indigo-400/10
+        `
+        : `
+            border-slate-200
+            bg-white/[0.96]
+
+            shadow-[0_12px_35px_rgba(15,23,42,0.09)]
+
+            dark:border-slate-600/50
+            dark:bg-[#0b1220]/[0.95]
+
+            dark:shadow-[0_16px_45px_rgba(0,0,0,0.34)]
+        `;
 
     // =====================================================
     // RENDER
@@ -247,39 +276,65 @@ const NotificationCard = ({
                     : "O‘qilgan bildirishnoma"
             }
             className={`
-                group relative min-w-0 overflow-hidden
-                rounded-3xl border transition-colors
-                duration-200
+                group relative isolate min-w-0
+                overflow-hidden rounded-3xl border
 
-                ${
-                    isUnread
-                        ? `
-                            border-indigo-200
-                            bg-indigo-50/80
-                            shadow-[0_14px_45px_rgba(79,70,229,0.07)]
+                backdrop-blur-2xl
+                transition-all duration-200
 
-                            dark:border-indigo-400/20
-                            dark:bg-indigo-500/[0.045]
-                            dark:shadow-[0_20px_60px_rgba(0,0,0,0.22)]
-                        `
-                        : `
-                            border-slate-200/90
-                            bg-white/85
-                            shadow-[0_10px_35px_rgba(15,23,42,0.045)]
+                ${cardSurface}
 
-                            dark:border-white/[0.06]
-                            dark:bg-[#0d121a]/80
-                            dark:shadow-none
-                        `
-                }
+                hover:-translate-y-[1px]
 
-                hover:border-indigo-300
-                hover:bg-white
+                hover:border-indigo-400/70
+                hover:shadow-[0_18px_45px_rgba(30,41,100,0.15)]
 
-                dark:hover:border-indigo-400/25
-                dark:hover:bg-[#101620]
+                dark:hover:border-indigo-400/40
+                dark:hover:bg-[#111c30]/[0.98]
             `}
         >
+            {/* =========================================
+                CARD INNER BACKGROUND
+            ========================================== */}
+
+            <div
+                aria-hidden="true"
+                className="
+                    pointer-events-none absolute inset-0
+                    z-0
+                "
+            >
+                <div
+                    className={`
+                        absolute inset-0
+
+                        ${
+                            isUnread
+                                ? `
+                                    bg-gradient-to-br
+                                    from-white/35
+                                    via-transparent
+                                    to-indigo-100/25
+
+                                    dark:from-indigo-300/[0.045]
+                                    dark:via-transparent
+                                    dark:to-indigo-500/[0.035]
+                                `
+                                : `
+                                    bg-gradient-to-br
+                                    from-white/30
+                                    via-transparent
+                                    to-slate-100/30
+
+                                    dark:from-white/[0.025]
+                                    dark:via-transparent
+                                    dark:to-slate-800/[0.08]
+                                `
+                        }
+                    `}
+                />
+            </div>
+
             {/* =========================================
                 UNREAD INDICATOR
             ========================================== */}
@@ -289,12 +344,13 @@ const NotificationCard = ({
                     aria-hidden="true"
                     className="
                         absolute bottom-5 left-0 top-5
-                        w-[3px] rounded-r-full
-                        bg-indigo-500
+                        z-20 w-[4px] rounded-r-full
 
-                        shadow-[0_0_15px_rgba(129,140,248,0.35)]
+                        bg-indigo-600
+                        shadow-[0_0_16px_rgba(79,70,229,0.45)]
 
                         dark:bg-indigo-400
+                        dark:shadow-[0_0_18px_rgba(129,140,248,0.55)]
                     "
                 />
             )}
@@ -307,16 +363,19 @@ const NotificationCard = ({
                 aria-hidden="true"
                 className={`
                     pointer-events-none absolute inset-0
+                    z-0
 
                     bg-gradient-to-r
                     ${meta.glow}
                     via-transparent to-transparent
 
-                    opacity-0
+                    opacity-[0.04]
                     transition-opacity duration-300
 
-                    group-hover:opacity-60
-                    dark:group-hover:opacity-100
+                    group-hover:opacity-[0.10]
+
+                    dark:opacity-[0.035]
+                    dark:group-hover:opacity-[0.12]
                 `}
             />
 
@@ -347,13 +406,18 @@ const NotificationCard = ({
                         onError={handleUserImageError}
                         loading="lazy"
                         className="
-                            h-14 w-14 rounded-2xl border
-                            border-slate-200 bg-slate-100
-                            object-cover shadow-sm
+                            h-14 w-14 rounded-2xl border-2
 
-                            dark:border-white/[0.08]
+                            border-white
+                            bg-slate-100
+
+                            object-cover
+
+                            shadow-[0_5px_15px_rgba(15,23,42,0.16)]
+
+                            dark:border-slate-600
                             dark:bg-[#161b22]
-                            dark:shadow-black/20
+                            dark:shadow-black/30
                         "
                     />
 
@@ -366,9 +430,12 @@ const NotificationCard = ({
 
                             grid h-8 w-8 place-items-center
 
-                            rounded-xl border shadow-sm
+                            rounded-xl border-2
+                            border-white shadow-md
+
                             backdrop-blur-xl
 
+                            dark:border-[#0b1220]
                             dark:shadow-lg
 
                             ${meta.iconBox}
@@ -377,7 +444,7 @@ const NotificationCard = ({
                     >
                         <Icon
                             size={14}
-                            strokeWidth={2.2}
+                            strokeWidth={2.4}
                         />
                     </div>
                 </div>
@@ -398,7 +465,7 @@ const NotificationCard = ({
                             focus-visible:ring-indigo-500
                             focus-visible:ring-offset-2
 
-                            dark:focus-visible:ring-offset-[#0d121a]
+                            dark:focus-visible:ring-offset-[#0b1220]
                         "
                     >
                         {/* =============================
@@ -428,8 +495,10 @@ const NotificationCard = ({
                                             border px-2.5 py-1
 
                                             font-mono text-[9px]
-                                            font-bold uppercase
+                                            font-extrabold uppercase
                                             tracking-[0.08em]
+
+                                            shadow-sm
 
                                             ${meta.pill}
                                             ${tone}
@@ -442,20 +511,22 @@ const NotificationCard = ({
                                         <span
                                             className="
                                                 rounded-full border
-                                                border-indigo-200
+                                                border-indigo-300
 
-                                                bg-indigo-100/80
+                                                bg-indigo-100
                                                 px-2.5 py-1
 
                                                 font-mono text-[9px]
-                                                font-bold uppercase
+                                                font-extrabold uppercase
                                                 tracking-[0.08em]
 
-                                                text-indigo-700
+                                                text-indigo-800
 
-                                                dark:border-indigo-400/15
-                                                dark:bg-indigo-500/[0.08]
-                                                dark:text-indigo-300
+                                                shadow-sm
+
+                                                dark:border-indigo-400/35
+                                                dark:bg-indigo-500/20
+                                                dark:text-indigo-200
                                             "
                                         >
                                             Yangi
@@ -468,14 +539,14 @@ const NotificationCard = ({
                                 <p
                                     className="
                                         break-words text-[14px]
-                                        font-semibold leading-6
+                                        font-bold leading-6
 
-                                        text-slate-800
+                                        text-slate-900
                                         transition-colors
 
-                                        group-hover:text-slate-950
+                                        group-hover:text-indigo-950
 
-                                        dark:text-gray-300
+                                        dark:text-slate-100
                                         dark:group-hover:text-white
 
                                         sm:text-[15px]
@@ -493,11 +564,12 @@ const NotificationCard = ({
                                     className="
                                         mt-2 h-2.5 w-2.5 shrink-0
 
-                                        rounded-full bg-indigo-500
+                                        rounded-full bg-indigo-600
 
-                                        shadow-[0_0_12px_rgba(129,140,248,0.45)]
+                                        shadow-[0_0_12px_rgba(79,70,229,0.45)]
 
                                         dark:bg-indigo-400
+                                        dark:shadow-[0_0_14px_rgba(129,140,248,0.6)]
                                     "
                                 />
                             )}
@@ -512,10 +584,10 @@ const NotificationCard = ({
                                 mt-3 flex min-w-0 flex-wrap
                                 items-center gap-x-4 gap-y-2
 
-                                text-[11px] font-semibold
+                                text-[11px] font-bold
 
-                                text-slate-500
-                                dark:text-gray-400
+                                text-slate-600
+                                dark:text-slate-300
                             "
                         >
                             {/* SENDER USERNAME */}
@@ -528,7 +600,7 @@ const NotificationCard = ({
                             >
                                 <UserRound
                                     size={13}
-                                    strokeWidth={2}
+                                    strokeWidth={2.2}
                                     className="shrink-0"
                                     aria-hidden="true"
                                 />
@@ -551,13 +623,15 @@ const NotificationCard = ({
                                         inline-flex min-w-0
                                         items-center gap-1.5
 
-                                        font-mono text-amber-700
+                                        font-mono font-extrabold
+                                        text-amber-700
+
                                         dark:text-amber-300
                                     "
                                 >
                                     <Coins
                                         size={13}
-                                        strokeWidth={2}
+                                        strokeWidth={2.2}
                                         className="shrink-0"
                                         aria-hidden="true"
                                     />
@@ -580,13 +654,15 @@ const NotificationCard = ({
                                         inline-flex min-w-0
                                         items-center gap-1.5
 
+                                        font-bold
                                         text-red-700
+
                                         dark:text-red-300
                                     "
                                 >
                                     <Clock3
                                         size={13}
-                                        strokeWidth={2}
+                                        strokeWidth={2.2}
                                         className="shrink-0"
                                         aria-hidden="true"
                                     />
@@ -609,10 +685,10 @@ const NotificationCard = ({
                             }
                             className="
                                 mt-3 block font-mono text-[10px]
-                                font-medium
+                                font-semibold
 
                                 text-slate-500
-                                dark:text-gray-500
+                                dark:text-slate-400
                             "
                         >
                             {formatNotificationDateTime(
@@ -643,14 +719,21 @@ const NotificationCard = ({
                             items-center justify-center gap-1.5
                             self-start rounded-xl border
 
-                            border-emerald-200 bg-emerald-50
-                            px-3 py-2 text-[11px] font-bold
-                            text-emerald-700
+                            border-emerald-300
+                            bg-emerald-50
+                            px-3 py-2
 
-                            transition-colors
+                            text-[11px] font-extrabold
+                            text-emerald-800
 
-                            hover:border-emerald-300
+                            shadow-sm
+
+                            transition-all duration-200
+
+                            hover:-translate-y-0.5
+                            hover:border-emerald-400
                             hover:bg-emerald-100
+                            hover:shadow-md
 
                             focus-visible:outline-none
                             focus-visible:ring-2
@@ -659,18 +742,18 @@ const NotificationCard = ({
                             disabled:cursor-not-allowed
                             disabled:opacity-50
 
-                            dark:border-emerald-400/15
-                            dark:bg-emerald-500/[0.055]
-                            dark:text-emerald-300
+                            dark:border-emerald-400/30
+                            dark:bg-emerald-500/15
+                            dark:text-emerald-200
 
-                            dark:hover:border-emerald-400/25
-                            dark:hover:bg-emerald-500/10
-                            dark:hover:text-emerald-200
+                            dark:hover:border-emerald-400/50
+                            dark:hover:bg-emerald-500/25
+                            dark:hover:text-emerald-100
                         "
                     >
                         <Check
                             size={14}
-                            strokeWidth={2.3}
+                            strokeWidth={2.5}
                             aria-hidden="true"
                         />
 

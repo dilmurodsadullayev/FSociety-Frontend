@@ -3,9 +3,17 @@ import React from "react";
 
 // =========================================================
 // FSOCIETY — SHARED BACKGROUND
+//
+// Global Winter Background is managed in App.jsx.
+//
+// This page uses the global background only.
+// No additional PageGridBackground or WinterBackground
+// instance is created locally.
+//
+// The page surface remains transparent so the global
+// Light / Dark Winter Background stays visible.
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // USERS PAGE COMPONENTS
@@ -22,6 +30,7 @@ import {
 
 import UserCard from "./users/users-card/UserCard";
 
+
 // =========================================================
 // USERS HOOK AND HELPERS
 // =========================================================
@@ -31,6 +40,7 @@ import useUsersDirectory from "./users/useUsersDirectory";
 import {
     USERS_PER_PAGE,
 } from "./users/usersHelpers";
+
 
 // =========================================================
 // FSOCIETY — USERS DIRECTORY
@@ -49,10 +59,15 @@ import {
 // - Empty state
 //
 // Background:
-// Shared futuristic FSociety page background
+// - Global Winter Background managed in App.jsx
+// - No local background instance
+// - Transparent page surface
+// - Light / Dark Mode
 // =========================================================
 
+
 const Users = () => {
+
     // =====================================================
     // DIRECTORY CONTROLLER
     // =====================================================
@@ -79,6 +94,7 @@ const Users = () => {
         retry,
     } = useUsersDirectory();
 
+
     // =====================================================
     // SAFE DATA
     // =====================================================
@@ -86,6 +102,7 @@ const Users = () => {
     const safeUsers = Array.isArray(users)
         ? users
         : [];
+
 
     // =====================================================
     // VIEW STATE
@@ -116,7 +133,8 @@ const Users = () => {
 
     const showPagination =
         showUsers &&
-        totalPages > 1;
+        Number(totalPages) > 1;
+
 
     // =====================================================
     // JSX
@@ -125,17 +143,20 @@ const Users = () => {
     return (
         <main
             id="users-directory"
+
             className="
                 relative
                 isolate
+                z-10
 
                 min-h-screen
+
                 w-full
                 min-w-0
 
                 overflow-x-clip
 
-                bg-[#edf4ff]
+                bg-transparent
                 text-slate-900
 
                 px-3
@@ -147,29 +168,44 @@ const Users = () => {
                 lg:px-8
                 lg:py-14
 
-                dark:bg-[#060b15]
+                dark:bg-transparent
                 dark:text-white
             "
-        >
-            {/* ======================================
-                SHARED FUTURISTIC BACKGROUND
 
-                This layer includes:
-                - Grid
-                - Network lines
-                - Glowing nodes
-                - Glass cubes
-                - FS watermark
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
+        >
+
+            {/* ======================================
+                GLOBAL WINTER BACKGROUND
+
+                Winter Background is rendered globally
+                inside App.jsx.
+
+                This page must not create another
+                WinterBackground instance.
+
+                No opaque background color or gradient
+                should cover the global winter image.
+
+                Light / Dark image switching is handled
+                by the global ThemeProvider and
+                WinterBackground component.
             ====================================== */}
 
-            <PageGridBackground showMonogram />
 
             {/* ======================================
                 PAGE CONTENT
 
                 Relative z-10 keeps cards,
                 links and buttons above the
-                decorative background.
+                global Winter Background.
+
+                All page content stays above
+                the global background layer.
             ====================================== */}
 
             <div
@@ -184,6 +220,7 @@ const Users = () => {
                     max-w-[1440px]
                 "
             >
+
                 {/* ==================================
                     COMMUNITY HEADER
                 ================================== */}
@@ -193,21 +230,31 @@ const Users = () => {
                     isLoading={isLoading}
                 />
 
+
                 {/* ==================================
                     SEARCH AND FILTERS
                 ================================== */}
 
                 <UsersToolbar
                     searchTerm={searchTerm}
+
                     filter={filter}
+
                     currentPage={currentPage}
+
                     totalPages={totalPages}
+
                     visibleCount={safeUsers.length}
+
                     totalUsersCount={totalUsersCount}
+
                     isLoading={isLoading}
+
                     onSearchChange={handleSearchChange}
+
                     onFilterChange={handleFilterChange}
                 />
+
 
                 {/* ==================================
                     USERS LIST
@@ -215,12 +262,17 @@ const Users = () => {
 
                 <section
                     aria-label="Hamjamiyat foydalanuvchilari"
+
                     aria-busy={isLoading}
+
                     className="
                         relative
+                        z-10
+
                         min-w-0
                     "
                 >
+
                     {/* ==========================
                         LOADING SKELETON
                     ========================== */}
@@ -248,12 +300,15 @@ const Users = () => {
                             }).map((_, index) => (
                                 <UserCard
                                     key={`user-skeleton-${index}`}
+
                                     isLoading
+
                                     index={index}
                                 />
                             ))}
                         </div>
                     )}
+
 
                     {/* ==========================
                         API ERROR / RETRY
@@ -266,6 +321,7 @@ const Users = () => {
                         />
                     )}
 
+
                     {/* ==========================
                         EMPTY STATE
                     ========================== */}
@@ -273,11 +329,13 @@ const Users = () => {
                     {showEmpty && (
                         <UsersEmptyState
                             hasSearch={hasSearch}
+
                             onClear={() =>
                                 handleSearchChange("")
                             }
                         />
                     )}
+
 
                     {/* ==========================
                         USER CARDS
@@ -315,37 +373,65 @@ const Users = () => {
                                         isLoading={false}
 
                                         index={
-                                            (currentPage - 1) *
-                                                USERS_PER_PAGE +
-                                            index
+                                            (
+                                                (currentPage - 1) *
+                                                USERS_PER_PAGE
+                                            ) + index
                                         }
                                     />
                                 )
                             )}
                         </div>
                     )}
+
                 </section>
+
 
                 {/* ==================================
                     PAGINATION
                 ================================== */}
 
                 {showPagination && (
-                    <UsersPagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
+                    <div
+                        className="
+                            relative
+                            z-20
 
-                        hasPrevious={Boolean(previous)}
-                        hasNext={Boolean(next)}
+                            mt-8
 
-                        onPageChange={goToPage}
-                        onPrevious={previousPage}
-                        onNext={nextPage}
-                    />
+                            w-full
+                            min-w-0
+
+                            sm:mt-10
+                        "
+                    >
+                        <UsersPagination
+                            currentPage={currentPage}
+
+                            totalPages={totalPages}
+
+                            hasPrevious={Boolean(previous)}
+
+                            hasNext={Boolean(next)}
+
+                            onPageChange={goToPage}
+
+                            onPrevious={previousPage}
+
+                            onNext={nextPage}
+                        />
+                    </div>
                 )}
+
             </div>
+
         </main>
     );
 };
+
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default Users;

@@ -5,9 +5,16 @@ import { useSelector } from "react-redux";
 
 // =========================================================
 // SHARED FSOCIETY BACKGROUND
+//
+// Global Winter Background is managed in App.jsx.
+//
+// This page does not create another PageGridBackground
+// or WinterBackground instance.
+//
+// Transparent page surface allows the global
+// Light / Dark Winter Background to remain visible.
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // FCOIN COMPONENTS
@@ -22,6 +29,7 @@ import FCoinRewardPanels from "./fcoin/FCoinRewardPanels";
 import FCoinFeedbackRewards from "./fcoin/FCoinFeedbackRewards";
 
 import FCoinRulesRoadmap from "./fcoin/FCoinRulesRoadmap";
+
 
 // =========================================================
 // FSOCIETY — FCOIN ECONOMY PAGE
@@ -40,18 +48,25 @@ import FCoinRulesRoadmap from "./fcoin/FCoinRulesRoadmap";
 // - All 4 roadmap entries
 // - Scroll reveal animations
 //
+// Background:
+//
+// - Global Winter Background managed in App.jsx
+// - No duplicate local background grid
+// - Floating FCoin particles remain active
+// - Transparent page surface
+// - Light / Dark Mode
+//
 // Improvements:
 //
-// - Shared PageGridBackground
-// - Light / Dark Mode
 // - Responsive design
 // - Reduced motion support
 // - Modular component structure
-// - No duplicate background grid
 // - No page-wide CSS side effects
 // =========================================================
 
+
 const FCoin = () => {
+
     // =====================================================
     // CURRENT USER BALANCE
     //
@@ -64,6 +79,7 @@ const FCoin = () => {
         (state) => state.auth?.user?.coins ?? 0
     );
 
+
     // =====================================================
     // RENDER
     // =====================================================
@@ -71,54 +87,68 @@ const FCoin = () => {
     return (
         <div
             id="fcoin-economy"
+
             className="
                 relative
                 isolate
 
                 min-h-screen
+
                 w-full
                 min-w-0
 
                 overflow-x-clip
 
-                bg-[#edf4ff]
+                bg-transparent
                 text-slate-900
 
-                dark:bg-[#060b15]
+                dark:bg-transparent
                 dark:text-white
             "
+
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
         >
+
             {/* ======================================
-                SHARED FUTURISTIC BACKGROUND
+                GLOBAL WINTER BACKGROUND
 
-                Common background for:
-                - Main
-                - Users
-                - Problems
-                - Feedback
-                - Projects
-                - FCoin
+                Winter Background is rendered globally
+                inside App.jsx.
 
-                Decorative only.
+                This page must not create another
+                PageGridBackground or WinterBackground.
+
+                No opaque background color or gradient
+                should cover the global winter image.
+
+                Light / Dark image switching is handled
+                by the global ThemeProvider and
+                WinterBackground component.
             ====================================== */}
 
-            <PageGridBackground
-                showMonogram
-                showCubes
-            />
 
             {/* ======================================
                 FLOATING FCOIN PARTICLES
 
                 IMPORTANT:
+
                 These 14 animated FCoin images
-                remain active over the shared grid.
+                remain active over the global
+                Winter Background.
 
                 They are positioned behind the
                 actual page content.
+
+                The original FCoinFloatingCoins
+                component and its behavior are preserved.
             ====================================== */}
 
             <FCoinFloatingCoins />
+
 
             {/* ======================================
                 PAGE CONTENT
@@ -146,6 +176,7 @@ const FCoin = () => {
                     lg:px-8
                 "
             >
+
                 {/* ==================================
                     HERO
 
@@ -159,6 +190,7 @@ const FCoin = () => {
                     currentCoins={currentCoins}
                 />
 
+
                 {/* ==================================
                     EARN / SPEND
 
@@ -167,6 +199,7 @@ const FCoin = () => {
                 ================================== */}
 
                 <FCoinRewardPanels />
+
 
                 {/* ==================================
                     FEEDBACK REWARDS
@@ -181,6 +214,7 @@ const FCoin = () => {
 
                 <FCoinFeedbackRewards />
 
+
                 {/* ==================================
                     RULES AND ROADMAP
 
@@ -189,10 +223,13 @@ const FCoin = () => {
                 ================================== */}
 
                 <FCoinRulesRoadmap />
+
             </main>
+
         </div>
     );
 };
+
 
 // =========================================================
 // EXPORT

@@ -1,4 +1,3 @@
-// src/components/NotificationsPage.jsx
 
 import React, { memo } from "react";
 
@@ -16,9 +15,16 @@ import {
 
 // =========================================================
 // SHARED BACKGROUND
+//
+// Global Winter Background is managed in App.jsx.
+//
+// This page does not create another PageGridBackground
+// or WinterBackground instance.
+//
+// Transparent page surface allows the global
+// Light / Dark Winter Background to remain visible.
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // NOTIFICATION COMPONENTS
@@ -38,16 +44,18 @@ import NotificationPagination, {
     NotificationEmptyState,
 } from "./notifications/NotificationPagination";
 
+
 // =========================================================
 // PAGE CONTROLLER
 // =========================================================
 
 import useNotificationsPage from "./notifications/useNotificationsPage";
 
+
 // =========================================================
 // NOTIFICATIONS PAGE
 //
-// - Shared futuristic background
+// - Global Winter Background managed in App.jsx
 // - Header
 // - Initial skeleton loading
 // - Three statistics cards
@@ -63,6 +71,7 @@ import useNotificationsPage from "./notifications/useNotificationsPage";
 
 const NotificationsPage = () => {
     const reduceMotion = useReducedMotion();
+
 
     // =====================================================
     // CONTROLLER
@@ -107,6 +116,7 @@ const NotificationsPage = () => {
         getFilterCount,
     } = useNotificationsPage();
 
+
     // =====================================================
     // RENDER
     // =====================================================
@@ -115,44 +125,81 @@ const NotificationsPage = () => {
         <main
             id="notifications-page"
             aria-label="Bildirishnomalar markazi"
-            className="
-                relative isolate min-h-screen
-                min-w-0 overflow-x-clip
 
-                bg-[#f3f7ff]
-                px-3 py-10
+            className="
+                relative
+                isolate
+
+                min-h-screen
+                min-w-0
+
+                overflow-x-clip
+
+                bg-transparent
+
+                px-3
+                py-10
+
                 text-slate-900
 
-                dark:bg-[#05070a]
+                dark:bg-transparent
                 dark:text-white
 
                 sm:px-6
                 lg:px-8
             "
+
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
         >
+
             {/* ==========================================
-                SHARED FUTURISTIC BACKGROUND
+                GLOBAL WINTER BACKGROUND
+
+                Winter Background is rendered globally
+                inside App.jsx.
+
+                This page must not create another
+                PageGridBackground or WinterBackground.
+
+                No opaque page background color or
+                gradient should cover the global image.
+
+                Light / Dark image switching is handled
+                by the global ThemeProvider and
+                WinterBackground component.
             ========================================== */}
 
-            <PageGridBackground
-                showMonogram
-                showCubes
-            />
 
             {/* ==========================================
                 AMBIENT LIGHTING
+
+                Decorative glow effects remain active.
+
+                These elements stay behind the page
+                content and do not block interaction.
             ========================================== */}
 
             <div
                 aria-hidden="true"
+
                 className="
-                    pointer-events-none absolute
-                    left-1/2 top-20
+                    pointer-events-none
+
+                    absolute
+                    z-0
+
+                    left-1/2
+                    top-20
 
                     h-[360px]
                     w-[min(90vw,440px)]
 
                     -translate-x-1/2
+
                     rounded-full
 
                     bg-indigo-400/[0.09]
@@ -164,11 +211,19 @@ const NotificationsPage = () => {
 
             <div
                 aria-hidden="true"
-                className="
-                    pointer-events-none absolute
-                    -right-32 top-1/3
 
-                    h-[320px] w-80
+                className="
+                    pointer-events-none
+
+                    absolute
+                    z-0
+
+                    -right-32
+                    top-1/3
+
+                    h-[320px]
+                    w-80
+
                     rounded-full
 
                     bg-amber-400/[0.07]
@@ -178,11 +233,19 @@ const NotificationsPage = () => {
 
             <div
                 aria-hidden="true"
-                className="
-                    pointer-events-none absolute
-                    -left-32 bottom-20
 
-                    h-[300px] w-80
+                className="
+                    pointer-events-none
+
+                    absolute
+                    z-0
+
+                    -left-32
+                    bottom-20
+
+                    h-[300px]
+                    w-80
+
                     rounded-full
 
                     bg-purple-500/[0.06]
@@ -190,16 +253,24 @@ const NotificationsPage = () => {
                 "
             />
 
+
             {/* ==========================================
                 PAGE CONTENT
             ========================================== */}
 
             <div
                 className="
-                    relative z-10 mx-auto
-                    w-full min-w-0 max-w-5xl
+                    relative
+                    z-10
+
+                    mx-auto
+
+                    w-full
+                    min-w-0
+                    max-w-5xl
                 "
             >
+
                 {/* ======================================
                     NOTIFICATION HEADER
 
@@ -207,6 +278,7 @@ const NotificationsPage = () => {
                 ====================================== */}
 
                 <NotificationHeader />
+
 
                 {/* ======================================
                     INITIAL SKELETON LOADING
@@ -223,6 +295,7 @@ const NotificationsPage = () => {
                     />
                 ) : (
                     <>
+
                         {/* ==============================
                             STATISTICS
                         ============================== */}
@@ -232,6 +305,7 @@ const NotificationsPage = () => {
                             unread={unreadCount}
                             read={readCount}
                         />
+
 
                         {/* ==============================
                             TOOLBAR
@@ -259,6 +333,7 @@ const NotificationsPage = () => {
                             }
                         />
 
+
                         {/* ==============================
                             INITIAL LOAD ERROR
 
@@ -268,12 +343,18 @@ const NotificationsPage = () => {
                         {isInitialError ? (
                             <section
                                 role="alert"
+
                                 className="
-                                    rounded-3xl border
+                                    rounded-3xl
+                                    border
                                     border-amber-200
 
                                     bg-amber-50/90
-                                    px-5 py-10 text-center
+
+                                    px-5
+                                    py-10
+
+                                    text-center
 
                                     dark:border-amber-400/20
                                     dark:bg-amber-500/[0.06]
@@ -282,17 +363,25 @@ const NotificationsPage = () => {
                                 <AlertTriangle
                                     size={27}
                                     aria-hidden="true"
+
                                     className="
                                         mx-auto
+
                                         text-amber-700
+
                                         dark:text-amber-300
                                     "
                                 />
 
                                 <h2
                                     className="
-                                        mt-4 text-lg font-bold
+                                        mt-4
+
+                                        text-lg
+                                        font-bold
+
                                         text-slate-900
+
                                         dark:text-white
                                     "
                                 >
@@ -301,10 +390,16 @@ const NotificationsPage = () => {
 
                                 <p
                                     className="
-                                        mx-auto mt-2 max-w-lg
-                                        break-words text-sm
+                                        mx-auto
+                                        mt-2
+                                        max-w-lg
+
+                                        break-words
+
+                                        text-sm
 
                                         text-slate-600
+
                                         dark:text-slate-400
                                     "
                                 >
@@ -313,22 +408,36 @@ const NotificationsPage = () => {
 
                                 <button
                                     type="button"
+
                                     onClick={
                                         retryInitialLoad
                                     }
+
                                     className="
-                                        mt-5 inline-flex min-h-10
-                                        items-center justify-center
-                                        gap-2 rounded-xl border
+                                        mt-5
+
+                                        inline-flex
+                                        min-h-10
+
+                                        items-center
+                                        justify-center
+                                        gap-2
+
+                                        rounded-xl
+                                        border
 
                                         border-indigo-300
                                         bg-indigo-600
 
-                                        px-4 py-2.5
-                                        text-xs font-bold
+                                        px-4
+                                        py-2.5
+
+                                        text-xs
+                                        font-bold
                                         text-white
 
                                         transition-colors
+
                                         hover:bg-indigo-700
 
                                         focus-visible:outline-none
@@ -345,6 +454,7 @@ const NotificationsPage = () => {
                                 </button>
                             </section>
                         ) : (
+
                             /* ==========================
                                 NOTIFICATION LIST
                             ========================== */
@@ -353,15 +463,21 @@ const NotificationsPage = () => {
                                 layout={
                                     !reduceMotion
                                 }
+
                                 aria-label="Bildirishnomalar ro‘yxati"
+
                                 aria-busy={
                                     isSoftLoading
                                 }
+
                                 className="
-                                    relative min-w-0
+                                    relative
+                                    min-w-0
+
                                     space-y-4
                                 "
                             >
+
                                 {/* ======================
                                     SOFT LOADING
 
@@ -373,17 +489,27 @@ const NotificationsPage = () => {
                                     <div
                                         role="status"
                                         aria-live="polite"
-                                        className="
-                                            mb-4 flex min-w-0
-                                            items-center gap-2
 
-                                            rounded-xl border
+                                        className="
+                                            mb-4
+
+                                            flex
+                                            min-w-0
+                                            items-center
+                                            gap-2
+
+                                            rounded-xl
+                                            border
                                             border-indigo-200
 
                                             bg-indigo-50/90
-                                            px-4 py-3
 
-                                            text-xs font-semibold
+                                            px-4
+                                            py-3
+
+                                            text-xs
+                                            font-semibold
+
                                             text-indigo-700
 
                                             dark:border-indigo-400/20
@@ -394,6 +520,7 @@ const NotificationsPage = () => {
                                         <Loader2
                                             size={15}
                                             aria-hidden="true"
+
                                             className={
                                                 reduceMotion
                                                     ? ""
@@ -405,12 +532,14 @@ const NotificationsPage = () => {
                                     </div>
                                 )}
 
+
                                 {/* ======================
                                     NOTIFICATION CARDS
                                 ====================== */}
 
                                 <AnimatePresence
                                     initial={false}
+
                                     mode={
                                         reduceMotion
                                             ? "sync"
@@ -424,12 +553,15 @@ const NotificationsPage = () => {
                                                     key={
                                                         notification.id
                                                     }
+
                                                     notification={
                                                         notification
                                                     }
+
                                                     currentUser={
                                                         currentUser
                                                     }
+
                                                     onMarkRead={
                                                         markNotificationAsReadAction
                                                     }
@@ -439,9 +571,11 @@ const NotificationsPage = () => {
                                     ) : (
                                         <NotificationEmptyState
                                             key="empty"
+
                                             filter={
                                                 filter
                                             }
+
                                             onShowAll={() =>
                                                 handleFilterChange(
                                                     "all"
@@ -451,6 +585,7 @@ const NotificationsPage = () => {
                                     )}
                                 </AnimatePresence>
 
+
                                 {/* ======================
                                     PAGINATION
                                 ====================== */}
@@ -459,28 +594,36 @@ const NotificationsPage = () => {
                                     currentPage={
                                         currentPage
                                     }
+
                                     totalPages={
                                         totalPages
                                     }
+
                                     totalItems={
                                         totalFiltered
                                     }
+
                                     perPage={
                                         perPage
                                     }
+
                                     startItem={
                                         startItem
                                     }
+
                                     endItem={
                                         endItem
                                     }
+
                                     onPageChange={
                                         handlePageChange
                                     }
+
                                     onPerPageChange={
                                         handlePerPageChange
                                     }
                                 />
+
                             </motion.section>
                         )}
                     </>
@@ -489,5 +632,10 @@ const NotificationsPage = () => {
         </main>
     );
 };
+
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default memo(NotificationsPage);

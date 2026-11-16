@@ -1,12 +1,18 @@
-// src/components/FCoinHistory.jsx
 
 import React, { memo } from "react";
 
 // =========================================================
 // FSOCIETY — SHARED FUTURISTIC BACKGROUND
+//
+// Global Winter Background is managed in App.jsx.
+//
+// This page does not create another PageGridBackground
+// or WinterBackground instance.
+//
+// Transparent page surface allows the global
+// Light / Dark Winter Background to remain visible.
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // FCOIN HISTORY COMPONENTS
@@ -22,11 +28,13 @@ import FCoinHistoryState from "./fcoin-history/FCoinHistoryState";
 
 import FCoinHistoryPagination from "./fcoin-history/FCoinHistoryPagination";
 
+
 // =========================================================
 // FCOIN HISTORY CONTROLLER
 // =========================================================
 
 import useCoinHistory from "./fcoin-history/useCoinHistory";
+
 
 // =========================================================
 // SHARED PAGE STYLES
@@ -42,7 +50,7 @@ const PAGE_CLASS = `
 
     overflow-x-clip
 
-    bg-[#edf4ff]
+    bg-transparent
     text-slate-900
 
     px-3
@@ -55,7 +63,7 @@ const PAGE_CLASS = `
 
     lg:px-8
 
-    dark:bg-[#060b15]
+    dark:bg-transparent
     dark:text-white
 `;
 
@@ -70,6 +78,7 @@ const CONTENT_CLASS = `
     max-w-6xl
 `;
 
+
 // =========================================================
 // HISTORY PANEL
 //
@@ -81,6 +90,9 @@ const CONTENT_CLASS = `
 // This panel follows the active theme.
 //
 // No forced dark color scheme.
+//
+// Semi-transparent glass surface allows the
+// global Winter Background to remain subtly visible.
 // =========================================================
 
 const HISTORY_PANEL_CLASS = `
@@ -95,7 +107,7 @@ const HISTORY_PANEL_CLASS = `
     border
     border-slate-200/90
 
-    bg-white/75
+    bg-white/65
 
     p-4
 
@@ -111,11 +123,12 @@ const HISTORY_PANEL_CLASS = `
     lg:p-8
 
     dark:border-white/[0.07]
-    dark:bg-[#070a0f]/90
+    dark:bg-[#070a0f]/65
     dark:text-white
 
     dark:shadow-[0_30px_90px_rgba(0,0,0,0.25)]
 `;
+
 
 // =========================================================
 // DECORATIVE COMPONENTS
@@ -135,6 +148,7 @@ const HistoryPanelDecorations = memo(
                 "
             >
                 {/* GOLD AMBIENT GLOW */}
+
                 <div
                     className="
                         absolute
@@ -154,6 +168,7 @@ const HistoryPanelDecorations = memo(
                 />
 
                 {/* INDIGO AMBIENT GLOW */}
+
                 <div
                     className="
                         absolute
@@ -173,6 +188,7 @@ const HistoryPanelDecorations = memo(
                 />
 
                 {/* TOP ACCENT LINE */}
+
                 <div
                     className="
                         absolute
@@ -190,6 +206,7 @@ const HistoryPanelDecorations = memo(
                 />
 
                 {/* SUBTLE TECHNICAL GRID */}
+
                 <div
                     className="
                         absolute
@@ -222,6 +239,7 @@ const HistoryPanelDecorations = memo(
         );
     }
 );
+
 
 // =========================================================
 // FOOTER COMPONENT
@@ -263,6 +281,7 @@ const HistoryFooter = memo(function HistoryFooter() {
     );
 });
 
+
 // =========================================================
 // FSOCIETY — FCOIN HISTORY
 //
@@ -291,9 +310,16 @@ const HistoryFooter = memo(function HistoryFooter() {
 // Coin amounts remain in full format.
 //
 // No K / M / B conversion.
+//
+// Background:
+// - Global Winter Background managed in App.jsx
+// - No duplicate local background
+// - Transparent page surface
+// - Light / Dark Mode
 // =========================================================
 
 const FCoinHistory = () => {
+
     // =====================================================
     // HISTORY CONTROLLER
     // =====================================================
@@ -367,6 +393,7 @@ const FCoinHistory = () => {
 
     } = useCoinHistory();
 
+
     // =====================================================
     // SAFE TRANSACTION ARRAY
     //
@@ -379,6 +406,7 @@ const FCoinHistory = () => {
         ? coins
         : [];
 
+
     // =====================================================
     // TRANSACTION FLAGS
     // =====================================================
@@ -390,6 +418,7 @@ const FCoinHistory = () => {
         hasTransactions ||
         hasVisibleTransactions
     );
+
 
     // =====================================================
     // SHOW SUMMARY
@@ -405,6 +434,7 @@ const FCoinHistory = () => {
         hasLoaded ||
         hasHistoryData
     );
+
 
     // =====================================================
     // SHOW TRANSACTION LIST
@@ -424,6 +454,7 @@ const FCoinHistory = () => {
         hasVisibleTransactions
     );
 
+
     // =====================================================
     // SHOW PAGINATION
     //
@@ -438,6 +469,7 @@ const FCoinHistory = () => {
         Number(totalPages) > 1
     );
 
+
     // =====================================================
     // ACCESSIBILITY
     // =====================================================
@@ -446,6 +478,7 @@ const FCoinHistory = () => {
         isInitialLoading ||
         isRefreshing
     );
+
 
     // =====================================================
     // RENDER
@@ -456,45 +489,50 @@ const FCoinHistory = () => {
             id="fcoin-history-page"
             className={PAGE_CLASS}
             aria-label="FCoin tranzaksiyalar tarixi"
+
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
         >
+
             {/* ==========================================
-                SHARED FUTURISTIC BACKGROUND
+                GLOBAL WINTER BACKGROUND
 
-                Existing FSociety background.
+                Winter Background is rendered globally
+                inside App.jsx.
 
-                Includes:
-                - Blueprint grid
-                - Geometric connections
-                - Floating glass cubes
-                - Glowing network nodes
-                - FS watermark
-                - Light / Dark Mode
+                This page must not create another
+                PageGridBackground or WinterBackground.
 
-                Decorative only.
+                No opaque page background color or
+                gradient should cover the global image.
 
-                Background remains behind all content.
+                Light / Dark image switching is handled
+                by the global ThemeProvider and
+                WinterBackground component.
             ========================================== */}
 
-            <PageGridBackground
-                showMonogram
-                showCubes
-            />
 
             {/* ==========================================
                 PAGE CONTENT
             ========================================== */}
 
             <div className={CONTENT_CLASS}>
+
                 {/* ======================================
                     MAIN HISTORY PANEL
                 ====================================== */}
 
                 <div className={HISTORY_PANEL_CLASS}>
+
                     {/* ==================================
                         BACKGROUND DECORATIONS
                     ================================== */}
 
                     <HistoryPanelDecorations />
+
 
                     {/* ==================================
                         INTERACTIVE CONTENT
@@ -511,6 +549,7 @@ const FCoinHistory = () => {
                             min-w-0
                         "
                     >
+
                         {/* ==============================
                             HEADER
 
@@ -531,6 +570,7 @@ const FCoinHistory = () => {
                             isRefreshing={isRefreshing}
                             onRefresh={refresh}
                         />
+
 
                         {/* ==============================
                             SUMMARY
@@ -557,6 +597,7 @@ const FCoinHistory = () => {
                             />
                         )}
 
+
                         {/* ==============================
                             TRANSACTION CONTENT
                         ============================== */}
@@ -570,6 +611,7 @@ const FCoinHistory = () => {
                                 min-w-0
                             "
                         >
+
                             {/* ==========================
                                 TRANSACTION STATES
 
@@ -598,6 +640,7 @@ const FCoinHistory = () => {
                                 onRetry={refresh}
                             />
 
+
                             {/* ==========================
                                 TRANSACTION LIST
 
@@ -621,6 +664,7 @@ const FCoinHistory = () => {
                                     }
                                 />
                             )}
+
 
                             {/* ==========================
                                 PAGINATION
@@ -665,19 +709,23 @@ const FCoinHistory = () => {
                                     }
                                 />
                             )}
+
                         </section>
+
 
                         {/* ==============================
                             FOOTER
                         ============================== */}
 
                         <HistoryFooter />
+
                     </div>
                 </div>
             </div>
         </main>
     );
 };
+
 
 // =========================================================
 // EXPORT
