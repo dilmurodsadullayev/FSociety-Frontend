@@ -9,12 +9,6 @@ import {
 } from "lucide-react";
 
 // =========================================================
-// FSOCIETY — SHARED FUTURISTIC BACKGROUND
-// =========================================================
-
-import PageGridBackground from "./ui/PageGridBackground";
-
-// =========================================================
 // PROFILE CONTROLLER
 // =========================================================
 
@@ -41,32 +35,34 @@ import CoverImageEditModal from "./profile/CoverImageEditModal";
 // =========================================================
 // PAGE STYLES
 //
-// The page background follows the same design system
-// used by ProjectDetail.jsx.
+// The page uses the GLOBAL Winter Background rendered
+// in App.jsx.
 //
 // Important:
-// - PageGridBackground owns its overflow clipping.
-// - Foreground remains above decorative elements.
+// - No local opaque background.
+// - No local PageGridBackground overlay.
+// - No isolate stacking context.
+// - Global Winter Background remains visible.
+// - Foreground content stays above the background.
 // - No interference with buttons or modals.
 // - Light / Dark Mode.
 // =========================================================
 
 const PROFILE_PAGE_CLASS = `
     relative
-    isolate
 
     min-h-screen
 
     w-full
     min-w-0
 
-    bg-[#edf4ff]
+    !bg-transparent
     text-slate-900
 
     transition-colors
     duration-300
 
-    dark:bg-[#060b15]
+    dark:!bg-transparent
     dark:text-white
 
     motion-reduce:transition-none
@@ -109,11 +105,12 @@ const PROFILE_CONTAINER_CLASS = `
 // - Background refresh indicator
 // - Background refresh error
 //
-// New:
+// Background:
 //
-// - Shared PageGridBackground
-// - Consistent Light / Dark page theme
-// - Decorative FSociety branding
+// - Uses global Winter Background from App.jsx.
+// - Profile page remains transparent.
+// - Does not render another page background.
+// - Does not cover the global winter scenery.
 //
 // Business logic remains in useProfilePage.js.
 // =========================================================
@@ -346,39 +343,33 @@ const Profile = () => {
     // =====================================================
 
     return (
-        <main className={PROFILE_PAGE_CLASS}>
+        <main
+            className={PROFILE_PAGE_CLASS}
+            style={{
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
+        >
             {/* =============================================
-                FSOCIETY FUTURISTIC BACKGROUND
+                GLOBAL WINTER BACKGROUND
 
-                Shared with ProjectDetail.
+                Winter Background is managed in App.jsx.
 
-                Features:
-                - Blueprint grid
-                - Developer network
-                - Geometric lines
-                - Illuminated nodes
-                - Glass-like 3D cubes
-                - Cyan / Indigo / Violet glows
-                - FS brand watermarks
-                - Light / Dark Mode
+                This page intentionally does not render:
+                - Another Winter Background instance
+                - PageGridBackground
+                - An opaque page gradient
+                - A local background image
 
-                This component:
-                - Is decorative
-                - Has pointer-events-none
-                - Uses z-0
-                - Does not block profile interactions
+                Keeping this main element transparent allows
+                the global winter scenery to remain visible.
             ============================================== */}
-
-            <PageGridBackground
-                showMonogram
-                showCubes
-            />
 
             {/* =============================================
                 PROFILE FOREGROUND CONTENT
 
                 z-10 keeps the profile above the
-                decorative background.
+                global background.
             ============================================== */}
 
             <div className={PROFILE_CONTAINER_CLASS}>

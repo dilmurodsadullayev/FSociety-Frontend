@@ -79,6 +79,129 @@ const PROFILE_LOAD_ERROR_MESSAGE =
     "Profilni olishda xatolik yuz berdi.";
 
 // =========================================================
+// PROFILE TAB STORAGE
+//
+// Each username has its own saved active tab.
+//
+// Examples:
+//
+// fsociety:profile-tab:sevvuw
+// fsociety:profile-tab:another-user
+//
+// Supported tabs:
+//
+// - projects
+// - posts
+// - roadmap
+//
+// Invalid or unavailable values fall back to projects.
+// =========================================================
+
+const PROFILE_TAB_STORAGE_PREFIX =
+    "fsociety:profile-tab";
+
+const PROFILE_TAB_DEFAULT = "projects";
+
+const PROFILE_TAB_VALUES = new Set([
+    "projects",
+    "posts",
+    "roadmap",
+]);
+
+// =========================================================
+// PROFILE TAB STORAGE KEY
+//
+// Username is normalized to lowercase because
+// profile username comparison is case-insensitive.
+// =========================================================
+
+const getProfileTabStorageKey = (username) => {
+    const normalizedUsername = String(
+        username ?? ""
+    )
+        .trim()
+        .toLowerCase();
+
+    return (
+        `${PROFILE_TAB_STORAGE_PREFIX}:` +
+        encodeURIComponent(normalizedUsername)
+    );
+};
+
+// =========================================================
+// READ SAVED PROFILE TAB
+//
+// localStorage may be unavailable in some environments.
+// Always return a valid tab.
+// =========================================================
+
+const getStoredProfileTab = (username) => {
+    if (
+        typeof window === "undefined" ||
+        !username
+    ) {
+        return PROFILE_TAB_DEFAULT;
+    }
+
+    try {
+        const storageKey =
+            getProfileTabStorageKey(username);
+
+        const savedTab =
+            window.localStorage.getItem(storageKey);
+
+        return PROFILE_TAB_VALUES.has(savedTab)
+            ? savedTab
+            : PROFILE_TAB_DEFAULT;
+    } catch (error) {
+        console.warn(
+            "Profile tab localStorage o‘qilmadi:",
+            error
+        );
+
+        return PROFILE_TAB_DEFAULT;
+    }
+};
+
+// =========================================================
+// SAVE PROFILE TAB
+//
+// Save only supported values.
+// =========================================================
+
+const saveProfileTab = (
+    username,
+    tab
+) => {
+    if (
+        typeof window === "undefined" ||
+        !username ||
+        !PROFILE_TAB_VALUES.has(tab)
+    ) {
+        return false;
+    }
+
+    try {
+        const storageKey =
+            getProfileTabStorageKey(username);
+
+        window.localStorage.setItem(
+            storageKey,
+            tab
+        );
+
+        return true;
+    } catch (error) {
+        console.warn(
+            "Profile tab localStorage ga saqlanmadi:",
+            error
+        );
+
+        return false;
+    }
+};
+
+// =========================================================
 // INITIAL REQUEST STATE
 //
 // This state belongs to the current profile request.
@@ -358,6 +481,7 @@ const isCanceled = (
 // - Profile edit modal
 // - Cover image modal
 // - Active tab
+// - Persist active tab per username
 // - Retry profile
 //
 // All existing public controller properties are kept.
@@ -368,6 +492,14 @@ const isCanceled = (
 // profileErrorStatus
 // isNotFound
 // notFoundUsername
+//
+// Active tab persistence:
+//
+// - Projects
+// - Posts
+// - Roadmap
+//
+// Each profile remembers its own selection.
 // =========================================================
 
 const useProfilePage = () => {
@@ -435,12 +567,82 @@ const useProfilePage = () => {
 
     // =====================================================
     // LOCAL STATE — ACTIVE TAB
+    //
+    // The tab state also stores the username to which
+    // that state belongs.
+    //
+    // This prevents a previous user's active tab from
+    // appearing while navigating to another profile.
+    //
+    // The saved value is loaded from localStorage.
     // =====================================================
 
     const [
-        activeTab,
-        setActiveTab,
-    ] = useState("projects");
+        activeTabState,
+        setActiveTabState,
+    ] = useState(() => ({
+        username,
+        value: getStoredProfileTab(username),
+    }));
+
+    // =====================================================
+    // ACTIVE TAB VALUE FOR CURRENT USER
+    //
+    // If the route username changes before the reset
+    // effect runs, read the new user's saved tab instead
+    // of temporarily displaying the previous user's tab.
+    // =====================================================
+
+    const activeTab = sameUsername(
+        activeTabState.username,
+        username
+    )
+        ? activeTabState.value
+        : getStoredProfileTab(username);
+
+    // =====================================================
+    // SET ACTIVE TAB
+    //
+    // This replaces the raw React setter.
+    //
+    // Responsibilities:
+    // - Validate tab value
+    // - Update React state
+    // - Save the value for the current username
+    //
+    // Existing ProfileContent usage remains compatible:
+    //
+    // onTabChange={setActiveTab}
+    // =====================================================
+
+    const setActiveTab = useCallback(
+        (nextTab) => {
+            const nextValue =
+                typeof nextTab === "function"
+                    ? nextTab(activeTab)
+                    : nextTab;
+
+            if (
+                !PROFILE_TAB_VALUES.has(nextValue)
+            ) {
+                return;
+            }
+
+            setActiveTabState({
+                username,
+                value: nextValue,
+            });
+
+            saveProfileTab(
+                username,
+                nextValue
+            );
+        },
+        [
+            activeTab,
+            username,
+        ]
+    );
 
     // =====================================================
     // LOCAL STATE — PROFILE REQUEST
@@ -774,15 +976,15 @@ const useProfilePage = () => {
                 const message = notFound
                     ? PROFILE_NOT_FOUND_MESSAGE
                     : getErrorMessage(
-                          requestError,
-                          PROFILE_LOAD_ERROR_MESSAGE
-                      );
+                        requestError,
+                        PROFILE_LOAD_ERROR_MESSAGE
+                    );
 
                 // =============================================
                 // REDUX FAILURE
                 //
                 // Existing reducer contract uses a string.
-                // =================================================
+                // =============================================
 
                 dispatch(
                     getProfileFailure(message)
@@ -1099,14 +1301,20 @@ const useProfilePage = () => {
     // =====================================================
     // RESET UI ON PROFILE ROUTE CHANGE
     //
-    // This does not reset Redux profile data directly.
-    // profileMatchesRoute prevents stale profile display.
+    // Active tab behavior:
+    //
+    // - Load the saved tab for the new username.
+    // - Use projects if no saved tab exists.
+    // - Do not overwrite another user's saved tab.
+    //
+    // Also close modals when changing profiles.
     // =====================================================
 
     useEffect(() => {
-        setActiveTab(
-            "projects"
-        );
+        setActiveTabState({
+            username,
+            value: getStoredProfileTab(username),
+        });
 
         setIsEditModalOpen(
             false
@@ -1317,6 +1525,14 @@ const useProfilePage = () => {
     // profileErrorStatus
     // isNotFound
     // notFoundUsername
+    //
+    // Active tab:
+    //
+    // activeTab
+    // setActiveTab
+    //
+    // setActiveTab validates and persists the selected
+    // tab separately for each profile username.
     // =====================================================
 
     return {

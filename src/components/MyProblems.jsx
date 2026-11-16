@@ -1,4 +1,6 @@
 
+// src/components/MyProblems.jsx
+
 import React, {
   useCallback,
   useEffect,
@@ -42,8 +44,6 @@ import ProblemService from "../services/problems";
 import {
   siteToast,
 } from "./ui/AuthToast";
-
-import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // MY PROBLEMS COMPONENTS
@@ -745,30 +745,47 @@ function MyProblems() {
     <main
       id="my-problems-hero"
       className="
-        relative isolate
-        min-h-screen
-        w-full min-w-0
-        overflow-hidden
+        relative
 
-        bg-[#f7faff]
+        min-h-screen
+        min-h-[100dvh]
+
+        w-full
+        min-w-0
+
+        overflow-x-hidden
+
+        bg-transparent
+
         font-sans
         text-slate-900
 
-        dark:bg-[#050a14]
+        dark:bg-transparent
         dark:text-slate-100
       "
+      style={{
+        backgroundColor: "transparent",
+        backgroundImage: "none",
+      }}
     >
       {/* ==========================================
-          SHARED BACKGROUND
-      ========================================== */}
+          GLOBAL WINTER BACKGROUND
 
-      <PageGridBackground
-        showMonogram
-        showCubes
-      />
+          Winter Background is rendered globally
+          through App.jsx.
+
+          This page intentionally does not render
+          another PageGridBackground instance.
+
+          No opaque page gradient or local background
+          is allowed to cover the global scenery.
+      ========================================== */}
 
       {/* ==========================================
           MAIN CONTAINER
+
+          Foreground content remains above the
+          global Winter Background.
       ========================================== */}
 
       <div
@@ -855,6 +872,7 @@ function MyProblems() {
             "
           >
             {/* LEFT */}
+
             <div className="min-w-0">
               <div
                 className="
@@ -932,6 +950,7 @@ function MyProblems() {
               </div>
 
               {/* RESULTS DESCRIPTION */}
+
               <p
                 aria-live="polite"
                 className="
@@ -980,6 +999,7 @@ function MyProblems() {
             </div>
 
             {/* RIGHT */}
+
             <div
               className="
                 flex min-w-0
@@ -990,6 +1010,7 @@ function MyProblems() {
               "
             >
               {/* LOADING */}
+
               {isLoading &&
                 !showSkeleton && (
                   <span
@@ -1027,6 +1048,7 @@ function MyProblems() {
                 )}
 
               {/* RECORD COUNT */}
+
               {showCards && (
                 <span
                   className="
@@ -1057,6 +1079,7 @@ function MyProblems() {
               )}
 
               {/* PAGE NUMBER */}
+
               {totalPages > 0 &&
                 hasLoadedCurrentQuery && (
                   <span

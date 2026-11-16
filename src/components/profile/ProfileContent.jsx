@@ -1,5 +1,5 @@
 
- // src/components/profile/ProfileContent.jsx
+// src/components/profile/ProfileContent.jsx
 
 import React, { memo, useId } from "react";
 
@@ -13,6 +13,7 @@ import ProfileContentTabs from "./content/ProfileContentTabs";
 // PROFILE CONTENT
 //
 // Original parent contract is unchanged:
+//
 // - username
 // - activeTab
 // - onTabChange
@@ -23,6 +24,11 @@ import ProfileContentTabs from "./content/ProfileContentTabs";
 //
 // Only the active child component is mounted, matching
 // the previous behavior when users switch tabs.
+//
+// Active tab persistence is handled by useProfilePage.js.
+//
+// Active tab visual styling is handled by
+// ProfileContentTabs.jsx.
 // =========================================================
 
 const ProfileContent = ({
@@ -30,6 +36,10 @@ const ProfileContent = ({
     activeTab = "projects",
     onTabChange,
 }) => {
+    // =====================================================
+    // UNIQUE ID
+    // =====================================================
+
     const generatedId = useId();
 
     const idPrefix = `profile-content-${generatedId}`;
@@ -41,7 +51,12 @@ const ProfileContent = ({
     return (
         <section
             aria-label="Profil kontenti"
-            className="min-w-0"
+            className="
+                relative
+                min-w-0
+                w-full
+            "
+            data-active-tab={activeTab}
         >
             {/* =====================================
                 TAB NAVIGATION
@@ -49,6 +64,10 @@ const ProfileContent = ({
                 - Projects
                 - Posts / Answers
                 - Roadmap
+
+                The selected tab is controlled by
+                useProfilePage.js and persisted in
+                localStorage per username.
             ====================================== */}
 
             <ProfileContentTabs
@@ -78,7 +97,9 @@ const ProfileContent = ({
                 tabIndex={0}
                 hidden={activeTab !== "projects"}
                 className="
-                    min-w-0 space-y-4
+                    min-w-0
+                    w-full
+                    space-y-4
                 "
             >
                 {activeTab === "projects" && (
@@ -99,7 +120,9 @@ const ProfileContent = ({
                 tabIndex={0}
                 hidden={activeTab !== "posts"}
                 className="
-                    min-w-0 space-y-4
+                    min-w-0
+                    w-full
+                    space-y-4
                 "
             >
                 {activeTab === "posts" && (
@@ -120,7 +143,9 @@ const ProfileContent = ({
                 tabIndex={0}
                 hidden={activeTab !== "roadmap"}
                 className="
-                    min-w-0 space-y-4
+                    min-w-0
+                    w-full
+                    space-y-4
                 "
             >
                 {activeTab === "roadmap" && (
@@ -132,5 +157,9 @@ const ProfileContent = ({
         </section>
     );
 };
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default memo(ProfileContent);

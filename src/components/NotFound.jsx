@@ -1,4 +1,6 @@
 
+// src/components/NotFound.jsx
+
 import React, { memo } from "react";
 
 import {
@@ -17,14 +19,13 @@ import {
   WifiOff,
 } from "lucide-react";
 
-import PageGridBackground from "./ui/PageGridBackground";
-
 // =========================================================
 // FSOCIETY — 404 NOT FOUND
 // =========================================================
 //
 // Features:
-// - Shared PageGridBackground
+//
+// - Global Winter Background compatibility
 // - Light / Dark Mode
 // - Space Grotesk typography
 // - JetBrains Mono terminal typography
@@ -34,9 +35,19 @@ import PageGridBackground from "./ui/PageGridBackground";
 // - React Router navigation
 // - Accessible status information
 // - Reduced motion support
+// - Glassmorphism card
+// - Transparent page background
 //
 // This component handles unknown frontend routes.
 // API 404 errors are handled separately.
+//
+// Background:
+//
+// - Winter Background is managed globally in App.jsx.
+// - No local PageGridBackground instance.
+// - No opaque page gradient.
+// - Foreground remains above the global background.
+//
 // =========================================================
 
 // =========================================================
@@ -45,53 +56,65 @@ import PageGridBackground from "./ui/PageGridBackground";
 
 const PAGE_CLASS = `
   relative
-  isolate
+
   flex
   min-h-screen
   min-h-[100dvh]
+
   w-full
   min-w-0
-  flex-col
-  overflow-hidden
 
-  bg-[#f7faff]
+  flex-col
+
+  overflow-x-hidden
+
+  bg-transparent
   text-slate-900
 
-  dark:bg-[#050a14]
+  dark:bg-transparent
   dark:text-white
 `;
 
 const MAIN_CARD_CLASS = `
   relative
   isolate
+
   w-full
   min-w-0
   max-w-full
+
   overflow-hidden
+
   rounded-[24px]
 
   border
-  border-white/80
-  bg-white/85
+  border-white/75
 
-  shadow-[0_24px_90px_rgba(51,65,85,0.10)]
-  backdrop-blur-xl
+  bg-white/[0.78]
+
+  shadow-[0_24px_90px_rgba(51,65,85,0.12)]
+
+  backdrop-blur-2xl
 
   sm:rounded-[32px]
 
   dark:border-white/[0.10]
-  dark:bg-[#0b1018]/90
-  dark:shadow-[0_35px_110px_rgba(0,0,0,0.40)]
+  dark:bg-[#0b1018]/[0.80]
+
+  dark:shadow-[0_35px_110px_rgba(0,0,0,0.42)]
 `;
 
 const PRIMARY_BUTTON_CLASS = `
   inline-flex
+
   min-h-12
   w-full
   min-w-0
+
   items-center
   justify-center
   gap-2.5
+
   rounded-xl
 
   border
@@ -138,12 +161,15 @@ const PRIMARY_BUTTON_CLASS = `
 
 const SECONDARY_BUTTON_CLASS = `
   inline-flex
+
   min-h-12
   w-full
   min-w-0
+
   items-center
   justify-center
   gap-2.5
+
   rounded-xl
 
   border
@@ -200,10 +226,12 @@ const NotFoundBrand = memo(
         aria-label="FSociety bosh sahifasi"
         className="
           group
+
           inline-flex
           min-w-0
           items-center
           gap-3
+
           rounded-xl
 
           focus-visible:outline-none
@@ -220,8 +248,11 @@ const NotFoundBrand = memo(
             grid
             h-11
             w-11
+
             shrink-0
+
             place-items-center
+
             rounded-xl
 
             border
@@ -240,6 +271,7 @@ const NotFoundBrand = memo(
             strokeWidth={2.2}
             className="
               text-indigo-600
+
               transition-transform
               duration-200
 
@@ -258,10 +290,12 @@ const NotFoundBrand = memo(
           <span
             className="
               block
+
               text-lg
               font-black
               leading-tight
               tracking-tight
+
               text-slate-900
 
               dark:text-white
@@ -276,11 +310,13 @@ const NotFoundBrand = memo(
           <span
             className="
               block
+
               font-mono
               text-[9px]
               font-semibold
               uppercase
               tracking-[0.12em]
+
               text-slate-500
 
               dark:text-slate-400
@@ -305,13 +341,15 @@ const NotFoundStatus = memo(
         className="
           inline-flex
           max-w-full
+
           items-center
           gap-2
+
           rounded-full
 
           border
           border-rose-200
-          bg-rose-50
+          bg-rose-50/90
 
           px-3
           py-2
@@ -321,7 +359,10 @@ const NotFoundStatus = memo(
           font-bold
           uppercase
           tracking-[0.08em]
+
           text-rose-700
+
+          backdrop-blur-md
 
           dark:border-rose-400/20
           dark:bg-rose-400/[0.07]
@@ -333,7 +374,9 @@ const NotFoundStatus = memo(
           className="
             h-1.5
             w-1.5
+
             shrink-0
+
             rounded-full
             bg-rose-500
 
@@ -372,20 +415,27 @@ const NotFoundTerminal = memo(
       <div
         className="
           relative
+
           w-full
           min-w-0
+
           overflow-hidden
+
           rounded-2xl
 
           border
-          border-slate-200
-          bg-white/90
+          border-slate-200/90
 
-          shadow-[0_18px_55px_rgba(30,41,59,0.07)]
+          bg-white/[0.82]
+
+          shadow-[0_18px_55px_rgba(30,41,59,0.08)]
+
+          backdrop-blur-xl
 
           dark:border-white/[0.10]
-          dark:bg-[#080d16]/95
-          dark:shadow-[0_24px_70px_rgba(0,0,0,0.22)]
+          dark:bg-[#080d16]/[0.84]
+
+          dark:shadow-[0_24px_70px_rgba(0,0,0,0.30)]
         "
       >
         {/* TERMINAL HEADER */}
@@ -393,14 +443,17 @@ const NotFoundTerminal = memo(
         <div
           className="
             flex
+
             min-w-0
+
             items-center
             justify-between
             gap-2
 
             border-b
-            border-slate-200
-            bg-slate-50/80
+            border-slate-200/90
+
+            bg-slate-50/70
 
             px-4
             py-3
@@ -421,6 +474,7 @@ const NotFoundTerminal = memo(
               size={15}
               className="
                 shrink-0
+
                 text-indigo-600
 
                 dark:text-indigo-300
@@ -432,9 +486,11 @@ const NotFoundTerminal = memo(
               className="
                 min-w-0
                 truncate
+
                 font-mono
                 text-[10px]
                 font-bold
+
                 text-slate-600
 
                 dark:text-slate-300
@@ -446,7 +502,11 @@ const NotFoundTerminal = memo(
 
           <div
             aria-hidden="true"
-            className="flex shrink-0 gap-1.5"
+            className="
+              flex
+              shrink-0
+              gap-1.5
+            "
           >
             <span className="h-2 w-2 rounded-full bg-rose-400/80" />
             <span className="h-2 w-2 rounded-full bg-amber-400/80" />
@@ -459,7 +519,9 @@ const NotFoundTerminal = memo(
         <div
           className="
             min-w-0
+
             space-y-3
+
             p-4
 
             font-mono
@@ -475,6 +537,7 @@ const NotFoundTerminal = memo(
               flex
               items-start
               gap-2
+
               text-slate-500
 
               dark:text-slate-400
@@ -484,7 +547,9 @@ const NotFoundTerminal = memo(
               aria-hidden="true"
               className="
                 shrink-0
+
                 font-bold
+
                 text-emerald-600
 
                 dark:text-emerald-400
@@ -503,6 +568,7 @@ const NotFoundTerminal = memo(
               flex
               items-center
               gap-2
+
               text-rose-600
 
               dark:text-rose-300
@@ -546,10 +612,14 @@ const NotFoundTerminal = memo(
             <span
               className="
                 rounded-md
+
                 bg-rose-50
+
                 px-2
                 py-0.5
+
                 font-bold
+
                 text-rose-700
 
                 dark:bg-rose-400/[0.09]
@@ -577,24 +647,30 @@ const NotFoundVisual = memo(
       <div
         className="
           relative
+
           flex
           min-h-[330px]
           min-w-0
+
           flex-col
           items-center
           justify-center
+
           overflow-hidden
 
           border-t
           border-slate-200/80
 
           bg-gradient-to-br
-          from-indigo-50/80
-          via-blue-50/60
-          to-fuchsia-50/70
+
+          from-indigo-100/[0.35]
+          via-blue-50/[0.18]
+          to-fuchsia-100/[0.30]
 
           px-5
           py-9
+
+          backdrop-blur-sm
 
           sm:min-h-[390px]
           sm:px-8
@@ -604,8 +680,9 @@ const NotFoundVisual = memo(
           lg:border-t-0
 
           dark:border-white/[0.07]
-          dark:from-indigo-500/[0.08]
-          dark:via-[#0c1627]/90
+
+          dark:from-indigo-500/[0.07]
+          dark:via-[#0c1627]/[0.55]
           dark:to-purple-500/[0.07]
         "
       >
@@ -617,16 +694,21 @@ const NotFoundVisual = memo(
           aria-hidden="true"
           className="
             pointer-events-none
+
             absolute
             left-1/2
             top-[35%]
+
             h-64
             w-64
+
             -translate-x-1/2
             -translate-y-1/2
+
             rounded-full
 
             bg-indigo-400/15
+
             blur-[75px]
 
             dark:bg-indigo-500/15
@@ -641,15 +723,19 @@ const NotFoundVisual = memo(
           aria-hidden="true"
           className="
             pointer-events-none
+
             absolute
             left-1/2
             top-[34%]
+
             h-64
             w-64
+
             -translate-x-1/2
             -translate-y-1/2
 
             rounded-full
+
             border
             border-indigo-300/35
 
@@ -664,15 +750,19 @@ const NotFoundVisual = memo(
           aria-hidden="true"
           className="
             pointer-events-none
+
             absolute
             left-1/2
             top-[34%]
+
             h-44
             w-44
+
             -translate-x-1/2
             -translate-y-1/2
 
             rounded-full
+
             border
             border-dashed
             border-blue-400/35
@@ -692,17 +782,21 @@ const NotFoundVisual = memo(
           aria-hidden="true"
           className="
             absolute
+
             right-[14%]
             top-[12%]
 
             grid
             h-11
             w-11
+
             place-items-center
+
             rounded-2xl
 
             border
             border-indigo-200/80
+
             bg-white/70
 
             text-indigo-600
@@ -727,8 +821,10 @@ const NotFoundVisual = memo(
           className="
             relative
             z-10
+
             select-none
             py-5
+
             text-center
 
             font-black
@@ -744,7 +840,9 @@ const NotFoundVisual = memo(
             className="
               absolute
               inset-0
+
               text-indigo-400/15
+
               blur-2xl
 
               dark:text-indigo-400/25
@@ -758,7 +856,9 @@ const NotFoundVisual = memo(
           <span
             className="
               relative
+
               bg-gradient-to-br
+
               from-indigo-700
               via-blue-600
               to-fuchsia-600
@@ -784,14 +884,19 @@ const NotFoundVisual = memo(
           className="
             relative
             z-10
+
             mb-7
+
             inline-flex
+
             items-center
             gap-2
 
             rounded-full
+
             border
             border-indigo-200/80
+
             bg-white/70
 
             px-3
@@ -802,7 +907,10 @@ const NotFoundVisual = memo(
             font-bold
             uppercase
             tracking-[0.12em]
+
             text-indigo-700
+
+            backdrop-blur-md
 
             dark:border-indigo-400/15
             dark:bg-white/[0.035]
@@ -813,7 +921,9 @@ const NotFoundVisual = memo(
             className="
               h-1.5
               w-1.5
+
               rounded-full
+
               bg-amber-500
             "
           />
@@ -829,6 +939,7 @@ const NotFoundVisual = memo(
           className="
             relative
             z-20
+
             w-full
             max-w-sm
             min-w-0
@@ -856,51 +967,43 @@ const NotFound = () => {
     <main
       className={PAGE_CLASS}
       style={{
+        backgroundColor: "transparent",
+        backgroundImage: "none",
         fontFamily:
           "var(--font-sans, 'Space Grotesk', sans-serif)",
       }}
     >
       {/* =================================================
-          SHARED FSOCIETY BACKGROUND
+          GLOBAL WINTER BACKGROUND
+
+          Winter Background is rendered globally
+          through App.jsx.
+
+          This page intentionally does not render:
+
+          - PageGridBackground
+          - Another Winter Background instance
+          - An opaque contrast overlay
+          - A local background image
+
+          The transparent main element allows the
+          global winter scenery to remain visible.
       ================================================= */}
-
-      <PageGridBackground
-        showMonogram
-        showCubes
-      />
-
-      {/* =================================================
-          CONTRAST OVERLAY
-      ================================================= */}
-
-      <div
-        aria-hidden="true"
-        className="
-          pointer-events-none
-          absolute
-          inset-0
-          z-0
-
-          bg-gradient-to-b
-          from-white/0
-          via-white/5
-          to-white/20
-
-          dark:from-transparent
-          dark:via-transparent
-          dark:to-[#050a14]/20
-        "
-      />
 
       {/* =================================================
           PAGE CONTAINER
+
+          z-10 keeps the page content above
+          the global Winter Background.
       ================================================= */}
 
       <div
         className="
           relative
           z-10
+
           mx-auto
+
           flex
           w-full
           max-w-7xl
@@ -926,9 +1029,11 @@ const NotFound = () => {
             flex
             w-full
             min-w-0
+
             flex-wrap
             items-center
             justify-between
+
             gap-3
           "
         >
@@ -937,12 +1042,15 @@ const NotFound = () => {
           <div
             className="
               inline-flex
+
               items-center
               gap-2
 
               rounded-full
+
               border
               border-slate-200
+
               bg-white/75
 
               px-3
@@ -953,6 +1061,7 @@ const NotFound = () => {
               font-bold
               uppercase
               tracking-wider
+
               text-slate-500
 
               backdrop-blur-md
@@ -966,7 +1075,9 @@ const NotFound = () => {
               className="
                 h-1.5
                 w-1.5
+
                 rounded-full
+
                 bg-indigo-500
               "
               aria-hidden="true"
@@ -987,6 +1098,7 @@ const NotFound = () => {
             w-full
             min-w-0
             flex-1
+
             items-center
             justify-center
 
@@ -1006,10 +1118,13 @@ const NotFound = () => {
                 absolute
                 inset-x-0
                 top-0
+
                 z-20
+
                 h-[2px]
 
                 bg-gradient-to-r
+
                 from-transparent
                 via-indigo-500/70
                 to-transparent
@@ -1018,7 +1133,9 @@ const NotFound = () => {
               "
             />
 
-            {/* GRID */}
+            {/* =========================================
+                MAIN GRID
+            ========================================= */}
 
             <div
               className="
@@ -1038,6 +1155,7 @@ const NotFound = () => {
                 className="
                   relative
                   z-10
+
                   flex
                   min-w-0
                   flex-col
@@ -1063,6 +1181,7 @@ const NotFound = () => {
                     max-w-xl
 
                     break-words
+
                     text-[clamp(1.9rem,5vw,3.5rem)]
                     font-black
                     leading-[1.12]
@@ -1077,6 +1196,7 @@ const NotFound = () => {
                   <span
                     className="
                       bg-gradient-to-r
+
                       from-indigo-600
                       to-purple-600
 
@@ -1099,6 +1219,7 @@ const NotFound = () => {
                     max-w-lg
 
                     break-words
+
                     text-sm
                     font-medium
                     leading-7
@@ -1121,6 +1242,7 @@ const NotFound = () => {
                     max-w-lg
 
                     break-words
+
                     text-sm
                     leading-7
 
@@ -1144,9 +1266,11 @@ const NotFound = () => {
                 <div
                   className="
                     mt-8
+
                     flex
                     w-full
                     min-w-0
+
                     flex-col
                     gap-3
 
@@ -1202,6 +1326,7 @@ const NotFound = () => {
                 <div
                   className="
                     mt-9
+
                     flex
                     min-w-0
                     items-start
@@ -1209,6 +1334,7 @@ const NotFound = () => {
 
                     border-t
                     border-slate-200/80
+
                     pt-5
 
                     dark:border-white/[0.08]
@@ -1217,16 +1343,21 @@ const NotFound = () => {
                   <div
                     className="
                       grid
+
                       h-9
                       w-9
+
                       shrink-0
+
                       place-items-center
 
                       rounded-xl
+
                       border
                       border-indigo-200
 
                       bg-indigo-50
+
                       text-indigo-600
 
                       dark:border-indigo-400/15
@@ -1245,6 +1376,7 @@ const NotFound = () => {
                       className="
                         text-xs
                         font-bold
+
                         text-slate-800
 
                         dark:text-slate-200
@@ -1256,9 +1388,12 @@ const NotFound = () => {
                     <p
                       className="
                         mt-1
+
                         break-words
+
                         text-xs
                         leading-5
+
                         text-slate-500
 
                         dark:text-slate-400
@@ -1293,6 +1428,7 @@ const NotFound = () => {
             flex
             w-full
             min-w-0
+
             flex-col
             items-center
             justify-between
@@ -1300,6 +1436,7 @@ const NotFound = () => {
 
             border-t
             border-slate-200/60
+
             pt-4
 
             text-center
@@ -1316,6 +1453,7 @@ const NotFound = () => {
               text-[10px]
               font-medium
               tracking-wide
+
               text-slate-500
 
               dark:text-slate-400
@@ -1328,14 +1466,19 @@ const NotFound = () => {
             to="/"
             className="
               inline-flex
+
               min-h-10
+
               items-center
               gap-2
+
               rounded-lg
+
               px-2
 
               text-xs
               font-bold
+
               text-indigo-700
 
               transition-colors
@@ -1362,5 +1505,9 @@ const NotFound = () => {
     </main>
   );
 };
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default memo(NotFound);
