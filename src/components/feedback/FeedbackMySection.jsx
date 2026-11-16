@@ -27,6 +27,7 @@ import {
 // FSOCIETY — MY FEEDBACK SECTION
 //
 // Features:
+//
 // - Status filters
 // - Light / Dark Mode
 // - Responsive layout
@@ -37,10 +38,16 @@ import {
 // - Edit / Delete callbacks
 // - Per-item mutation loading
 // - Pagination
+// - Winter glass panel
+// - Improved text contrast
 //
 // No direct API requests.
 // No Redux hooks.
+//
+// Background is managed globally by App.jsx.
+//
 // =========================================================
+
 
 // =========================================================
 // ACTIVE FILTER CLASSES
@@ -52,8 +59,8 @@ const ACTIVE_FILTER_CLASSES = {
         bg-indigo-500/[0.10]
         text-indigo-700
 
-        dark:border-indigo-400/25
-        dark:bg-indigo-400/[0.10]
+        dark:border-indigo-400/30
+        dark:bg-indigo-400/[0.14]
         dark:text-indigo-300
     `,
 
@@ -62,8 +69,8 @@ const ACTIVE_FILTER_CLASSES = {
         bg-amber-500/[0.10]
         text-amber-800
 
-        dark:border-amber-400/25
-        dark:bg-amber-400/[0.10]
+        dark:border-amber-400/30
+        dark:bg-amber-400/[0.13]
         dark:text-amber-300
     `,
 
@@ -72,8 +79,8 @@ const ACTIVE_FILTER_CLASSES = {
         bg-blue-500/[0.10]
         text-blue-800
 
-        dark:border-blue-400/25
-        dark:bg-blue-400/[0.10]
+        dark:border-blue-400/30
+        dark:bg-blue-400/[0.13]
         dark:text-blue-300
     `,
 
@@ -82,8 +89,8 @@ const ACTIVE_FILTER_CLASSES = {
         bg-emerald-500/[0.10]
         text-emerald-800
 
-        dark:border-emerald-400/25
-        dark:bg-emerald-400/[0.10]
+        dark:border-emerald-400/30
+        dark:bg-emerald-400/[0.13]
         dark:text-emerald-300
     `,
 
@@ -92,29 +99,39 @@ const ACTIVE_FILTER_CLASSES = {
         bg-red-500/[0.10]
         text-red-800
 
-        dark:border-red-400/25
-        dark:bg-red-400/[0.10]
+        dark:border-red-400/30
+        dark:bg-red-400/[0.13]
         dark:text-red-300
     `,
 };
 
+
+// =========================================================
+// INACTIVE FILTER CLASS
+// =========================================================
+
 const INACTIVE_FILTER_CLASS = `
-    border-slate-200
-    bg-white
+    border-slate-200/90
+    bg-white/90
     text-slate-600
 
-    hover:border-indigo-400/40
-    hover:bg-indigo-500/[0.05]
+    shadow-sm
+
+    hover:border-indigo-400/50
+    hover:bg-indigo-50
     hover:text-indigo-700
 
-    dark:border-white/[0.09]
-    dark:bg-white/[0.025]
-    dark:text-gray-400
+    dark:border-white/[0.12]
+    dark:bg-[#10243a]/90
+    dark:text-slate-300
 
-    dark:hover:border-indigo-400/20
-    dark:hover:bg-white/[0.05]
-    dark:hover:text-indigo-300
+    dark:shadow-none
+
+    dark:hover:border-cyan-400/30
+    dark:hover:bg-[#17314c]
+    dark:hover:text-cyan-300
 `;
+
 
 // =========================================================
 // STATUS FILTER BUTTON
@@ -126,6 +143,7 @@ const StatusFilterButton = React.memo(({
     disabled = false,
     onChange,
 }) => {
+
     const activeClass =
         ACTIVE_FILTER_CLASSES[item.value] ??
         ACTIVE_FILTER_CLASSES.all;
@@ -173,13 +191,17 @@ const StatusFilterButton = React.memo(({
                 tracking-[0.05em]
 
                 transition-colors
+                duration-150
 
                 focus-visible:outline-none
                 focus-visible:ring-2
                 focus-visible:ring-indigo-500
+                focus-visible:ring-offset-2
 
                 disabled:cursor-not-allowed
                 disabled:opacity-50
+
+                dark:focus-visible:ring-offset-[#0b1b2e]
 
                 ${
                     active
@@ -192,6 +214,7 @@ const StatusFilterButton = React.memo(({
         </button>
     );
 });
+
 
 // =========================================================
 // MAIN COMPONENT
@@ -218,6 +241,7 @@ const FeedbackMySection = ({
     onDelete,
     onPageChange,
 }) => {
+
     // =====================================================
     // NORMALIZED DATA
     // =====================================================
@@ -238,6 +262,7 @@ const FeedbackMySection = ({
             ? myPagination
             : {};
 
+
     // =====================================================
     // LOADING STATE
     // =====================================================
@@ -252,12 +277,14 @@ const FeedbackMySection = ({
 
     // A stale initial-loading flag must not hide
     // feedbacks that are already available.
+
     const showSkeleton =
         feedbacks.length === 0 &&
         (initialLoading || loading);
 
     // Keep existing cards on the screen while
     // refreshing or changing pages.
+
     const showRefreshIndicator =
         loading &&
         feedbacks.length > 0;
@@ -269,6 +296,7 @@ const FeedbackMySection = ({
         !showSkeleton &&
         !showCards;
 
+
     // =====================================================
     // ACTIVE FILTER
     // =====================================================
@@ -277,6 +305,7 @@ const FeedbackMySection = ({
         getFeedbackStatusFilterLabel(
             activeStatus
         );
+
 
     // =====================================================
     // FILTER HANDLER
@@ -294,6 +323,7 @@ const FeedbackMySection = ({
 
         onStatusChange(value);
     };
+
 
     // =====================================================
     // PER-ITEM MUTATION STATE
@@ -322,6 +352,7 @@ const FeedbackMySection = ({
         };
     };
 
+
     // =====================================================
     // JSX
     // =====================================================
@@ -335,366 +366,559 @@ const FeedbackMySection = ({
             aria-busy={loading}
 
             className="
+                relative
+                isolate
+
                 mt-10
                 w-full
                 min-w-0
 
+                overflow-hidden
+
+                rounded-[24px]
+
+                border
+                border-slate-200/90
+
+                bg-white/[0.91]
+
+                p-4
+
+                shadow-[0_20px_65px_rgba(15,23,42,0.075)]
+
+                backdrop-blur-xl
+
                 sm:mt-12
+                sm:rounded-[28px]
+                sm:p-6
+
+                lg:p-7
+
+                dark:border-white/[0.11]
+                dark:bg-[#071426]/[0.92]
+
+                dark:shadow-[0_24px_75px_rgba(0,0,0,0.25)]
             "
         >
+
             {/* ======================================
-                SECTION HEADER
+                BACKGROUND DECORATION
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -right-24
+                    -top-28
+
+                    h-64
+                    w-64
+
+                    rounded-full
+
+                    bg-indigo-500/[0.075]
+
+                    blur-[95px]
+
+                    dark:bg-indigo-500/[0.12]
+                "
+            />
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -bottom-28
+                    left-[18%]
+
+                    h-56
+                    w-56
+
+                    rounded-full
+
+                    bg-cyan-500/[0.06]
+
+                    blur-[95px]
+
+                    dark:bg-cyan-400/[0.09]
+                "
+            />
+
+
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    inset-x-6
+                    top-0
+
+                    h-px
+
+                    bg-gradient-to-r
+                    from-transparent
+                    via-indigo-500/35
+                    to-transparent
+
+                    dark:via-cyan-400/35
+                "
+            />
+
+
+            {/* ======================================
+                FOREGROUND CONTENT
             ====================================== */}
 
             <div
                 className="
-                    flex
+                    relative
+                    z-10
+
                     min-w-0
-
-                    flex-col
-                    gap-4
-
-                    lg:flex-row
-                    lg:items-end
-                    lg:justify-between
-                    lg:gap-6
                 "
             >
-                {/* HEADER TEXT */}
 
-                <div className="min-w-0 flex-1">
-                    <h2
-                        id="my-feedbacks-title"
-                        className="
-                            break-words
-
-                            font-display
-                            text-xl
-                            font-black
-                            tracking-tight
-
-                            text-slate-900
-
-                            sm:text-2xl
-
-                            dark:text-white
-                        "
-                    >
-                        Mening feedbacklarim
-                    </h2>
-
-                    <p
-                        className="
-                            mt-2
-                            max-w-2xl
-
-                            text-[12px]
-                            font-medium
-                            leading-6
-
-                            text-slate-600
-
-                            sm:text-[13px]
-
-                            dark:text-gray-400
-                        "
-                    >
-                        Faqat{" "}
-                        <span
-                            className="
-                                font-bold
-                                text-amber-700
-
-                                dark:text-amber-300
-                            "
-                        >
-                            Kutilmoqda
-                        </span>
-                        {" "}holatidagi feedbackni
-                        tahrirlash yoki o‘chirish
-                        mumkin. Admin ishlashni
-                        boshlagach, feedback
-                        bloklanadi.
-                    </p>
-                </div>
-
-                {/* ==================================
-                    STATUS FILTERS
-                ================================== */}
+                {/* ======================================
+                    SECTION HEADER
+                ====================================== */}
 
                 <div
-                    role="group"
-                    aria-label="Feedback holati bo‘yicha filter"
-
                     className="
                         flex
-                        w-full
                         min-w-0
 
-                        flex-wrap
-                        items-center
-                        gap-2
+                        flex-col
+                        gap-4
 
-                        lg:w-auto
-                        lg:justify-end
+                        lg:flex-row
+                        lg:items-end
+                        lg:justify-between
+                        lg:gap-6
                     "
                 >
-                    {filters.map((item) => (
-                        <StatusFilterButton
-                            key={item.value}
-                            item={item}
 
-                            active={
-                                activeStatus ===
-                                item.value
-                            }
+                    {/* HEADER TEXT */}
 
-                            disabled={
-                                loading ||
-                                busy ||
-                                typeof onStatusChange !==
-                                    "function"
-                            }
+                    <div className="min-w-0 flex-1">
 
-                            onChange={
-                                handleStatusChange
-                            }
-                        />
-                    ))}
-                </div>
-            </div>
+                        <div
+                            className="
+                                mb-2
 
-            {/* ======================================
-                ACTIVE FILTER INDICATOR
-            ====================================== */}
+                                inline-flex
+                                items-center
+                                gap-2
 
-            {activeStatus !== "all" && (
-                <div
-                    className="
-                        mt-4
+                                rounded-full
 
-                        inline-flex
-                        max-w-full
+                                border
+                                border-indigo-400/25
 
-                        flex-wrap
-                        items-center
-                        gap-2
+                                bg-indigo-500/[0.07]
 
-                        rounded-xl
-                        border
-                        border-slate-200
+                                px-2.5
+                                py-1
 
-                        bg-white
+                                text-[9px]
+                                font-bold
+                                uppercase
+                                tracking-[0.12em]
 
-                        px-3
-                        py-2
+                                text-indigo-700
 
-                        text-[11px]
-                        font-medium
-                        leading-5
+                                dark:border-cyan-400/20
+                                dark:bg-cyan-400/[0.07]
+                                dark:text-cyan-300
+                            "
+                        >
+                            <span
+                                className="
+                                    h-1.5
+                                    w-1.5
+                                    rounded-full
 
-                        text-slate-600
+                                    bg-indigo-500
 
-                        dark:border-white/[0.08]
-                        dark:bg-white/[0.025]
-                        dark:text-gray-400
-                    "
-                >
-                    <Filter
-                        size={14}
-                        aria-hidden="true"
-                        className="shrink-0"
-                    />
+                                    dark:bg-cyan-400
+                                "
+                            />
 
-                    <span>Filter:</span>
+                            MY FEEDBACK
+                        </div>
 
-                    <strong
-                        className="
-                            min-w-0
-                            break-words
-                            font-bold
 
-                            text-slate-900
+                        <h2
+                            id="my-feedbacks-title"
 
-                            dark:text-gray-200
-                        "
-                    >
-                        {activeStatusLabel}
-                    </strong>
-                </div>
-            )}
+                            className="
+                                break-words
 
-            {/* ======================================
-                BACKGROUND REFRESH INDICATOR
-            ====================================== */}
+                                font-display
+                                text-xl
+                                font-black
+                                tracking-tight
 
-            {showRefreshIndicator && (
-                <div
-                    role="status"
+                                text-slate-900
 
-                    className="
-                        mt-4
+                                sm:text-2xl
 
-                        inline-flex
-                        items-center
-                        gap-2
+                                dark:text-white
+                            "
+                        >
+                            Mening feedbacklarim
+                        </h2>
 
-                        rounded-xl
-                        border
-                        border-indigo-200
 
-                        bg-indigo-50
+                        <p
+                            className="
+                                mt-2
+                                max-w-2xl
 
-                        px-3
-                        py-2
+                                text-[12px]
+                                font-medium
+                                leading-6
 
-                        text-[11px]
-                        font-semibold
+                                text-slate-600
 
-                        text-indigo-700
+                                sm:text-[13px]
 
-                        dark:border-indigo-400/15
-                        dark:bg-indigo-400/[0.06]
-                        dark:text-indigo-300
-                    "
-                >
-                    <Loader2
-                        size={14}
-                        aria-hidden="true"
+                                dark:text-slate-300
+                            "
+                        >
+                            Faqat{" "}
+                            <span
+                                className="
+                                    font-bold
+                                    text-amber-700
 
-                        className="
-                            animate-spin
-                            motion-reduce:animate-none
-                        "
-                    />
+                                    dark:text-amber-300
+                                "
+                            >
+                                Kutilmoqda
+                            </span>
+                            {" "}holatidagi feedbackni
+                            tahrirlash yoki o‘chirish
+                            mumkin. Admin ishlashni
+                            boshlagach, feedback
+                            bloklanadi.
+                        </p>
 
-                    Feedbacklar yangilanmoqda...
-                </div>
-            )}
+                    </div>
 
-            {/* ======================================
-                FEEDBACK CONTENT
-            ====================================== */}
 
-            <div className="mt-5 min-w-0">
-                {showSkeleton ? (
-                    <FeedbackListSkeleton
-                        count={4}
-                    />
-                ) : showCards ? (
+                    {/* ==================================
+                        STATUS FILTERS
+                    ================================== */}
+
                     <div
+                        role="group"
+                        aria-label="Feedback holati bo‘yicha filter"
+
                         className="
-                            grid
+                            flex
                             w-full
                             min-w-0
 
-                            grid-cols-1
-                            gap-4
+                            flex-wrap
+                            items-center
+                            gap-2
 
-                            lg:grid-cols-2
-                            lg:gap-5
+                            lg:w-auto
+                            lg:justify-end
                         "
                     >
-                        <AnimatePresence
-                            initial={false}
-                        >
-                            {feedbacks.map((
-                                feedback,
-                                index
-                            ) => {
-                                const {
-                                    cardUpdating,
-                                    cardDeleting,
-                                } = getItemState(
-                                    feedback
-                                );
+                        {filters.map((item) => (
+                            <StatusFilterButton
+                                key={item.value}
+                                item={item}
 
-                                return (
-                                    <FeedbackCard
-                                        key={
-                                            feedback?.id ??
-                                            `feedback-${index}`
-                                        }
+                                active={
+                                    activeStatus ===
+                                    item.value
+                                }
 
-                                        feedback={feedback}
-                                        showStatus
+                                disabled={
+                                    loading ||
+                                    busy ||
+                                    typeof onStatusChange !==
+                                        "function"
+                                }
 
-                                        onEdit={onEdit}
-                                        onDelete={onDelete}
-
-                                        isUpdating={
-                                            cardUpdating
-                                        }
-
-                                        isDeleting={
-                                            cardDeleting
-                                        }
-
-                                        actionsDisabled={
-                                            busy || loading
-                                        }
-                                    />
-                                );
-                            })}
-                        </AnimatePresence>
+                                onChange={
+                                    handleStatusChange
+                                }
+                            />
+                        ))}
                     </div>
-                ) : showEmpty ? (
-                    <FeedbackEmptyState
-                        title="Feedback topilmadi"
 
-                        description={
-                            activeStatus === "all"
-                                ? "Siz hali feedback yubormagansiz."
-                                : (
-                                    `${activeStatusLabel} ` +
-                                    "holatidagi feedback " +
-                                    "hozircha yo‘q."
-                                )
+                </div>
+
+
+                {/* ======================================
+                    ACTIVE FILTER INDICATOR
+                ====================================== */}
+
+                {activeStatus !== "all" && (
+                    <div
+                        className="
+                            mt-4
+
+                            inline-flex
+                            max-w-full
+
+                            flex-wrap
+                            items-center
+                            gap-2
+
+                            rounded-xl
+
+                            border
+                            border-slate-200/90
+
+                            bg-white/[0.95]
+
+                            px-3
+                            py-2
+
+                            text-[11px]
+                            font-medium
+                            leading-5
+
+                            text-slate-600
+
+                            shadow-sm
+
+                            dark:border-white/[0.11]
+                            dark:bg-[#10243a]/95
+                            dark:text-slate-300
+
+                            dark:shadow-none
+                        "
+                    >
+                        <Filter
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0"
+                        />
+
+                        <span>
+                            Filter:
+                        </span>
+
+                        <strong
+                            className="
+                                min-w-0
+                                break-words
+                                font-bold
+
+                                text-slate-900
+
+                                dark:text-white
+                            "
+                        >
+                            {activeStatusLabel}
+                        </strong>
+                    </div>
+                )}
+
+
+                {/* ======================================
+                    BACKGROUND REFRESH INDICATOR
+                ====================================== */}
+
+                {showRefreshIndicator && (
+                    <div
+                        role="status"
+
+                        className="
+                            mt-4
+
+                            inline-flex
+                            items-center
+                            gap-2
+
+                            rounded-xl
+
+                            border
+                            border-indigo-200/90
+
+                            bg-indigo-50/95
+
+                            px-3
+                            py-2
+
+                            text-[11px]
+                            font-semibold
+
+                            text-indigo-700
+
+                            shadow-sm
+
+                            dark:border-indigo-400/25
+                            dark:bg-[#172947]
+                            dark:text-cyan-300
+
+                            dark:shadow-none
+                        "
+                    >
+                        <Loader2
+                            size={14}
+                            aria-hidden="true"
+
+                            className="
+                                animate-spin
+                                motion-reduce:animate-none
+                            "
+                        />
+
+                        Feedbacklar yangilanmoqda...
+                    </div>
+                )}
+
+
+                {/* ======================================
+                    FEEDBACK CONTENT
+                ====================================== */}
+
+                <div className="mt-5 min-w-0">
+
+                    {showSkeleton ? (
+                        <FeedbackListSkeleton
+                            count={4}
+                        />
+                    ) : showCards ? (
+                        <div
+                            className="
+                                grid
+                                w-full
+                                min-w-0
+
+                                grid-cols-1
+                                gap-4
+
+                                lg:grid-cols-2
+                                lg:gap-5
+                            "
+                        >
+                            <AnimatePresence
+                                initial={false}
+                            >
+                                {feedbacks.map((
+                                    feedback,
+                                    index
+                                ) => {
+                                    const {
+                                        cardUpdating,
+                                        cardDeleting,
+                                    } = getItemState(
+                                        feedback
+                                    );
+
+                                    return (
+                                        <FeedbackCard
+                                            key={
+                                                feedback?.id ??
+                                                `feedback-${index}`
+                                            }
+
+                                            feedback={feedback}
+                                            showStatus
+
+                                            onEdit={onEdit}
+                                            onDelete={onDelete}
+
+                                            isUpdating={
+                                                cardUpdating
+                                            }
+
+                                            isDeleting={
+                                                cardDeleting
+                                            }
+
+                                            actionsDisabled={
+                                                busy || loading
+                                            }
+                                        />
+                                    );
+                                })}
+                            </AnimatePresence>
+                        </div>
+                    ) : showEmpty ? (
+                        <FeedbackEmptyState
+                            title="Feedback topilmadi"
+
+                            description={
+                                activeStatus === "all"
+                                    ? "Siz hali feedback yubormagansiz."
+                                    : (
+                                        `${activeStatusLabel} ` +
+                                        "holatidagi feedback " +
+                                        "hozircha yo‘q."
+                                    )
+                            }
+                        />
+                    ) : null}
+
+                </div>
+
+
+                {/* ======================================
+                    PAGINATION
+                ====================================== */}
+
+                {!showSkeleton && (
+                    <FeedbackPagination
+                        page={
+                            pagination.page ?? 1
                         }
+
+                        totalPages={
+                            pagination.totalPages ?? 1
+                        }
+
+                        count={
+                            pagination.count ?? 0
+                        }
+
+                        hasPrevious={
+                            pagination.hasPrevious
+                        }
+
+                        hasNext={
+                            pagination.hasNext
+                        }
+
+                        isLoading={
+                            loading || busy
+                        }
+
+                        onPageChange={
+                            onPageChange
+                        }
+
+                        label="Mening feedbacklarim sahifalari"
                     />
-                ) : null}
+                )}
+
             </div>
 
-            {/* ======================================
-                PAGINATION
-            ====================================== */}
-
-            {!showSkeleton && (
-                <FeedbackPagination
-                    page={
-                        pagination.page ?? 1
-                    }
-
-                    totalPages={
-                        pagination.totalPages ?? 1
-                    }
-
-                    count={
-                        pagination.count ?? 0
-                    }
-
-                    hasPrevious={
-                        pagination.hasPrevious
-                    }
-
-                    hasNext={
-                        pagination.hasNext
-                    }
-
-                    isLoading={
-                        loading || busy
-                    }
-
-                    onPageChange={
-                        onPageChange
-                    }
-
-                    label="Mening feedbacklarim sahifalari"
-                />
-            )}
         </section>
     );
 };
+
 
 // =========================================================
 // EXPORT

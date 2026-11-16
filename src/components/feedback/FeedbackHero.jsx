@@ -12,6 +12,7 @@ import {
 // FSOCIETY — FEEDBACK HERO
 //
 // Features:
+//
 // - Dark / Light Mode
 // - Mobile-first responsive design
 // - Feedback create button
@@ -19,14 +20,18 @@ import {
 // - Refresh loading state
 // - Accessible buttons
 // - Reduced-motion friendly animations
+// - Frosted glass surface
+// - Improved background contrast
 //
 // No Redux.
 // No direct API calls.
 //
 // Props:
+//
 // - isRefreshing
 // - onRefresh
 // - onCreate
+//
 // =========================================================
 
 const FeedbackHero = ({
@@ -34,6 +39,7 @@ const FeedbackHero = ({
     onRefresh,
     onCreate,
 }) => {
+
     // =====================================================
     // STATE
     // =====================================================
@@ -46,6 +52,7 @@ const FeedbackHero = ({
 
     const canCreate =
         typeof onCreate === "function";
+
 
     // =====================================================
     // HANDLERS
@@ -67,6 +74,7 @@ const FeedbackHero = ({
         onCreate();
     };
 
+
     // =====================================================
     // JSX
     // =====================================================
@@ -86,14 +94,16 @@ const FeedbackHero = ({
 
                 rounded-[22px]
                 border
-                border-slate-200
+                border-white/80
 
-                bg-white
+                bg-white/90
 
                 px-4
                 py-7
 
-                shadow-[0_8px_35px_rgba(15,23,42,0.035)]
+                shadow-[0_20px_65px_rgba(15,23,42,0.09)]
+
+                backdrop-blur-xl
 
                 sm:rounded-[28px]
                 sm:px-7
@@ -103,11 +113,12 @@ const FeedbackHero = ({
                 lg:px-9
                 lg:py-10
 
-                dark:border-white/[0.07]
-                dark:bg-white/[0.025]
-                dark:shadow-none
+                dark:border-white/[0.12]
+                dark:bg-[#071426]/90
+                dark:shadow-[0_24px_80px_rgba(0,0,0,0.28)]
             "
         >
+
             {/* ======================================
                 BACKGROUND DECORATION
             ====================================== */}
@@ -127,11 +138,11 @@ const FeedbackHero = ({
 
                     rounded-full
 
-                    bg-indigo-500/[0.06]
+                    bg-indigo-500/[0.10]
 
                     blur-[90px]
 
-                    dark:bg-indigo-500/[0.08]
+                    dark:bg-indigo-500/[0.13]
                 "
             />
 
@@ -150,15 +161,17 @@ const FeedbackHero = ({
 
                     rounded-full
 
-                    bg-cyan-500/[0.04]
+                    bg-cyan-500/[0.07]
 
                     blur-[85px]
 
-                    dark:bg-cyan-400/[0.035]
+                    dark:bg-cyan-400/[0.10]
                 "
             />
 
-            {/* TOP ACCENT */}
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
 
             <div
                 aria-hidden="true"
@@ -174,10 +187,10 @@ const FeedbackHero = ({
 
                     bg-gradient-to-r
                     from-transparent
-                    via-indigo-500/30
+                    via-indigo-500/45
                     to-transparent
 
-                    dark:via-indigo-400/20
+                    dark:via-cyan-400/35
                 "
             />
 
@@ -202,6 +215,7 @@ const FeedbackHero = ({
                     lg:gap-8
                 "
             >
+
                 {/* ==================================
                     HERO TEXT
                 ================================== */}
@@ -213,6 +227,7 @@ const FeedbackHero = ({
                         max-w-3xl
                     "
                 >
+
                     {/* SECTION BADGE */}
 
                     <div
@@ -225,9 +240,9 @@ const FeedbackHero = ({
 
                             rounded-full
                             border
-                            border-indigo-400/25
+                            border-indigo-400/30
 
-                            bg-indigo-500/[0.07]
+                            bg-indigo-500/[0.08]
 
                             px-3
                             py-1.5
@@ -240,9 +255,9 @@ const FeedbackHero = ({
 
                             text-indigo-700
 
-                            dark:border-indigo-400/[0.17]
-                            dark:bg-indigo-400/[0.06]
-                            dark:text-indigo-300
+                            dark:border-cyan-400/[0.22]
+                            dark:bg-cyan-400/[0.08]
+                            dark:text-cyan-300
                         "
                     >
                         <Sparkles
@@ -258,6 +273,7 @@ const FeedbackHero = ({
                             Community Feedback
                         </span>
                     </div>
+
 
                     {/* ==================================
                         PAGE TITLE
@@ -310,6 +326,7 @@ const FeedbackHero = ({
                         </span>
                     </h1>
 
+
                     {/* ==================================
                         DESCRIPTION
                     ================================== */}
@@ -329,7 +346,7 @@ const FeedbackHero = ({
                             sm:text-sm
                             sm:leading-7
 
-                            dark:text-gray-400
+                            dark:text-slate-300
                         "
                     >
                         Bug topdingizmi, yangi feature
@@ -343,7 +360,9 @@ const FeedbackHero = ({
                         va foydali feedbacklar uchun
                         FCoin mukofoti berilishi mumkin.
                     </p>
+
                 </div>
+
 
                 {/* ==================================
                     ACTION BUTTONS
@@ -366,6 +385,7 @@ const FeedbackHero = ({
                         lg:justify-end
                     "
                 >
+
                     {/* ==============================
                         REFRESH BUTTON
                     ============================== */}
@@ -401,7 +421,7 @@ const FeedbackHero = ({
                             border
                             border-slate-200
 
-                            bg-white
+                            bg-white/90
 
                             px-4
                             py-3
@@ -412,11 +432,13 @@ const FeedbackHero = ({
 
                             text-slate-700
 
+                            shadow-sm
+
                             transition-colors
                             duration-150
 
-                            hover:border-indigo-400/40
-                            hover:bg-indigo-500/[0.05]
+                            hover:border-indigo-400/50
+                            hover:bg-indigo-50
                             hover:text-indigo-700
 
                             focus-visible:outline-none
@@ -429,15 +451,16 @@ const FeedbackHero = ({
 
                             sm:w-auto
 
-                            dark:border-white/[0.10]
-                            dark:bg-white/[0.035]
-                            dark:text-gray-300
+                            dark:border-white/[0.12]
+                            dark:bg-white/[0.06]
+                            dark:text-slate-200
+                            dark:shadow-none
 
-                            dark:hover:border-indigo-400/25
-                            dark:hover:bg-indigo-400/[0.07]
-                            dark:hover:text-indigo-300
+                            dark:hover:border-cyan-400/30
+                            dark:hover:bg-cyan-400/[0.09]
+                            dark:hover:text-cyan-300
 
-                            dark:focus-visible:ring-offset-[#0b1018]
+                            dark:focus-visible:ring-offset-[#071426]
                         "
                     >
                         {refreshing ? (
@@ -477,6 +500,7 @@ const FeedbackHero = ({
                                 : "Yangilash"}
                         </span>
                     </button>
+
 
                     {/* ==============================
                         CREATE FEEDBACK BUTTON
@@ -518,7 +542,7 @@ const FeedbackHero = ({
 
                             text-white
 
-                            shadow-[0_6px_20px_rgba(79,70,229,0.18)]
+                            shadow-[0_8px_24px_rgba(79,70,229,0.24)]
 
                             transition-colors
                             duration-150
@@ -536,7 +560,13 @@ const FeedbackHero = ({
 
                             sm:w-auto
 
-                            dark:focus-visible:ring-offset-[#0b1018]
+                            dark:border-indigo-400
+                            dark:bg-indigo-600
+
+                            dark:hover:border-cyan-400
+                            dark:hover:bg-indigo-500
+
+                            dark:focus-visible:ring-offset-[#071426]
                         "
                     >
                         <Plus
@@ -561,11 +591,15 @@ const FeedbackHero = ({
                             Feedback yuborish
                         </span>
                     </button>
+
                 </div>
+
             </div>
+
         </section>
     );
 };
+
 
 // =========================================================
 // EXPORT

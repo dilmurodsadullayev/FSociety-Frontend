@@ -14,15 +14,21 @@ import {
 // FSOCIETY — FEEDBACK STAT CARD
 //
 // Features:
+//
 // - Dark / Light Mode
 // - Responsive
 // - Loading skeleton
 // - Reduced motion support
 // - Safe stat values
 // - Accessible loading status
+// - Frosted glass design
+// - Improved text contrast
+// - Winter background compatibility
 //
 // No Redux or API calls.
+//
 // =========================================================
+
 
 // =========================================================
 // SKELETON
@@ -62,7 +68,7 @@ const FeedbackStatSkeleton = () => {
 
                         bg-slate-200
 
-                        dark:bg-white/[0.07]
+                        dark:bg-slate-500/50
 
                         motion-reduce:animate-none
                     "
@@ -78,7 +84,7 @@ const FeedbackStatSkeleton = () => {
 
                         bg-slate-200
 
-                        dark:bg-white/[0.07]
+                        dark:bg-slate-500/50
 
                         motion-reduce:animate-none
                     "
@@ -95,7 +101,7 @@ const FeedbackStatSkeleton = () => {
 
                         bg-slate-200
 
-                        dark:bg-white/[0.07]
+                        dark:bg-slate-500/50
 
                         motion-reduce:animate-none
                     "
@@ -115,7 +121,7 @@ const FeedbackStatSkeleton = () => {
 
                     bg-slate-200
 
-                    dark:bg-white/[0.07]
+                    dark:bg-slate-500/50
 
                     motion-reduce:animate-none
                 "
@@ -123,6 +129,7 @@ const FeedbackStatSkeleton = () => {
         </div>
     );
 };
+
 
 // =========================================================
 // MAIN COMPONENT
@@ -139,6 +146,7 @@ const FeedbackStatCard = ({
 
     isLoading = false,
 }) => {
+
     // =====================================================
     // ACCESSIBILITY / ANIMATION
     // =====================================================
@@ -148,11 +156,13 @@ const FeedbackStatCard = ({
 
     const loading = Boolean(isLoading);
 
+
     // =====================================================
     // SAFE DISPLAY VALUE
     // =====================================================
 
     const displayValue = value ?? 0;
+
 
     // =====================================================
     // ANIMATION
@@ -162,6 +172,7 @@ const FeedbackStatCard = ({
         loading || shouldReduceMotion
             ? undefined
             : { y: -3 };
+
 
     // =====================================================
     // JSX
@@ -182,6 +193,7 @@ const FeedbackStatCard = ({
                 group/stat
 
                 relative
+                isolate
 
                 flex
                 h-full
@@ -192,30 +204,37 @@ const FeedbackStatCard = ({
 
                 overflow-hidden
 
-                rounded-2xl
-                border
-                border-slate-200
+                rounded-[20px]
 
-                bg-white
+                border
+                border-slate-200/90
+
+                bg-white/[0.94]
 
                 p-4
 
-                shadow-[0_4px_18px_rgba(15,23,42,0.035)]
+                shadow-[0_8px_28px_rgba(15,23,42,0.065)]
+
+                backdrop-blur-xl
 
                 transition-colors
+                duration-200
 
-                hover:border-indigo-400/30
+                hover:border-indigo-400/45
+                hover:bg-white/[0.98]
 
                 sm:p-5
 
-                dark:border-white/[0.07]
-                dark:bg-white/[0.025]
-                dark:shadow-none
+                dark:border-white/[0.12]
+                dark:bg-[#0b1b2e]/[0.94]
 
-                dark:hover:border-indigo-400/20
-                dark:hover:bg-white/[0.035]
+                dark:shadow-[0_10px_30px_rgba(0,0,0,0.20)]
+
+                dark:hover:border-cyan-400/30
+                dark:hover:bg-[#10243a]/[0.97]
             "
         >
+
             {/* ======================================
                 DECORATIVE GLOW
             ====================================== */}
@@ -235,13 +254,68 @@ const FeedbackStatCard = ({
 
                     rounded-full
 
-                    bg-indigo-500/[0.06]
+                    bg-indigo-500/[0.07]
 
                     blur-3xl
 
-                    dark:bg-indigo-500/[0.07]
+                    transition-opacity
+                    duration-300
+
+                    group-hover/stat:opacity-100
+
+                    dark:bg-indigo-400/[0.13]
                 "
             />
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -bottom-16
+                    -left-10
+
+                    h-28
+                    w-28
+
+                    rounded-full
+
+                    bg-cyan-500/[0.045]
+
+                    blur-3xl
+
+                    dark:bg-cyan-400/[0.08]
+                "
+            />
+
+
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    inset-x-5
+                    top-0
+
+                    h-px
+
+                    bg-gradient-to-r
+                    from-transparent
+                    via-indigo-400/35
+                    to-transparent
+
+                    dark:via-cyan-400/35
+                "
+            />
+
 
             {/* ======================================
                 CONTENT
@@ -268,6 +342,7 @@ const FeedbackStatCard = ({
                             gap-3
                         "
                     >
+
                         {/* ==========================
                             STAT INFO
                         ========================== */}
@@ -278,6 +353,7 @@ const FeedbackStatCard = ({
                                 flex-1
                             "
                         >
+
                             {/* LABEL */}
 
                             <p
@@ -292,11 +368,12 @@ const FeedbackStatCard = ({
 
                                     text-slate-500
 
-                                    dark:text-gray-400
+                                    dark:text-slate-300
                                 "
                             >
                                 {title}
                             </p>
+
 
                             {/* VALUE */}
 
@@ -324,6 +401,7 @@ const FeedbackStatCard = ({
                                 {displayValue}
                             </h3>
 
+
                             {/* DESCRIPTION */}
 
                             {description && (
@@ -339,13 +417,15 @@ const FeedbackStatCard = ({
 
                                         text-slate-600
 
-                                        dark:text-gray-400
+                                        dark:text-slate-300
                                     "
                                 >
                                     {description}
                                 </p>
                             )}
+
                         </div>
+
 
                         {/* ==========================
                             ICON
@@ -361,22 +441,27 @@ const FeedbackStatCard = ({
                                 place-items-center
 
                                 rounded-xl
-                                border
-                                border-indigo-400/20
 
-                                bg-indigo-500/[0.07]
+                                border
+                                border-indigo-400/25
+
+                                bg-indigo-500/[0.08]
 
                                 text-indigo-700
 
+                                shadow-sm
+
                                 transition-colors
 
-                                group-hover/stat:bg-indigo-500/[0.12]
+                                group-hover/stat:bg-indigo-500/[0.13]
 
-                                dark:border-indigo-400/15
-                                dark:bg-indigo-400/[0.07]
-                                dark:text-indigo-300
+                                dark:border-cyan-400/20
+                                dark:bg-cyan-400/[0.09]
+                                dark:text-cyan-300
 
-                                dark:group-hover/stat:bg-indigo-400/[0.11]
+                                dark:shadow-none
+
+                                dark:group-hover/stat:bg-cyan-400/[0.14]
                             "
                         >
                             <Icon
@@ -386,12 +471,15 @@ const FeedbackStatCard = ({
                                 aria-hidden="true"
                             />
                         </div>
+
                     </div>
                 )}
             </div>
+
         </motion.div>
     );
 };
+
 
 // =========================================================
 // EXPORT

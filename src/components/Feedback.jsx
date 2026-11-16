@@ -18,7 +18,6 @@ import { AlertCircle } from "lucide-react";
 // SHARED UI
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 
 // =========================================================
@@ -156,15 +155,21 @@ const FeedbackError = React.memo(function FeedbackError({
 // =========================================================
 // FSOCIETY — FEEDBACK PAGE
 //
-// - Shared futuristic background
+// - Global WinterBackground from App.jsx
 // - Stable Hero, independent section loaders
 // - Public and user feedback pagination
 // - Create / Edit / Delete
 // - Existing Redux and API contracts retained
 // - Light / Dark Mode
+//
+// Background is managed globally by App.jsx.
+//
+// No local PageGridBackground is rendered here.
+//
 // =========================================================
 
 const Feedback = () => {
+
     // =====================================================
     // PAGE CONTROLLER
     // =====================================================
@@ -225,7 +230,9 @@ const Feedback = () => {
         isStatsInitialLoading,
         error,
         handleRefresh,
+
     } = useFeedbackPage();
+
 
     // =====================================================
     // DELETE CONFIRMATION STATE
@@ -237,6 +244,7 @@ const Feedback = () => {
     ] = useState(null);
 
     const deleteLockRef = useRef(false);
+
 
     // =====================================================
     // SAFE DATA
@@ -251,6 +259,7 @@ const Feedback = () => {
     const myItems = Array.isArray(myFeedbacks)
         ? myFeedbacks
         : [];
+
 
     // =====================================================
     // INDEPENDENT SECTION LOADING
@@ -284,6 +293,7 @@ const Feedback = () => {
             isStatsLoading
         );
 
+
     // =====================================================
     // GLOBAL MUTATION STATE
     // =====================================================
@@ -292,6 +302,7 @@ const Feedback = () => {
         isUpdating ||
         isDeleting
     );
+
 
     // =====================================================
     // DELETE MODAL DATA
@@ -306,6 +317,7 @@ const Feedback = () => {
             deleteTarget?.title ?? ""
         ).trim() || "Feedback";
 
+
     // =====================================================
     // AUTH CHANGE
     //
@@ -317,6 +329,7 @@ const Feedback = () => {
             setDeleteTarget(null);
         }
     }, [loggedIn]);
+
 
     // =====================================================
     // OPEN DELETE CONFIRMATION
@@ -348,6 +361,7 @@ const Feedback = () => {
         ]
     );
 
+
     // =====================================================
     // CLOSE DELETE CONFIRMATION
     // =====================================================
@@ -365,6 +379,7 @@ const Feedback = () => {
         },
         [isDeleting]
     );
+
 
     // =====================================================
     // CONFIRM DELETE
@@ -419,12 +434,14 @@ const Feedback = () => {
         ]
     );
 
+
     // =====================================================
     // RENDER
     // =====================================================
 
     return (
         <>
+
             {/* ==========================================
                 STABLE PAGE SHELL
             ========================================== */}
@@ -435,6 +452,7 @@ const Feedback = () => {
                 className="
                     relative
                     isolate
+                    z-0
 
                     min-h-screen
                     w-full
@@ -442,7 +460,7 @@ const Feedback = () => {
 
                     overflow-x-hidden
 
-                    bg-[#edf4ff]
+                    bg-transparent
 
                     pb-20
 
@@ -451,34 +469,37 @@ const Feedback = () => {
 
                     sm:pb-24
 
-                    dark:bg-[#060b15]
+                    dark:bg-transparent
                     dark:text-white
                 "
+                style={{
+                    background: "transparent",
+                    backgroundColor: "transparent",
+                    backgroundImage: "none",
+                }}
             >
+
                 {/* ======================================
-                    SHARED FUTURISTIC BACKGROUND
+                    GLOBAL FUTURISTIC BACKGROUND
 
-                    Same background as:
-                    - Users
-                    - Problems
+                    Managed globally by App.jsx.
 
-                    Includes:
-                    - Grid
-                    - Network lines
-                    - Glowing nodes
-                    - Translucent cubes
-                    - FS watermark
+                    Winter ON:
+                    - Dark: winter-dark.webp
+                    - Light: winter-light.webp
 
-                    Does not intercept user interaction.
+                    Winter OFF:
+                    - Original PageGridBackground
+
+                    Does not render another local background.
                 ====================================== */}
 
-                <PageGridBackground showMonogram />
 
                 {/* ======================================
                     CONTENT CONTAINER
 
                     z-10 keeps all interactive content
-                    above the decorative background.
+                    above the global decorative background.
                 ====================================== */}
 
                 <div
@@ -501,6 +522,7 @@ const Feedback = () => {
                         lg:px-8
                     "
                 >
+
                     {/* ==============================
                         HERO — ALWAYS VISIBLE
 
@@ -519,6 +541,7 @@ const Feedback = () => {
                         }
                     />
 
+
                     {/* ==============================
                         GLOBAL ERROR
                     ============================== */}
@@ -526,6 +549,7 @@ const Feedback = () => {
                     <FeedbackError
                         message={error}
                     />
+
 
                     {/* ==============================
                         STATISTICS
@@ -542,6 +566,7 @@ const Feedback = () => {
                             }
                         />
                     )}
+
 
                     {/* ==============================
                         MY FEEDBACKS
@@ -614,6 +639,7 @@ const Feedback = () => {
                         />
                     )}
 
+
                     {/* ==============================
                         COMMUNITY FEEDBACKS
 
@@ -654,8 +680,11 @@ const Feedback = () => {
                             handlePublicPageChange
                         }
                     />
+
                 </div>
+
             </main>
+
 
             {/* ==========================================
                 CREATE MODAL
@@ -676,6 +705,7 @@ const Feedback = () => {
                     handleCreated
                 }
             />
+
 
             {/* ==========================================
                 EDIT MODAL
@@ -702,6 +732,7 @@ const Feedback = () => {
                     handleUpdateFeedback
                 }
             />
+
 
             {/* ==========================================
                 DELETE CONFIRMATION MODAL
@@ -732,6 +763,7 @@ const Feedback = () => {
                     }
                 />
             )}
+
         </>
     );
 };

@@ -22,19 +22,27 @@ import FeedbackStatCard from "./FeedbackStatCard";
 // FSOCIETY — FEEDBACK STATS SECTION
 //
 // Responsibilities:
+//
 // - User feedback statistics
 // - Seven existing stat cards
 // - Responsive grid
 // - Dark / Light Mode
 // - Loading skeletons
+// - Glass surface
+// - Improved text contrast
 //
 // No Redux.
 // No direct API requests.
 //
 // Props:
+//
 // - stats
 // - isLoading
+//
+// Background is managed globally by App.jsx.
+//
 // =========================================================
+
 
 // =========================================================
 // STAT DEFINITIONS
@@ -89,6 +97,7 @@ const STAT_DEFINITIONS = [
     },
 ];
 
+
 // =========================================================
 // MAIN COMPONENT
 // =========================================================
@@ -97,6 +106,7 @@ const FeedbackStatsSection = ({
     stats = null,
     isLoading = false,
 }) => {
+
     // =====================================================
     // VALUES
     // =====================================================
@@ -107,6 +117,7 @@ const FeedbackStatsSection = ({
         stats && typeof stats === "object"
             ? stats
             : {};
+
 
     // =====================================================
     // JSX
@@ -119,174 +130,355 @@ const FeedbackStatsSection = ({
             aria-busy={loading}
 
             className="
+                relative
+                isolate
+
                 mt-8
 
                 w-full
                 min-w-0
+
+                overflow-hidden
+
+                rounded-[24px]
+
+                border
+                border-slate-200/90
+
+                bg-white/[0.90]
+
+                p-4
+
+                shadow-[0_18px_55px_rgba(15,23,42,0.075)]
+
+                backdrop-blur-xl
+
+                sm:rounded-[28px]
+                sm:p-6
+
+                lg:p-7
+
+                dark:border-white/[0.11]
+                dark:bg-[#071426]/[0.90]
+
+                dark:shadow-[0_24px_70px_rgba(0,0,0,0.24)]
             "
         >
+
             {/* ======================================
-                SECTION HEADER
+                BACKGROUND DECORATION
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -right-24
+                    -top-28
+
+                    h-64
+                    w-64
+
+                    rounded-full
+
+                    bg-indigo-500/[0.08]
+
+                    blur-[95px]
+
+                    dark:bg-indigo-500/[0.12]
+                "
+            />
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    -bottom-28
+                    left-[22%]
+
+                    h-56
+                    w-56
+
+                    rounded-full
+
+                    bg-cyan-500/[0.07]
+
+                    blur-[95px]
+
+                    dark:bg-cyan-400/[0.09]
+                "
+            />
+
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    inset-x-0
+                    top-0
+
+                    h-px
+
+                    bg-gradient-to-r
+                    from-transparent
+                    via-indigo-500/40
+                    to-transparent
+
+                    dark:via-cyan-400/35
+                "
+            />
+
+            {/* ======================================
+                FOREGROUND CONTENT
             ====================================== */}
 
             <div
                 className="
-                    mb-5
+                    relative
+                    z-10
 
-                    flex
                     min-w-0
-
-                    items-start
-                    justify-between
-                    gap-3
                 "
             >
-                {/* ==================================
-                    SECTION TITLE
-                ================================== */}
-
-                <div className="min-w-0 flex-1">
-
-                    <h2
-                        id="feedback-stats-title"
-
-                        className="
-                            break-words
-
-                            font-display
-                            text-lg
-                            font-black
-                            tracking-tight
-
-                            text-slate-900
-
-                            sm:text-xl
-
-                            dark:text-white
-                        "
-                    >
-                        Mening statistikam
-                    </h2>
-
-                    <p
-                        className="
-                            mt-1
-
-                            max-w-2xl
-
-                            text-[12px]
-                            font-medium
-                            leading-6
-
-                            text-slate-600
-
-                            dark:text-gray-400
-                        "
-                    >
-                        Feedback faoliyatingiz,
-                        moderatsiya jarayoni va
-                        FCoin natijalari.
-                    </p>
-                </div>
 
                 {/* ==================================
-                    GIFT ICON
+                    SECTION HEADER
                 ================================== */}
 
                 <div
                     className="
-                        grid
-                        h-10
-                        w-10
-                        shrink-0
+                        mb-6
 
-                        place-items-center
+                        flex
+                        min-w-0
 
-                        rounded-xl
-                        border
-                        border-amber-400/25
+                        items-start
+                        justify-between
+                        gap-3
 
-                        bg-amber-500/[0.07]
-
-                        text-amber-700
-
-                        dark:border-amber-400/15
-                        dark:bg-amber-400/[0.06]
-                        dark:text-amber-300
+                        sm:mb-7
                     "
                 >
-                    <Gift
-                        size={19}
-                        strokeWidth={1.9}
-                        aria-hidden="true"
-                    />
-                </div>
-            </div>
 
-            {/* ======================================
-                RESPONSIVE STATISTICS GRID
+                    {/* ==================================
+                        SECTION TITLE
+                    ================================== */}
 
-                Mobile:
-                    1 column
+                    <div className="min-w-0 flex-1">
 
-                Small tablet:
-                    2 columns
+                        <div
+                            className="
+                                mb-2
 
-                Tablet / laptop:
-                    3 columns
+                                inline-flex
+                                items-center
+                                gap-2
 
-                Desktop:
-                    4 columns
+                                rounded-full
 
-                Avoids squeezing seven cards
-                into a single row.
-            ====================================== */}
+                                border
+                                border-indigo-400/25
 
-            <div
-                className="
-                    grid
-                    w-full
-                    min-w-0
+                                bg-indigo-500/[0.07]
 
-                    grid-cols-1
+                                px-2.5
+                                py-1
 
-                    gap-3
+                                text-[9px]
+                                font-bold
+                                uppercase
+                                tracking-[0.14em]
 
-                    sm:grid-cols-2
+                                text-indigo-700
 
-                    md:grid-cols-3
+                                dark:border-cyan-400/20
+                                dark:bg-cyan-400/[0.07]
+                                dark:text-cyan-300
+                            "
+                        >
+                            <span
+                                className="
+                                    h-1.5
+                                    w-1.5
+                                    rounded-full
+                                    bg-indigo-500
 
-                    xl:grid-cols-4
+                                    dark:bg-cyan-400
+                                "
+                            />
 
-                    lg:gap-4
-                "
-            >
-                {STAT_DEFINITIONS.map((definition) => {
-                    const value =
-                        safeStats[definition.key] ?? 0;
+                            FEEDBACK ANALYTICS
+                        </div>
 
-                    return (
-                        <FeedbackStatCard
-                            key={definition.key}
 
-                            title={definition.title}
+                        <h2
+                            id="feedback-stats-title"
 
-                            value={value}
+                            className="
+                                break-words
 
-                            Icon={definition.Icon}
+                                font-display
+                                text-lg
+                                font-black
+                                tracking-tight
 
-                            description={
-                                definition.description
-                            }
+                                text-slate-900
 
-                            isLoading={loading}
+                                sm:text-xl
+
+                                dark:text-white
+                            "
+                        >
+                            Mening statistikam
+                        </h2>
+
+
+                        <p
+                            className="
+                                mt-1
+
+                                max-w-2xl
+
+                                text-[12px]
+                                font-medium
+                                leading-6
+
+                                text-slate-600
+
+                                dark:text-slate-300
+                            "
+                        >
+                            Feedback faoliyatingiz,
+                            moderatsiya jarayoni va
+                            FCoin natijalari.
+                        </p>
+
+                    </div>
+
+
+                    {/* ==================================
+                        GIFT ICON
+                    ================================== */}
+
+                    <div
+                        className="
+                            grid
+                            h-11
+                            w-11
+                            shrink-0
+
+                            place-items-center
+
+                            rounded-2xl
+
+                            border
+                            border-amber-400/35
+
+                            bg-amber-500/[0.10]
+
+                            text-amber-700
+
+                            shadow-sm
+
+                            sm:h-12
+                            sm:w-12
+
+                            dark:border-amber-400/25
+                            dark:bg-amber-400/[0.09]
+                            dark:text-amber-300
+                        "
+                    >
+                        <Gift
+                            size={21}
+                            strokeWidth={1.9}
+                            aria-hidden="true"
                         />
-                    );
-                })}
+                    </div>
+
+                </div>
+
+
+                {/* ======================================
+                    RESPONSIVE STATISTICS GRID
+
+                    Mobile:
+                        1 column
+
+                    Small tablet:
+                        2 columns
+
+                    Tablet / laptop:
+                        3 columns
+
+                    Desktop:
+                        4 columns
+
+                    Avoids squeezing seven cards
+                    into a single row.
+                ====================================== */}
+
+                <div
+                    className="
+                        grid
+
+                        w-full
+                        min-w-0
+
+                        grid-cols-1
+
+                        gap-3
+
+                        sm:grid-cols-2
+
+                        md:grid-cols-3
+
+                        xl:grid-cols-4
+
+                        lg:gap-4
+                    "
+                >
+                    {STAT_DEFINITIONS.map((definition) => {
+                        const value =
+                            safeStats[definition.key] ?? 0;
+
+                        return (
+                            <FeedbackStatCard
+                                key={definition.key}
+
+                                title={definition.title}
+
+                                value={value}
+
+                                Icon={definition.Icon}
+
+                                description={
+                                    definition.description
+                                }
+
+                                isLoading={loading}
+                            />
+                        );
+                    })}
+                </div>
+
             </div>
+
         </section>
     );
 };
+
 
 // =========================================================
 // EXPORT

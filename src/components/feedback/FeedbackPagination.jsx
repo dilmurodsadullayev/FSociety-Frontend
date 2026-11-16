@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 
 import {
@@ -168,9 +167,9 @@ const PageButton = React.memo(({
                             bg-indigo-500/[0.11]
                             text-indigo-700
 
-                            dark:border-indigo-400/25
-                            dark:bg-indigo-400/[0.12]
-                            dark:text-indigo-300
+                            dark:border-indigo-400/30
+                            dark:bg-indigo-400/[0.16]
+                            dark:text-indigo-200
                         `
                         : `
                             border-slate-200
@@ -183,13 +182,13 @@ const PageButton = React.memo(({
 
                             disabled:opacity-50
 
-                            dark:border-white/[0.09]
-                            dark:bg-white/[0.035]
-                            dark:text-gray-400
+                            dark:border-white/[0.10]
+                            dark:bg-[#14243a]
+                            dark:text-gray-300
 
-                            dark:hover:border-indigo-400/25
-                            dark:hover:bg-indigo-400/[0.07]
-                            dark:hover:text-indigo-300
+                            dark:hover:border-indigo-400/30
+                            dark:hover:bg-indigo-400/[0.12]
+                            dark:hover:text-indigo-200
                         `
                 }
             `}
@@ -216,7 +215,7 @@ const PaginationEllipsis = React.memo(() => (
 
             text-slate-400
 
-            dark:text-gray-500
+            dark:text-gray-400
         "
     >
         <MoreHorizontal size={18} />
@@ -288,13 +287,13 @@ const NavigationButton = React.memo(({
                 disabled:cursor-not-allowed
                 disabled:opacity-40
 
-                dark:border-white/[0.09]
-                dark:bg-white/[0.035]
-                dark:text-gray-400
+                dark:border-white/[0.10]
+                dark:bg-[#14243a]
+                dark:text-gray-300
 
-                dark:hover:border-indigo-400/25
-                dark:hover:bg-indigo-400/[0.07]
-                dark:hover:text-indigo-300
+                dark:hover:border-indigo-400/30
+                dark:hover:bg-indigo-400/[0.12]
+                dark:hover:text-indigo-200
             "
         >
             {isLoading ? (
@@ -459,19 +458,21 @@ const FeedbackPagination = ({
 
                 rounded-2xl
                 border
-                border-slate-200
+                border-slate-200/90
 
-                bg-white/80
+                bg-white/[0.97]
 
                 p-3
 
-                shadow-[0_4px_18px_rgba(15,23,42,0.025)]
+                shadow-[0_8px_28px_rgba(15,23,42,0.06)]
+
+                backdrop-blur-xl
 
                 sm:p-4
 
-                dark:border-white/[0.08]
-                dark:bg-white/[0.025]
-                dark:shadow-none
+                dark:border-white/[0.10]
+                dark:bg-[#08182a]/[0.97]
+                dark:shadow-[0_8px_28px_rgba(0,0,0,0.20)]
             "
         >
             <div
@@ -516,7 +517,7 @@ const FeedbackPagination = ({
 
                                 text-slate-500
 
-                                dark:text-gray-500
+                                dark:text-gray-400
                             "
                         >
                             Sahifa
@@ -532,7 +533,7 @@ const FeedbackPagination = ({
 
                                 text-slate-600
 
-                                dark:text-gray-400
+                                dark:text-gray-300
                             "
                         >
                             <strong
@@ -553,7 +554,7 @@ const FeedbackPagination = ({
                                     mx-1.5
                                     text-slate-400
 
-                                    dark:text-gray-600
+                                    dark:text-gray-500
                                 "
                             >
                                 /
@@ -578,8 +579,8 @@ const FeedbackPagination = ({
                             px-3
                             py-2
 
-                            dark:border-white/[0.08]
-                            dark:bg-white/[0.035]
+                            dark:border-white/[0.10]
+                            dark:bg-[#14243a]
                         "
                     >
                         <span
@@ -590,7 +591,7 @@ const FeedbackPagination = ({
 
                                 text-slate-600
 
-                                dark:text-gray-400
+                                dark:text-gray-300
                             "
                         >
                             Jami{" "}
@@ -599,7 +600,7 @@ const FeedbackPagination = ({
                                     tabular-nums
                                     text-slate-900
 
-                                    dark:text-gray-200
+                                    dark:text-white
                                 "
                             >
                                 {safeCount.toLocaleString(
@@ -652,9 +653,9 @@ const FeedbackPagination = ({
 
                             rounded-xl
                             border
-                            border-indigo-400/20
+                            border-indigo-400/30
 
-                            bg-indigo-500/[0.07]
+                            bg-indigo-50
 
                             px-3
                             py-2
@@ -666,9 +667,9 @@ const FeedbackPagination = ({
 
                             text-indigo-700
 
-                            dark:border-indigo-400/15
-                            dark:bg-indigo-400/[0.07]
-                            dark:text-indigo-300
+                            dark:border-indigo-400/25
+                            dark:bg-[#172943]
+                            dark:text-indigo-200
                         "
                     >
                         {loading && (
@@ -809,7 +810,7 @@ const FeedbackPagination = ({
 
                     bg-slate-100
 
-                    dark:bg-white/[0.05]
+                    dark:bg-white/[0.08]
                 "
             >
                 <div

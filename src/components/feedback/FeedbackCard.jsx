@@ -51,6 +51,7 @@ import {
 // FSOCIETY — FEEDBACK CARD
 //
 // Features:
+//
 // - Dark / Light Mode
 // - Responsive layout
 // - Feedback type badge
@@ -65,10 +66,16 @@ import {
 // - Loading indicators
 // - Backend permission awareness
 // - Reduced motion support
+// - Winter glass card design
+// - Improved readability and contrast
 //
 // Existing props preserved.
 // No direct API calls.
+//
+// Background is managed globally by App.jsx.
+//
 // =========================================================
+
 
 // =========================================================
 // TYPE BADGE
@@ -117,6 +124,7 @@ const TypeBadge = React.memo(({ type }) => {
         </span>
     );
 });
+
 
 // =========================================================
 // STATUS BADGE
@@ -167,6 +175,7 @@ const StatusBadge = React.memo(({ status }) => {
     );
 });
 
+
 // =========================================================
 // REWARD BADGE
 //
@@ -186,9 +195,9 @@ const RewardBadge = React.memo(({ amount }) => {
 
                 rounded-full
                 border
-                border-amber-400/35
+                border-amber-400/40
 
-                bg-amber-500/[0.09]
+                bg-amber-500/[0.12]
 
                 px-2.5
                 py-1
@@ -201,8 +210,8 @@ const RewardBadge = React.memo(({ amount }) => {
 
                 text-amber-800
 
-                dark:border-amber-400/20
-                dark:bg-amber-400/[0.08]
+                dark:border-amber-400/25
+                dark:bg-amber-400/[0.12]
                 dark:text-amber-300
             "
             title="Berilgan FCoin mukofoti"
@@ -220,6 +229,7 @@ const RewardBadge = React.memo(({ amount }) => {
         </span>
     );
 });
+
 
 // =========================================================
 // FEEDBACK SCREENSHOT
@@ -262,12 +272,12 @@ const FeedbackScreenshot = React.memo(({
                     border-dashed
                     border-slate-300
 
-                    bg-slate-50
+                    bg-slate-50/95
 
                     p-4
 
-                    dark:border-white/[0.10]
-                    dark:bg-white/[0.025]
+                    dark:border-white/[0.12]
+                    dark:bg-[#10243a]/95
                 "
             >
                 <div
@@ -280,12 +290,13 @@ const FeedbackScreenshot = React.memo(({
                         place-items-center
 
                         rounded-xl
-                        bg-slate-200/70
+
+                        bg-slate-200/90
 
                         text-slate-500
 
-                        dark:bg-white/[0.05]
-                        dark:text-gray-400
+                        dark:bg-white/[0.08]
+                        dark:text-gray-300
                     "
                 >
                     <ImageOff
@@ -302,7 +313,7 @@ const FeedbackScreenshot = React.memo(({
 
                             text-slate-800
 
-                            dark:text-gray-200
+                            dark:text-gray-100
                         "
                     >
                         Skrinshotni ko‘rsatib bo‘lmadi
@@ -316,9 +327,9 @@ const FeedbackScreenshot = React.memo(({
                             font-medium
                             leading-5
 
-                            text-slate-500
+                            text-slate-600
 
-                            dark:text-gray-400
+                            dark:text-slate-300
                         "
                     >
                         Rasm o‘chirilgan yoki unga
@@ -352,20 +363,20 @@ const FeedbackScreenshot = React.memo(({
                 border
                 border-slate-200
 
-                bg-slate-50
+                bg-slate-100/95
 
                 transition-colors
 
-                hover:border-indigo-400/40
+                hover:border-indigo-400/50
 
                 focus-visible:outline-none
                 focus-visible:ring-2
                 focus-visible:ring-indigo-500
 
-                dark:border-white/[0.09]
-                dark:bg-black/20
+                dark:border-white/[0.12]
+                dark:bg-[#081525]
 
-                dark:hover:border-indigo-400/25
+                dark:hover:border-cyan-400/35
             "
         >
             {/* IMAGE PREVIEW */}
@@ -388,7 +399,7 @@ const FeedbackScreenshot = React.memo(({
 
                     sm:max-h-[380px]
 
-                    dark:bg-black/25
+                    dark:bg-[#081525]
                 "
             >
                 <img
@@ -436,12 +447,15 @@ const FeedbackScreenshot = React.memo(({
                     border-t
                     border-slate-200
 
+                    bg-white/95
+
                     px-3
                     py-3
 
                     sm:px-4
 
-                    dark:border-white/[0.08]
+                    dark:border-white/[0.10]
+                    dark:bg-[#10243a]/95
                 "
             >
                 <div
@@ -462,7 +476,7 @@ const FeedbackScreenshot = React.memo(({
 
                             text-indigo-600
 
-                            dark:text-indigo-400
+                            dark:text-cyan-400
                         "
                     />
 
@@ -476,14 +490,14 @@ const FeedbackScreenshot = React.memo(({
                             text-[10px]
                             font-bold
 
-                            text-slate-600
+                            text-slate-700
 
                             transition-colors
 
                             group-hover/image:text-indigo-700
 
-                            dark:text-gray-400
-                            dark:group-hover/image:text-indigo-300
+                            dark:text-slate-300
+                            dark:group-hover/image:text-cyan-300
                         "
                     >
                         Skrinshotni to‘liq ko‘rish
@@ -497,15 +511,16 @@ const FeedbackScreenshot = React.memo(({
                     className="
                         shrink-0
 
-                        text-slate-400
+                        text-slate-500
 
-                        dark:text-gray-500
+                        dark:text-slate-400
                     "
                 />
             </div>
         </a>
     );
 });
+
 
 // =========================================================
 // ADMIN RESPONSE
@@ -522,6 +537,7 @@ const FeedbackAdminResponse = React.memo(({
         <div
             className="
                 relative
+                isolate
 
                 mt-5
 
@@ -530,14 +546,18 @@ const FeedbackAdminResponse = React.memo(({
 
                 rounded-2xl
                 border
-                border-indigo-200
+                border-indigo-200/90
 
-                bg-indigo-50/70
+                bg-indigo-50/95
 
                 p-4
 
-                dark:border-indigo-400/[0.16]
-                dark:bg-indigo-500/[0.045]
+                shadow-sm
+
+                dark:border-indigo-400/[0.23]
+                dark:bg-[#142441]/95
+
+                dark:shadow-none
             "
         >
             {/* BACKGROUND DECORATION */}
@@ -557,9 +577,11 @@ const FeedbackAdminResponse = React.memo(({
 
                     rounded-full
 
-                    bg-indigo-500/[0.08]
+                    bg-indigo-500/[0.10]
 
                     blur-2xl
+
+                    dark:bg-indigo-400/[0.12]
                 "
             />
 
@@ -578,9 +600,9 @@ const FeedbackAdminResponse = React.memo(({
                         uppercase
                         tracking-[0.10em]
 
-                        text-indigo-700
+                        text-indigo-800
 
-                        dark:text-indigo-300
+                        dark:text-cyan-300
                     "
                 >
                     <ShieldCheck
@@ -608,11 +630,11 @@ const FeedbackAdminResponse = React.memo(({
                         font-medium
                         leading-6
 
-                        text-slate-700
+                        text-slate-800
 
                         sm:text-[13px]
 
-                        dark:text-gray-300
+                        dark:text-slate-200
                     "
                 >
                     {comment}
@@ -621,6 +643,7 @@ const FeedbackAdminResponse = React.memo(({
         </div>
     );
 });
+
 
 // =========================================================
 // MAIN FEEDBACK CARD
@@ -639,12 +662,14 @@ const FeedbackCard = ({
 
     actionsDisabled = false,
 }) => {
+
     // =====================================================
     // ACCESSIBILITY
     // =====================================================
 
     const shouldReduceMotion =
         useReducedMotion();
+
 
     // =====================================================
     // DATA GUARD
@@ -656,6 +681,7 @@ const FeedbackCard = ({
     ) {
         return null;
     }
+
 
     // =====================================================
     // DATA
@@ -675,6 +701,7 @@ const FeedbackCard = ({
 
     const editable =
         canModifyFeedback(feedback);
+
 
     // =====================================================
     // BUSY STATE
@@ -697,6 +724,7 @@ const FeedbackCard = ({
     const hasActions =
         canEdit || canDelete;
 
+
     // =====================================================
     // TEXT
     // =====================================================
@@ -716,6 +744,7 @@ const FeedbackCard = ({
             ? feedback.admin_comment
             : "";
 
+
     // =====================================================
     // DATE
     // =====================================================
@@ -733,6 +762,7 @@ const FeedbackCard = ({
             ? formatPrettyDate(createdAt)
             : "";
 
+
     // =====================================================
     // AUTHOR
     // =====================================================
@@ -740,6 +770,7 @@ const FeedbackCard = ({
     const showUsername =
         Boolean(username) &&
         username !== "unknown";
+
 
     // =====================================================
     // ANIMATION
@@ -749,6 +780,7 @@ const FeedbackCard = ({
         shouldReduceMotion || busy
             ? undefined
             : { y: -2 };
+
 
     // =====================================================
     // HANDLERS
@@ -776,6 +808,7 @@ const FeedbackCard = ({
         // Confirmation is handled by Feedback.jsx.
         onDelete(feedback);
     };
+
 
     // =====================================================
     // JSX
@@ -823,6 +856,7 @@ const FeedbackCard = ({
                 group/feedback
 
                 relative
+                isolate
 
                 flex
                 h-full
@@ -834,31 +868,35 @@ const FeedbackCard = ({
                 overflow-hidden
 
                 rounded-[22px]
-                border
-                border-slate-200
 
-                bg-white
+                border
+                border-slate-200/90
+
+                bg-white/[0.97]
 
                 font-sans
 
-                shadow-[0_10px_35px_rgba(15,23,42,0.045)]
+                shadow-[0_14px_42px_rgba(15,23,42,0.075)]
+
+                backdrop-blur-xl
 
                 transition-colors
                 duration-200
 
-                hover:border-indigo-400/30
+                hover:border-indigo-400/45
 
                 sm:rounded-[24px]
 
-                dark:border-white/[0.07]
-                dark:bg-white/[0.025]
+                dark:border-white/[0.12]
+                dark:bg-[#0b1b2e]/[0.97]
 
-                dark:shadow-[0_15px_50px_rgba(0,0,0,0.12)]
+                dark:shadow-[0_18px_55px_rgba(0,0,0,0.24)]
 
-                dark:hover:border-white/[0.13]
-                dark:hover:bg-white/[0.035]
+                dark:hover:border-cyan-400/[0.30]
+                dark:hover:bg-[#10243a]/[0.98]
             "
         >
+
             {/* ======================================
                 DECORATIVE GLOW
             ====================================== */}
@@ -878,7 +916,7 @@ const FeedbackCard = ({
 
                     rounded-full
 
-                    bg-indigo-500/[0.045]
+                    bg-indigo-500/[0.05]
 
                     opacity-0
                     blur-[70px]
@@ -887,8 +925,37 @@ const FeedbackCard = ({
                     duration-300
 
                     group-hover/feedback:opacity-100
+
+                    dark:bg-indigo-400/[0.10]
                 "
             />
+
+            {/* ======================================
+                TOP ACCENT
+            ====================================== */}
+
+            <div
+                aria-hidden="true"
+
+                className="
+                    pointer-events-none
+
+                    absolute
+                    inset-x-5
+                    top-0
+                    z-10
+
+                    h-px
+
+                    bg-gradient-to-r
+                    from-transparent
+                    via-indigo-500/35
+                    to-transparent
+
+                    dark:via-cyan-400/35
+                "
+            />
+
 
             {/* ======================================
                 PROCESSING BAR
@@ -910,7 +977,7 @@ const FeedbackCard = ({
 
                         bg-indigo-100
 
-                        dark:bg-indigo-400/[0.08]
+                        dark:bg-indigo-400/[0.12]
                     "
                 >
                     {!shouldReduceMotion ? (
@@ -937,6 +1004,8 @@ const FeedbackCard = ({
                                 from-transparent
                                 via-indigo-500
                                 to-transparent
+
+                                dark:via-cyan-400
                             "
                         />
                     ) : (
@@ -946,11 +1015,14 @@ const FeedbackCard = ({
                                 w-full
 
                                 bg-indigo-500/60
+
+                                dark:bg-cyan-400/60
                             "
                         />
                     )}
                 </div>
             )}
+
 
             {/* ======================================
                 CONTENT
@@ -973,6 +1045,7 @@ const FeedbackCard = ({
                     lg:p-6
                 "
             >
+
                 {/* ==================================
                     HEADER
                 ================================== */}
@@ -990,6 +1063,7 @@ const FeedbackCard = ({
                         sm:justify-between
                     "
                 >
+
                     {/* ==============================
                         BADGES AND TITLE
                     ============================== */}
@@ -1000,6 +1074,7 @@ const FeedbackCard = ({
                             flex-1
                         "
                     >
+
                         {/* BADGES */}
 
                         <div
@@ -1030,6 +1105,7 @@ const FeedbackCard = ({
                                 )}
                         </div>
 
+
                         {/* TITLE */}
 
                         <h3
@@ -1058,7 +1134,9 @@ const FeedbackCard = ({
                         >
                             {title}
                         </h3>
+
                     </div>
+
 
                     {/* ==============================
                         DATE
@@ -1089,9 +1167,9 @@ const FeedbackCard = ({
                                     text-[11px]
                                     font-medium
 
-                                    text-slate-500
+                                    text-slate-600
 
-                                    dark:text-gray-400
+                                    dark:text-slate-300
                                 "
                             >
                                 <Clock3
@@ -1104,7 +1182,7 @@ const FeedbackCard = ({
 
                                         text-indigo-600
 
-                                        dark:text-indigo-400
+                                        dark:text-cyan-400
                                     "
                                 />
 
@@ -1119,9 +1197,9 @@ const FeedbackCard = ({
                                         text-[10px]
                                         font-medium
 
-                                        text-slate-400
+                                        text-slate-500
 
-                                        dark:text-gray-500
+                                        dark:text-slate-400
                                     "
                                 >
                                     {fullDate}
@@ -1129,7 +1207,9 @@ const FeedbackCard = ({
                             )}
                         </div>
                     )}
+
                 </div>
+
 
                 {/* ==================================
                     FEEDBACK MESSAGE
@@ -1155,12 +1235,13 @@ const FeedbackCard = ({
                             sm:text-sm
                             sm:leading-7
 
-                            dark:text-gray-300
+                            dark:text-slate-200
                         "
                     >
                         {message}
                     </p>
                 )}
+
 
                 {/* ==================================
                     SCREENSHOT
@@ -1171,6 +1252,7 @@ const FeedbackCard = ({
                     title={title}
                 />
 
+
                 {/* ==================================
                     ADMIN COMMENT
                 ================================== */}
@@ -1178,6 +1260,7 @@ const FeedbackCard = ({
                 <FeedbackAdminResponse
                     comment={adminComment}
                 />
+
 
                 {/* ==================================
                     FOOTER
@@ -1202,7 +1285,7 @@ const FeedbackCard = ({
                         sm:items-center
                         sm:justify-between
 
-                        dark:border-white/[0.08]
+                        dark:border-white/[0.11]
 
                         [&:first-child]:border-0
                     "
@@ -1210,6 +1293,7 @@ const FeedbackCard = ({
                         marginTop: "auto",
                     }}
                 >
+
                     {/* ==========================
                         AUTHOR
                     ========================== */}
@@ -1225,9 +1309,9 @@ const FeedbackCard = ({
                             text-[11px]
                             font-medium
 
-                            text-slate-500
+                            text-slate-600
 
-                            dark:text-gray-400
+                            dark:text-slate-300
                         "
                     >
                         <MessageSquareText
@@ -1240,7 +1324,7 @@ const FeedbackCard = ({
 
                                 text-indigo-600
 
-                                dark:text-indigo-400
+                                dark:text-cyan-400
                             "
                         />
 
@@ -1256,6 +1340,7 @@ const FeedbackCard = ({
                                 : "Foydalanuvchi"}
                         </span>
                     </div>
+
 
                     {/* ==========================
                         EDIT / DELETE ACTIONS
@@ -1277,6 +1362,7 @@ const FeedbackCard = ({
                                 sm:justify-end
                             "
                         >
+
                             {/* EDIT */}
 
                             {canEdit && (
@@ -1299,10 +1385,11 @@ const FeedbackCard = ({
                                         gap-2
 
                                         rounded-xl
-                                        border
-                                        border-cyan-400/35
 
-                                        bg-cyan-500/[0.07]
+                                        border
+                                        border-cyan-400/40
+
+                                        bg-cyan-500/[0.09]
 
                                         px-3
                                         py-2.5
@@ -1311,12 +1398,14 @@ const FeedbackCard = ({
                                         text-[11px]
                                         font-bold
 
-                                        text-cyan-800
+                                        text-cyan-900
+
+                                        shadow-sm
 
                                         transition-colors
 
-                                        hover:border-cyan-400/50
-                                        hover:bg-cyan-500/[0.12]
+                                        hover:border-cyan-400/60
+                                        hover:bg-cyan-500/[0.15]
 
                                         focus-visible:outline-none
                                         focus-visible:ring-2
@@ -1327,12 +1416,14 @@ const FeedbackCard = ({
 
                                         sm:flex-none
 
-                                        dark:border-cyan-400/20
-                                        dark:bg-cyan-400/[0.06]
+                                        dark:border-cyan-400/25
+                                        dark:bg-cyan-400/[0.09]
                                         dark:text-cyan-300
 
-                                        dark:hover:border-cyan-400/30
-                                        dark:hover:bg-cyan-400/[0.10]
+                                        dark:shadow-none
+
+                                        dark:hover:border-cyan-400/40
+                                        dark:hover:bg-cyan-400/[0.14]
                                     "
                                 >
                                     {isUpdating ? (
@@ -1356,6 +1447,7 @@ const FeedbackCard = ({
                                 </button>
                             )}
 
+
                             {/* DELETE */}
 
                             {canDelete && (
@@ -1378,10 +1470,11 @@ const FeedbackCard = ({
                                         gap-2
 
                                         rounded-xl
-                                        border
-                                        border-red-400/35
 
-                                        bg-red-500/[0.06]
+                                        border
+                                        border-red-400/40
+
+                                        bg-red-500/[0.08]
 
                                         px-3
                                         py-2.5
@@ -1390,12 +1483,14 @@ const FeedbackCard = ({
                                         text-[11px]
                                         font-bold
 
-                                        text-red-700
+                                        text-red-800
+
+                                        shadow-sm
 
                                         transition-colors
 
-                                        hover:border-red-400/50
-                                        hover:bg-red-500/[0.10]
+                                        hover:border-red-400/60
+                                        hover:bg-red-500/[0.13]
 
                                         focus-visible:outline-none
                                         focus-visible:ring-2
@@ -1406,12 +1501,14 @@ const FeedbackCard = ({
 
                                         sm:flex-none
 
-                                        dark:border-red-400/20
-                                        dark:bg-red-400/[0.05]
+                                        dark:border-red-400/25
+                                        dark:bg-red-400/[0.08]
                                         dark:text-red-300
 
-                                        dark:hover:border-red-400/30
-                                        dark:hover:bg-red-400/[0.09]
+                                        dark:shadow-none
+
+                                        dark:hover:border-red-400/40
+                                        dark:hover:bg-red-400/[0.13]
                                     "
                                 >
                                     {isDeleting ? (
@@ -1434,13 +1531,18 @@ const FeedbackCard = ({
                                     O‘chirish
                                 </button>
                             )}
+
                         </div>
                     )}
+
                 </div>
+
             </div>
+
         </motion.article>
     );
 };
+
 
 // =========================================================
 // EXPORT
