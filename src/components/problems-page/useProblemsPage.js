@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -6,53 +5,43 @@ import {
     useRef,
     useState,
 } from "react";
-
 import {
     useSearchParams,
 } from "react-router-dom";
-
 import {
     useDispatch,
     useSelector,
 } from "react-redux";
-
 import {
     getProblemFailure,
     getProblemStart,
     getProblemSuccess,
-
     getLanguagesFailure,
     getLanguagesStart,
     getLanguagesSuccess,
-
     getTechnologiesFailure,
     getTechnologiesStart,
     getTechnologiesSuccess,
 } from "../../features/problems/Problems";
-
 import ProblemService, {
     isProblemRequestCanceled,
 } from "../../services/problems";
-
 import { siteToast } from "../ui/AuthToast";
-
 import {
     PROBLEMS_PAGE_SIZE,
     PROBLEMS_SEARCH_DEBOUNCE_MS,
-
     buildResetProblemSearchParams,
     buildUpdatedProblemSearchParams,
-
     getProblemErrorMessage,
     getProblemQueryCorrections,
     getProblemQueryState,
     getProblemResultRange,
     getProblemTotalPages,
-
     hasActiveProblemFilters,
 } from "./problemPageHelpers";
 
 // =========================================================
+
 // FSOCIETY — USE PROBLEMS PAGE
 //
 // Responsibilities:
@@ -69,10 +58,13 @@ import {
 // - Query-aware loading and errors
 //
 // Keeps the original Redux actions and service API.
+
 // =========================================================
 
 // =========================================================
+
 // GENERAL HELPERS
+
 // =========================================================
 
 const getSafeCount = (value) => {
@@ -125,12 +117,17 @@ const isInvalidPaginationError = (error) => {
 };
 
 // =========================================================
+
 // MAIN HOOK
+
 // =========================================================
 
 const useProblemsPage = () => {
+
     // =====================================================
+
     // REDUX
+
     // =====================================================
 
     const dispatch = useDispatch();
@@ -165,7 +162,9 @@ const useProblemsPage = () => {
         : [];
 
     // =====================================================
+
     // URL SEARCH PARAMS
+
     // =====================================================
 
     const [
@@ -189,7 +188,9 @@ const useProblemsPage = () => {
     } = queryState;
 
     // =====================================================
+
     // URL CORRECTIONS
+
     // =====================================================
 
     const queryCorrections = useMemo(
@@ -203,10 +204,12 @@ const useProblemsPage = () => {
         Object.keys(queryCorrections).length > 0;
 
     // =====================================================
+
     // CURRENT QUERY IDENTITY
     //
     // A successful request for a different URL
     // must not resolve the current URL.
+
     // =====================================================
 
     const currentQueryKey = useMemo(
@@ -231,7 +234,9 @@ const useProblemsPage = () => {
     );
 
     // =====================================================
+
     // LOCAL STATE
+
     // =====================================================
 
     const [
@@ -265,16 +270,20 @@ const useProblemsPage = () => {
     ] = useState("");
 
     // =====================================================
+
     // REQUEST SEQUENCE
     //
     // AbortController is not enough when an
     // underlying API adapter ignores the signal.
+
     // =====================================================
 
     const requestSequenceRef = useRef(0);
 
     // =====================================================
+
     // URL UPDATE HELPER
+
     // =====================================================
 
     const updateQueryParams = useCallback(
@@ -292,9 +301,11 @@ const useProblemsPage = () => {
     );
 
     // =====================================================
+
     // URL -> SEARCH INPUT
     //
     // Supports reload, Back and Forward navigation.
+
     // =====================================================
 
     useEffect(() => {
@@ -302,9 +313,11 @@ const useProblemsPage = () => {
     }, [debouncedSearchTerm]);
 
     // =====================================================
+
     // SEARCH INPUT -> URL
     //
     // Debounce prevents a request on every keystroke.
+
     // =====================================================
 
     useEffect(() => {
@@ -334,10 +347,12 @@ const useProblemsPage = () => {
     ]);
 
     // =====================================================
+
     // CORRECT INVALID URL PARAMS
     //
     // Query normalization uses replace instead of
     // adding broken URLs to browser history.
+
     // =====================================================
 
     useEffect(() => {
@@ -356,9 +371,11 @@ const useProblemsPage = () => {
     ]);
 
     // =====================================================
+
     // LOAD LANGUAGES AND TECHNOLOGIES
     //
     // Catalog requests run in parallel.
+
     // =====================================================
 
     useEffect(() => {
@@ -372,12 +389,14 @@ const useProblemsPage = () => {
 
             // Promise.resolve().then() also catches
             // synchronous service exceptions.
+
             const results = await Promise.allSettled([
                 Promise.resolve().then(() =>
                     ProblemService.getLanguagesList({
                         signal: controller.signal,
                     })
                 ),
+
                 Promise.resolve().then(() =>
                     ProblemService.getTechnologiesList({
                         signal: controller.signal,
@@ -398,7 +417,9 @@ const useProblemsPage = () => {
             ] = results;
 
             // ============================================
+
             // LANGUAGES
+
             // ============================================
 
             if (
@@ -431,7 +452,9 @@ const useProblemsPage = () => {
             }
 
             // ============================================
+
             // TECHNOLOGIES
+
             // ============================================
 
             if (
@@ -473,13 +496,17 @@ const useProblemsPage = () => {
     }, [dispatch]);
 
     // =====================================================
+
     // LOAD PROBLEMS
     //
     // Each request is tied to the exact query key.
+
     // =====================================================
 
     useEffect(() => {
+
         // Wait for invalid URL params to be corrected.
+
         if (hasQueryCorrections) {
             return undefined;
         }
@@ -497,7 +524,9 @@ const useProblemsPage = () => {
             requestId === requestSequenceRef.current;
 
         // ================================================
+
         // REQUEST START
+
         // ================================================
 
         setPendingQueryKey(currentQueryKey);
@@ -508,8 +537,11 @@ const useProblemsPage = () => {
 
         const loadProblems = async () => {
             try {
+
                 // ========================================
+
                 // API REQUEST — ORIGINAL CONTRACT
+
                 // ========================================
 
                 const response =
@@ -533,7 +565,9 @@ const useProblemsPage = () => {
                     });
 
                 // ========================================
+
                 // IGNORE STALE RESULTS
+
                 // ========================================
 
                 if (!isCurrentRequest()) {
@@ -541,7 +575,9 @@ const useProblemsPage = () => {
                 }
 
                 // ========================================
+
                 // REDUX SUCCESS
+
                 // ========================================
 
                 dispatch(getProblemSuccess(response));
@@ -552,9 +588,13 @@ const useProblemsPage = () => {
 
                 setFailedQueryKey(null);
                 setRequestError("");
+
             } catch (error) {
+
                 // ========================================
+
                 // ABORT / CANCELLATION
+
                 // ========================================
 
                 if (
@@ -565,7 +605,9 @@ const useProblemsPage = () => {
                 }
 
                 // ========================================
+
                 // INVALID DRF PAGE
+
                 // ========================================
 
                 if (
@@ -581,7 +623,9 @@ const useProblemsPage = () => {
                 }
 
                 // ========================================
+
                 // REAL API ERROR
+
                 // ========================================
 
                 const message =
@@ -594,6 +638,7 @@ const useProblemsPage = () => {
 
                 setFailedQueryKey(currentQueryKey);
                 setRequestError(message);
+
             } finally {
                 if (isCurrentRequest()) {
                     setPendingQueryKey(null);
@@ -624,7 +669,9 @@ const useProblemsPage = () => {
     ]);
 
     // =====================================================
+
     // QUERY-AWARE REQUEST STATUS
+
     // =====================================================
 
     const loading =
@@ -644,7 +691,9 @@ const useProblemsPage = () => {
         problemList.length > 0;
 
     // =====================================================
+
     // PAGINATION VALUES
+
     // =====================================================
 
     const totalPages = useMemo(
@@ -656,10 +705,12 @@ const useProblemsPage = () => {
     );
 
     // =====================================================
+
     // INVALID PAGE AFTER SUCCESS
     //
     // Handles a hypothetical 200 response with
     // an empty list for an out-of-range page.
+
     // =====================================================
 
     useEffect(() => {
@@ -686,7 +737,9 @@ const useProblemsPage = () => {
     ]);
 
     // =====================================================
+
     // RESULT RANGE
+
     // =====================================================
 
     const resultRange = useMemo(
@@ -707,7 +760,9 @@ const useProblemsPage = () => {
         : 0;
 
     // =====================================================
+
     // ACTIVE FILTERS
+
     // =====================================================
 
     const hasActiveFilters =
@@ -721,7 +776,9 @@ const useProblemsPage = () => {
         });
 
     // =====================================================
+
     // CLEAR SEARCH
+
     // =====================================================
 
     const handleClearSearch = useCallback(() => {
@@ -734,7 +791,9 @@ const useProblemsPage = () => {
     }, [updateQueryParams]);
 
     // =====================================================
+
     // RESET ALL FILTERS
+
     // =====================================================
 
     const handleResetFilters = useCallback(() => {
@@ -748,7 +807,9 @@ const useProblemsPage = () => {
     }, [setSearchParams]);
 
     // =====================================================
+
     // RETRY
+
     // =====================================================
 
     const handleRetry = useCallback(() => {
@@ -760,7 +821,9 @@ const useProblemsPage = () => {
     }, [loading]);
 
     // =====================================================
+
     // GENERIC FILTER UPDATE
+
     // =====================================================
 
     const updateFilter = useCallback(
@@ -774,7 +837,9 @@ const useProblemsPage = () => {
     );
 
     // =====================================================
+
     // FILTER CALLBACKS
+
     // =====================================================
 
     const handleStatusChange = useCallback(
@@ -803,7 +868,9 @@ const useProblemsPage = () => {
     );
 
     // =====================================================
+
     // PAGE CHANGE
+
     // =====================================================
 
     const handlePageChange = useCallback(
@@ -847,10 +914,12 @@ const useProblemsPage = () => {
     );
 
     // =====================================================
+
     // DISPLAY STATES
     //
     // Old Redux results are not shown under a
     // different query's search filters.
+
     // =====================================================
 
     const showInitialSkeleton =
@@ -867,14 +936,18 @@ const useProblemsPage = () => {
         !currentError &&
         !hasProblemData;
 
+    // Keep pagination visible while previously resolved results remain on screen.
+    // Loading disables the pagination controls through Problems.jsx, but should
+    // not remove the entire pagination section during a refresh or retry.
+
     const showPaginationArea =
         isCurrentQueryResolved &&
-        !loading &&
-        !currentError &&
         problemCount > 0;
 
     // =====================================================
+
     // PUBLIC API
+
     // =====================================================
 
     return {

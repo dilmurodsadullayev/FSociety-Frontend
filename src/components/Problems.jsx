@@ -1,17 +1,19 @@
-
 import React from "react";
 
 // =========================================================
 // FSOCIETY — SHARED PAGE BACKGROUND
+//
+// Global Winter Background is managed in App.jsx.
+// This page uses the global background.
 // =========================================================
 
-import PageGridBackground from "./ui/PageGridBackground";
 
 // =========================================================
 // PROBLEM CARD
 // =========================================================
 
 import ProblemCard from "./ProblemCard";
+
 
 // =========================================================
 // PAGE COMPONENTS
@@ -26,6 +28,7 @@ import ProblemsErrorState from "./problems-page/ProblemsErrorState";
 import ProblemsEmptyState from "./problems-page/ProblemsEmptyState";
 import ProblemsPagination from "./problems-page/ProblemsPagination";
 
+
 // =========================================================
 // CONTROLLER AND CONFIG
 // =========================================================
@@ -35,6 +38,7 @@ import useProblemsPage from "./problems-page/useProblemsPage";
 import {
     PROBLEMS_PAGE_SIZE,
 } from "./problems-page/problemPageHelpers";
+
 
 // =========================================================
 // FSOCIETY — PROBLEMS PAGE
@@ -48,12 +52,15 @@ import {
 // - Mobile-first responsiveness
 //
 // Shared futuristic background:
-// src/components/ui/PageGridBackground.jsx
+// - Managed globally in App.jsx
+// - Winter Background supports Light / Dark Mode
+// - No duplicated local background
 //
 // No direct Redux or API requests.
 // =========================================================
 
 const Problems = () => {
+
     // =====================================================
     // PAGE CONTROLLER
     // =====================================================
@@ -113,6 +120,7 @@ const Problems = () => {
         handlePageChange,
     } = useProblemsPage();
 
+
     // =====================================================
     // SAFE DATA
     // =====================================================
@@ -120,6 +128,7 @@ const Problems = () => {
     const safeProblemList = Array.isArray(problemList)
         ? problemList
         : [];
+
 
     // =====================================================
     // DERIVED UI VALUES
@@ -148,6 +157,29 @@ const Problems = () => {
         showCards &&
         safeProblemList.length > 0;
 
+
+    // =====================================================
+    // PAGINATION VISIBILITY
+    //
+    // Pagination must only be displayed after the
+    // current query has successfully resolved.
+    //
+    // The total count must be greater than zero.
+    //
+    // The pagination component itself handles the
+    // distinction between a single page and multiple pages.
+    // =====================================================
+
+    const shouldRenderPagination =
+        Boolean(
+            isCurrentQueryResolved &&
+            !currentError &&
+            problemCount > 0 &&
+            showPaginationArea &&
+            totalPages >= 1
+        );
+
+
     // =====================================================
     // JSX
     // =====================================================
@@ -164,9 +196,9 @@ const Problems = () => {
                 w-full
                 min-w-0
 
-                overflow-x-hidden
+                overflow-x-clip
 
-                bg-[#edf4ff]
+                bg-transparent
 
                 px-3
                 pb-20
@@ -181,32 +213,36 @@ const Problems = () => {
 
                 lg:px-8
 
-                dark:bg-[#060b15]
+                dark:bg-transparent
                 dark:text-gray-100
             "
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
         >
+
             {/* ======================================
                 SHARED FUTURISTIC BACKGROUND
 
-                Same background used on Users page.
+                Global background is rendered in App.jsx.
 
                 Includes:
-                - Continuous grid
-                - Network lines
-                - Glowing connection nodes
-                - Translucent glass cubes
-                - Cyan / Indigo / Violet lighting
-                - FS watermark
-                - Light / Dark Mode
+                - Winter dark / light image
+                - Theme-aware background switching
+                - Global background visibility settings
+                - Existing fallback background
+
+                No local background instance is needed.
             ====================================== */}
 
-            <PageGridBackground showMonogram />
 
             {/* ======================================
                 CONTENT CONTAINER
 
                 z-10 keeps all interactive content
-                above the shared background.
+                above the global background.
             ====================================== */}
 
             <div
@@ -221,11 +257,13 @@ const Problems = () => {
                     min-w-0
                 "
             >
+
                 {/* ==============================
                     PAGE HEADER
                 ============================== */}
 
                 <ProblemsHeader />
+
 
                 {/* ==============================
                     SEARCH / FILTERS / SORT
@@ -283,6 +321,7 @@ const Problems = () => {
                     }
                 />
 
+
                 {/* ==============================
                     RESULTS HEADER
                 ============================== */}
@@ -299,6 +338,7 @@ const Problems = () => {
                     }
                 />
 
+
                 {/* ==============================
                     ERROR STATE
                 ============================== */}
@@ -314,6 +354,7 @@ const Problems = () => {
                         hasData={hasVisibleData}
                     />
                 )}
+
 
                 {/* ==============================
                     PROBLEMS GRID
@@ -339,6 +380,7 @@ const Problems = () => {
                         xl:gap-6
                     "
                 >
+
                     {/* ==========================
                         LOADING SKELETONS
                     ========================== */}
@@ -363,6 +405,7 @@ const Problems = () => {
                             ))}
                         </>
                     )}
+
 
                     {/* ==========================
                         PROBLEM CARDS
@@ -391,6 +434,7 @@ const Problems = () => {
                         ))
                     }
 
+
                     {/* ==========================
                         EMPTY RESULTS
                     ========================== */}
@@ -415,29 +459,59 @@ const Problems = () => {
                             />
                         </div>
                     )}
+
                 </div>
+
 
                 {/* ==============================
                     PAGINATION
+
+                    - Rendered below the problems grid.
+                    - Remains above the global background.
+                    - Responsive on mobile and desktop.
+                    - Loading state disables page controls.
                 ============================== */}
 
-                {showPaginationArea && (
-                    <ProblemsPagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        count={problemCount}
+                {shouldRenderPagination && (
+                    <section
+                        id="problems-pagination"
+                        aria-label="Muammolar sahifalari"
 
-                        onPageChange={
-                            handlePageChange
-                        }
+                        className="
+                            relative
+                            z-20
+                            isolate
 
-                        disabled={loading}
-                    />
+                            mt-8
+
+                            block
+                            w-full
+                            min-w-0
+
+                            sm:mt-10
+                            lg:mt-12
+                        "
+                    >
+                        <ProblemsPagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            count={problemCount}
+
+                            onPageChange={
+                                handlePageChange
+                            }
+
+                            disabled={loading}
+                        />
+                    </section>
                 )}
+
             </div>
+
         </main>
     );
 };
+
 
 // =========================================================
 // EXPORT

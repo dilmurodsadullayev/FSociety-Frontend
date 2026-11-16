@@ -6,6 +6,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 
+
 // =========================================================
 // FSOCIETY — PROBLEMS PAGINATION
 //
@@ -16,6 +17,7 @@ import {
 // - Accessible current-page indication
 // - Safe pagination values
 // - Disabled/loading state support
+// - Selection-color active page
 //
 // Existing props preserved:
 // - currentPage
@@ -25,12 +27,14 @@ import {
 // - disabled
 // =========================================================
 
+
 // =========================================================
 // CONSTANTS
 // =========================================================
 
 const DOTS_LEFT = "dots-left";
 const DOTS_RIGHT = "dots-right";
+
 
 // =========================================================
 // HELPERS
@@ -52,6 +56,7 @@ const getPositiveInteger = (
     return number;
 };
 
+
 const getSafeCount = (value) => {
     const number = Number(value);
 
@@ -62,8 +67,12 @@ const getSafeCount = (value) => {
         return 0;
     }
 
-    return Math.floor(number);
+    return Math.min(
+        Number.MAX_SAFE_INTEGER,
+        Math.floor(number)
+    );
 };
+
 
 const createRange = (start, end) => {
     if (end < start) {
@@ -75,6 +84,7 @@ const createRange = (start, end) => {
         (_, index) => start + index
     );
 };
+
 
 // =========================================================
 // BUILD PAGINATION ITEMS
@@ -136,12 +146,14 @@ const buildPaginationItems = (
     ];
 };
 
+
 // =========================================================
 // SHARED BUTTON CLASSES
 // =========================================================
 
 const BASE_BUTTON_CLASS = `
     inline-flex
+
     h-10
     min-w-10
     shrink-0
@@ -159,46 +171,107 @@ const BASE_BUTTON_CLASS = `
     font-bold
     tabular-nums
 
-    transition-colors
-    duration-150
+    backdrop-blur-md
+
+    transition-all
+    duration-200
 
     focus-visible:outline-none
     focus-visible:ring-2
     focus-visible:ring-cyan-500
+    focus-visible:ring-offset-2
+    focus-visible:ring-offset-white
 
     disabled:cursor-not-allowed
     disabled:opacity-40
+
+    dark:focus-visible:ring-offset-[#080e19]
 `;
+
 
 const NORMAL_BUTTON_CLASS = `
     border-slate-200
-    bg-white
+
+    bg-white/95
     text-slate-600
-
-    hover:border-cyan-400/40
-    hover:bg-cyan-500/[0.06]
-    hover:text-cyan-700
-
-    dark:border-white/[0.09]
-    dark:bg-white/[0.035]
-    dark:text-gray-400
-
-    dark:hover:border-cyan-400/25
-    dark:hover:bg-cyan-400/[0.07]
-    dark:hover:text-cyan-300
-`;
-
-const ACTIVE_BUTTON_CLASS = `
-    border-cyan-400/50
-    bg-cyan-500/[0.10]
-    text-cyan-800
 
     shadow-sm
 
-    dark:border-cyan-400/30
-    dark:bg-cyan-400/[0.12]
-    dark:text-cyan-300
+    hover:border-cyan-400/50
+    hover:bg-cyan-50
+    hover:text-cyan-700
+
+    active:scale-95
+
+    dark:border-white/[0.12]
+
+    dark:bg-[#0b1422]/85
+    dark:text-gray-300
+
+    dark:shadow-none
+
+    dark:hover:border-cyan-400/40
+    dark:hover:bg-[#10253a]/95
+    dark:hover:text-cyan-300
 `;
+
+
+// =========================================================
+// ACTIVE BUTTON CLASS
+//
+// FSOCIETY ACTIVE PAGE COLOR:
+//
+// - #FBBF24
+// - Tailwind amber-400
+//
+// - Amber selection-style background
+// - Dark readable page number
+// - Golden border
+// - Soft amber glow
+// - Visible in front of the winter background
+// =========================================================
+
+const ACTIVE_BUTTON_CLASS = `
+    relative
+    z-10
+
+    border-[#FBBF24]
+
+    bg-[#FBBF24]
+    text-slate-950
+
+    font-black
+
+    shadow-lg
+    shadow-amber-400/30
+
+    ring-1
+    ring-amber-200/70
+
+    backdrop-blur-md
+
+    hover:border-amber-200
+    hover:bg-amber-300
+    hover:shadow-xl
+    hover:shadow-amber-400/40
+
+    active:scale-95
+
+    dark:border-[#FBBF24]
+
+    dark:bg-[#FBBF24]
+    dark:text-slate-950
+
+    dark:shadow-lg
+    dark:shadow-amber-400/25
+
+    dark:ring-amber-200/50
+
+    dark:hover:border-amber-200
+    dark:hover:bg-amber-300
+    dark:hover:shadow-amber-300/35
+`;
+
 
 // =========================================================
 // PAGE NUMBER BUTTON
@@ -236,6 +309,12 @@ const PageButton = React.memo(({
                     : `${page}-sahifaga o‘tish`
             }
 
+            title={
+                isCurrent
+                    ? `${page}-sahifa`
+                    : `${page}-sahifaga o‘tish`
+            }
+
             className={`
                 ${BASE_BUTTON_CLASS}
 
@@ -250,6 +329,7 @@ const PageButton = React.memo(({
         </button>
     );
 });
+
 
 // =========================================================
 // ARROW BUTTON
@@ -287,11 +367,13 @@ const ArrowButton = React.memo(({
         >
             <Icon
                 size={18}
+                strokeWidth={2.3}
                 aria-hidden="true"
             />
         </button>
     );
 });
+
 
 // =========================================================
 // MAIN COMPONENT
@@ -306,6 +388,7 @@ const ProblemsPagination = ({
 
     disabled = false,
 }) => {
+
     // =====================================================
     // NORMALIZE VALUES
     // =====================================================
@@ -335,6 +418,7 @@ const ProblemsPagination = ({
         !isDisabled &&
         safeCurrentPage < safeTotalPages;
 
+
     // =====================================================
     // PAGE ITEMS
     // =====================================================
@@ -350,6 +434,7 @@ const ProblemsPagination = ({
             safeTotalPages,
         ]
     );
+
 
     // =====================================================
     // PAGE CHANGE
@@ -377,6 +462,7 @@ const ProblemsPagination = ({
         onPageChange(targetPage);
     };
 
+
     // =====================================================
     // NO RECORDS
     // =====================================================
@@ -384,6 +470,7 @@ const ProblemsPagination = ({
     if (safeCount <= 0) {
         return null;
     }
+
 
     // =====================================================
     // JSX
@@ -400,6 +487,7 @@ const ProblemsPagination = ({
                 lg:mt-12
             "
         >
+
             {/* ======================================
                 PAGINATION NAVIGATION
             ====================================== */}
@@ -413,12 +501,15 @@ const ProblemsPagination = ({
                     }
 
                     className="
+                        relative
+
                         mx-auto
                         w-full
                         max-w-3xl
                         min-w-0
                     "
                 >
+
                     {/* ==============================
                         MOBILE NAVIGATION
                     ============================== */}
@@ -426,18 +517,22 @@ const ProblemsPagination = ({
                     <div
                         className="
                             flex
+
                             w-full
                             min-w-0
 
                             items-center
                             justify-between
+
                             gap-2
 
                             sm:hidden
                         "
                     >
+
                         <ArrowButton
                             direction="previous"
+
                             disabled={!canGoPrevious}
 
                             onClick={() => {
@@ -446,6 +541,7 @@ const ProblemsPagination = ({
                                 );
                             }}
                         />
+
 
                         <span
                             aria-live="polite"
@@ -463,22 +559,26 @@ const ProblemsPagination = ({
                                 rounded-xl
 
                                 border
-                                border-cyan-400/30
+                                border-[#FBBF24]
 
-                                bg-cyan-500/[0.07]
+                                bg-[#FBBF24]
+                                text-slate-950
 
                                 px-3
 
                                 font-mono
                                 text-xs
-                                font-bold
+                                font-black
                                 tabular-nums
 
-                                text-cyan-800
+                                shadow-md
+                                shadow-amber-400/25
 
-                                dark:border-cyan-400/20
-                                dark:bg-cyan-400/[0.07]
-                                dark:text-cyan-300
+                                backdrop-blur-md
+
+                                dark:border-[#FBBF24]
+                                dark:bg-[#FBBF24]
+                                dark:text-slate-950
                             "
                         >
                             {safeCurrentPage}
@@ -486,8 +586,10 @@ const ProblemsPagination = ({
                             {safeTotalPages}
                         </span>
 
+
                         <ArrowButton
                             direction="next"
+
                             disabled={!canGoNext}
 
                             onClick={() => {
@@ -496,7 +598,9 @@ const ProblemsPagination = ({
                                 );
                             }}
                         />
+
                     </div>
+
 
                     {/* ==============================
                         DESKTOP NAVIGATION
@@ -505,20 +609,24 @@ const ProblemsPagination = ({
                     <div
                         className="
                             hidden
+
                             w-full
                             min-w-0
 
                             items-center
                             justify-center
+
                             gap-1.5
 
                             sm:flex
                         "
                     >
+
                         {/* PREVIOUS */}
 
                         <ArrowButton
                             direction="previous"
+
                             disabled={!canGoPrevious}
 
                             onClick={() => {
@@ -527,6 +635,7 @@ const ProblemsPagination = ({
                                 );
                             }}
                         />
+
 
                         {/* PAGE NUMBERS */}
 
@@ -554,9 +663,9 @@ const ProblemsPagination = ({
                                             text-sm
                                             font-bold
 
-                                            text-slate-400
+                                            text-slate-500
 
-                                            dark:text-gray-500
+                                            dark:text-gray-300
                                         "
                                     >
                                         ...
@@ -567,6 +676,7 @@ const ProblemsPagination = ({
                             return (
                                 <PageButton
                                     key={item}
+
                                     page={item}
 
                                     isCurrent={
@@ -582,10 +692,12 @@ const ProblemsPagination = ({
                             );
                         })}
 
+
                         {/* NEXT */}
 
                         <ArrowButton
                             direction="next"
+
                             disabled={!canGoNext}
 
                             onClick={() => {
@@ -594,9 +706,12 @@ const ProblemsPagination = ({
                                 );
                             }}
                         />
+
                     </div>
+
                 </nav>
             )}
+
 
             {/* ======================================
                 PAGE INFORMATION
@@ -619,19 +734,35 @@ const ProblemsPagination = ({
                     tracking-[0.08em]
                     tabular-nums
 
-                    text-slate-500
+                    text-slate-600
 
-                    dark:text-gray-400
+                    dark:text-gray-300
                 "
             >
                 Sahifa{" "}
+
                 <strong
                     className="
+                        rounded-md
+
+                        border
+                        border-[#FBBF24]
+
+                        bg-[#FBBF24]
+
+                        px-1.5
+                        py-0.5
+
                         font-black
 
-                        text-slate-800
+                        text-slate-950
 
-                        dark:text-gray-200
+                        shadow-sm
+                        shadow-amber-400/20
+
+                        dark:border-[#FBBF24]
+                        dark:bg-[#FBBF24]
+                        dark:text-slate-950
                     "
                 >
                     {safeCurrentPage}
@@ -645,9 +776,11 @@ const ProblemsPagination = ({
 
                 Jami {safeCount.toLocaleString("uz-UZ")} ta muammo
             </p>
+
         </div>
     );
 };
+
 
 // =========================================================
 // EXPORT

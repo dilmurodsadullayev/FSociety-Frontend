@@ -1,4 +1,3 @@
-// src/components/problems-page/problemPageHelpers.js
 
 import {
     PROBLEM_ORDERING,
@@ -148,10 +147,7 @@ export const PROBLEM_QUERY_KEYS =
 const STATUS_VALUES =
     new Set(
         PROBLEM_STATUS_OPTIONS.map(
-            (
-                item
-            ) =>
-                item.value
+            (item) => item.value
         )
     );
 
@@ -159,10 +155,7 @@ const STATUS_VALUES =
 const URGENT_VALUES =
     new Set(
         PROBLEM_URGENT_OPTIONS.map(
-            (
-                item
-            ) =>
-                item.value
+            (item) => item.value
         )
     );
 
@@ -170,12 +163,50 @@ const URGENT_VALUES =
 const ORDERING_VALUES =
     new Set(
         PROBLEM_ORDERING_OPTIONS.map(
-            (
-                item
-            ) =>
-                item.value
+            (item) => item.value
         )
     );
+
+
+// =========================================================
+// SAFE NUMBER HELPERS
+// =========================================================
+
+const getSafeNonNegativeInteger = (
+    value,
+    fallback = 0
+) => {
+    const number = Number(value);
+
+    if (
+        !Number.isFinite(number) ||
+        number < 0
+    ) {
+        return fallback;
+    }
+
+    return Math.min(
+        Number.MAX_SAFE_INTEGER,
+        Math.floor(number)
+    );
+};
+
+
+const getSafePositiveInteger = (
+    value,
+    fallback = 1
+) => {
+    const number = Number(value);
+
+    if (
+        !Number.isSafeInteger(number) ||
+        number < 1
+    ) {
+        return fallback;
+    }
+
+    return number;
+};
 
 
 // =========================================================
@@ -185,19 +216,14 @@ const ORDERING_VALUES =
 export const cleanProblemQueryText = (
     value
 ) => {
-
     if (
-        value === null
-        ||
+        value === null ||
         value === undefined
     ) {
         return "";
     }
 
-
-    return String(
-        value
-    ).trim();
+    return String(value).trim();
 };
 
 
@@ -208,26 +234,21 @@ export const cleanProblemQueryText = (
 export const getProblemPageFromQuery = (
     value
 ) => {
+    const cleanValue =
+        cleanProblemQueryText(value);
 
-    const parsed =
-        Number.parseInt(
-            String(
-                value ?? ""
-            ),
-            10
-        );
+    if (!/^\d+$/.test(cleanValue)) {
+        return 1;
+    }
 
+    const parsed = Number(cleanValue);
 
     if (
-        !Number.isInteger(
-            parsed
-        )
-        ||
+        !Number.isSafeInteger(parsed) ||
         parsed < 1
     ) {
         return 1;
     }
-
 
     return parsed;
 };
@@ -240,23 +261,14 @@ export const getProblemPageFromQuery = (
 export const getProblemStatusFromQuery = (
     searchParams
 ) => {
-
     const value =
         cleanProblemQueryText(
-            searchParams?.get(
-                "status"
-            )
+            searchParams?.get("status")
         ).toLowerCase();
 
-
-    if (
-        STATUS_VALUES.has(
-            value
-        )
-    ) {
+    if (STATUS_VALUES.has(value)) {
         return value;
     }
-
 
     return "all";
 };
@@ -269,23 +281,14 @@ export const getProblemStatusFromQuery = (
 export const getProblemUrgentFromQuery = (
     searchParams
 ) => {
-
     const value =
         cleanProblemQueryText(
-            searchParams?.get(
-                "urgent"
-            )
+            searchParams?.get("urgent")
         ).toLowerCase();
 
-
-    if (
-        URGENT_VALUES.has(
-            value
-        )
-    ) {
+    if (URGENT_VALUES.has(value)) {
         return value;
     }
-
 
     return "all";
 };
@@ -298,23 +301,14 @@ export const getProblemUrgentFromQuery = (
 export const getProblemOrderingFromQuery = (
     searchParams
 ) => {
-
     const value =
         cleanProblemQueryText(
-            searchParams?.get(
-                "ordering"
-            )
+            searchParams?.get("ordering")
         ).toLowerCase();
 
-
-    if (
-        ORDERING_VALUES.has(
-            value
-        )
-    ) {
+    if (ORDERING_VALUES.has(value)) {
         return value;
     }
-
 
     return PROBLEM_ORDERING.NEWEST;
 };
@@ -327,11 +321,8 @@ export const getProblemOrderingFromQuery = (
 export const getProblemLanguageFromQuery = (
     searchParams
 ) => {
-
     return cleanProblemQueryText(
-        searchParams?.get(
-            "language"
-        )
+        searchParams?.get("language")
     );
 };
 
@@ -343,11 +334,8 @@ export const getProblemLanguageFromQuery = (
 export const getProblemTechnologyFromQuery = (
     searchParams
 ) => {
-
     return cleanProblemQueryText(
-        searchParams?.get(
-            "technology"
-        )
+        searchParams?.get("technology")
     );
 };
 
@@ -359,11 +347,8 @@ export const getProblemTechnologyFromQuery = (
 export const getProblemSearchFromQuery = (
     searchParams
 ) => {
-
     return cleanProblemQueryText(
-        searchParams?.get(
-            "search"
-        )
+        searchParams?.get("search")
     );
 };
 
@@ -375,14 +360,10 @@ export const getProblemSearchFromQuery = (
 export const getProblemQueryState = (
     searchParams
 ) => {
-
     return {
-
         page:
             getProblemPageFromQuery(
-                searchParams?.get(
-                    "page"
-                )
+                searchParams?.get("page")
             ),
 
         search:
@@ -426,56 +407,40 @@ const isDefaultProblemQueryValue = (
     key,
     value
 ) => {
-
     const cleanValue =
-        cleanProblemQueryText(
-            value
-        );
+        cleanProblemQueryText(value);
 
-
-    if (
-        !cleanValue
-    ) {
+    if (!cleanValue) {
         return true;
     }
 
-
     if (
-        key === "status"
-        &&
+        key === "status" &&
         cleanValue === "all"
     ) {
         return true;
     }
 
-
     if (
-        key === "urgent"
-        &&
+        key === "urgent" &&
         cleanValue === "all"
     ) {
         return true;
     }
 
-
     if (
-        key === "ordering"
-        &&
-        cleanValue ===
-            PROBLEM_ORDERING.NEWEST
+        key === "ordering" &&
+        cleanValue === PROBLEM_ORDERING.NEWEST
     ) {
         return true;
     }
 
-
     if (
-        key === "page"
-        &&
-        cleanValue === "1"
+        key === "page" &&
+        getProblemPageFromQuery(cleanValue) === 1
     ) {
         return true;
     }
-
 
     return false;
 };
@@ -490,13 +455,12 @@ export const setProblemQueryValue = (
     key,
     value
 ) => {
-
     if (
-        !searchParams
+        !searchParams ||
+        !key
     ) {
         return;
     }
-
 
     if (
         isDefaultProblemQueryValue(
@@ -504,21 +468,13 @@ export const setProblemQueryValue = (
             value
         )
     ) {
-
-        searchParams.delete(
-            key
-        );
-
-
+        searchParams.delete(key);
         return;
     }
 
-
     searchParams.set(
         key,
-        cleanProblemQueryText(
-            value
-        )
+        cleanProblemQueryText(value)
     );
 };
 
@@ -531,21 +487,18 @@ export const buildUpdatedProblemSearchParams = (
     previousParams,
     updates = {}
 ) => {
-
     const nextParams =
-        new URLSearchParams(
-            previousParams
-        );
+        new URLSearchParams(previousParams);
 
+    if (
+        !updates ||
+        typeof updates !== "object"
+    ) {
+        return nextParams;
+    }
 
-    Object.entries(
-        updates
-    ).forEach(
-        ([
-            key,
-            value,
-        ]) => {
-
+    Object.entries(updates).forEach(
+        ([key, value]) => {
             setProblemQueryValue(
                 nextParams,
                 key,
@@ -553,7 +506,6 @@ export const buildUpdatedProblemSearchParams = (
             );
         }
     );
-
 
     return nextParams;
 };
@@ -566,24 +518,14 @@ export const buildUpdatedProblemSearchParams = (
 export const buildResetProblemSearchParams = (
     previousParams
 ) => {
-
     const nextParams =
-        new URLSearchParams(
-            previousParams
-        );
-
+        new URLSearchParams(previousParams);
 
     PROBLEM_QUERY_KEYS.forEach(
-        (
-            key
-        ) => {
-
-            nextParams.delete(
-                key
-            );
+        (key) => {
+            nextParams.delete(key);
         }
     );
-
 
     return nextParams;
 };
@@ -596,114 +538,76 @@ export const buildResetProblemSearchParams = (
 export const getProblemQueryCorrections = (
     searchParams
 ) => {
-
     const updates = {};
-
 
     const rawStatus =
         cleanProblemQueryText(
-            searchParams?.get(
-                "status"
-            )
+            searchParams?.get("status")
         ).toLowerCase();
-
 
     const rawUrgent =
         cleanProblemQueryText(
-            searchParams?.get(
-                "urgent"
-            )
+            searchParams?.get("urgent")
         ).toLowerCase();
-
 
     const rawOrdering =
         cleanProblemQueryText(
-            searchParams?.get(
-                "ordering"
-            )
+            searchParams?.get("ordering")
         ).toLowerCase();
-
 
     const rawPage =
         cleanProblemQueryText(
-            searchParams?.get(
-                "page"
-            )
+            searchParams?.get("page")
         );
-
 
     // =====================================================
     // STATUS
     // =====================================================
 
     if (
-        rawStatus
-        &&
-        !STATUS_VALUES.has(
-            rawStatus
-        )
+        rawStatus &&
+        !STATUS_VALUES.has(rawStatus)
     ) {
-        updates.status =
-            "all";
+        updates.status = "all";
     }
-
 
     // =====================================================
     // URGENT
     // =====================================================
 
     if (
-        rawUrgent
-        &&
-        !URGENT_VALUES.has(
-            rawUrgent
-        )
+        rawUrgent &&
+        !URGENT_VALUES.has(rawUrgent)
     ) {
-        updates.urgent =
-            "all";
+        updates.urgent = "all";
     }
-
 
     // =====================================================
     // ORDERING
     // =====================================================
 
     if (
-        rawOrdering
-        &&
-        !ORDERING_VALUES.has(
-            rawOrdering
-        )
+        rawOrdering &&
+        !ORDERING_VALUES.has(rawOrdering)
     ) {
         updates.ordering =
             PROBLEM_ORDERING.NEWEST;
     }
 
-
     // =====================================================
     // PAGE
     // =====================================================
 
-    if (
-        rawPage
-    ) {
-
+    if (rawPage) {
         const normalizedPage =
-            getProblemPageFromQuery(
-                rawPage
-            );
-
+            getProblemPageFromQuery(rawPage);
 
         if (
-            String(
-                normalizedPage
-            ) !== rawPage
+            String(normalizedPage) !== rawPage
         ) {
-            updates.page =
-                normalizedPage;
+            updates.page = normalizedPage;
         }
     }
-
 
     return updates;
 };
@@ -721,32 +625,19 @@ export const hasActiveProblemFilters = ({
     technology = "",
     ordering = PROBLEM_ORDERING.NEWEST,
 } = {}) => {
-
     return (
         Boolean(
-            cleanProblemQueryText(
-                search
-            )
-        )
-        ||
-        status !== "all"
-        ||
-        urgent !== "all"
-        ||
+            cleanProblemQueryText(search)
+        ) ||
+        status !== "all" ||
+        urgent !== "all" ||
         Boolean(
-            cleanProblemQueryText(
-                language
-            )
-        )
-        ||
+            cleanProblemQueryText(language)
+        ) ||
         Boolean(
-            cleanProblemQueryText(
-                technology
-            )
-        )
-        ||
-        ordering !==
-            PROBLEM_ORDERING.NEWEST
+            cleanProblemQueryText(technology)
+        ) ||
+        ordering !== PROBLEM_ORDERING.NEWEST
     );
 };
 
@@ -760,71 +651,58 @@ export const getProblemResultRange = ({
     page = 1,
     pageSize = PROBLEMS_PAGE_SIZE,
 } = {}) => {
-
     const safeCount =
-        Math.max(
-            0,
-            Number(
-                count
-            )
-            ||
-            0
-        );
-
+        getSafeNonNegativeInteger(count);
 
     const safePage =
-        getProblemPageFromQuery(
-            page
+        getSafePositiveInteger(
+            getProblemPageFromQuery(page),
+            1
         );
 
-
     const safePageSize =
-        Math.max(
-            1,
-            Number(
-                pageSize
-            )
-            ||
+        getSafePositiveInteger(
+            pageSize,
             PROBLEMS_PAGE_SIZE
         );
 
-
-    if (
-        safeCount === 0
-    ) {
-
+    if (safeCount === 0) {
         return {
             start: 0,
             end: 0,
         };
     }
 
+    const totalPages =
+        getProblemTotalPages({
+            count: safeCount,
+            pageSize: safePageSize,
+        });
+
+    // Keep the displayed range within the real result pages.
+    // This prevents values such as "37–30" for an invalid URL page.
+
+    const boundedPage =
+        Math.min(safePage, totalPages);
 
     const start =
-        (
-            (
-                safePage - 1
-            )
-            *
-            safePageSize
-        )
-        +
-        1;
-
+        ((boundedPage - 1) * safePageSize) + 1;
 
     const end =
         Math.min(
-            safePage
-            *
-            safePageSize,
-
+            boundedPage * safePageSize,
             safeCount
         );
 
-
     return {
-        start,
-        end,
+        start: Math.min(
+            Number.MAX_SAFE_INTEGER,
+            start
+        ),
+        end: Math.min(
+            Number.MAX_SAFE_INTEGER,
+            end
+        ),
     };
 };
 
@@ -837,35 +715,19 @@ export const getProblemTotalPages = ({
     count = 0,
     pageSize = PROBLEMS_PAGE_SIZE,
 } = {}) => {
-
     const safeCount =
-        Math.max(
-            0,
-            Number(
-                count
-            )
-            ||
-            0
-        );
-
+        getSafeNonNegativeInteger(count);
 
     const safePageSize =
-        Math.max(
-            1,
-            Number(
-                pageSize
-            )
-            ||
+        getSafePositiveInteger(
+            pageSize,
             PROBLEMS_PAGE_SIZE
         );
-
 
     return Math.max(
         1,
         Math.ceil(
-            safeCount
-            /
-            safePageSize
+            safeCount / safePageSize
         )
     );
 };
@@ -879,93 +741,53 @@ export const getProblemErrorMessage = (
     error,
     fallback = "Xatolik yuz berdi."
 ) => {
-
     const data =
-        error?.serverData
-        ||
+        error?.serverData ||
         error?.response?.data;
 
-
     if (
-        typeof data === "string"
-        &&
+        typeof data === "string" &&
         data.trim()
     ) {
         return data;
     }
 
-
-    if (
-        data?.detail
-    ) {
-        return String(
-            data.detail
-        );
+    if (data?.detail) {
+        return String(data.detail);
     }
 
-
-    if (
-        data?.message
-    ) {
-        return String(
-            data.message
-        );
+    if (data?.message) {
+        return String(data.message);
     }
 
-
-    if (
-        data?.error
-    ) {
-        return String(
-            data.error
-        );
+    if (data?.error) {
+        return String(data.error);
     }
 
-
     if (
-        data
-        &&
+        data &&
         typeof data === "object"
     ) {
-
         const firstValue =
-            Object.values(
-                data
-            )[0];
-
+            Object.values(data)[0];
 
         if (
-            Array.isArray(
-                firstValue
-            )
-            &&
+            Array.isArray(firstValue) &&
             firstValue.length > 0
         ) {
-
-            return String(
-                firstValue[0]
-            );
+            return String(firstValue[0]);
         }
 
-
         if (
-            typeof firstValue ===
-            "string"
+            typeof firstValue === "string"
         ) {
             return firstValue;
         }
     }
 
-
-    if (
-        error?.message
-    ) {
-
-        return String(
-            error.message
-        );
+    if (error?.message) {
+        return String(error.message);
     }
-
 
     return fallback;
 };

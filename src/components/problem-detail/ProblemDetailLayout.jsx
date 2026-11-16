@@ -9,6 +9,7 @@ import SimilarProblems from "../SimilarProblems";
 
 import DeleteConfirmationModal from "../DeleteConfirmationModal";
 
+
 // =========================================================
 // PROBLEM DETAIL COMPONENTS
 // =========================================================
@@ -22,6 +23,7 @@ import ProblemDetailContent from "./ProblemDetailContent";
 import ProblemDetailSolutions from "./ProblemDetailSolutions";
 
 import AcceptSolutionModal from "./AcceptSolutionModal";
+
 
 // =========================================================
 // FSOCIETY — PROBLEM DETAIL LAYOUT
@@ -41,6 +43,13 @@ import AcceptSolutionModal from "./AcceptSolutionModal";
 // - Sticky sidebar on wide screens
 // - Accessible sections
 // - Decorative background effects
+// - Global Winter Background support
+//
+// Background:
+// - Global Winter Background is managed in App.jsx
+// - Main page background stays transparent
+// - Detail surface uses translucent glass styling
+// - Local decorations remain behind page content
 //
 // No direct API calls.
 // No Redux logic.
@@ -48,6 +57,7 @@ import AcceptSolutionModal from "./AcceptSolutionModal";
 // =========================================================
 
 const ProblemDetailLayout = ({
+
     // =====================================================
     // PROBLEM
     // =====================================================
@@ -62,6 +72,7 @@ const ProblemDetailLayout = ({
     responseCount = 0,
     responsesRefreshKey = 0,
 
+
     // =====================================================
     // DERIVED STATE
     // =====================================================
@@ -69,6 +80,7 @@ const ProblemDetailLayout = ({
     isOwner = false,
     isSolved = false,
     hasStarredProblem = false,
+
 
     // =====================================================
     // LOADING
@@ -78,6 +90,7 @@ const ProblemDetailLayout = ({
     isDeleting = false,
     acceptSolutionIsLoading = false,
 
+
     // =====================================================
     // MODALS
     // =====================================================
@@ -85,12 +98,14 @@ const ProblemDetailLayout = ({
     isDeleteModalOpen = false,
     isAcceptModalOpen = false,
 
+
     // =====================================================
     // REFS
     // =====================================================
 
     responsesSectionRef,
     responseFormRef,
+
 
     // =====================================================
     // OWNER ACTIONS
@@ -101,12 +116,14 @@ const ProblemDetailLayout = ({
     onCloseDelete,
     onConfirmDelete,
 
+
     // =====================================================
     // STAR ACTIONS
     // =====================================================
 
     onAddStar,
     onRemoveStar,
+
 
     // =====================================================
     // SOLUTION ACTIONS
@@ -117,7 +134,9 @@ const ProblemDetailLayout = ({
     onAcceptSolution,
     onCloseAccept,
     onConfirmAccept,
+
 }) => {
+
     // =====================================================
     // SAFE VALUES
     // =====================================================
@@ -140,40 +159,61 @@ const ProblemDetailLayout = ({
             ? problemDetail.problem.trim()
             : "Muammo";
 
+
     // =====================================================
     // JSX
     // =====================================================
 
     return (
         <>
+
             {/* ==========================================
                 PAGE ROOT
+
+                Global Winter Background is rendered
+                separately in App.jsx.
+
+                IMPORTANT:
+                This root must remain transparent.
+
+                Do not add:
+                - bg-white
+                - bg-gradient-to-b
+                - dark:bg-[#080e19]
+                - opaque background colors
+
+                Otherwise the global winter image
+                becomes hidden behind this page.
             ========================================== */}
 
             <main
                 id="problem-detail-page"
+
                 className="
                     relative
                     isolate
 
                     min-h-screen
+
                     w-full
                     min-w-0
 
-                    bg-gradient-to-b
-                    from-slate-50
-                    via-white
-                    to-slate-100
+                    bg-transparent
 
                     font-sans
                     text-slate-900
 
-                    dark:from-[#070b14]
-                    dark:via-[#080e19]
-                    dark:to-[#050816]
+                    dark:bg-transparent
                     dark:text-gray-100
                 "
+
+                style={{
+                    background: "transparent",
+                    backgroundColor: "transparent",
+                    backgroundImage: "none",
+                }}
             >
+
                 {/* ======================================
                     DECORATIVE BACKGROUND
 
@@ -183,10 +223,19 @@ const ProblemDetailLayout = ({
                     This avoids creating an overflow
                     ancestor that can interfere with
                     the sticky sidebar.
+
+                    These decorations are layered above
+                    the global Winter Background but
+                    below interactive page content.
+
+                    The decorations are intentionally
+                    subtle so the winter image remains
+                    visible.
                 ====================================== */}
 
                 <div
                     aria-hidden="true"
+
                     className="
                         pointer-events-none
 
@@ -198,6 +247,7 @@ const ProblemDetailLayout = ({
                         overflow-hidden
                     "
                 >
+
                     {/* ==============================
                         GRID PATTERN
                     ============================== */}
@@ -207,7 +257,7 @@ const ProblemDetailLayout = ({
                             absolute
                             inset-0
 
-                            opacity-60
+                            opacity-35
 
                             bg-[linear-gradient(rgba(15,23,42,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.025)_1px,transparent_1px)]
 
@@ -215,11 +265,12 @@ const ProblemDetailLayout = ({
 
                             [mask-image:radial-gradient(ellipse_at_top,black_0%,transparent_80%)]
 
-                            dark:opacity-100
+                            dark:opacity-70
 
                             dark:bg-[linear-gradient(rgba(34,211,238,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.025)_1px,transparent_1px)]
                         "
                     />
+
 
                     {/* ==============================
                         CYAN GLOW
@@ -243,9 +294,10 @@ const ProblemDetailLayout = ({
                             sm:h-[440px]
                             sm:w-[440px]
 
-                            dark:bg-cyan-500/[0.065]
+                            dark:bg-cyan-500/[0.055]
                         "
                     />
+
 
                     {/* ==============================
                         INDIGO GLOW
@@ -262,13 +314,14 @@ const ProblemDetailLayout = ({
 
                             rounded-full
 
-                            bg-indigo-500/[0.045]
+                            bg-indigo-500/[0.035]
 
                             blur-[110px]
 
-                            dark:bg-indigo-500/[0.075]
+                            dark:bg-indigo-500/[0.065]
                         "
                     />
+
 
                     {/* ==============================
                         BOTTOM GLOW
@@ -287,14 +340,16 @@ const ProblemDetailLayout = ({
 
                             rounded-full
 
-                            bg-purple-500/[0.025]
+                            bg-purple-500/[0.02]
 
                             blur-[120px]
 
-                            dark:bg-purple-500/[0.04]
+                            dark:bg-purple-500/[0.035]
                         "
                     />
+
                 </div>
+
 
                 {/* ======================================
                     PAGE CONTAINER
@@ -325,6 +380,7 @@ const ProblemDetailLayout = ({
                         xl:py-12
                     "
                 >
+
                     {/* ==================================
                         PAGE GRID
 
@@ -355,6 +411,7 @@ const ProblemDetailLayout = ({
                             2xl:gap-10
                         "
                     >
+
                         {/* ==============================
                             MAIN COLUMN
                         ============================== */}
@@ -372,12 +429,21 @@ const ProblemDetailLayout = ({
                                 xl:col-span-8
                             "
                         >
+
                             {/* ==========================
                                 PROBLEM DETAILS CARD
+
+                                Translucent surface allows
+                                the Winter Background to
+                                remain visible.
+
+                                backdrop-blur-md preserves
+                                text readability.
                             ========================== */}
 
                             <section
                                 aria-label="Muammo tafsilotlari"
+
                                 className="
                                     relative
 
@@ -389,15 +455,15 @@ const ProblemDetailLayout = ({
                                     rounded-[22px]
 
                                     border
-                                    border-slate-200
+                                    border-slate-200/80
 
-                                    bg-white/95
+                                    bg-white/[0.84]
 
                                     p-4
 
-                                    shadow-[0_16px_45px_rgba(15,23,42,0.055)]
+                                    shadow-[0_16px_45px_rgba(15,23,42,0.075)]
 
-                                    backdrop-blur-sm
+                                    backdrop-blur-md
 
                                     sm:rounded-[28px]
                                     sm:p-6
@@ -406,18 +472,21 @@ const ProblemDetailLayout = ({
 
                                     2xl:p-8
 
-                                    dark:border-white/[0.09]
-                                    dark:bg-[#0e1421]/95
+                                    dark:border-white/[0.11]
 
-                                    dark:shadow-[0_22px_65px_rgba(0,0,0,0.24)]
+                                    dark:bg-[#0e1421]/[0.82]
+
+                                    dark:shadow-[0_22px_65px_rgba(0,0,0,0.30)]
                                 "
                             >
+
                                 {/* ======================
                                     TOP ACCENT
                                 ====================== */}
 
                                 <div
                                     aria-hidden="true"
+
                                     className="
                                         pointer-events-none
 
@@ -437,12 +506,14 @@ const ProblemDetailLayout = ({
                                     "
                                 />
 
+
                                 {/* ======================
                                     CARD DECORATIONS
                                 ====================== */}
 
                                 <div
                                     aria-hidden="true"
+
                                     className="
                                         pointer-events-none
 
@@ -455,16 +526,17 @@ const ProblemDetailLayout = ({
 
                                         rounded-full
 
-                                        bg-cyan-500/[0.045]
+                                        bg-cyan-500/[0.035]
 
                                         blur-[90px]
 
-                                        dark:bg-cyan-400/[0.075]
+                                        dark:bg-cyan-400/[0.065]
                                     "
                                 />
 
                                 <div
                                     aria-hidden="true"
+
                                     className="
                                         pointer-events-none
 
@@ -477,13 +549,14 @@ const ProblemDetailLayout = ({
 
                                         rounded-full
 
-                                        bg-indigo-500/[0.04]
+                                        bg-indigo-500/[0.03]
 
                                         blur-[90px]
 
-                                        dark:bg-indigo-400/[0.065]
+                                        dark:bg-indigo-400/[0.055]
                                     "
                                 />
+
 
                                 {/* ======================
                                     CARD CONTENT
@@ -498,6 +571,7 @@ const ProblemDetailLayout = ({
                                         min-w-0
                                     "
                                 >
+
                                     {/* HEADER */}
 
                                     <ProblemDetailHeader
@@ -530,6 +604,7 @@ const ProblemDetailLayout = ({
                                         }
                                     />
 
+
                                     {/* PRIORITY */}
 
                                     <ProblemDetailPriority
@@ -545,6 +620,7 @@ const ProblemDetailLayout = ({
                                             onWork
                                         }
                                     />
+
 
                                     {/* DESCRIPTION / CODE */}
 
@@ -573,8 +649,11 @@ const ProblemDetailLayout = ({
                                             onRemoveStar
                                         }
                                     />
+
                                 </div>
+
                             </section>
+
 
                             {/* ==========================
                                 SOLUTIONS SECTION
@@ -582,6 +661,7 @@ const ProblemDetailLayout = ({
 
                             <section
                                 aria-label="Muammo yechimlari"
+
                                 className="
                                     w-full
                                     min-w-0
@@ -633,7 +713,9 @@ const ProblemDetailLayout = ({
                                     }
                                 />
                             </section>
+
                         </div>
+
 
                         {/* ==============================
                             SIDEBAR
@@ -641,6 +723,7 @@ const ProblemDetailLayout = ({
 
                         <aside
                             aria-label="O‘xshash muammolar"
+
                             className="
                                 w-full
                                 min-w-0
@@ -648,6 +731,7 @@ const ProblemDetailLayout = ({
                                 xl:col-span-4
                             "
                         >
+
                             {/* ======================
                                 STICKY CONTAINER
 
@@ -671,10 +755,15 @@ const ProblemDetailLayout = ({
                                     }
                                 />
                             </div>
+
                         </aside>
+
                     </div>
+
                 </div>
+
             </main>
+
 
             {/* ==========================================
                 DELETE CONFIRMATION MODAL
@@ -707,6 +796,7 @@ const ProblemDetailLayout = ({
                 />
             )}
 
+
             {/* ==========================================
                 ACCEPT SOLUTION MODAL
 
@@ -730,9 +820,11 @@ const ProblemDetailLayout = ({
                     acceptSolutionIsLoading
                 }
             />
+
         </>
     );
 };
+
 
 // =========================================================
 // EXPORT

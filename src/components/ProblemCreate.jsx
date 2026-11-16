@@ -9,6 +9,7 @@ import {
     RefreshCw,
 } from "lucide-react";
 
+
 // =========================================================
 // EXISTING SHARED COMPONENTS
 // =========================================================
@@ -18,6 +19,7 @@ import DeleteConfirmationModal
 
 import SiteAlert
     from "./SiteAlert";
+
 
 // =========================================================
 // PROBLEM CREATE MODULES
@@ -51,27 +53,43 @@ import {
     toLocalDateTime,
 } from "./problem-create/problemCreateHelpers";
 
+
 // =========================================================
 // SHARED STYLES
+//
+// Global Winter Background is managed in App.jsx.
+//
+// The form window uses a translucent glass surface
+// so the global background remains visible.
+//
+// Light / Dark Mode are both supported.
 // =========================================================
 
 const WINDOW_CLASS = `
     relative
     min-w-0
     overflow-hidden
+
     rounded-[24px]
+
     border
-    border-slate-200
-    bg-white/95
-    shadow-[0_20px_60px_rgba(15,23,42,0.07)]
-    backdrop-blur-sm
+    border-slate-200/80
+
+    bg-white/[0.84]
+
+    shadow-[0_20px_60px_rgba(15,23,42,0.09)]
+
+    backdrop-blur-md
 
     sm:rounded-[30px]
 
-    dark:border-white/10
-    dark:bg-[#0e1421]/95
-    dark:shadow-[0_25px_75px_rgba(0,0,0,0.22)]
+    dark:border-white/[0.12]
+
+    dark:bg-[#0e1421]/[0.82]
+
+    dark:shadow-[0_25px_75px_rgba(0,0,0,0.30)]
 `;
+
 
 // =========================================================
 // LOADING PLACEHOLDERS
@@ -91,6 +109,7 @@ const SkeletonBlock = ({
     />
 );
 
+
 // =========================================================
 // EDIT LOADING
 // =========================================================
@@ -109,8 +128,12 @@ const ProblemCreateLoading = memo(() => (
             Muammo ma’lumotlari yuklanmoqda.
         </span>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="
+            grid gap-8
+            lg:grid-cols-[minmax(0,1fr)_300px]
+        ">
             <div className="space-y-7">
+
                 <div className="space-y-3">
                     <SkeletonBlock className="h-4 w-36 rounded-full" />
                     <SkeletonBlock className="h-12 w-full rounded-2xl" />
@@ -140,6 +163,7 @@ const ProblemCreateLoading = memo(() => (
 
                 <div className="space-y-3">
                     <SkeletonBlock className="h-4 w-40 rounded-full" />
+
                     <div className="flex flex-wrap gap-2">
                         {[1, 2, 3, 4, 5].map((item) => (
                             <SkeletonBlock
@@ -154,6 +178,7 @@ const ProblemCreateLoading = memo(() => (
                     <SkeletonBlock className="h-11 w-32 rounded-xl" />
                     <SkeletonBlock className="h-11 w-36 rounded-xl" />
                 </div>
+
             </div>
 
             <div className="space-y-5">
@@ -173,9 +198,11 @@ const ProblemCreateLoading = memo(() => (
                     </div>
                 ))}
             </div>
+
         </div>
     </div>
 ));
+
 
 // =========================================================
 // EDIT ERROR
@@ -255,6 +282,7 @@ const ProblemCreateLoadError = memo(({
     </div>
 ));
 
+
 // =========================================================
 // SUBMISSION ERROR
 // =========================================================
@@ -308,12 +336,14 @@ const ProblemCreateSubmissionError = memo(({
     );
 });
 
+
 // =========================================================
 // MAIN COMPONENT
 // =========================================================
 
 const ProblemCreate = () => {
     const { id } = useParams();
+
 
     // =====================================================
     // CONTROLLER
@@ -362,6 +392,7 @@ const ProblemCreate = () => {
         handleDeleteConfirm,
     } = useProblemCreate({ id });
 
+
     // =====================================================
     // DERIVED STATE
     // =====================================================
@@ -372,70 +403,165 @@ const ProblemCreate = () => {
         originalProblem?.deadline
     );
 
+
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-        <main className="
-            relative isolate min-h-screen w-full
-            min-w-0 overflow-x-clip
+        <main
+            id="problem-create-page"
 
-            bg-gradient-to-b
-            from-slate-50 via-white to-slate-100
+            className="
+                relative
+                isolate
+                z-10
 
-            px-3 py-8
-            text-slate-900
+                min-h-screen
+                w-full
+                min-w-0
+                overflow-x-clip
 
-            sm:px-6 sm:py-10
-            lg:px-8
+                bg-transparent
 
-            dark:from-[#070b14]
-            dark:via-[#080e19]
-            dark:to-[#050816]
-            dark:text-gray-100
-        ">
+                px-3
+                py-8
+
+                text-slate-900
+
+                sm:px-6
+                sm:py-10
+
+                lg:px-8
+
+                dark:bg-transparent
+                dark:text-gray-100
+            "
+
+            style={{
+                background: "transparent",
+                backgroundColor: "transparent",
+                backgroundImage: "none",
+            }}
+        >
+
+            {/* ======================================
+                GLOBAL WINTER BACKGROUND
+
+                The Winter Background is rendered
+                globally in App.jsx.
+
+                This page must not create another
+                WinterBackground instance.
+
+                No opaque page gradient is used here.
+            ====================================== */}
+
+
             {/* ======================================
                 BACKGROUND DECORATIONS
+
+                Subtle local decorations stay behind
+                the interactive form content.
+
+                They do not replace the global
+                Winter Background.
             ====================================== */}
 
             <div
                 aria-hidden="true"
                 className="
-                    pointer-events-none absolute inset-0
+                    pointer-events-none
+                    absolute
+                    inset-0
+                    z-0
                     overflow-hidden
                 "
             >
-                <div className="
-                    absolute -left-32 top-16
-                    h-80 w-80 rounded-full
-                    bg-cyan-500/[0.05] blur-[110px]
-                    dark:bg-cyan-400/[0.06]
-                " />
+
+                {/* CYAN GLOW */}
 
                 <div className="
-                    absolute -right-32 top-40
-                    h-80 w-80 rounded-full
-                    bg-indigo-500/[0.05] blur-[110px]
-                    dark:bg-indigo-400/[0.07]
+                    absolute
+                    -left-32
+                    top-16
+
+                    h-80
+                    w-80
+
+                    rounded-full
+
+                    bg-cyan-500/[0.035]
+
+                    blur-[110px]
+
+                    dark:bg-cyan-400/[0.045]
                 " />
 
+
+                {/* INDIGO GLOW */}
+
                 <div className="
-                    absolute bottom-0 left-1/2
-                    h-72 w-72 -translate-x-1/2
-                    rounded-full bg-fuchsia-500/[0.035]
+                    absolute
+                    -right-32
+                    top-40
+
+                    h-80
+                    w-80
+
+                    rounded-full
+
+                    bg-indigo-500/[0.035]
+
+                    blur-[110px]
+
+                    dark:bg-indigo-400/[0.05]
+                " />
+
+
+                {/* BOTTOM GLOW */}
+
+                <div className="
+                    absolute
+                    bottom-0
+                    left-1/2
+
+                    h-72
+                    w-72
+
+                    -translate-x-1/2
+
+                    rounded-full
+
+                    bg-fuchsia-500/[0.025]
+
                     blur-[100px]
+
+                    dark:bg-fuchsia-400/[0.035]
                 " />
+
             </div>
+
 
             {/* ======================================
                 CONTENT CONTAINER
+
+                z-10 keeps the form and its controls
+                above the global Winter Background
+                and local decorative effects.
             ====================================== */}
 
             <div className="
-                relative z-10 mx-auto w-full
-                max-w-6xl min-w-0
+                relative
+                z-10
+
+                mx-auto
+
+                w-full
+                max-w-6xl
+                min-w-0
             ">
+
                 {/* HEADER */}
 
                 <ProblemCreateHeader
@@ -447,51 +573,87 @@ const ProblemCreate = () => {
                     }
                 />
 
+
                 {/* ==================================
                     MAIN WINDOW
                 ================================== */}
 
                 <div className={WINDOW_CLASS}>
+
                     {/* WINDOW TOP BAR */}
 
                     <div className="
-                        flex items-center justify-between
-                        gap-3 border-b border-slate-200
-                        bg-slate-50/70 px-5 py-4
-                        dark:border-white/10
-                        dark:bg-white/[0.025]
+                        flex
+                        items-center
+                        justify-between
+
+                        gap-3
+
+                        border-b
+                        border-slate-200/80
+
+                        bg-slate-50/65
+
+                        px-5
+                        py-4
+
+                        backdrop-blur-md
+
+                        dark:border-white/[0.09]
+                        dark:bg-white/[0.035]
                     ">
                         <div
                             aria-hidden="true"
                             className="flex items-center gap-2"
                         >
                             <span className="
-                                h-2.5 w-2.5 rounded-full bg-rose-400
+                                h-2.5
+                                w-2.5
+                                rounded-full
+                                bg-rose-400
                             " />
+
                             <span className="
-                                h-2.5 w-2.5 rounded-full bg-amber-400
+                                h-2.5
+                                w-2.5
+                                rounded-full
+                                bg-amber-400
                             " />
+
                             <span className="
-                                h-2.5 w-2.5 rounded-full bg-emerald-400
+                                h-2.5
+                                w-2.5
+                                rounded-full
+                                bg-emerald-400
                             " />
                         </div>
 
                         <p className="
-                            font-mono text-[10px] font-black
-                            uppercase tracking-[0.16em]
-                            text-slate-500 dark:text-gray-400
+                            font-mono
+                            text-[10px]
+                            font-black
+                            uppercase
+                            tracking-[0.16em]
+
+                            text-slate-500
+
+                            dark:text-gray-400
                         ">
                             problem.form
                         </p>
                     </div>
+
 
                     {/* ==================================
                         EDIT INITIAL LOADING
                     ================================== */}
 
                     {detailLoading ? (
+
                         <ProblemCreateLoading />
+
                     ) : detailError ? (
+
                         /* ==============================
                             EDIT LOAD ERROR
                         ============================== */
@@ -501,64 +663,93 @@ const ProblemCreate = () => {
                             onRetry={fetchProblemDetail}
                             onBack={handleCancel}
                         />
+
                     ) : (
+
                         /* ==============================
                             MAIN FORM AND SIDEBAR
                         ============================== */
 
                         <div className="
-                            grid min-w-0
-                            grid-cols-1 items-stretch
+                            grid
+                            min-w-0
+
+                            grid-cols-1
+                            items-stretch
+
                             lg:grid-cols-[minmax(0,1fr)_320px]
                         ">
+
                             {/* ==========================
                                 FORM COLUMN
                             ========================== */}
 
                             <div className="
-                                min-w-0 p-4
-                                sm:p-6 lg:p-8
+                                min-w-0
+
+                                p-4
+
+                                sm:p-6
+                                lg:p-8
                             ">
+
                                 <ProblemCreateSubmissionError
                                     message={submissionError}
                                 />
 
+
                                 <form
                                     onSubmit={handleSubmit}
+
                                     aria-busy={isSubmitting}
+
                                     className="
-                                        min-w-0 space-y-7
+                                        min-w-0
+                                        space-y-7
                                     "
                                 >
+
                                     {/* BASIC FIELDS */}
 
                                     <ProblemCreateFields
                                         problemTitle={
                                             form.problemTitle
                                         }
+
                                         description={
                                             form.description
                                         }
+
                                         disabled={isBusy}
+
                                         onChange={handleFieldChange}
                                     />
+
 
                                     {/* URGENT SETTINGS */}
 
                                     <ProblemCreatePriority
                                         isUrgent={form.isUrgent}
+
                                         deadline={form.deadline}
+
                                         offeredCoins={form.offeredCoins}
+
                                         originalDeadline={
                                             originalDeadline
                                         }
+
                                         isEdit={isEdit}
+
                                         disabled={isBusy}
+
                                         onUrgentChange={
                                             handleUrgentChange
                                         }
+
                                         onChange={handleFieldChange}
                                     />
+
 
                                     {/* CODE EDITOR */}
 
@@ -566,27 +757,36 @@ const ProblemCreate = () => {
                                         codeSnippet={
                                             form.codeSnippet
                                         }
+
                                         codeLanguageId={
                                             form.codeLanguageId
                                         }
+
                                         languageOptions={
                                             languageOptions
                                         }
+
                                         selectedLanguages={
                                             form.selectedLanguages
                                         }
+
                                         selectedCodeLanguage={
                                             selectedCodeLanguage
                                         }
+
                                         editorLanguage={
                                             editorLanguage
                                         }
+
                                         disabled={isBusy}
+
                                         onChange={handleFieldChange}
+
                                         onLanguageChange={
                                             handleCodeLanguageChange
                                         }
                                     />
+
 
                                     {/* LANGUAGE / TECHNOLOGY TAGS */}
 
@@ -594,58 +794,79 @@ const ProblemCreate = () => {
                                         languageOptions={
                                             languageOptions
                                         }
+
                                         technologyOptions={
                                             technologyOptions
                                         }
+
                                         selectedLanguages={
                                             form.selectedLanguages
                                         }
+
                                         selectedTechnologies={
                                             form.selectedTechnologies
                                         }
+
                                         codeLanguageId={
                                             form.codeLanguageId
                                         }
+
                                         languagesLoading={
                                             languagesLoading
                                         }
+
                                         technologiesLoading={
                                             technologiesLoading
                                         }
+
                                         languagesError={
                                             languagesError
                                         }
+
                                         technologiesError={
                                             technologiesError
                                         }
+
                                         disabled={isBusy}
+
                                         onToggleLanguage={
                                             toggleLanguage
                                         }
+
                                         onToggleTechnology={
                                             toggleTechnology
                                         }
+
                                         onRetryLanguages={
                                             fetchLanguages
                                         }
+
                                         onRetryTechnologies={
                                             fetchTechnologies
                                         }
                                     />
 
+
                                     {/* FORM ACTIONS */}
 
                                     <ProblemCreateActions
                                         isEdit={isEdit}
+
                                         isSubmitting={
                                             isSubmitting
                                         }
+
                                         isDeleting={isDeleting}
+
                                         onCancel={handleCancel}
+
                                         onDelete={openDeleteModal}
                                     />
+
                                 </form>
+
                             </div>
+
 
                             {/* ==========================
                                 SIDEBAR
@@ -655,10 +876,14 @@ const ProblemCreate = () => {
                                 form={form}
                                 isEdit={isEdit}
                             />
+
                         </div>
                     )}
+
                 </div>
+
             </div>
+
 
             {/* ======================================
                 DELETE CONFIRMATION MODAL
@@ -668,15 +893,20 @@ const ProblemCreate = () => {
 
             <DeleteConfirmationModal
                 isOpen={isDeleteModalOpen}
+
                 onClose={closeDeleteModal}
+
                 onConfirm={handleDeleteConfirm}
+
                 itemTitle={
                     form.problemTitle ||
                     originalProblem?.problem ||
                     "ushbu muammoni"
                 }
+
                 isProcessing={isDeleting}
             />
+
 
             {/* ======================================
                 SITE ALERT
@@ -688,8 +918,14 @@ const ProblemCreate = () => {
                 alert={siteAlert}
                 onClose={closeAlert}
             />
+
         </main>
     );
 };
+
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default ProblemCreate;
