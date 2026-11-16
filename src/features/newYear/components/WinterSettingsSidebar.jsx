@@ -1,3 +1,4 @@
+
 import React, {
   memo,
   useCallback,
@@ -71,11 +72,14 @@ import {
 //
 // - One shared useWinterAudio instance.
 // - Audio survives card closing.
+// - Music toggle uses direct user interaction.
+// - Playback position is managed by useWinterAudio.
 // - Dispatches "fsociety:launch-fireworks" & calls
 //   triggerFireworks?.() on Fireworks click.
 // - Full Light & Dark theme support + 320px..1536px+.
 //
 // =========================================================
+
 
 // =========================================================
 // CONSTANTS
@@ -129,6 +133,7 @@ const MrRobotYearDisplay = memo(function MrRobotYearDisplay() {
       "
     >
       {/* STATIC PREFIX: 202 */}
+
       <span
         className="
           text-slate-800
@@ -141,6 +146,7 @@ const MrRobotYearDisplay = memo(function MrRobotYearDisplay() {
       </span>
 
       {/* MORPHING DIGIT: 6 -> 7 */}
+
       <span
         className="
           relative
@@ -323,6 +329,7 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </defs>
 
         {/* SUBTLE FROST SPARKLES */}
+
         <g className="fill-cyan-500/40 dark:fill-cyan-300/45">
           <circle cx="48" cy="24" r="1.4" />
           <circle cx="152" cy="18" r="1.8" />
@@ -332,15 +339,18 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </g>
 
         {/* LIGHT MODE DRIFTS */}
+
         <g className="opacity-100 dark:opacity-0 transition-opacity duration-200">
           <path
             d="M0 72 Q 86 44, 198 66 T 392 54 L 392 112 L 0 112 Z"
             fill={`url(#${ids.hillBackLight})`}
           />
+
           <path
             d="M0 84 Q 130 64, 245 78 T 392 70 L 392 112 L 0 112 Z"
             fill={`url(#${ids.hillFrontLight})`}
           />
+
           <path
             d="M0 84 Q 130 64, 245 78 T 392 70"
             fill="none"
@@ -351,15 +361,18 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </g>
 
         {/* DARK MODE DRIFTS */}
+
         <g className="opacity-0 dark:opacity-100 transition-opacity duration-200">
           <path
             d="M0 72 Q 86 44, 198 66 T 392 54 L 392 112 L 0 112 Z"
             fill={`url(#${ids.hillBackDark})`}
           />
+
           <path
             d="M0 84 Q 130 64, 245 78 T 392 70 L 392 112 L 0 112 Z"
             fill={`url(#${ids.hillFrontDark})`}
           />
+
           <path
             d="M0 84 Q 130 64, 245 78 T 392 70"
             fill="none"
@@ -383,6 +396,7 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
             <stop offset="0%" stopColor="#0284c7" />
             <stop offset="100%" stopColor="#075985" />
           </linearGradient>
+
           <linearGradient id={ids.pineDark} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#0891b2" />
             <stop offset="100%" stopColor="#0c4a6e" />
@@ -390,16 +404,27 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </defs>
 
         {/* SMALL BACK PINE */}
+
         <g opacity="0.88">
-          <rect x="25" y="76" width="5" height="12" rx="1.5" className="fill-amber-900/70 dark:fill-slate-800" />
+          <rect
+            x="25"
+            y="76"
+            width="5"
+            height="12"
+            rx="1.5"
+            className="fill-amber-900/70 dark:fill-slate-800"
+          />
+
           <path
             d="M27.5 28 L10 58 Q27.5 54 45 58 Z"
             className="fill-sky-600/80 dark:fill-cyan-700/80"
           />
+
           <path
             d="M27.5 44 L6 78 Q27.5 73 49 78 Z"
             className="fill-sky-700/85 dark:fill-cyan-800/85"
           />
+
           <path
             d="M27.5 28 L19 42 Q27.5 39 36 42 Z"
             className="fill-white/95 dark:fill-sky-100/90"
@@ -407,15 +432,25 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </g>
 
         {/* MAIN LAYERED PINE */}
+
         <g>
-          <rect x="70" y="82" width="7" height="14" rx="2" className="fill-amber-950/75 dark:fill-slate-800" />
+          <rect
+            x="70"
+            y="82"
+            width="7"
+            height="14"
+            rx="2"
+            className="fill-amber-950/75 dark:fill-slate-800"
+          />
 
           {/* BOTTOM TIER */}
+
           <path
             d="M73.5 44 L36 86 Q73.5 80 111 86 Z"
             fill={`url(#${ids.pineLight})`}
             className="opacity-100 dark:opacity-0"
           />
+
           <path
             d="M73.5 44 L36 86 Q73.5 80 111 86 Z"
             fill={`url(#${ids.pineDark})`}
@@ -423,11 +458,13 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
           />
 
           {/* MIDDLE TIER */}
+
           <path
             d="M73.5 26 L42 64 Q73.5 58 105 64 Z"
             fill={`url(#${ids.pineLight})`}
             className="opacity-100 dark:opacity-0"
           />
+
           <path
             d="M73.5 26 L42 64 Q73.5 58 105 64 Z"
             fill={`url(#${ids.pineDark})`}
@@ -435,20 +472,24 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
           />
 
           {/* TOP TIER */}
+
           <path
             d="M73.5 10 L49 42 Q73.5 37 98 42 Z"
             className="fill-cyan-600 dark:fill-cyan-500"
           />
 
           {/* SNOW CAPS ON BRANCHES */}
+
           <path
             d="M73.5 10 L62 25 Q68 23 73.5 26 Q79 23 85 25 Z"
             className="fill-white dark:fill-sky-100"
           />
+
           <path
             d="M52 40 Q63 36 73.5 41 Q84 36 95 40 L90 34 Q73.5 38 57 34 Z"
             className="fill-white/95 dark:fill-sky-100/90"
           />
+
           <path
             d="M45 62 Q59 57 73.5 62 Q88 57 102 62 L96 55 Q73.5 59 51 55 Z"
             className="fill-white/95 dark:fill-sky-100/85"
@@ -456,11 +497,13 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </g>
 
         {/* TINY RIGHT PINE */}
+
         <g opacity="0.82">
           <path
             d="M122 52 L109 80 Q122 76 135 80 Z"
             className="fill-sky-700/75 dark:fill-cyan-800/80"
           />
+
           <path
             d="M122 52 L116 64 Q122 61 128 64 Z"
             className="fill-white/90 dark:fill-sky-100/85"
@@ -497,6 +540,7 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </defs>
 
         {/* GROUND CONTACT SHADOW */}
+
         <ellipse
           cx="58"
           cy="101"
@@ -506,7 +550,14 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         />
 
         {/* STICK ARMS WITH TWIGS */}
-        <g stroke="#6b3b1f" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none">
+
+        <g
+          stroke="#6b3b1f"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        >
           <path d="M35 67 L15 54" />
           <path d="M21 58 L16 49" strokeWidth="1.9" />
           <path d="M19 56 L11 58" strokeWidth="1.9" />
@@ -517,10 +568,12 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         </g>
 
         {/* MITTENS ON TWIG HANDS */}
+
         <circle cx="14" cy="53" r="3.4" className="fill-cyan-500" />
         <circle cx="102" cy="51" r="3.4" className="fill-cyan-500" />
 
         {/* LOWER SNOWBALL */}
+
         <circle
           cx="58"
           cy="80"
@@ -530,16 +583,19 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
           strokeWidth="1.4"
         />
 
-        {/* COZY KNITTED SCARF TAIL (BEHIND HEAD EDGE) */}
+        {/* COZY KNITTED SCARF TAIL */}
+
         <path
           d="M66 56 L77 77 L68 80 L59 59 Z"
           fill={`url(#${ids.scarfGrad})`}
         />
+
         <line x1="69" y1="78" x2="68" y2="82" stroke="#fda4af" strokeWidth="1.4" strokeLinecap="round" />
         <line x1="72.5" y1="77" x2="72" y2="81.5" stroke="#fda4af" strokeWidth="1.4" strokeLinecap="round" />
         <line x1="76" y1="76" x2="76" y2="80" stroke="#fda4af" strokeWidth="1.4" strokeLinecap="round" />
 
         {/* HEAD SNOWBALL */}
+
         <circle
           cx="58"
           cy="45"
@@ -550,12 +606,14 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         />
 
         {/* BUTTONS */}
+
         <circle cx="58" cy="74" r="2.3" className="fill-slate-800" />
         <circle cx="58" cy="83" r="2.3" className="fill-slate-800" />
         <circle cx="57.3" cy="73.3" r="0.7" className="fill-white/70" />
         <circle cx="57.3" cy="82.3" r="0.7" className="fill-white/70" />
 
         {/* SCARF COLLAR + CYAN CYBER STRIPE */}
+
         <rect
           x="42"
           y="55.5"
@@ -564,6 +622,7 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
           rx="3.75"
           fill={`url(#${ids.scarfGrad})`}
         />
+
         <rect
           x="45"
           y="58.2"
@@ -574,26 +633,31 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         />
 
         {/* ROSY CHEEKS */}
+
         <ellipse cx="47.5" cy="47.5" rx="3.1" ry="1.8" className="fill-rose-300/75" />
         <ellipse cx="68.5" cy="47.5" rx="3.1" ry="1.8" className="fill-rose-300/75" />
 
         {/* EXPRESSIVE EYES WITH SPARKLE */}
+
         <circle cx="52" cy="42" r="2.2" className="fill-slate-900" />
         <circle cx="64" cy="42" r="2.2" className="fill-slate-900" />
         <circle cx="51.3" cy="41.2" r="0.75" className="fill-white" />
         <circle cx="63.3" cy="41.2" r="0.75" className="fill-white" />
 
         {/* SCULPTED CARROT NOSE */}
+
         <path
           d="M58 44 L70 46.8 Q71.2 47.4 70 48.2 L58 49.2 Z"
           className="fill-orange-500"
         />
+
         <path
           d="M58.5 44.8 L68 46.8 L58.5 46.6 Z"
           className="fill-amber-300/80"
         />
 
         {/* WARM SMILE */}
+
         <path
           d="M52.5 50.8 Q 58 54.4 63.5 50.8"
           fill="none"
@@ -603,12 +667,17 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
         />
 
         {/* TOP HAT WITH CYAN RIBBON & SNOW FROSTING */}
+
         <g transform="rotate(-4 58 29)">
           <rect x="40" y="29" width="36" height="4.2" rx="2.1" className="fill-slate-800 dark:fill-slate-900" />
           <rect x="46" y="13" width="24" height="17" rx="3" className="fill-slate-900 dark:fill-slate-950" />
+
           {/* CYAN CYBER BAND */}
+
           <rect x="46" y="25" width="24" height="3.2" className="fill-cyan-400" />
+
           {/* SNOW DUST ON HAT TOP */}
+
           <path
             d="M47 14 Q54 11 60 13.5 T70 14 L69 16.5 Q58 15 47 16.5 Z"
             className="fill-white/95 dark:fill-sky-100/90"
@@ -619,6 +688,7 @@ const WinterCardIllustration = memo(function WinterCardIllustration() {
   );
 });
 
+
 // =========================================================
 // MAIN FLOATING CARD COMPONENT
 // =========================================================
@@ -627,6 +697,7 @@ function WinterSettingsSidebar({
   isOpen = false,
   onClose,
 }) {
+
   // =======================================================
   // NEW YEAR CONTEXT
   // =======================================================
@@ -637,29 +708,37 @@ function WinterSettingsSidebar({
     triggerFireworks,
   } = useNewYear();
 
+
   // =======================================================
   // SHARED AUDIO CONTROLLER
   // =======================================================
 
   const audio = useWinterAudio();
 
+
   // =======================================================
   // FIREWORKS STATE
   // =======================================================
 
   const [isFiring, setIsFiring] = useState(false);
+
   const fireworksTimerRef = useRef(null);
+
 
   // =======================================================
   // REFS
   // =======================================================
 
   const panelRef = useRef(null);
+
   const closeButtonRef = useRef(null);
+
   const previousFocusRef = useRef(null);
+
   const onCloseRef = useRef(onClose);
 
   onCloseRef.current = onClose;
+
 
   // =======================================================
   // ACTIVE EFFECTS COUNT
@@ -678,6 +757,7 @@ function WinterSettingsSidebar({
     settings.winterBackgroundEnabled,
     settings.musicEnabled,
   ]);
+
 
   // =======================================================
   // LAUNCH FIREWORKS
@@ -709,7 +789,14 @@ function WinterSettingsSidebar({
       setIsFiring(false);
       fireworksTimerRef.current = null;
     }, 950);
-  }, [triggerFireworks]);
+  }, [
+    triggerFireworks,
+  ]);
+
+
+  // =======================================================
+  // FIREWORKS CLEANUP
+  // =======================================================
 
   useEffect(() => {
     return () => {
@@ -718,6 +805,7 @@ function WinterSettingsSidebar({
       }
     };
   }, []);
+
 
   // =======================================================
   // CLOSE HANDLER
@@ -728,6 +816,44 @@ function WinterSettingsSidebar({
       onCloseRef.current();
     }
   }, []);
+
+
+  // =======================================================
+  // MUSIC TOGGLE HANDLER
+  // =======================================================
+  //
+  // OFF:
+  // - Save current playback position.
+  // - Pause audio.
+  // - Disable music setting.
+  //
+  // ON:
+  // - Start audio directly from the user's action.
+  // - useWinterAudio.play() enables music setting.
+  // - Browser autoplay restrictions are respected.
+  //
+  // IMPORTANT:
+  // Do not replace this handler with toggleSetting alone.
+  //
+  // =======================================================
+
+  const handleMusicToggle = useCallback(() => {
+    if (settings.musicEnabled) {
+      audio.pause();
+
+      toggleSetting("musicEnabled");
+
+      return;
+    }
+
+    audio.play();
+  }, [
+    settings.musicEnabled,
+    audio.pause,
+    audio.play,
+    toggleSetting,
+  ]);
+
 
   // =======================================================
   // FOCUS MANAGEMENT + ESCAPE CLOSE
@@ -747,7 +873,9 @@ function WinterSettingsSidebar({
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
+
         handleClose();
+
         return;
       }
 
@@ -760,12 +888,15 @@ function WinterSettingsSidebar({
 
       if (!focusableElements?.length) {
         event.preventDefault();
+
         return;
       }
 
       const firstElement = focusableElements[0];
+
       const lastElement =
         focusableElements[focusableElements.length - 1];
+
       const activeElement = document.activeElement;
 
       if (
@@ -776,7 +907,9 @@ function WinterSettingsSidebar({
         )
       ) {
         event.preventDefault();
+
         lastElement.focus();
+
         return;
       }
 
@@ -788,15 +921,23 @@ function WinterSettingsSidebar({
         )
       ) {
         event.preventDefault();
+
         firstElement.focus();
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
-      document.removeEventListener("keydown", handleKeyDown);
+
+      document.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
 
       const previousElement = previousFocusRef.current;
 
@@ -812,15 +953,25 @@ function WinterSettingsSidebar({
 
       previousFocusRef.current = null;
     };
-  }, [isOpen, handleClose]);
+  }, [
+    isOpen,
+    handleClose,
+  ]);
+
 
   // =======================================================
   // CLOSED STATE
+  // =======================================================
+  //
+  // Keep useWinterAudio() above this return.
+  // Otherwise closing the sidebar destroys the audio hook.
+  //
   // =======================================================
 
   if (!isOpen) {
     return null;
   }
+
 
   // =======================================================
   // RENDER
@@ -1240,6 +1391,7 @@ function WinterSettingsSidebar({
               "
             >
               {/* SUBTLE CYBER GRID */}
+
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 opacity-30 dark:opacity-20"
@@ -1315,6 +1467,7 @@ function WinterSettingsSidebar({
                       aria-hidden="true"
                     />
                   )}
+
                   <span>
                     {isFiring ? "Otilmoqda!" : "Salyut otish"}
                   </span>
@@ -1360,14 +1513,20 @@ function WinterSettingsSidebar({
                 }
               />
 
+              {/* ==========================================
+                  MUSIC TOGGLE
+              ========================================== */}
+
               <WinterSettingToggle
                 label="Qishki musiqa"
-                description="Bayram musiqasini yoqish"
+                description={
+                  settings.musicEnabled
+                    ? "Bayram musiqasi yoqilgan"
+                    : "Bayram musiqasini yoqish"
+                }
                 icon={Music2}
                 checked={settings.musicEnabled}
-                onChange={() =>
-                  toggleSetting("musicEnabled")
-                }
+                onChange={handleMusicToggle}
               />
             </section>
 
@@ -1386,6 +1545,7 @@ function WinterSettingsSidebar({
                     className="text-cyan-600 dark:text-cyan-300"
                     aria-hidden="true"
                   />
+
                   <h3
                     id="winter-music-title"
                     className="
@@ -1406,7 +1566,9 @@ function WinterSettingsSidebar({
                 </span>
               </div>
 
-              <MusicPlayer audioController={audio} />
+              <MusicPlayer
+                audioController={audio}
+              />
 
               <VolumeControl
                 volume={audio.volume}
