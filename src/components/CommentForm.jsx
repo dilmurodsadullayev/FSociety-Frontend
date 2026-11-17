@@ -22,6 +22,9 @@ import {
 
 import UserImage from "../assests/userImage.jpeg";
 
+// Public equipped frame: shared cache with Profile, Posts and Navbar.
+import PublicFramedAvatar from "./ui/PublicFramedAvatar";
+
 import { BACKEND_URL } from "../services/config";
 
 import {
@@ -501,29 +504,35 @@ const CommentForm = ({ onSuccess }) => {
                     {/* AVATAR */}
 
                     <div className="relative shrink-0">
-                        <img
-                            src={userImage}
-                            alt={`${username} avatar`}
-                            onError={handleImageError}
-
-                            className="
-                                h-10
-                                w-10
-
-                                rounded-full
-                                border-2
-                                border-[#dce5f0]
-
-                                bg-white
-                                object-cover
-
-                                sm:h-11
-                                sm:w-11
-
-                                dark:border-white/[0.10]
-                                dark:bg-[#161b22]
-                            "
-                        />
+                        {user?.username ? (
+                            <PublicFramedAvatar
+                                username={user.username}
+                                avatarUrl={userImage}
+                                displayName={username}
+                                className="h-10 w-10 sm:h-11 sm:w-11"
+                                plainClassName="rounded-full"
+                                loading="lazy"
+                            />
+                        ) : (
+                            <img
+                                src={userImage}
+                                alt={`${username} avatar`}
+                                onError={handleImageError}
+                                className="
+                                    h-10
+                                    w-10
+                                    rounded-full
+                                    border-2
+                                    border-[#dce5f0]
+                                    bg-white
+                                    object-cover
+                                    sm:h-11
+                                    sm:w-11
+                                    dark:border-white/[0.10]
+                                    dark:bg-[#161b22]
+                                "
+                            />
+                        )}
 
                         <span
                             aria-hidden="true"
@@ -531,6 +540,7 @@ const CommentForm = ({ onSuccess }) => {
                                 absolute
                                 bottom-0
                                 right-0
+                                z-20
 
                                 h-3
                                 w-3

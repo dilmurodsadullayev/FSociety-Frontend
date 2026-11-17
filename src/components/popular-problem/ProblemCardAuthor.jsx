@@ -3,10 +3,9 @@ import React from "react";
 
 import { Coins } from "lucide-react";
 
-import {
-    getUserAvatarUrl,
-    handleUserImageError,
-} from "../../utils/imageUtils";
+import { getUserAvatarUrl } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 import {
     formatNumber,
@@ -15,11 +14,32 @@ import {
     getUserCoins,
 } from "./problemCardUtils";
 
+// =========================================================
+// FSOCIETY — POPULAR PROBLEM CARD AUTHOR
+// =========================================================
+//
+// - Public equipped avatar frame
+// - Real user avatar
+// - Full name and username
+// - Skill level badge
+// - FCoin balance
+// - Responsive layout
+// - Dark / Light mode
+//
+// Frame fetching, caching and image alignment
+// are handled by PublicFramedAvatar.
+//
+// =========================================================
+
 const ProblemCardAuthor = ({ user }) => {
     const username = user?.username || "unknown";
+
     const fullName = getFullName(user);
+
     const avatarUrl = getUserAvatarUrl(user);
+
     const levelConfig = getLevelConfig(user);
+
     const coins = getUserCoins(user);
 
     return (
@@ -50,25 +70,35 @@ const ProblemCardAuthor = ({ user }) => {
                     gap-2.5
                 "
             >
-                <img
-                    src={avatarUrl}
-                    alt={`${username} avatar`}
-                    onError={handleUserImageError}
-                    loading="lazy"
-                    decoding="async"
+                {/* ======================================
+                    FRAMED USER AVATAR
+                ====================================== */}
+
+                <span
                     className="
-                        h-9
-                        w-9
+                        relative
+                        flex
+                        h-10
+                        w-10
                         shrink-0
-                        rounded-xl
-                        border
-                        border-[#dce4ef]
-                        bg-[#eaf0f8]
-                        object-cover
-                        dark:border-white/10
-                        dark:bg-[#161b22]
+                        items-center
+                        justify-center
                     "
-                />
+                >
+                    <PublicFramedAvatar
+                        username={user?.username || ""}
+                        avatarUrl={avatarUrl}
+                        displayName={fullName || username}
+                        className="h-9 w-9"
+                        plainClassName="rounded-xl"
+                        showFrame={Boolean(user?.username)}
+                        loading="lazy"
+                    />
+                </span>
+
+                {/* ======================================
+                    USER INFORMATION
+                ====================================== */}
 
                 <div className="min-w-0 flex-1">
                     <p
@@ -127,7 +157,9 @@ const ProblemCardAuthor = ({ user }) => {
                 </div>
             </div>
 
-            {/* FCOIN */}
+            {/* ======================================
+                FCOIN
+            ====================================== */}
 
             <div
                 title={`${coins} FCoin`}

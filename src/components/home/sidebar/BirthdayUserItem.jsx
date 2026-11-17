@@ -1,385 +1,593 @@
 
-import React from "react";
+import React, { memo } from "react";
+
+import { Link } from "react-router-dom";
 
 import {
-    Link,
-} from "react-router-dom";
+  CakeSlice,
+  CalendarDays,
+  Coins,
+  Code2,
+  Sparkles,
+} from "lucide-react";
 
 import {
-    getUserAvatarUrl,
-    handleUserImageError,
+  getUserAvatarUrl,
 } from "../../../utils/imageUtils";
+
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
+
+// =========================================================
+// FSOCIETY — BIRTHDAY SPOTLIGHT
+// =========================================================
+//
+// Premium compact birthday card for Home Sidebar.
+//
+// Features:
+//
+// - Cyber / Winter visual design
+// - Public equipped avatar frames
+// - Compact birthday status
+// - Full name and username
+// - Skill level and FCoin
+// - Birthday day
+// - Profile navigation
+// - Dark / Light mode
+// - Responsive narrow sidebar layout
+// - Accessible focus states
+//
+// IMPORTANT:
+//
+// Avatar frame positioning is controlled by
+// PublicFramedAvatar, not this component.
+//
+// No backend, Redux or API changes.
+//
+// =========================================================
 
 // =========================================================
 // HELPERS
 // =========================================================
 
 const getFullName = (user) => {
-    const fullName =
-        user?.full_name ||
-        `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
+  const fullName =
+    user?.full_name ||
+    `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
 
-    return (
-        fullName ||
-        user?.username ||
-        "FSociety user"
-    );
+  return (
+    fullName ||
+    user?.username ||
+    "FSociety user"
+  );
 };
 
 // =========================================================
-// BIRTHDAY BADGE COLORS
+// BIRTHDAY STATUS THEME
 // =========================================================
 
-const getBirthdayBadgeClass = (daysLeft) => {
-    if (daysLeft === 0) {
-        return `
-            border-pink-400/30
-            bg-pink-500/10
-            text-pink-700
+const getBirthdayStyle = (daysLeft) => {
+  const days = Number(daysLeft);
 
-            dark:text-pink-300
-        `;
-    }
+  if (
+    daysLeft !== null &&
+    daysLeft !== undefined &&
+    days === 0
+  ) {
+    return {
+      badge: `
+        border-pink-400/30
+        bg-pink-500/10
+        text-pink-700
 
-    if (daysLeft === 1) {
-        return `
-            border-yellow-400/30
-            bg-yellow-500/10
-            text-yellow-800
+        dark:border-pink-400/30
+        dark:bg-pink-400/10
+        dark:text-pink-200
+      `,
 
-            dark:text-yellow-300
-        `;
-    }
+      glow: `
+        bg-pink-400/15
+        dark:bg-pink-400/10
+      `,
+    };
+  }
 
-    if (daysLeft > 1) {
-        return `
-            border-cyan-400/30
-            bg-cyan-500/10
-            text-cyan-700
+  if (days === 1) {
+    return {
+      badge: `
+        border-amber-400/30
+        bg-amber-400/10
+        text-amber-700
 
-            dark:text-cyan-300
-        `;
-    }
+        dark:border-amber-400/30
+        dark:bg-amber-400/10
+        dark:text-amber-200
+      `,
 
-    return `
-        border-slate-300
-        bg-slate-100
-        text-slate-600
+      glow: `
+        bg-amber-400/10
+        dark:bg-amber-400/10
+      `,
+    };
+  }
 
-        dark:border-gray-400/20
-        dark:bg-white/[0.035]
-        dark:text-gray-400
-    `;
+  return {
+    badge: `
+      border-cyan-400/30
+      bg-cyan-400/10
+      text-cyan-700
+
+      dark:border-cyan-400/25
+      dark:bg-cyan-400/10
+      dark:text-cyan-200
+    `,
+
+    glow: `
+      bg-cyan-400/10
+      dark:bg-cyan-400/10
+    `,
+  };
 };
 
 // =========================================================
-// FSOCIETY — BIRTHDAY USER ITEM
+// NUMBER FORMAT
 // =========================================================
 
-const BirthdayUserItem = ({
-    user,
-}) => {
-    if (!user) {
-        return null;
-    }
+const formatCoins = (value) => {
+  const number = Number(value);
 
-    // =====================================================
-    // USER DATA
-    // =====================================================
+  if (!Number.isFinite(number)) {
+    return "0";
+  }
 
-    const username = user.username;
+  return new Intl.NumberFormat("uz-UZ", {
+    maximumFractionDigits: 0,
+  }).format(number);
+};
 
-    const fullName = getFullName(user);
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
 
-    const imageSrc = getUserAvatarUrl(user);
+const BirthdayUserItem = ({ user }) => {
+  if (!user) {
+    return null;
+  }
 
-    const profileUrl = username
-        ? `/${username}/profile`
-        : "/users";
+  // =====================================================
+  // USER DATA
+  // =====================================================
 
-    const birthdayLabel =
-        user.birthday_label || "Bu oy";
+  const username =
+    typeof user.username === "string"
+      ? user.username.trim()
+      : "";
 
-    const userLevel =
-        user.skill_level || "Developer";
+  const fullName = getFullName(user);
 
-    const userCoins =
-        user.coins ?? 0;
+  const avatarUrl = getUserAvatarUrl(user);
 
-    // =====================================================
-    // JSX
-    // =====================================================
+  const birthdayLabel =
+    user.birthday_label || "Bu oy";
 
-    return (
-        <Link
-            to={profileUrl}
+  const birthdayDay =
+    user.birthday_day;
 
-            className="
-                group/birthday
+  const userLevel =
+    user.skill_level || "Developer";
 
-                block
+  const userCoins =
+    user.coins ?? 0;
 
-                rounded-2xl
+  const theme = getBirthdayStyle(
+    user.days_left
+  );
 
-                border
-                border-[#dce5f0]
+  const profileUrl = username
+    ? `/${encodeURIComponent(username)}/profile`
+    : "/users";
 
-                bg-[#f8faff]
+  // =====================================================
+  // RENDER
+  // =====================================================
 
-                p-3
+  return (
+    <Link
+      to={profileUrl}
+      aria-label={`${fullName} profilini ko‘rish`}
+      className="
+        group/birthday
+        relative
+        block
+        min-w-0
 
-                transition-colors
-                duration-150
+        rounded-[18px]
+        border border-slate-200/90
 
-                hover:border-cyan-400/40
-                hover:bg-cyan-500/[0.06]
+        bg-gradient-to-br
+        from-white
+        via-[#f7faff]
+        to-[#eef8ff]
 
-                focus-visible:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-cyan-500
+        p-3
+        text-slate-900
 
-                dark:border-white/10
-                dark:bg-white/[0.035]
+        shadow-[0_5px_18px_rgba(15,23,42,0.04)]
 
-                dark:hover:border-cyan-400/30
-                dark:hover:bg-cyan-400/10
-            "
+        transition-[border-color,box-shadow,transform]
+        duration-200
+
+        hover:-translate-y-0.5
+        hover:border-cyan-400/50
+        hover:shadow-[0_12px_26px_rgba(14,165,233,0.11)]
+
+        focus-visible:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-cyan-500
+
+        motion-reduce:transform-none
+        motion-reduce:transition-none
+
+        dark:border-white/[0.10]
+        dark:bg-none
+        dark:bg-[#111820]
+        dark:text-white
+        dark:shadow-none
+
+        dark:hover:border-cyan-400/30
+        dark:hover:shadow-[0_10px_26px_rgba(0,0,0,0.18)]
+      "
+    >
+      {/* ==========================================
+          AMBIENT BACKGROUND
+      ========================================== */}
+
+      <span
+        aria-hidden="true"
+        className={`
+          pointer-events-none
+          absolute -right-5 -top-5
+
+          h-24 w-24
+          rounded-full
+          blur-3xl
+
+          ${theme.glow}
+        `}
+      />
+
+      {/* BOTTOM NEON LINE */}
+
+      <span
+        aria-hidden="true"
+        className="
+          pointer-events-none
+          absolute bottom-0 left-3 right-3
+          h-px
+
+          bg-gradient-to-r
+          from-transparent
+          via-cyan-400/40
+          to-transparent
+        "
+      />
+
+      <div className="relative z-10 min-w-0">
+
+        {/* ======================================
+            BIRTHDAY TOP STRIP
+        ====================================== */}
+
+        <div
+          className="
+            mb-2.5
+            flex min-w-0
+            items-center justify-between
+            gap-1.5
+          "
         >
+          {/* SECTION SIGNAL */}
 
-            <div
-                className="
-                    flex
-                    items-center
-                    gap-3
-                "
+          <span
+            className="
+              flex min-w-0
+              items-center gap-1.5
+
+              font-mono text-[9px]
+              font-extrabold uppercase
+              tracking-[0.10em]
+
+              text-slate-500
+              dark:text-slate-400
+            "
+          >
+            <Sparkles
+              size={12}
+              aria-hidden="true"
+              className="
+                shrink-0
+                text-pink-500
+                dark:text-pink-300
+              "
+            />
+
+            <span className="truncate">
+              BIRTHDAY SIGNAL
+            </span>
+          </span>
+
+          {/* BIRTHDAY STATUS */}
+
+          <span
+            title={birthdayLabel}
+            className={`
+              inline-flex
+              max-w-[92px]
+              shrink-0
+
+              items-center gap-1
+
+              rounded-full border
+              px-2 py-1
+
+              text-[10px]
+              font-extrabold
+              leading-none
+
+              ${theme.badge}
+            `}
+          >
+            <CakeSlice
+              size={11}
+              aria-hidden="true"
+              className="shrink-0"
+            />
+
+            <span className="truncate">
+              {birthdayLabel}
+            </span>
+          </span>
+        </div>
+
+        {/* ======================================
+            USER IDENTITY
+        ====================================== */}
+
+        <div
+          className="
+            flex min-w-0
+            items-center gap-2
+          "
+        >
+          {/* ====================================
+              FRAMED AVATAR
+          ==================================== */}
+
+          <span
+            className="
+              relative
+              flex h-16 w-16
+              shrink-0
+              items-center justify-center
+            "
+          >
+            {/* SOFT HALO */}
+
+            <span
+              aria-hidden="true"
+              className="
+                pointer-events-none
+                absolute inset-2
+
+                rounded-full
+                bg-cyan-400/10
+                blur-lg
+
+                dark:bg-cyan-400/15
+              "
+            />
+
+            {/* EQUIPPED FRAME */}
+
+            <PublicFramedAvatar
+              username={username}
+              avatarUrl={avatarUrl}
+              displayName={fullName}
+              className="h-10 w-10"
+              plainClassName="rounded-xl"
+              showFrame={Boolean(username)}
+              loading="lazy"
+            />
+          </span>
+
+          {/* ====================================
+              NAME / USERNAME / DATE
+          ==================================== */}
+
+          <div className="min-w-0 flex-1">
+
+            {/* FULL NAME */}
+
+            <h4
+              title={fullName}
+              className="
+                truncate
+                text-[13px]
+                font-black
+                leading-5
+                tracking-[-0.02em]
+
+                text-slate-900
+                transition-colors
+
+                group-hover/birthday:text-cyan-700
+
+                dark:text-white
+                dark:group-hover/birthday:text-cyan-300
+              "
             >
+              {fullName}
+            </h4>
 
-                {/* ======================================
-                    USER AVATAR
-                ====================================== */}
+            {/* USERNAME */}
 
-                <img
-                    src={imageSrc}
+            <p
+              title={`@${username || "user"}`}
+              className="
+                mt-0.5
+                truncate
 
-                    alt={
-                        username
-                            ? `${username} avatar`
-                            : "User avatar"
-                    }
+                font-mono
+                text-[10px]
+                font-medium
 
-                    onError={
-                        handleUserImageError
-                    }
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+              @{username || "user"}
+            </p>
 
-                    loading="lazy"
-                    decoding="async"
+            {/* BIRTHDAY DATE */}
 
-                    className="
-                        h-12
-                        w-12
+            {birthdayDay !== null &&
+              birthdayDay !== undefined &&
+              birthdayDay !== "" && (
+                <span
+                  className="
+                    mt-1.5
+                    inline-flex
+                    max-w-full
+                    items-center gap-1
 
-                        shrink-0
+                    text-[10px]
+                    font-bold
 
-                        rounded-2xl
-
-                        border
-                        border-cyan-400/20
-
-                        bg-[#e8eef7]
-
-                        object-cover
-
-                        transition-colors
-                        duration-150
-
-                        group-hover/birthday:border-cyan-400/50
-
-                        dark:bg-[#161b22]
-                    "
-                />
-
-                {/* ======================================
-                    USER INFORMATION
-                ====================================== */}
-
-                <div
-                    className="
-                        min-w-0
-                        flex-1
-                    "
+                    text-pink-700
+                    dark:text-pink-300
+                  "
                 >
+                  <CalendarDays
+                    size={11}
+                    aria-hidden="true"
+                    className="shrink-0"
+                  />
 
-                    {/* NAME + BIRTHDAY BADGE */}
+                  <span className="truncate">
+                    {birthdayDay}-kun
+                  </span>
+                </span>
+              )}
+          </div>
+        </div>
 
-                    <div
-                        className="
-                            flex
-                            items-center
-                            justify-between
-                            gap-2
-                        "
-                    >
+        {/* ======================================
+            COMPACT FOOTER
+        ====================================== */}
 
-                        <h4
-                            className="
-                                min-w-0
-                                truncate
+        <div
+          className="
+            mt-2.5
+            grid min-w-0
+            grid-cols-2 gap-1.5
 
-                                text-sm
-                                font-black
+            border-t
+            border-slate-200/75
+            pt-2.5
 
-                                text-slate-900
+            dark:border-white/[0.08]
+          "
+        >
+          {/* SKILL LEVEL */}
 
-                                transition-colors
-                                duration-150
+          <div
+            title={`Daraja: ${userLevel}`}
+            className="
+              flex min-w-0
+              items-center gap-1.5
 
-                                group-hover/birthday:text-cyan-700
+              rounded-lg
+              border border-cyan-400/15
+              bg-cyan-400/[0.07]
 
-                                dark:text-white
-                                dark:group-hover/birthday:text-cyan-300
-                            "
-                        >
-                            {fullName}
-                        </h4>
+              px-2 py-1.5
 
-                        <span
-                            className={`
-                                shrink-0
+              dark:border-cyan-400/10
+              dark:bg-cyan-400/[0.06]
+            "
+          >
+            <Code2
+              size={13}
+              aria-hidden="true"
+              className="
+                shrink-0
+                text-cyan-600
+                dark:text-cyan-300
+              "
+            />
 
-                                rounded-full
-                                border
+            <span
+              className="
+                min-w-0 truncate
+                text-[10px] font-extrabold
 
-                                px-2
-                                py-1
+                text-cyan-800
+                dark:text-cyan-200
+              "
+            >
+              {userLevel}
+            </span>
+          </div>
 
-                                text-[10px]
-                                font-black
+          {/* FCOIN */}
 
-                                ${getBirthdayBadgeClass(
-                                    user.days_left
-                                )}
-                            `}
-                        >
-                            {birthdayLabel}
-                        </span>
+          <div
+            title={`${formatCoins(userCoins)} FCoin`}
+            className="
+              flex min-w-0
+              items-center justify-center
+              gap-1.5
 
-                    </div>
+              rounded-lg
+              border border-amber-400/15
+              bg-amber-400/[0.08]
 
-                    {/* USERNAME */}
+              px-2 py-1.5
 
-                    <p
-                        className="
-                            mt-0.5
-                            truncate
+              dark:border-amber-400/10
+              dark:bg-amber-400/[0.06]
+            "
+          >
+            <Coins
+              size={13}
+              aria-hidden="true"
+              className="
+                shrink-0
+                text-amber-600
+                dark:text-amber-300
+              "
+            />
 
-                            text-xs
-                            font-bold
+            <span
+              className="
+                min-w-0 truncate
+                text-[10px] font-extrabold
+                tabular-nums
 
-                            text-slate-500
-
-                            dark:text-gray-500
-                        "
-                    >
-                        @{username || "user"}
-                    </p>
-
-                    {/* ==================================
-                        META
-                    ================================== */}
-
-                    <div
-                        className="
-                            mt-2
-
-                            flex
-                            flex-wrap
-                            items-center
-                            gap-2
-                        "
-                    >
-
-                        {/* LEVEL */}
-
-                        <span
-                            className="
-                                rounded-full
-
-                                bg-cyan-500/10
-
-                                px-2
-                                py-0.5
-
-                                text-[10px]
-                                font-bold
-
-                                text-cyan-700
-
-                                dark:text-cyan-300
-                            "
-                        >
-                            {userLevel}
-                        </span>
-
-                        {/* BIRTHDAY DAY */}
-
-                        {user.birthday_day && (
-
-                            <span
-                                className="
-                                    rounded-full
-
-                                    bg-pink-500/10
-
-                                    px-2
-                                    py-0.5
-
-                                    text-[10px]
-                                    font-bold
-
-                                    text-pink-700
-
-                                    dark:text-pink-300
-                                "
-                            >
-                                {user.birthday_day}-kun
-                            </span>
-
-                        )}
-
-                        {/* FCOIN */}
-
-                        <span
-                            className="
-                                rounded-full
-
-                                bg-yellow-500/10
-
-                                px-2
-                                py-0.5
-
-                                text-[10px]
-                                font-bold
-
-                                text-amber-800
-
-                                dark:text-yellow-300
-                            "
-                        >
-                            {userCoins} FCoin
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </Link>
-    );
+                text-amber-800
+                dark:text-amber-200
+              "
+            >
+              {formatCoins(userCoins)} FCoin
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
 };
 
 // =========================================================
 // EXPORT
 // =========================================================
 
-export default React.memo(BirthdayUserItem);
+export default memo(BirthdayUserItem);

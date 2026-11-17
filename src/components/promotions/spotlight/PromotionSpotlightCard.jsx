@@ -12,6 +12,8 @@ import {
     Star,
 } from "lucide-react";
 
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
+
 import ProjectThumbnail from "./ProjectThumbnail";
 
 import {
@@ -20,7 +22,34 @@ import {
 } from "./spotlightUtils";
 
 // =========================================================
-// PROMOTION SPOTLIGHT CARD
+// FSOCIETY — PROMOTION SPOTLIGHT CARD
+// =========================================================
+//
+// Existing features preserved:
+//
+// - Promotion carousel
+// - Project thumbnail
+// - Project name and link
+// - Author username
+// - Technology stack
+// - Stars and views
+// - Previous / Next navigation
+// - Slide selector
+// - Hover / Focus callbacks
+// - Responsive dark / light design
+//
+// Added:
+//
+// - Project author's real avatar
+// - Public equipped profile frame
+// - Shared frame cache
+// - Custom PNG alignment via PublicFramedAvatar
+//
+// IMPORTANT:
+//
+// ProjectThumbnail is NOT the user avatar.
+// The project thumbnail remains unchanged.
+//
 // =========================================================
 
 const PromotionSpotlightCard = ({
@@ -44,8 +73,45 @@ const PromotionSpotlightCard = ({
     const projectName =
         project.name || "Untitled project";
 
+    // =====================================================
+    // PROJECT AUTHOR
+    // =====================================================
+
+    const authorUsername =
+        typeof project.user?.username === "string"
+            ? project.user.username.trim()
+            : "";
+
     const username =
-        project.user?.username || "developer";
+        authorUsername || "developer";
+
+    // =====================================================
+    // AUTHOR AVATAR
+    // =====================================================
+    //
+    // Supports different user serializer fields.
+    //
+    // The PublicFramedAvatar component resolves
+    // relative media URLs and handles fallback.
+    //
+    // =====================================================
+
+    const avatarSource =
+        project.user?.image?.url ??
+        project.user?.image ??
+        project.user?.avatar?.url ??
+        project.user?.avatar ??
+        project.user?.image_url ??
+        null;
+
+    const avatarUrl =
+        typeof avatarSource === "string"
+            ? avatarSource.trim() || null
+            : null;
+
+    // =====================================================
+    // PROJECT INFORMATION
+    // =====================================================
 
     const stack = getProjectStack(project);
 
@@ -57,9 +123,14 @@ const PromotionSpotlightCard = ({
         project.views_count
     );
 
-    const projectUrl = project.id != null
-        ? `/project/${project.id}/detail`
-        : "/projects";
+    const projectUrl =
+        project.id != null
+            ? `/project/${project.id}/detail`
+            : "/projects";
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
         <section
@@ -202,6 +273,13 @@ const PromotionSpotlightCard = ({
                         gap-3
                     "
                 >
+                    {/* ==================================
+                        PROJECT THUMBNAIL
+
+                        Original project image preserved.
+                        This is NOT the author's avatar.
+                    ================================== */}
+
                     <ProjectThumbnail
                         key={project.id ?? projectName}
                         project={project}
@@ -254,20 +332,63 @@ const PromotionSpotlightCard = ({
                             />
                         </div>
 
-                        {/* USERNAME */}
+                        {/* ==================================
+                            USERNAME + FRAMED AUTHOR AVATAR
 
-                        <p
+                            A small 18px avatar is placed
+                            inside a 28px layout slot.
+
+                            The PNG can render at 150%
+                            without overlapping the text.
+
+                            All frame alignment calculations
+                            remain in PublicFramedAvatar.
+                        ================================== */}
+
+                        <div
                             className="
                                 mt-0.5
-                                truncate
-                                text-[10px]
-                                font-bold
-                                text-slate-500
-                                dark:text-gray-600
+                                flex
+                                min-w-0
+                                items-center
+                                gap-1.5
                             "
                         >
-                            @{username}
-                        </p>
+                            <span
+                                className="
+                                    relative
+                                    inline-flex
+                                    h-7
+                                    w-7
+                                    shrink-0
+                                    items-center
+                                    justify-center
+                                "
+                            >
+                                <PublicFramedAvatar
+                                    username={authorUsername}
+                                    avatarUrl={avatarUrl}
+                                    displayName={username}
+                                    className="h-[18px] w-[18px]"
+                                    plainClassName="rounded-md"
+                                    showFrame={Boolean(authorUsername)}
+                                    loading="lazy"
+                                />
+                            </span>
+
+                            <span
+                                className="
+                                    min-w-0
+                                    truncate
+                                    text-[10px]
+                                    font-bold
+                                    text-slate-500
+                                    dark:text-gray-600
+                                "
+                            >
+                                @{username}
+                            </span>
+                        </div>
 
                         {/* TECHNOLOGY STACK */}
 

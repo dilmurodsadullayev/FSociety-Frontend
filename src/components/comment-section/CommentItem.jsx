@@ -13,6 +13,8 @@ import {
     UserRound,
 } from "lucide-react";
 
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
+
 import {
     getCommentImageUrl,
     getCommentTimeAgo,
@@ -281,32 +283,40 @@ const CommentItem = ({ comment }) => {
                     "
                 >
                     <span className="relative block">
-                        <img
-                            src={imageUrl}
-                            alt={`${username} avatar`}
-                            onError={handleCommentImageError}
-                            loading="lazy"
-                            decoding="async"
-                            className={`
-                                h-10
-                                w-10
-                                rounded-full
-                                border-2
-                                bg-slate-100
-                                object-cover
-
-                                sm:h-12
-                                sm:w-12
-
-                                dark:bg-[#161b22]
-
-                                ${
-                                    isAdminLiked
-                                        ? "border-amber-400/70"
-                                        : "border-[#dce5f0] dark:border-white/10"
-                                }
-                            `}
-                        />
+                        {username !== "anonymous" ? (
+                            <PublicFramedAvatar
+                                username={username}
+                                avatarUrl={imageUrl}
+                                displayName={username}
+                                className="h-10 w-10 sm:h-12 sm:w-12"
+                                plainClassName="rounded-full"
+                                loading="lazy"
+                            />
+                        ) : (
+                            <img
+                                src={imageUrl}
+                                alt={`${username} avatar`}
+                                onError={handleCommentImageError}
+                                loading="lazy"
+                                decoding="async"
+                                className={`
+                                    h-10
+                                    w-10
+                                    rounded-full
+                                    border-2
+                                    bg-slate-100
+                                    object-cover
+                                    sm:h-12
+                                    sm:w-12
+                                    dark:bg-[#161b22]
+                                    ${
+                                        isAdminLiked
+                                            ? "border-amber-400/70"
+                                            : "border-[#dce5f0] dark:border-white/10"
+                                    }
+                                `}
+                            />
+                        )}
 
                         {isAdminLiked && (
                             <span
@@ -315,6 +325,7 @@ const CommentItem = ({ comment }) => {
                                     absolute
                                     -bottom-1
                                     -right-1
+                                    z-20
 
                                     grid
                                     h-5
