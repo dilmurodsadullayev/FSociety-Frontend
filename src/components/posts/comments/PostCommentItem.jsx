@@ -1,4 +1,3 @@
-
 import React, {
   memo,
   useCallback,
@@ -7,9 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-
 import { Link } from "react-router-dom";
-
 import {
   AlertCircle,
   Check,
@@ -24,17 +21,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-
 import DeleteConfirmationModal from "../../DeleteConfirmationModal";
-
 import { siteToast } from "../../ui/AuthToast";
-
 import CommentTime from "./item/CommentTime";
-
 import PostCommentEditForm from "./item/PostCommentEditForm";
-
 import usePostCommentActions from "./item/usePostCommentActions";
-
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
 // =========================================================
 // FSOCIETY — COMMENT ITEM
 // REDDIT x MR. ROBOT
@@ -55,13 +47,10 @@ import usePostCommentActions from "./item/usePostCommentActions";
 // - Existing Redux / hook integration
 //
 // =========================================================
-
 const MAX_MESSAGE_LENGTH = 255;
-
 // =========================================================
 // ACTION STYLES
 // =========================================================
-
 const ACTION_CLASS = [
   "inline-flex",
   "min-h-9",
@@ -87,25 +76,20 @@ const ACTION_CLASS = [
   "dark:hover:text-slate-100",
   "motion-reduce:transition-none",
 ].join(" ");
-
 // =========================================================
 // HELPERS
 // =========================================================
-
 const safeCount = (value) => {
-  const number = Number(value);
-
-  return Number.isFinite(number)
+const number = Number(value);
+return Number.isFinite(number)
     ? Math.max(0, Math.trunc(number))
     : 0;
 };
-
 const getDisplayName = (user) => {
   if (!user) {
-    return "Foydalanuvchi";
+return "Foydalanuvchi";
   }
-
-  const fullName =
+const fullName =
     String(user.full_name || "").trim() ||
     [
       user.first_name,
@@ -114,20 +98,17 @@ const getDisplayName = (user) => {
       .filter(Boolean)
       .join(" ")
       .trim();
-
-  return (
+return (
     fullName ||
     user.username ||
     "Foydalanuvchi"
   );
 };
-
 const getChildren = (comment) => {
   if (!Array.isArray(comment?.replies)) {
-    return [];
+return [];
   }
-
-  return comment.replies.filter(
+return comment.replies.filter(
     (item) =>
       item &&
       typeof item === "object" &&
@@ -135,33 +116,26 @@ const getChildren = (comment) => {
       item.id !== undefined
   );
 };
-
 const getDeleteTitle = (message) => {
-  const text = String(message ?? "").trim();
-
+const text = String(message ?? "").trim();
   if (!text) return "Sharh";
-
-  return text.length > 45
+return text.length > 45
     ? `Sharh (${text.slice(0, 45)}...)`
     : `Sharh (${text})`;
 };
-
 const getAvatarImage = (user) => {
-  const image =
+const image =
     user?.image?.url ??
     user?.image ??
     user?.avatar ??
     "";
-
-  return typeof image === "string"
+return typeof image === "string"
     ? image.trim()
     : "";
 };
-
 // =========================================================
 // AVATAR
 // =========================================================
-
 const CommentAvatar = memo(
   function CommentAvatar({
     user,
@@ -169,28 +143,33 @@ const CommentAvatar = memo(
     deleted,
     root,
   }) {
-    const [imageError, setImageError] =
+const [imageError, setImageError] =
       useState(false);
-
-    const imageUrl = getAvatarImage(user);
-
+const imageUrl = getAvatarImage(user);
     useEffect(() => {
       setImageError(false);
     }, [imageUrl]);
-
-    const initial = String(
+const initial = String(
       user?.username ||
       displayName ||
       "?"
     )
       .charAt(0)
       .toUpperCase();
-
-    const avatarSize = root
+const avatarSize = root
       ? "h-9 w-9 sm:h-10 sm:w-10"
       : "h-8 w-8 sm:h-9 sm:w-9";
-
-    const content =
+  // Keep deleted comments anonymous; use the shared frame cache for active authors.
+  const content = !deleted && user?.username ? (
+    <PublicFramedAvatar
+      username={user.username}
+      avatarUrl={imageUrl || null}
+      displayName={displayName}
+      className={avatarSize}
+      plainClassName="rounded-xl"
+      loading="lazy"
+    />
+  ) :
       imageUrl &&
       !imageError &&
       !deleted ? (
@@ -217,7 +196,6 @@ const CommentAvatar = memo(
             grid place-items-center
             rounded-xl border
             font-mono text-xs font-extrabold
-
             ${
               deleted
                 ? "border-slate-200 bg-slate-100 text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-500"
@@ -228,8 +206,7 @@ const CommentAvatar = memo(
           {deleted ? "—" : initial}
         </span>
       );
-
-    return (
+return (
       <div className="relative shrink-0">
         {!deleted && user?.username ? (
           <Link
@@ -247,7 +224,6 @@ const CommentAvatar = memo(
         ) : (
           content
         )}
-
         {!deleted && (
           <span
             aria-hidden="true"
@@ -266,11 +242,9 @@ const CommentAvatar = memo(
     );
   }
 );
-
 // =========================================================
 // REPLY COMPOSER
 // =========================================================
-
 const ReplyComposer = memo(
   function ReplyComposer({
     commentId,
@@ -282,30 +256,26 @@ const ReplyComposer = memo(
     onCancel,
     onSubmit,
   }) {
-    const inputRef = useRef(null);
-    const formRef = useRef(null);
-
+const inputRef = useRef(null);
+const formRef = useRef(null);
     useEffect(() => {
       inputRef.current?.focus();
     }, []);
-
-    const handleKeyDown = (event) => {
+const handleKeyDown = (event) => {
       if (
         event.key === "Escape" &&
         !submitting
       ) {
         event.preventDefault();
         onCancel();
-        return;
+return;
       }
-
       if (
         event.key === "Enter" &&
         (event.ctrlKey || event.metaKey) &&
         !event.nativeEvent?.isComposing
       ) {
         event.preventDefault();
-
         if (
           !submitting &&
           value.trim()
@@ -314,8 +284,7 @@ const ReplyComposer = memo(
         }
       }
     };
-
-    return (
+return (
       <form
         ref={formRef}
         onSubmit={onSubmit}
@@ -326,10 +295,8 @@ const ReplyComposer = memo(
           border border-slate-200
           bg-slate-50/80
           p-2.5
-
           dark:border-white/[0.10]
           dark:bg-[#0c1017]
-
           sm:p-3
         "
       >
@@ -340,16 +307,13 @@ const ReplyComposer = memo(
             className="shrink-0 text-rose-500"
             aria-hidden="true"
           />
-
           <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
             REPLY_TO:
           </span>
-
           <span className="min-w-0 truncate font-mono text-[10px] font-bold text-rose-600 dark:text-rose-400">
             @{username || "comment"}
           </span>
         </div>
-
         {/* TEXTAREA */}
         <label
           htmlFor={`reply-message-${commentId}`}
@@ -357,7 +321,6 @@ const ReplyComposer = memo(
         >
           Javob matni
         </label>
-
         <textarea
           ref={inputRef}
           id={`reply-message-${commentId}`}
@@ -375,34 +338,25 @@ const ReplyComposer = memo(
             block w-full min-w-0
             min-h-[76px]
             resize-y rounded-lg
-
             border border-slate-200
             bg-white
-
             px-3 py-2.5
-
             text-[13px]
             leading-6
             text-slate-900
-
             outline-none
             placeholder:text-slate-400
-
             transition-colors
-
             focus:border-rose-400
             focus:ring-2
             focus:ring-rose-400/10
-
             disabled:opacity-60
-
             dark:border-white/[0.10]
             dark:bg-[#090c11]
             dark:text-slate-100
             dark:placeholder:text-slate-500
           "
         />
-
         {/* ERROR */}
         {error && (
           <div
@@ -413,12 +367,10 @@ const ReplyComposer = memo(
               rounded-lg
               border border-red-200
               bg-red-50
-
               px-3 py-2
               text-[11px]
               leading-5
               text-red-700
-
               dark:border-red-400/20
               dark:bg-red-500/10
               dark:text-red-300
@@ -429,23 +381,19 @@ const ReplyComposer = memo(
               className="mt-0.5 shrink-0"
               aria-hidden="true"
             />
-
             <span className="min-w-0 whitespace-pre-line break-words">
               {error}
             </span>
           </div>
         )}
-
         {/* FOOTER */}
         <div className="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
           <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500">
             {value.length}/{MAX_MESSAGE_LENGTH}
-
             <span className="hidden sm:inline">
               {" "}· Ctrl + Enter
             </span>
           </span>
-
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
@@ -456,7 +404,6 @@ const ReplyComposer = memo(
               <X size={13} />
               Bekor qilish
             </button>
-
             <button
               type="submit"
               disabled={
@@ -468,24 +415,18 @@ const ReplyComposer = memo(
                 inline-flex min-h-9
                 items-center justify-center
                 gap-1.5
-
                 rounded-lg
                 bg-rose-600
                 px-3
-
                 text-[11px] font-bold
                 text-white
-
                 transition-colors
-
                 hover:bg-rose-700
                 focus-visible:outline-none
                 focus-visible:ring-2
                 focus-visible:ring-rose-400
-
                 disabled:cursor-not-allowed
                 disabled:opacity-50
-
                 dark:hover:bg-rose-500
               "
             >
@@ -501,7 +442,6 @@ const ReplyComposer = memo(
                   aria-hidden="true"
                 />
               )}
-
               {submitting
                 ? "Yuborilmoqda..."
                 : "Javob yuborish"}
@@ -512,11 +452,9 @@ const ReplyComposer = memo(
     );
   }
 );
-
 // =========================================================
 // MAIN COMPONENT
 // =========================================================
-
 function PostCommentItem({
   comment,
   postAuthorUsername,
@@ -526,144 +464,111 @@ function PostCommentItem({
   onReply,
   isReplySubmitting = false,
 }) {
-  // =====================================================
-  // EXISTING ACTION HOOK
-  // =====================================================
-
-  const actions = usePostCommentActions({
+// =====================================================
+// EXISTING ACTION HOOK
+// =====================================================
+const actions = usePostCommentActions({
     comment,
     currentUser,
     isLoggedIn,
   });
-
-  // =====================================================
-  // LOCAL UI
-  // =====================================================
-
-  const [
+// =====================================================
+// LOCAL UI
+// =====================================================
+const [
     showReplies,
     setShowReplies,
   ] = useState(true);
-
-  const [
+const [
     showReplyEditor,
     setShowReplyEditor,
   ] = useState(false);
-
-  const [
+const [
     replyMessage,
     setReplyMessage,
   ] = useState("");
-
-  const [
+const [
     replyError,
     setReplyError,
   ] = useState("");
-
-  const replyLockRef = useRef(false);
-
-  // =====================================================
-  // COMMENT DATA
-  // =====================================================
-
-  const commentId = comment?.id;
-
-  const root = depth === 0;
-
-  const isDeleted = Boolean(
+const replyLockRef = useRef(false);
+// =====================================================
+// COMMENT DATA
+// =====================================================
+const commentId = comment?.id;
+const root = depth === 0;
+const isDeleted = Boolean(
     comment?.is_deleted
   );
-
-  const user = isDeleted
+const user = isDeleted
     ? null
     : comment?.user;
-
-  const username =
+const username =
     user?.username || "";
-
-  const displayName = isDeleted
+const displayName = isDeleted
     ? "O‘chirilgan sharh"
     : getDisplayName(user);
-
-  const message = String(
+const message = String(
     comment?.message ?? ""
   );
-
-  // =====================================================
-  // OWNERSHIP / AUTHOR
-  // =====================================================
-
-  const isPostAuthor =
+// =====================================================
+// OWNERSHIP / AUTHOR
+// =====================================================
+const isPostAuthor =
     !isDeleted &&
     Boolean(username) &&
     Boolean(postAuthorUsername) &&
     username.toLowerCase() ===
       String(postAuthorUsername).toLowerCase();
-
-  const isCommentOwner =
+const isCommentOwner =
     !isDeleted &&
     Boolean(actions.isCommentOwner);
-
-  // =====================================================
-  // CHILDREN
-  // =====================================================
-
-  const children = getChildren(comment);
-
-  const hasReplies =
+// =====================================================
+// CHILDREN
+// =====================================================
+const children = getChildren(comment);
+const hasReplies =
     children.length > 0;
-
-  const repliesCount = Math.max(
+const repliesCount = Math.max(
     children.length,
     safeCount(comment?.replies_count)
   );
-
-  // =====================================================
-  // ACTION DATA
-  // =====================================================
-
-  const isProcessing = Boolean(
+// =====================================================
+// ACTION DATA
+// =====================================================
+const isProcessing = Boolean(
     actions.isProcessing
   );
-
-  const isLiked = Boolean(
+const isLiked = Boolean(
     actions.isLiked
   );
-
-  const likesCount = safeCount(
+const likesCount = safeCount(
     actions.likesCount ??
     comment?.likes_count
   );
-
-  const deleteItemTitle = useMemo(
+const deleteItemTitle = useMemo(
     () => getDeleteTitle(message),
     [message]
   );
-
-  // =====================================================
-  // SOFT-DELETE CLEANUP
-  // =====================================================
-
+// =====================================================
+// SOFT-DELETE CLEANUP
+// =====================================================
   useEffect(() => {
     if (!isDeleted) return;
-
     setShowReplyEditor(false);
     setReplyError("");
   }, [isDeleted]);
-
-  // =====================================================
-  // OPEN / CLOSE REPLY EDITOR
-  // =====================================================
-
-  const handleReplyToggle = useCallback(
+// =====================================================
+// OPEN / CLOSE REPLY EDITOR
+// =====================================================
+const handleReplyToggle = useCallback(
     () => {
       if (
         isDeleted ||
         isProcessing
       ) {
-        return;
+return;
       }
-
       if (!isLoggedIn) {
         siteToast.warning(
           "Javob yozish uchun tizimga kiring.",
@@ -672,12 +577,9 @@ function PostCommentItem({
             duration: 4000,
           }
         );
-
-        return;
+return;
       }
-
       setReplyError("");
-
       setShowReplyEditor(
         (previous) => !previous
       );
@@ -688,46 +590,38 @@ function PostCommentItem({
       isLoggedIn,
     ]
   );
-
-  const handleCancelReply = useCallback(
+const handleCancelReply = useCallback(
     () => {
       if (isReplySubmitting) {
-        return;
+return;
       }
-
       setShowReplyEditor(false);
       setReplyError("");
     },
     [isReplySubmitting]
   );
-
-  // =====================================================
-  // SUBMIT REPLY
-  // =====================================================
-
-  const handleSubmitReply = useCallback(
-    async (event) => {
+// =====================================================
+// SUBMIT REPLY
+// =====================================================
+const handleSubmitReply = useCallback(
+async (event) => {
       event?.preventDefault?.();
-
       if (
         isDeleted ||
         isReplySubmitting ||
         replyLockRef.current ||
         typeof onReply !== "function"
       ) {
-        return;
+return;
       }
-
-      const cleanMessage =
+const cleanMessage =
         replyMessage.trim();
-
       if (!cleanMessage) {
         setReplyError(
           "Javob matnini kiriting."
         );
-        return;
+return;
       }
-
       if (
         cleanMessage.length >
         MAX_MESSAGE_LENGTH
@@ -735,31 +629,25 @@ function PostCommentItem({
         setReplyError(
           `Javob ${MAX_MESSAGE_LENGTH} ta belgidan oshmasligi kerak.`
         );
-        return;
+return;
       }
-
-      // Prevent duplicate requests.
+// Prevent duplicate requests.
       replyLockRef.current = true;
-
       setReplyError("");
-
       try {
-        const success = await onReply(
+const success = await onReply(
           cleanMessage,
           commentId
         );
-
         if (success !== true) {
-          // PostCommentsSection displays API
-          // validation errors via siteToast.
-          // Preserve the draft text.
-          return;
+// PostCommentsSection displays API
+// validation errors via siteToast.
+// Preserve the draft text.
+return;
         }
-
         setReplyMessage("");
         setShowReplyEditor(false);
-
-        // Show the newly created reply.
+// Show the newly created reply.
         setShowReplies(true);
       } catch (error) {
         setReplyError(
@@ -778,12 +666,10 @@ function PostCommentItem({
       commentId,
     ]
   );
-
-  // =====================================================
-  // EXISTING EDIT FORM
-  // =====================================================
-
-  const editForm =
+// =====================================================
+// EXISTING EDIT FORM
+// =====================================================
+const editForm =
     actions.isEditing ? (
       <PostCommentEditForm
         value={actions.editMessage}
@@ -805,23 +691,19 @@ function PostCommentItem({
         originalValue={message}
       />
     ) : null;
-
-  // =====================================================
-  // INVALID COMMENT
-  // =====================================================
-
+// =====================================================
+// INVALID COMMENT
+// =====================================================
   if (
     commentId === null ||
     commentId === undefined
   ) {
-    return null;
+return null;
   }
-
-  // =====================================================
-  // ROOT / NESTED CARD
-  // =====================================================
-
-  const cardClass = root
+// =====================================================
+// ROOT / NESTED CARD
+// =====================================================
+const cardClass = root
     ? [
         "group relative",
         "mx-2 my-2",
@@ -851,18 +733,16 @@ function PostCommentItem({
         "dark:hover:bg-white/[0.025]",
         "sm:px-2",
       ].join(" ");
-
-  // =====================================================
-  // RESPONSIVE THREAD INDENTATION
-  // =====================================================
-  //
-  // Stop adding indentation after depth 3.
-  //
-  // Deep replies remain logically nested,
-  // but no longer become narrower on mobile.
-  // =====================================================
-
-  const connectorClass =
+// =====================================================
+// RESPONSIVE THREAD INDENTATION
+// =====================================================
+//
+// Stop adding indentation after depth 3.
+//
+// Deep replies remain logically nested,
+// but no longer become narrower on mobile.
+// =====================================================
+const connectorClass =
     depth >= 3
       ? "ml-0 border-l-0 pl-0"
       : depth === 2
@@ -870,12 +750,10 @@ function PostCommentItem({
         : depth === 1
           ? "ml-1.5 border-l-2 pl-2 sm:ml-3 sm:pl-3"
           : "ml-2 border-l-2 pl-2.5 sm:ml-4 sm:pl-3";
-
-  // =====================================================
-  // RENDER
-  // =====================================================
-
-  return (
+// =====================================================
+// RENDER
+// =====================================================
+return (
     <>
       <article
         id={`post-comment-${commentId}`}
@@ -894,7 +772,6 @@ function PostCommentItem({
               pointer-events-none
               absolute bottom-3 left-0 top-3
               w-[2px] rounded-r-full
-
               bg-gradient-to-b
               from-rose-500
               via-rose-500/20
@@ -902,7 +779,6 @@ function PostCommentItem({
             "
           />
         )}
-
         {/* COMMENT MAIN ROW */}
         <div className="flex min-w-0 items-start gap-2 sm:gap-3">
           {/* AVATAR */}
@@ -912,7 +788,6 @@ function PostCommentItem({
             deleted={isDeleted}
             root={root}
           />
-
           {/* CONTENT */}
           <div className="min-w-0 flex-1">
             {/* AUTHOR HEADER */}
@@ -932,16 +807,12 @@ function PostCommentItem({
                     text-[12px]
                     font-extrabold
                     text-slate-900
-
                     transition-colors
-
                     hover:text-rose-600
                     focus-visible:outline-none
                     focus-visible:underline
-
                     dark:text-slate-100
                     dark:hover:text-rose-400
-
                     sm:text-[13px]
                   "
                 >
@@ -959,7 +830,6 @@ function PostCommentItem({
                   {displayName}
                 </span>
               )}
-
               {/* USERNAME */}
               {!isDeleted && username && (
                 <span
@@ -975,7 +845,6 @@ function PostCommentItem({
                   @{username}
                 </span>
               )}
-
               {/* POST AUTHOR BADGE */}
               {isPostAuthor && (
                 <span
@@ -986,11 +855,9 @@ function PostCommentItem({
                     border border-indigo-200
                     bg-indigo-50
                     px-1.5 py-0.5
-
                     text-[9px]
                     font-extrabold
                     text-indigo-700
-
                     dark:border-indigo-400/20
                     dark:bg-indigo-400/10
                     dark:text-indigo-300
@@ -1000,11 +867,9 @@ function PostCommentItem({
                     size={10}
                     aria-hidden="true"
                   />
-
                   MUALLIF
                 </span>
               )}
-
               {/* REPLY DEPTH */}
               {!root && (
                 <span
@@ -1015,12 +880,10 @@ function PostCommentItem({
                     rounded-md
                     bg-slate-100
                     px-1.5 py-0.5
-
                     font-mono
                     text-[9px]
                     font-semibold
                     text-slate-500
-
                     dark:bg-white/[0.05]
                     dark:text-slate-400
                   "
@@ -1029,14 +892,12 @@ function PostCommentItem({
                     size={10}
                     aria-hidden="true"
                   />
-
                   {depth >= 4
                     ? `REPLY L${depth}`
                     : "REPLY"}
                 </span>
               )}
             </div>
-
             {/* TIME */}
             <div className="mt-1">
               <CommentTime
@@ -1049,7 +910,6 @@ function PostCommentItem({
                 compact={depth >= 3}
               />
             </div>
-
             {/* MESSAGE / EDITOR */}
             {actions.isEditing && !isDeleted ? (
               <div className="mt-2.5 min-w-0">
@@ -1063,13 +923,10 @@ function PostCommentItem({
                   border border-dashed
                   border-slate-200
                   bg-slate-50
-
                   px-2.5 py-2
-
                   text-[12px]
                   italic
                   text-slate-400
-
                   dark:border-white/[0.09]
                   dark:bg-white/[0.025]
                   dark:text-slate-500
@@ -1085,18 +942,15 @@ function PostCommentItem({
                   whitespace-pre-wrap
                   break-words
                   [overflow-wrap:anywhere]
-
                   text-[13px]
                   leading-[1.7]
                   text-slate-700
-
                   dark:text-slate-300
                 "
               >
                 {message}
               </p>
             )}
-
             {/* ACTION BUTTONS */}
             {!isDeleted &&
               !actions.isEditing && (
@@ -1127,7 +981,6 @@ function PostCommentItem({
                     }
                     className={`
                       ${ACTION_CLASS}
-
                       ${
                         isLiked
                           ? "!bg-rose-50 !text-rose-600 dark:!bg-rose-500/10 dark:!text-rose-400"
@@ -1152,14 +1005,11 @@ function PostCommentItem({
                         aria-hidden="true"
                       />
                     )}
-
                     <span>{likesCount}</span>
-
                     <span className="hidden sm:inline">
                       Like
                     </span>
                   </button>
-
                   {/* REPLY */}
                   {onReply && (
                     <button
@@ -1182,11 +1032,9 @@ function PostCommentItem({
                         size={14}
                         aria-hidden="true"
                       />
-
                       Javob
                     </button>
                   )}
-
                   {/* EDIT */}
                   {isCommentOwner && (
                     <button
@@ -1205,13 +1053,11 @@ function PostCommentItem({
                         size={13}
                         aria-hidden="true"
                       />
-
                       <span className="hidden min-[400px]:inline">
                         Tahrirlash
                       </span>
                     </button>
                   )}
-
                   {/* DELETE */}
                   {isCommentOwner && (
                     <button
@@ -1234,13 +1080,11 @@ function PostCommentItem({
                         size={13}
                         aria-hidden="true"
                       />
-
                       <span className="hidden min-[400px]:inline">
                         O‘chirish
                       </span>
                     </button>
                   )}
-
                   {/* COMMENT ID */}
                   <span
                     title={`Comment ID: ${commentId}`}
@@ -1257,7 +1101,6 @@ function PostCommentItem({
                   </span>
                 </div>
               )}
-
             {/* INLINE LIKE ERROR */}
             {actions.likeError &&
               !isDeleted && (
@@ -1276,7 +1119,6 @@ function PostCommentItem({
                   {actions.likeError}
                 </p>
               )}
-
             {/* REPLY COMPOSER */}
             {showReplyEditor &&
               !isDeleted &&
@@ -1301,7 +1143,6 @@ function PostCommentItem({
                   }
                 />
               )}
-
             {/* SHOW / HIDE REPLIES */}
             {hasReplies && (
               <button
@@ -1321,21 +1162,16 @@ function PostCommentItem({
                   min-h-8
                   items-center
                   gap-1.5
-
                   rounded-lg
                   px-2 py-1
-
                   text-[11px]
                   font-bold
                   text-indigo-600
-
                   transition-colors
-
                   hover:bg-indigo-50
                   focus-visible:outline-none
                   focus-visible:ring-2
                   focus-visible:ring-indigo-400
-
                   dark:text-indigo-300
                   dark:hover:bg-indigo-400/10
                 "
@@ -1351,12 +1187,10 @@ function PostCommentItem({
                     aria-hidden="true"
                   />
                 )}
-
                 <MessageCircle
                   size={13}
                   aria-hidden="true"
                 />
-
                 {showReplies
                   ? "Javoblarni yashirish"
                   : `${repliesCount} ta javobni ko‘rish`}
@@ -1364,7 +1198,6 @@ function PostCommentItem({
             )}
           </div>
         </div>
-
         {/* NESTED REPLIES */}
         {hasReplies && showReplies && (
           <div
@@ -1374,16 +1207,11 @@ function PostCommentItem({
               mt-1
               min-w-0
               max-w-full
-
               border-slate-200
-
               transition-colors
-
               hover:border-rose-300
-
               dark:border-white/[0.12]
               dark:hover:border-rose-400/40
-
               ${connectorClass}
             `}
           >
@@ -1415,7 +1243,6 @@ function PostCommentItem({
           </div>
         )}
       </article>
-
       {/* DELETE CONFIRMATION */}
       {isCommentOwner && (
         <DeleteConfirmationModal
@@ -1439,5 +1266,4 @@ function PostCommentItem({
     </>
   );
 }
-
 export default memo(PostCommentItem);

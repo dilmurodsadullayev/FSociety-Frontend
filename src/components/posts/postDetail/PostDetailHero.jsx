@@ -1,4 +1,6 @@
 
+// src/components/posts/postDetail/PostDetailHero.jsx
+
 import React, {
   useMemo,
 } from "react";
@@ -22,8 +24,9 @@ import timeAgo from "../../../utils/timeAgo";
 
 import {
   getUserAvatarUrl,
-  handleUserImageError,
 } from "../../../utils/imageUtils";
+
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
 
 import {
   getArticleMeta,
@@ -38,6 +41,7 @@ import {
 //
 // Responsibilities:
 // - Author avatar and profile link
+// - Equipped public profile frame
 // - Author display name
 // - Post creation date
 // - Reading time
@@ -55,7 +59,9 @@ import {
 // - Lucide icons
 // - Accessible navigation and actions
 //
-// No Redux, API or modal state.
+// No local Redux or modal state.
+// Frame API is handled by PublicFramedAvatar.
+//
 // =========================================================
 
 // =========================================================
@@ -81,35 +87,38 @@ const AuthorDetails = React.memo(
       ? `/${encodeURIComponent(username)}/profile/`
       : null;
 
+    // =====================================================
+    // AUTHOR AVATAR + EQUIPPED FRAME
+    // =====================================================
+    //
+    // Original sizes:
+    // - Mobile: 56px
+    // - Desktop: 64px
+    //
+    // Original rounded-2xl avatar is preserved
+    // when no profile frame is equipped.
+    //
+    // Equipped frame:
+    // - Avatar becomes circular
+    // - PNG appears above avatar
+    // - FS Winter Royal alignment supported
+    // - Public cache avoids duplicate requests
+    //
+    // =====================================================
+
     const avatar = (
-      <img
-        src={authorImage}
-        alt={
-          username
-            ? `${authorName} profil rasmi`
-            : "Muallif rasmi"
-        }
-        onError={handleUserImageError}
-        className="
-          h-14
-          w-14
-          shrink-0
-          rounded-2xl
-          border
-          border-slate-200
-          bg-slate-100
-          object-cover
-          shadow-sm
-
-          sm:h-16
-          sm:w-16
-
-          dark:border-white/[0.10]
-          dark:bg-[#111827]
-          dark:shadow-[0_12px_25px_rgba(0,0,0,0.20)]
-        "
+      <PublicFramedAvatar
+        username={username}
+        avatarUrl={authorImage}
+        displayName={authorName}
+        className="h-14 w-14 sm:h-16 sm:w-16"
+        plainClassName="rounded-2xl"
       />
     );
+
+    // =====================================================
+    // AUTHOR NAME
+    // =====================================================
 
     const name = (
       <span
@@ -117,10 +126,12 @@ const AuthorDetails = React.memo(
           block
           min-w-0
           break-words
+
           text-base
           font-black
           leading-snug
           tracking-tight
+
           text-slate-900
           transition-colors
 
@@ -133,9 +144,17 @@ const AuthorDetails = React.memo(
       </span>
     );
 
+    // =====================================================
+    // FORMATTED DATE
+    // =====================================================
+
     const formattedDate = createdAt
       ? timeAgo(createdAt)
       : "Sana noma'lum";
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
       <div
@@ -312,9 +331,17 @@ const ArticleMeta = React.memo(
 
     isPublic = true,
   }) {
+    // =====================================================
+    // WORD COUNT
+    // =====================================================
+
     const displayWords =
       safeNumber(wordCount)
         .toLocaleString("uz-UZ");
+
+    // =====================================================
+    // READING TIME
+    // =====================================================
 
     const displayReadingTime =
       Math.max(
@@ -322,8 +349,16 @@ const ArticleMeta = React.memo(
         Math.ceil(safeNumber(readingTime))
       );
 
+    // =====================================================
+    // COPY LINK
+    // =====================================================
+
     const canCopy =
       typeof onCopy === "function";
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
       <div
@@ -889,5 +924,9 @@ const PostDetailHero = ({
     </header>
   );
 };
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default React.memo(PostDetailHero);

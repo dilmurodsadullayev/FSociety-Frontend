@@ -1,4 +1,6 @@
 
+ // src/components/posts/comments/PostCommentForm.jsx
+
 import React, {
   memo,
   useCallback,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { siteToast } from "../../ui/AuthToast";
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
 
 // =========================================================
 // FSOCIETY — COMPACT COMMENT COMPOSER
@@ -27,7 +30,7 @@ import { siteToast } from "../../ui/AuthToast";
 // - Reddit-inspired compact input
 // - Mr. Robot terminal accents
 // - Expand on click
-// - Light / Dark Mode
+// - Light / Dark mode
 // - Mobile responsive
 //
 // Features:
@@ -38,85 +41,126 @@ import { siteToast } from "../../ui/AuthToast";
 // - Prevent duplicate submissions
 // - Preserve draft on failure
 // - Clear draft only after success
+// - Equipped avatar frame in the comment form
+// - Initial avatar fallback
+//
 // =========================================================
 
 const MAX_LENGTH = 255;
 
 // =========================================================
-// AVATAR
+// INITIALS IMAGE — FRAME-COMPATIBLE FALLBACK
+// =========================================================
+// PublicFramedAvatar accepts an image URL. Using an SVG
+// data URL keeps the original pink initials style when a
+// logged-in user has no uploaded profile photo.
 // =========================================================
 
-const CommentFormAvatar = memo(
-  function CommentFormAvatar({ user }) {
-    const [imageError, setImageError] = useState(false);
+const createInitialAvatar = (initial) => {
+  const safeInitial = String(initial || "F")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 
-    const rawImage =
-      user?.image?.url ??
-      user?.image ??
-      user?.avatar ??
-      "";
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22" fill="#fff1f2" />
+      <text
+        x="50" y="53"
+        text-anchor="middle" dominant-baseline="middle"
+        font-family="sans-serif" font-size="45" font-weight="800"
+        fill="#e11d48"
+      >${safeInitial}</text>
+    </svg>
+  `;
 
-    const image =
-      typeof rawImage === "string"
-        ? rawImage.trim()
-        : "";
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
 
-    useEffect(() => {
-      setImageError(false);
-    }, [image]);
+// =========================================================
+// COMMENT FORM AVATAR
+// =========================================================
+// - Has real username: display PublicFramedAvatar.
+// - No real username: preserve previous avatar / initial.
+// - Frame API calls are handled by PublicFramedAvatar.
+// =========================================================
 
-    const username =
-      user?.username ||
-      user?.first_name ||
-      "F";
+const CommentFormAvatar = memo(function CommentFormAvatar({ user }) {
+  const [imageError, setImageError] = useState(false);
 
-    const initial = String(username)
-      .charAt(0)
-      .toUpperCase();
+  const rawImage =
+    user?.image?.url ??
+    user?.image ??
+    user?.avatar?.url ??
+    user?.avatar ??
+    user?.image_url ??
+    "";
 
+  const image = typeof rawImage === "string" ? rawImage.trim() : "";
+
+  useEffect(() => {
+    setImageError(false);
+  }, [image]);
+
+  const accountUsername =
+    typeof user?.username === "string" ? user.username.trim() : "";
+
+  const displayName = accountUsername || user?.first_name || "F";
+  const initial = String(displayName).charAt(0).toUpperCase();
+  const avatarSize = "h-9 w-9 sm:h-10 sm:w-10";
+
+  if (accountUsername) {
     return (
       <div className="relative shrink-0">
-        {image && !imageError ? (
-          <img
-            src={image}
-            alt={`${username} avatari`}
-            loading="lazy"
-            onError={() => setImageError(true)}
-            className="
-              h-9 w-9 rounded-xl
-              border border-slate-200
-              object-cover
-              shadow-sm
-              dark:border-white/[0.12]
-              sm:h-10 sm:w-10
-            "
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="
-              grid h-9 w-9
-              place-items-center
-              rounded-xl
-              border border-rose-200
-              bg-rose-50
-              font-mono text-sm font-black
-              text-rose-600
-
-              dark:border-rose-400/20
-              dark:bg-rose-500/10
-              dark:text-rose-300
-
-              sm:h-10 sm:w-10
-            "
-          >
-            {initial}
-          </span>
-        )}
+        <PublicFramedAvatar
+          username={accountUsername}
+          avatarUrl={image || createInitialAvatar(initial)}
+          displayName={displayName}
+          className={avatarSize}
+          plainClassName="rounded-xl"
+          loading="lazy"
+        />
       </div>
     );
   }
-);
+
+  return (
+    <div className="relative shrink-0">
+      {image && !imageError ? (
+        <img
+          src={image}
+          alt={`${displayName} avatari`}
+          loading="lazy"
+          onError={() => setImageError(true)}
+          className="
+            h-9 w-9 rounded-xl
+            border border-slate-200
+            object-cover shadow-sm
+            dark:border-white/[0.12]
+            sm:h-10 sm:w-10
+          "
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="
+            grid h-9 w-9 place-items-center
+            rounded-xl border border-rose-200
+            bg-rose-50 font-mono text-sm font-black
+            text-rose-600
+            dark:border-rose-400/20
+            dark:bg-rose-500/10 dark:text-rose-300
+            sm:h-10 sm:w-10
+          "
+        >
+          {initial}
+        </span>
+      )}
+    </div>
+  );
+});
 
 // =========================================================
 // MAIN COMPONENT
@@ -135,8 +179,7 @@ function PostCommentForm({
   const [expanded, setExpanded] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [localSubmitting, setLocalSubmitting] =
-    useState(false);
+  const [localSubmitting, setLocalSubmitting] = useState(false);
 
   // =====================================================
   // REFS
@@ -152,10 +195,7 @@ function PostCommentForm({
 
   const cleanMessage = message.trim();
   const characterCount = message.length;
-
-  const busy = Boolean(
-    isSubmitting || localSubmitting
-  );
+  const busy = Boolean(isSubmitting || localSubmitting);
 
   const canSubmit =
     Boolean(isLoggedIn) &&
@@ -250,10 +290,7 @@ function PostCommentForm({
     async (event) => {
       event?.preventDefault?.();
 
-      if (
-        busy ||
-        submitLockRef.current
-      ) {
+      if (busy || submitLockRef.current) {
         return;
       }
 
@@ -277,16 +314,12 @@ function PostCommentForm({
       }
 
       if (characterCount > MAX_LENGTH) {
-        setError(
-          `Sharh ${MAX_LENGTH} ta belgidan oshmasligi kerak.`
-        );
+        setError(`Sharh ${MAX_LENGTH} ta belgidan oshmasligi kerak.`);
         return;
       }
 
       if (typeof onSubmit !== "function") {
-        setError(
-          "Sharh yuborish funksiyasi mavjud emas."
-        );
+        setError("Sharh yuborish funksiyasi mavjud emas.");
         return;
       }
 
@@ -299,13 +332,10 @@ function PostCommentForm({
       setError("");
 
       try {
-        // Existing PostCommentsSection expects:
-        //
+        // Existing PostCommentsSection contract:
         // onSubmit(message) -> Promise<boolean>
 
-        const success = await onSubmit(
-          cleanMessage
-        );
+        const success = await onSubmit(cleanMessage);
 
         if (!mountedRef.current) {
           return;
@@ -323,12 +353,10 @@ function PostCommentForm({
         }
 
         // ---------------------------------------------
-        // FAILURE
+        // FAILURE — PRESERVE DRAFT
         // ---------------------------------------------
-
-        // Keep the draft.
         // The parent displays detailed API errors
-        // using siteToast and Redux.
+        // through siteToast and Redux.
 
         setError(
           "Sharh yuborilmadi. Batafsil xabarni bildirishnomadan ko‘ring."
@@ -340,7 +368,7 @@ function PostCommentForm({
 
         setError(
           requestError?.message ||
-          "Sharh yuborishda xato yuz berdi."
+            "Sharh yuborishda xato yuz berdi."
         );
       } finally {
         submitLockRef.current = false;
@@ -366,10 +394,7 @@ function PostCommentForm({
 
   const handleKeyDown = useCallback(
     (event) => {
-      if (
-        event.key === "Escape" &&
-        !busy
-      ) {
+      if (event.key === "Escape" && !busy) {
         event.preventDefault();
         handleCollapse();
         return;
@@ -387,12 +412,7 @@ function PostCommentForm({
         }
       }
     },
-    [
-      busy,
-      canSubmit,
-      handleCollapse,
-      handleSubmit,
-    ]
+    [busy, canSubmit, handleCollapse, handleSubmit]
   );
 
   // =====================================================
@@ -402,26 +422,16 @@ function PostCommentForm({
   return (
     <div
       className="
-        group/composer
-        relative mb-5
-        min-w-0 max-w-full
-        overflow-hidden
-        rounded-2xl
-        border border-slate-200
+        group/composer relative mb-5
+        min-w-0 max-w-full overflow-hidden
+        rounded-2xl border border-slate-200
         bg-white
-
         shadow-[0_8px_30px_rgba(15,23,42,0.035)]
-
-        transition-[border-color,box-shadow]
-        duration-200
-
+        transition-[border-color,box-shadow] duration-200
         hover:border-slate-300
-
-        dark:border-white/[0.09]
-        dark:bg-[#101319]
+        dark:border-white/[0.09] dark:bg-[#101319]
         dark:shadow-[0_10px_35px_rgba(0,0,0,0.15)]
         dark:hover:border-white/[0.17]
-
         motion-reduce:transition-none
       "
     >
@@ -429,39 +439,25 @@ function PostCommentForm({
       <span
         aria-hidden="true"
         className="
-          pointer-events-none
-          absolute bottom-3 left-0 top-3
-          w-[2px] rounded-r-full
-          bg-gradient-to-b
-          from-rose-500
-          via-rose-500/30
-          to-transparent
+          pointer-events-none absolute bottom-3 left-0 top-3
+          w-[2px] rounded-r-full bg-gradient-to-b
+          from-rose-500 via-rose-500/30 to-transparent
         "
       />
 
       {/* TOP LABEL */}
       <div
         className="
-          flex min-w-0
-          items-center justify-between
-          gap-2
-          border-b border-slate-100
-          px-3 py-2
-
-          dark:border-white/[0.055]
-
-          sm:px-4
+          flex min-w-0 items-center justify-between gap-2
+          border-b border-slate-100 px-3 py-2
+          dark:border-white/[0.055] sm:px-4
         "
       >
         <span
           className="
-            inline-flex min-w-0
-            items-center gap-1.5
-            font-mono text-[10px]
-            font-bold uppercase
-            tracking-[0.10em]
-            text-slate-500
-
+            inline-flex min-w-0 items-center gap-1.5
+            font-mono text-[10px] font-bold uppercase
+            tracking-[0.10em] text-slate-500
             dark:text-slate-400
           "
         >
@@ -470,18 +466,13 @@ function PostCommentForm({
             className="shrink-0 text-rose-500"
             aria-hidden="true"
           />
-
-          <span className="truncate">
-            NEW_MESSAGE
-          </span>
+          <span className="truncate">NEW_MESSAGE</span>
         </span>
 
         <span
           className="
-            font-mono text-[9px]
-            font-semibold
-            text-slate-400
-            dark:text-slate-500
+            font-mono text-[9px] font-semibold
+            text-slate-400 dark:text-slate-500
           "
         >
           FS / DISCUSSION
@@ -491,20 +482,18 @@ function PostCommentForm({
       {/* MAIN FORM AREA */}
       <div
         className="
-          flex min-w-0
-          items-start gap-3
-          px-3 py-3
-
-          sm:px-4 sm:py-3.5
+          flex min-w-0 items-start gap-3
+          px-3 py-3 sm:px-4 sm:py-3.5
         "
       >
-        <CommentFormAvatar user={currentUser} />
+        <CommentFormAvatar
+          user={isLoggedIn ? currentUser : null}
+        />
 
         <div className="min-w-0 flex-1">
           {/* ==========================================
               COLLAPSED VIEW
              ========================================== */}
-
           {!expanded && (
             <button
               type="button"
@@ -512,47 +501,27 @@ function PostCommentForm({
               disabled={busy}
               aria-expanded={false}
               className="
-                flex min-h-11
-                w-full min-w-0
-                items-center
-                justify-between
-                gap-3
-                rounded-xl
-                border border-slate-200
-                bg-slate-50/80
-                px-3 py-2.5
-                text-left
-
+                flex min-h-11 w-full min-w-0
+                items-center justify-between gap-3
+                rounded-xl border border-slate-200
+                bg-slate-50/80 px-3 py-2.5 text-left
                 transition-all duration-200
-
-                hover:border-rose-300
-                hover:bg-rose-50/30
-
+                hover:border-rose-300 hover:bg-rose-50/30
                 focus-visible:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-rose-400
-
-                disabled:cursor-not-allowed
-                disabled:opacity-60
-
+                focus-visible:ring-2 focus-visible:ring-rose-400
+                disabled:cursor-not-allowed disabled:opacity-60
                 dark:border-white/[0.09]
                 dark:bg-white/[0.035]
                 dark:hover:border-rose-400/30
                 dark:hover:bg-rose-400/[0.045]
-
                 motion-reduce:transition-none
               "
             >
               <span
                 className="
-                  flex min-w-0
-                  items-center gap-2
-                  text-[12px] font-medium
-                  text-slate-400
-
-                  dark:text-slate-500
-
-                  sm:text-[13px]
+                  flex min-w-0 items-center gap-2
+                  text-[12px] font-medium text-slate-400
+                  dark:text-slate-500 sm:text-[13px]
                 "
               >
                 <MessageSquareText
@@ -560,7 +529,6 @@ function PostCommentForm({
                   className="shrink-0 text-slate-400"
                   aria-hidden="true"
                 />
-
                 <span className="truncate">
                   {message.trim()
                     ? message
@@ -571,9 +539,7 @@ function PostCommentForm({
               <ArrowUpRight
                 size={16}
                 className="
-                  shrink-0
-                  text-slate-400
-                  transition-colors
+                  shrink-0 text-slate-400 transition-colors
                   group-hover/composer:text-rose-500
                 "
                 aria-hidden="true"
@@ -584,30 +550,23 @@ function PostCommentForm({
           {/* ==========================================
               EXPANDED VIEW
              ========================================== */}
-
           {expanded && (
-            <form
-              onSubmit={handleSubmit}
-              className="min-w-0"
-            >
+            <form onSubmit={handleSubmit} className="min-w-0">
               {/* EDITOR HEADING */}
               <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p
                     className="
                       text-[12px] font-extrabold
-                      text-slate-900
-                      dark:text-slate-100
+                      text-slate-900 dark:text-slate-100
                     "
                   >
                     Muhokamaga qo‘shiling
                   </p>
-
                   <p
                     className="
                       mt-0.5 text-[10px]
-                      text-slate-500
-                      dark:text-slate-400
+                      text-slate-500 dark:text-slate-400
                     "
                   >
                     Savol, fikr yoki yechim yozing.
@@ -621,20 +580,11 @@ function PostCommentForm({
                   aria-label="Sharh oynasini yopish"
                   title="Yopish (Esc)"
                   className="
-                    grid h-8 w-8
-                    shrink-0
-                    place-items-center
-                    rounded-lg
-                    text-slate-400
-
-                    transition-colors
-
-                    hover:bg-slate-100
-                    hover:text-slate-700
-
+                    grid h-8 w-8 shrink-0 place-items-center
+                    rounded-lg text-slate-400 transition-colors
+                    hover:bg-slate-100 hover:text-slate-700
                     dark:hover:bg-white/[0.07]
                     dark:hover:text-slate-200
-
                     disabled:opacity-50
                   "
                 >
@@ -667,41 +617,21 @@ function PostCommentForm({
                     : "fsociety-comment-help"
                 }
                 className="
-                  block w-full
-                  min-w-0 max-w-full
-                  min-h-[96px]
-                  resize-y
-
-                  rounded-xl
-                  border border-slate-200
-                  bg-slate-50/60
-
-                  px-3 py-3
-
-                  text-[13px] leading-6
-                  text-slate-900
-
-                  outline-none
-
-                  placeholder:text-slate-400
-
+                  block w-full min-w-0 max-w-full min-h-[96px]
+                  resize-y rounded-xl border border-slate-200
+                  bg-slate-50/60 px-3 py-3
+                  text-[13px] leading-6 text-slate-900
+                  outline-none placeholder:text-slate-400
                   transition-[border-color,box-shadow]
-
-                  focus:border-rose-400
-                  focus:bg-white
-                  focus:ring-2
-                  focus:ring-rose-400/10
-
-                  disabled:cursor-not-allowed
-                  disabled:opacity-65
-
+                  focus:border-rose-400 focus:bg-white
+                  focus:ring-2 focus:ring-rose-400/10
+                  disabled:cursor-not-allowed disabled:opacity-65
                   dark:border-white/[0.10]
                   dark:bg-[#0b0e14]
                   dark:text-slate-100
                   dark:placeholder:text-slate-500
                   dark:focus:border-rose-400/50
                   dark:focus:bg-[#0b0e14]
-
                   motion-reduce:transition-none
                 "
               />
@@ -712,19 +642,10 @@ function PostCommentForm({
                   id="fsociety-comment-error"
                   role="alert"
                   className="
-                    mt-2
-                    whitespace-pre-line
-                    break-words
-
-                    rounded-lg
-                    border border-red-200
-                    bg-red-50
-
-                    px-3 py-2
-
-                    text-[11px] leading-5
-                    text-red-700
-
+                    mt-2 whitespace-pre-line break-words
+                    rounded-lg border border-red-200
+                    bg-red-50 px-3 py-2
+                    text-[11px] leading-5 text-red-700
                     dark:border-red-400/20
                     dark:bg-red-500/[0.08]
                     dark:text-red-300
@@ -737,26 +658,19 @@ function PostCommentForm({
               {/* FOOTER */}
               <div
                 className="
-                  mt-2.5
-                  flex min-w-0
-                  flex-wrap items-center
-                  justify-between
-                  gap-2
+                  mt-2.5 flex min-w-0 flex-wrap
+                  items-center justify-between gap-2
                 "
               >
                 <div
                   className="
-                    flex min-w-0
-                    flex-wrap items-center
+                    flex min-w-0 flex-wrap items-center
                     gap-x-3 gap-y-1
                   "
                 >
                   <span
                     className={`
-                      font-mono
-                      text-[10px]
-                      font-semibold
-
+                      font-mono text-[10px] font-semibold
                       ${
                         characterCount >= 240
                           ? "text-amber-600 dark:text-amber-400"
@@ -770,21 +684,12 @@ function PostCommentForm({
                   <span
                     id="fsociety-comment-help"
                     className="
-                      hidden items-center
-                      gap-1
-                      font-mono text-[10px]
-                      text-slate-400
-
-                      dark:text-slate-500
-
-                      min-[440px]:inline-flex
+                      hidden items-center gap-1
+                      font-mono text-[10px] text-slate-400
+                      dark:text-slate-500 min-[440px]:inline-flex
                     "
                   >
-                    <CornerDownRight
-                      size={12}
-                      aria-hidden="true"
-                    />
-
+                    <CornerDownRight size={12} aria-hidden="true" />
                     Ctrl + Enter
                   </span>
                 </div>
@@ -794,37 +699,20 @@ function PostCommentForm({
                   disabled={!canSubmit}
                   aria-busy={busy}
                   className="
-                    inline-flex min-h-9
-                    items-center
-                    justify-center
-                    gap-2
-
-                    rounded-lg
-                    bg-rose-600
-                    px-4 py-2
-
-                    text-[11px] font-extrabold
-                    text-white
-
+                    inline-flex min-h-9 items-center
+                    justify-center gap-2 rounded-lg
+                    bg-rose-600 px-4 py-2
+                    text-[11px] font-extrabold text-white
                     shadow-[0_4px_12px_rgba(225,29,72,0.15)]
-
                     transition-all duration-200
-
                     hover:bg-rose-700
                     hover:shadow-[0_5px_16px_rgba(225,29,72,0.25)]
-
                     focus-visible:outline-none
-                    focus-visible:ring-2
-                    focus-visible:ring-rose-400
+                    focus-visible:ring-2 focus-visible:ring-rose-400
                     focus-visible:ring-offset-2
-
                     disabled:cursor-not-allowed
-                    disabled:opacity-50
-                    disabled:shadow-none
-
-                    dark:bg-rose-600
-                    dark:hover:bg-rose-500
-
+                    disabled:opacity-50 disabled:shadow-none
+                    dark:bg-rose-600 dark:hover:bg-rose-500
                     motion-reduce:transition-none
                   "
                 >
@@ -835,15 +723,10 @@ function PostCommentForm({
                       aria-hidden="true"
                     />
                   ) : (
-                    <Send
-                      size={14}
-                      aria-hidden="true"
-                    />
+                    <Send size={14} aria-hidden="true" />
                   )}
 
-                  {busy
-                    ? "Yuborilmoqda..."
-                    : "Yuborish"}
+                  {busy ? "Yuborilmoqda..." : "Yuborish"}
                 </button>
               </div>
             </form>
@@ -854,39 +737,26 @@ function PostCommentForm({
       {/* SMALL SIGNATURE */}
       <div
         className="
-          flex min-w-0
-          flex-wrap items-center
-          justify-between
-          gap-x-2 gap-y-1
-
+          flex min-w-0 flex-wrap items-center
+          justify-between gap-x-2 gap-y-1
           border-t border-slate-100
-          bg-slate-50/50
-          px-3 py-2
-
+          bg-slate-50/50 px-3 py-2
           dark:border-white/[0.055]
-          dark:bg-white/[0.015]
-
-          sm:px-4
+          dark:bg-white/[0.015] sm:px-4
         "
       >
         <span
           className="
-            font-mono text-[9px]
-            font-medium
-            text-slate-400
-
-            dark:text-slate-500
+            font-mono text-[9px] font-medium
+            text-slate-400 dark:text-slate-500
           "
         >
           FSOCIETY://WRITE_ACCESS
         </span>
-
         <span
           className="
             font-mono text-[9px]
-            text-slate-400
-
-            dark:text-slate-500
+            text-slate-400 dark:text-slate-500
           "
         >
           BE RESPECTFUL · SHARE IDEAS
