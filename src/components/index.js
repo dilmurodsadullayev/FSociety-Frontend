@@ -1,5 +1,5 @@
-// src/components/index.js
 
+// src/components/index.js
 
 // =========================================================
 // MAIN / LAYOUT
@@ -76,20 +76,12 @@ export {
 // =========================================================
 // POPULAR PROBLEM CARD
 //
-// Fayl nomingda hozir typo bor:
-// PopularProbelmCard.jsx
-//
-// Shuning uchun fayl pathni hozircha o‘zgartirmaymiz.
-// Ikkita export qoldiramiz:
-//
-// PopularProblemCard  -> yangi to‘g‘ri nom
-// PopularProbelmCard -> eski kodlar buzilmasligi uchun
+// Existing compatibility exports preserved.
 // =========================================================
 
 export {
     default as PopularProblemCard,
 } from "./PopularProblemCard";
-
 
 
 // =========================================================
@@ -115,6 +107,23 @@ export {
 
 
 // =========================================================
+// FSOCIETY — FRAME VAULT
+// =========================================================
+//
+// New Profile Frames Shop page.
+//
+// URL: /frames/shop
+//
+// Existing universal PurchaseConfirmationModal
+// is reused by FrameShopPurchaseConfirmation.
+// =========================================================
+
+export {
+    default as FrameShop,
+} from "./frame-shop/FrameShop";
+
+
+// =========================================================
 // USERS
 // =========================================================
 
@@ -123,12 +132,8 @@ export {
 } from "./Users";
 
 
-
 // =========================================================
 // PROFILE
-//
-// Faqat profile sahifasiga tegishli componentlar
-// profile/ papkasida qoladi.
 // =========================================================
 
 export {
@@ -158,13 +163,6 @@ export {
 
 // =========================================================
 // POSTS
-//
-// Clean architecture:
-//
-// components/posts/
-// ├── PostDetail.jsx
-// ├── CreatePostModal.jsx
-// └── comments/
 // =========================================================
 
 export {
@@ -178,14 +176,6 @@ export {
 
 // =========================================================
 // PROJECTS
-//
-// Hozir:
-//
-// components/
-// ├── Projects.jsx
-// ├── ProjectDetail.jsx
-// └── projects/
-//     └── CreateProjectModal.jsx
 // =========================================================
 
 export {
@@ -221,8 +211,6 @@ export {
 export {
     default as MyProblems,
 } from "./MyProblems";
-
-
 
 export {
     default as SimilarProblems,

@@ -1,41 +1,43 @@
 
+// src/components/navbar/NavbarUserMenu.jsx
+
 import React from "react";
 
 import {
-    Link,
+  Link,
 } from "react-router-dom";
 
 import {
-    AnimatePresence,
-    motion,
+  AnimatePresence,
+  motion,
 } from "framer-motion";
 
 import {
-    Bug,
-    ChevronDown,
-    Coins,
-    LogOut,
-    UserCircle,
+  Bug,
+  ChevronDown,
+  Coins,
+  Gem,
+  LogOut,
+  UserCircle,
 } from "lucide-react";
 
 // =========================================================
-// UTILS
+// FRAMED AVATAR
 // =========================================================
 
-import {
-    handleUserImageError,
-} from "../../utils/imageUtils";
+import NavbarFramedAvatar from "./NavbarFramedAvatar";
 
 // =========================================================
 // ANIMATIONS
 // =========================================================
 
 import {
-    dropdownVariants,
+  dropdownVariants,
 } from "./navConfig";
 
 // =========================================================
 // FSOCIETY — NAVBAR USER MENU
+// =========================================================
 //
 // Dark Mode:
 // Original FSociety cyber design.
@@ -44,639 +46,634 @@ import {
 // Premium slate-indigo design.
 //
 // Existing features:
+//
 // - User avatar
 // - Username
 // - Profile navigation
 // - My Problems
 // - FCoin History
 // - Logout
-// - Click outside
-// - Escape handling
+// - Click outside (handled by Navbar)
+// - Escape handling (handled by Navbar)
+//
+// New features:
+//
+// - Equipped avatar frame
+// - Santa Hat / Legendary frame support
+// - Framed avatar inside dropdown
+// - My Frames navigation
+//
+// NavbarActions and Navbar props remain unchanged.
+//
 // =========================================================
 
 const NavbarUserMenu = ({
 
-    // USER
-    user,
-    avatarUrl,
+  // USER
+  user,
+  avatarUrl,
 
-    // MENU STATE
-    openUserMenu,
-    setOpenUserMenu,
+  // MENU STATE
+  openUserMenu,
+  setOpenUserMenu,
 
-    // NOTIFICATION STATE
-    setOpenNotifications,
+  // NOTIFICATION STATE
+  setOpenNotifications,
 
-    // REF
-    userMenuRef,
+  // REF
+  userMenuRef,
 
-    // LOGOUT
-    handleLogout,
+  // LOGOUT
+  handleLogout,
 
 }) => {
 
-    // =====================================================
-    // USER DATA
-    // =====================================================
+  // =====================================================
+  // USER DATA
+  // =====================================================
 
-    const username =
-        user?.username || "user";
+  const username =
+    user?.username || "user";
 
-    const displayName =
-        user?.first_name
-            ? `${user.first_name} ${user?.last_name || ""}`.trim()
-            : username;
+  const displayName =
+    user?.first_name
+      ? `${user.first_name} ${user?.last_name || ""}`.trim()
+      : username;
 
-    // =====================================================
-    // CLOSE MENU
-    // =====================================================
+  // =====================================================
+  // CLOSE MENU
+  // =====================================================
 
-    const closeMenu = () => {
-        setOpenUserMenu(false);
-    };
+  const closeMenu = () => {
+    setOpenUserMenu(false);
+  };
 
-    // =====================================================
-    // TOGGLE MENU
-    // =====================================================
+  // =====================================================
+  // TOGGLE MENU
+  // =====================================================
 
-    const toggleMenu = () => {
+  const toggleMenu = () => {
 
-        // Notification dropdownni yopamiz.
-        setOpenNotifications(false);
+    // Close notifications when opening user menu.
+    setOpenNotifications(false);
 
-        // User dropdown holatini almashtiramiz.
-        setOpenUserMenu(
-            (previous) => !previous
-        );
-    };
+    // Toggle current menu.
+    setOpenUserMenu(
+      (previous) => !previous
+    );
+  };
 
-    // =====================================================
-    // SHARED MENU ITEM STYLE
-    // =====================================================
+  // =====================================================
+  // SHARED MENU ITEM STYLE
+  // =====================================================
 
-    const menuItemClass = `
-        flex
-        w-full
-        items-center
-        gap-3
+  const menuItemClass = `
+    flex
+    w-full
+    items-center
+    gap-3
 
-        rounded-xl
+    rounded-xl
 
-        px-3
-        py-3
+    px-3
+    py-3
 
-        text-[13px]
-        font-semibold
+    text-[13px]
+    font-semibold
 
-        transition-colors
-        duration-150
+    transition-colors
+    duration-150
 
-        focus-visible:outline-none
-        focus-visible:ring-2
-        focus-visible:ring-indigo-500
+    focus-visible:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-indigo-500
 
-        motion-reduce:transition-none
-    `;
+    motion-reduce:transition-none
+  `;
 
-    // =====================================================
-    // JSX
-    // =====================================================
+  // =====================================================
+  // RENDER
+  // =====================================================
 
-    return (
-        <div
-            ref={userMenuRef}
-            className="
-                relative
-                shrink-0
-            "
+  return (
+    <div
+      ref={userMenuRef}
+      className="
+        relative
+        shrink-0
+      "
+    >
+
+      {/* ==========================================
+          USER BUTTON
+      ========================================== */}
+
+      <button
+        type="button"
+
+        onClick={toggleMenu}
+
+        aria-label="Foydalanuvchi menyusi"
+
+        aria-expanded={Boolean(openUserMenu)}
+
+        aria-controls="fsociety-user-dropdown"
+
+        className="
+          group/user
+
+          relative
+
+          flex
+          items-center
+          gap-3.5
+
+          rounded-full
+
+          border
+          border-[#cdd7e8]
+
+          bg-[#f6f8ff]/90
+
+          p-1
+          pr-2
+
+          outline-none
+
+          transition-colors
+          duration-150
+
+          hover:border-indigo-400/40
+          hover:bg-indigo-50
+
+          focus-visible:ring-2
+          focus-visible:ring-indigo-500
+
+          sm:pr-3
+
+          dark:border-white/[0.07]
+          dark:bg-white/[0.035]
+
+          dark:hover:border-indigo-400/30
+          dark:hover:bg-indigo-400/[0.055]
+
+          motion-reduce:transition-none
+        "
+      >
+
+        {/* ======================================
+            FRAMED USER AVATAR
+        ====================================== */}
+        {/*
+          Uses public equipped-frame endpoint.
+
+          No frame:
+          - Original circular avatar
+
+          Equipped frame:
+          - Avatar behind transparent PNG
+          - Santa Hat and decorations on top
+          - No rotation of PNG
+
+          Size:
+          - 36px mobile
+          - 40px desktop
+
+          The frame artwork can extend outside
+          the avatar box without clipping.
+        */}
+
+        <NavbarFramedAvatar
+          username={user?.username}
+          avatarUrl={avatarUrl}
+          size="navbar"
+        />
+
+        {/* ======================================
+            USERNAME
+        ====================================== */}
+
+        <span
+          className="
+            hidden
+
+            max-w-[110px]
+            truncate
+
+            text-[13px]
+            font-semibold
+
+            text-slate-700
+
+            transition-colors
+            duration-150
+
+            group-hover/user:text-indigo-700
+
+            md:block
+
+            dark:text-gray-200
+            dark:group-hover/user:text-indigo-200
+          "
         >
+          @{username}
+        </span>
 
-            {/* ==========================================
-                USER BUTTON
-            ========================================== */}
+        {/* ======================================
+            CHEVRON
+        ====================================== */}
 
-            <button
-                type="button"
+        <ChevronDown
+          size={15}
+          strokeWidth={2}
 
-                onClick={toggleMenu}
+          aria-hidden="true"
 
-                aria-label="Foydalanuvchi menyusi"
+          className={`
+            hidden
 
-                aria-expanded={Boolean(openUserMenu)}
+            shrink-0
 
-                aria-controls="fsociety-user-dropdown"
+            text-slate-500
 
-                className="
-                    group/user
+            transition-transform
+            duration-150
 
-                    relative
+            sm:block
 
-                    flex
-                    items-center
-                    gap-2
+            dark:text-gray-600
 
-                    rounded-full
+            ${
+              openUserMenu
+                ? "rotate-180"
+                : ""
+            }
 
-                    border
-                    border-[#cdd7e8]
+            motion-reduce:transition-none
+          `}
+        />
 
-                    bg-[#f6f8ff]/90
+      </button>
 
-                    p-1
-                    pr-2
+      {/* ==========================================
+          USER DROPDOWN
+      ========================================== */}
 
-                    outline-none
+      <AnimatePresence>
 
-                    transition-colors
-                    duration-150
+        {openUserMenu && (
 
-                    hover:border-indigo-400/40
-                    hover:bg-indigo-50
+          <motion.div
+            id="fsociety-user-dropdown"
 
-                    focus-visible:ring-2
-                    focus-visible:ring-indigo-500
+            variants={dropdownVariants}
 
-                    sm:pr-3
+            initial="hidden"
+            animate="visible"
+            exit="exit"
 
-                    dark:border-white/[0.07]
-                    dark:bg-white/[0.035]
+            aria-label="Foydalanuvchi menyusi"
 
-                    dark:hover:border-indigo-400/30
-                    dark:hover:bg-indigo-400/[0.055]
+            className="
+              absolute
+              right-0
+              top-full
 
-                    motion-reduce:transition-none
-                "
+              z-[60]
+
+              mt-3
+
+              w-[260px]
+              max-w-[calc(100vw-2rem)]
+
+              overflow-hidden
+
+              rounded-2xl
+
+              border
+              border-[#d8e1ee]
+
+              bg-[#f9fbff]/[0.98]
+
+              shadow-[0_20px_50px_rgba(30,41,59,0.14)]
+
+              dark:border-white/[0.07]
+              dark:bg-[#11161e]/[0.98]
+
+              dark:shadow-[0_25px_70px_rgba(0,0,0,0.55)]
+            "
+          >
+
+            {/* ==================================
+                USER INFORMATION
+            ================================== */}
+
+            <div
+              className="
+                flex
+                items-center
+                gap-3
+
+                border-b
+                border-[#e2e8f2]
+
+                bg-[#eef3fb]/70
+
+                p-4
+
+                dark:border-white/[0.06]
+                dark:bg-white/[0.02]
+              "
             >
 
-                {/* ======================================
-                    AVATAR
-                ====================================== */}
+              {/* ==================================
+                  DROPDOWN FRAMED AVATAR
+              ================================== */}
+              {/*
+                Same user, same public frame.
 
-                <span
-                    className="
-                        relative
+                Larger preview:
+                44px avatar area.
 
-                        block
-                        h-9
-                        w-9
+                The uploaded transparent PNG
+                is positioned above the avatar.
+              */}
 
-                        shrink-0
+              <NavbarFramedAvatar
+                username={user?.username}
+                avatarUrl={avatarUrl}
+                size="menu"
+              />
 
-                        overflow-hidden
+              {/* ==================================
+                  USER DETAILS
+              ================================== */}
 
-                        rounded-full
+              <div
+                className="
+                  min-w-0
+                  flex-1
+                "
+              >
 
-                        border
-                        border-[#d5deec]
+                {/* DISPLAY NAME */}
 
-                        bg-[#e8edf6]
+                <p
+                  className="
+                    truncate
 
-                        sm:h-10
-                        sm:w-10
+                    text-[14px]
+                    font-bold
 
-                        dark:border-white/10
-                        dark:bg-[#161b22]
-                    "
+                    text-slate-900
+
+                    dark:text-white
+                  "
                 >
+                  {displayName}
+                </p>
 
-                    <img
-                        src={avatarUrl}
+                {/* USERNAME */}
 
-                        alt={`${username} avatar`}
+                <p
+                  className="
+                    mt-0.5
 
-                        onError={
-                            handleUserImageError
-                        }
+                    truncate
 
-                        className="
-                            h-full
-                            w-full
-                            object-cover
-                        "
-                    />
+                    font-mono
+                    text-[10px]
 
-                    {/* AVATAR INNER RING */}
+                    text-indigo-600
 
-                    <span
-                        aria-hidden="true"
-
-                        className="
-                            pointer-events-none
-
-                            absolute
-                            inset-0
-
-                            rounded-full
-
-                            ring-1
-                            ring-inset
-
-                            ring-slate-900/[0.04]
-
-                            dark:ring-white/[0.04]
-                        "
-                    />
-
-                </span>
-
-                {/* ======================================
-                    USERNAME
-                ====================================== */}
-
-                <span
-                    className="
-                        hidden
-
-                        max-w-[110px]
-                        truncate
-
-                        text-[13px]
-                        font-semibold
-
-                        text-slate-700
-
-                        transition-colors
-                        duration-150
-
-                        group-hover/user:text-indigo-700
-
-                        md:block
-
-                        dark:text-gray-200
-                        dark:group-hover/user:text-indigo-200
-                    "
+                    dark:text-indigo-400
+                  "
                 >
-                    @{username}
-                </span>
+                  @{username}
+                </p>
 
-                {/* ======================================
-                    CHEVRON
-                ====================================== */}
+              </div>
+            </div>
 
-                <ChevronDown
-                    size={15}
-                    strokeWidth={2}
+            {/* ==================================
+                MENU LINKS
+            ================================== */}
 
-                    aria-hidden="true"
+            <div className="p-2">
 
-                    className={`
-                        hidden
+              {/* ==============================
+                  PROFILE
+              ============================== */}
 
-                        shrink-0
+              <Link
+                to={`/${username}/profile`}
 
-                        text-slate-500
+                onClick={closeMenu}
 
-                        transition-transform
-                        duration-150
+                className={`
+                  ${menuItemClass}
 
-                        sm:block
+                  text-slate-600
 
-                        dark:text-gray-600
+                  hover:bg-indigo-500/[0.08]
+                  hover:text-indigo-700
 
-                        ${
-                            openUserMenu
-                                ? "rotate-180"
-                                : ""
-                        }
+                  dark:text-gray-400
 
-                        motion-reduce:transition-none
-                    `}
+                  dark:hover:bg-indigo-500/10
+                  dark:hover:text-indigo-300
+                `}
+              >
+
+                <UserCircle
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden="true"
                 />
 
-            </button>
+                <span>
+                  Profilim
+                </span>
 
-            {/* ==========================================
-                USER DROPDOWN
-            ========================================== */}
+              </Link>
 
-            <AnimatePresence>
+              {/* ==============================
+                  MY PROFILE FRAMES — NEW
+              ============================== */}
+              {/*
+                Direct route to the authenticated
+                user's frame inventory.
+              */}
 
-                {openUserMenu && (
+              <Link
+                to="/frames/my"
 
-                    <motion.div
-                        id="fsociety-user-dropdown"
+                onClick={closeMenu}
 
-                        variants={
-                            dropdownVariants
-                        }
+                className={`
+                  ${menuItemClass}
 
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
+                  text-slate-600
 
-                        aria-label="Foydalanuvchi menyusi"
+                  hover:bg-violet-500/[0.08]
+                  hover:text-violet-700
 
-                        className="
-                            absolute
-                            right-0
-                            top-full
+                  dark:text-gray-400
 
-                            z-[60]
+                  dark:hover:bg-violet-500/10
+                  dark:hover:text-violet-300
+                `}
+              >
 
-                            mt-3
+                <Gem
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
 
-                            w-[260px]
-                            max-w-[calc(100vw-2rem)]
+                <span>
+                  Ramkalarim
+                </span>
 
-                            overflow-hidden
+              </Link>
 
-                            rounded-2xl
+              {/* ==============================
+                  MY PROBLEMS
+              ============================== */}
 
-                            border
-                            border-[#d8e1ee]
+              <Link
+                to="/my-problems"
 
-                            bg-[#f9fbff]/[0.98]
+                onClick={closeMenu}
 
-                            shadow-[0_20px_50px_rgba(30,41,59,0.14)]
+                className={`
+                  ${menuItemClass}
 
-                            dark:border-white/[0.07]
-                            dark:bg-[#11161e]/[0.98]
+                  text-slate-600
 
-                            dark:shadow-[0_25px_70px_rgba(0,0,0,0.55)]
-                        "
-                    >
+                  hover:bg-cyan-500/[0.07]
+                  hover:text-cyan-700
 
-                        {/* ==================================
-                            USER INFORMATION
-                        ================================== */}
+                  dark:text-gray-400
 
-                        <div
-                            className="
-                                flex
-                                items-center
-                                gap-3
+                  dark:hover:bg-cyan-400/[0.07]
+                  dark:hover:text-cyan-300
+                `}
+              >
 
-                                border-b
-                                border-[#e2e8f2]
+                <Bug
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
 
-                                bg-[#eef3fb]/70
+                <span>
+                  Muammolarim
+                </span>
 
-                                p-4
+              </Link>
 
-                                dark:border-white/[0.06]
-                                dark:bg-white/[0.02]
-                            "
-                        >
+              {/* ==============================
+                  FCOIN HISTORY
+              ============================== */}
 
-                            {/* AVATAR */}
+              <Link
+                to="/fcoin-history"
 
-                            <img
-                                src={avatarUrl}
+                onClick={closeMenu}
 
-                                alt={`${username} avatar`}
+                className={`
+                  ${menuItemClass}
 
-                                onError={
-                                    handleUserImageError
-                                }
+                  text-slate-600
 
-                                className="
-                                    h-11
-                                    w-11
+                  hover:bg-amber-400/[0.10]
+                  hover:text-amber-800
 
-                                    shrink-0
+                  dark:text-gray-400
 
-                                    rounded-full
+                  dark:hover:bg-amber-400/[0.07]
+                  dark:hover:text-amber-300
+                `}
+              >
 
-                                    border
-                                    border-[#d5deec]
+                <Coins
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
 
-                                    bg-[#e8edf6]
+                <span>
+                  FCoin tarixi
+                </span>
 
-                                    object-cover
+              </Link>
 
-                                    dark:border-white/10
-                                    dark:bg-[#161b22]
-                                "
-                            />
+              {/* ==============================
+                  DIVIDER
+              ============================== */}
 
-                            {/* USER DETAILS */}
+              <div
+                aria-hidden="true"
 
-                            <div
-                                className="
-                                    min-w-0
-                                    flex-1
-                                "
-                            >
+                className="
+                  my-2
+                  h-px
 
-                                {/* DISPLAY NAME */}
+                  bg-[#e2e8f2]
 
-                                <p
-                                    className="
-                                        truncate
+                  dark:bg-white/[0.05]
+                "
+              />
 
-                                        text-[14px]
-                                        font-bold
+              {/* ==============================
+                  LOGOUT
+              ============================== */}
 
-                                        text-slate-900
+              <button
+                type="button"
 
-                                        dark:text-white
-                                    "
-                                >
-                                    {displayName}
-                                </p>
+                onClick={handleLogout}
 
-                                {/* USERNAME */}
+                className={`
+                  ${menuItemClass}
 
-                                <p
-                                    className="
-                                        mt-0.5
+                  text-left
 
-                                        truncate
+                  text-red-600
 
-                                        font-mono
-                                        text-[10px]
+                  hover:bg-red-500/[0.08]
+                  hover:text-red-700
 
-                                        text-indigo-600
+                  dark:text-red-400
 
-                                        dark:text-indigo-400
-                                    "
-                                >
-                                    @{username}
-                                </p>
+                  dark:hover:bg-red-500/[0.08]
+                  dark:hover:text-red-300
+                `}
+              >
 
-                            </div>
+                <LogOut
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
 
-                        </div>
+                <span>
+                  Chiqish
+                </span>
 
-                        {/* ==================================
-                            MENU LINKS
-                        ================================== */}
+              </button>
 
-                        <div className="p-2">
+            </div>
 
-                            {/* ==============================
-                                PROFILE
-                            ============================== */}
+          </motion.div>
 
-                            <Link
-                                to={`/${username}/profile`}
+        )}
 
-                                onClick={closeMenu}
+      </AnimatePresence>
 
-                                className={`
-                                    ${menuItemClass}
-
-                                    text-slate-600
-
-                                    hover:bg-indigo-500/[0.08]
-                                    hover:text-indigo-700
-
-                                    dark:text-gray-400
-
-                                    dark:hover:bg-indigo-500/10
-                                    dark:hover:text-indigo-300
-                                `}
-                            >
-
-                                <UserCircle
-                                    size={18}
-                                    strokeWidth={2}
-                                    aria-hidden="true"
-                                />
-
-                                <span>
-                                    Profilim
-                                </span>
-
-                            </Link>
-
-                            {/* ==============================
-                                MY PROBLEMS
-                            ============================== */}
-
-                            <Link
-                                to="/my-problems"
-
-                                onClick={closeMenu}
-
-                                className={`
-                                    ${menuItemClass}
-
-                                    text-slate-600
-
-                                    hover:bg-cyan-500/[0.07]
-                                    hover:text-cyan-700
-
-                                    dark:text-gray-400
-
-                                    dark:hover:bg-cyan-400/[0.07]
-                                    dark:hover:text-cyan-300
-                                `}
-                            >
-
-                                <Bug
-                                    size={18}
-                                    strokeWidth={2}
-                                    aria-hidden="true"
-                                />
-
-                                <span>
-                                    Muammolarim
-                                </span>
-
-                            </Link>
-
-                            {/* ==============================
-                                FCOIN HISTORY
-                            ============================== */}
-
-                            <Link
-                                to="/fcoin-history"
-
-                                onClick={closeMenu}
-
-                                className={`
-                                    ${menuItemClass}
-
-                                    text-slate-600
-
-                                    hover:bg-amber-400/[0.10]
-                                    hover:text-amber-800
-
-                                    dark:text-gray-400
-
-                                    dark:hover:bg-amber-400/[0.07]
-                                    dark:hover:text-amber-300
-                                `}
-                            >
-
-                                <Coins
-                                    size={18}
-                                    strokeWidth={2}
-                                    aria-hidden="true"
-                                />
-
-                                <span>
-                                    FCoin tarixi
-                                </span>
-
-                            </Link>
-
-                            {/* ==============================
-                                DIVIDER
-                            ============================== */}
-
-                            <div
-                                aria-hidden="true"
-
-                                className="
-                                    my-2
-                                    h-px
-
-                                    bg-[#e2e8f2]
-
-                                    dark:bg-white/[0.05]
-                                "
-                            />
-
-                            {/* ==============================
-                                LOGOUT
-                            ============================== */}
-
-                            <button
-                                type="button"
-
-                                onClick={handleLogout}
-
-                                className={`
-                                    ${menuItemClass}
-
-                                    text-left
-
-                                    text-red-600
-
-                                    hover:bg-red-500/[0.08]
-                                    hover:text-red-700
-
-                                    dark:text-red-400
-
-                                    dark:hover:bg-red-500/[0.08]
-                                    dark:hover:text-red-300
-                                `}
-                            >
-
-                                <LogOut
-                                    size={18}
-                                    strokeWidth={2}
-                                    aria-hidden="true"
-                                />
-
-                                <span>
-                                    Chiqish
-                                </span>
-
-                            </button>
-
-                        </div>
-
-                    </motion.div>
-
-                )}
-
-            </AnimatePresence>
-
-        </div>
-    );
+    </div>
+  );
 };
 
 // =========================================================

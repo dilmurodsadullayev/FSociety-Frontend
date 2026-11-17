@@ -47,6 +47,30 @@ import {
 } from "./components";
 
 // =========================================================
+// FSOCIETY — PROFILE FRAMES
+// =========================================================
+//
+// FrameShop:
+// Public catalog.
+//
+// MyFrames:
+// Authenticated user inventory.
+//
+// FrameVaultNavigation:
+// Shared navigation between shop and inventory.
+//
+// Direct imports preserve the existing
+// src/components/index.js export structure.
+//
+// =========================================================
+
+import FrameShop from "./components/frame-shop/FrameShop";
+
+import MyFrames from "./components/frame-shop/MyFrames";
+
+import FrameVaultNavigation from "./components/frame-shop/FrameVaultNavigation";
+
+// =========================================================
 // SERVICES
 // =========================================================
 
@@ -118,6 +142,9 @@ import WinterBackground from "./components/ui/winter/WinterBackground";
 // - Authentication bootstrap
 // - Protected routes
 // - Public authentication pages
+// - Public Frame Shop catalog
+// - Private My Frames collection
+// - Shared Frame Vault navigation
 // - OAuth callback
 // - WebSocket notifications
 // - Forced logout handling
@@ -139,6 +166,19 @@ import WinterBackground from "./components/ui/winter/WinterBackground";
 // WinterBackground is rendered ONCE globally.
 //
 // Snowfall is rendered globally through AppInner.
+//
+// Frame Shop:
+//
+// - Guests can browse.
+// - Purchases require authentication.
+// - The existing universal purchase confirmation
+//   modal is used in FrameShop.
+//
+// My Frames:
+//
+// - Requires authentication.
+// - Equip / Unequip operations are handled by
+//   the existing MyFrames component and Redux.
 //
 // =========================================================
 
@@ -311,9 +351,30 @@ const PublicAuthPage = ({ children }) => {
 // Background is inherited from the global
 // WinterBackground component.
 //
+// requireAuth:
+//
+// true:
+// Existing application pages remain protected.
+//
+// false:
+// Public Frame Shop layout.
+//
+// showFrameNavigation:
+//
+// false:
+// Standard application layout.
+//
+// true:
+// Show Frame Vault navigation above page content.
+//
+// All existing pages retain their original layout.
+//
 // =========================================================
 
-const AppLayout = () => {
+const AppLayout = ({
+  requireAuth = true,
+  showFrameNavigation = false,
+}) => {
 
   // =====================================================
   // THEME CONTEXT
@@ -327,21 +388,81 @@ const AppLayout = () => {
   const isDarkMode = isDark;
 
   // =====================================================
-  // RENDER
+  // SHARED LAYOUT
+  // =====================================================
+  //
+  // The Navbar / Footer / Outlet structure
+  // remains identical to the existing code.
+  //
+  // Frame Vault navigation is only rendered
+  // when the dedicated frames layout requests it.
+  //
   // =====================================================
 
-  return (
-    <PrivateRoute>
+  const layout = (
+    <div
+      className="
+        relative
+        z-10
+
+        flex min-h-screen
+        min-h-[100dvh]
+
+        w-full min-w-0
+        flex-col
+
+        bg-transparent
+        text-gray-800
+
+        dark:bg-transparent
+        dark:text-gray-200
+
+        transition-colors
+        duration-300
+
+        motion-reduce:transition-none
+      "
+    >
+
+      {/* =====================================
+          NAVBAR
+      ===================================== */}
+
+      <Navbar
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
+      />
+
+
+      {/* =====================================
+          FRAME VAULT NAVIGATION
+      ===================================== */}
+      {/*
+        Visible only inside /frames routes.
+
+        Provides:
+        - Frame Shop
+        - My Frames
+        - Active route indicator
+        - Responsive cyberpunk navigation
+
+        My Frames remains protected independently
+        by its nested PrivateRoute.
+      */}
+
+      {showFrameNavigation && (
+        <FrameVaultNavigation />
+      )}
+
+
+      {/* =====================================
+          MAIN CONTENT
+      ===================================== */}
+
       <div
         className="
-          relative
-          z-10
-
-          flex min-h-screen
-          min-h-[100dvh]
-
-          w-full min-w-0
-          flex-col
+          min-w-0
+          flex-grow
 
           bg-transparent
           text-gray-800
@@ -355,51 +476,50 @@ const AppLayout = () => {
           motion-reduce:transition-none
         "
       >
-
-        {/* =====================================
-            NAVBAR
-        ===================================== */}
-
-        <Navbar
-          isDarkMode={isDarkMode}
-          toggleTheme={toggleTheme}
-        />
-
-
-        {/* =====================================
-            MAIN CONTENT
-        ===================================== */}
-
-        <div
-          className="
-            min-w-0
-            flex-grow
-
-            bg-transparent
-            text-gray-800
-
-            dark:bg-transparent
-            dark:text-gray-200
-
-            transition-colors
-            duration-300
-
-            motion-reduce:transition-none
-          "
-        >
-          <Outlet />
-        </div>
-
-
-        {/* =====================================
-            FOOTER
-        ===================================== */}
-
-        <Footer />
-
+        <Outlet />
       </div>
-    </PrivateRoute>
+
+
+      {/* =====================================
+          FOOTER
+      ===================================== */}
+
+      <Footer />
+
+    </div>
   );
+
+  // =====================================================
+  // PROTECTED APPLICATION LAYOUT
+  // =====================================================
+  //
+  // Existing routes continue to use PrivateRoute.
+  //
+  // =====================================================
+
+  if (requireAuth) {
+    return (
+      <PrivateRoute>
+        {layout}
+      </PrivateRoute>
+    );
+  }
+
+  // =====================================================
+  // PUBLIC APPLICATION LAYOUT
+  // =====================================================
+  //
+  // Used by:
+  //
+  // /frames/shop
+  // /frames/my
+  //
+  // Individual private child routes can still
+  // wrap their element in PrivateRoute.
+  //
+  // =====================================================
+
+  return layout;
 };
 
 
@@ -447,7 +567,9 @@ function AppContent() {
       ++authGenerationRef.current;
 
       // Clear Redux authentication.
-      dispatch(logoutUser());
+      dispatch(
+        logoutUser()
+      );
 
       // Disconnect notification socket.
       dispatch(
@@ -686,6 +808,74 @@ function AppContent() {
 
 
       {/* ==========================================
+          PROFILE FRAMES — FRAME VAULT
+      ========================================== */}
+      {/*
+        FSOCIETY FRAME VAULT
+
+        Shared layout:
+        Navbar + FrameVaultNavigation + Outlet + Footer
+
+        Public:
+        /frames/shop
+
+        Private:
+        /frames/my
+
+        Authentication:
+
+        - Shop can be browsed by guests.
+        - Purchases require JWT authentication.
+        - My Frames requires authentication.
+        - Inventory API permissions are enforced
+          independently by the Django backend.
+
+        Existing PurchaseConfirmationModal is used
+        by FrameShop during purchases.
+
+        WinterBackground and Snowfall are inherited
+        from AppInner for both pages.
+      */}
+
+      <Route
+        path="/frames"
+        element={
+          <AppLayout
+            requireAuth={false}
+            showFrameNavigation
+          />
+        }
+      >
+
+        {/* ======================================
+            FRAME SHOP — PUBLIC
+        ====================================== */}
+
+        <Route
+          path="shop"
+          element={
+            <FrameShop />
+          }
+        />
+
+
+        {/* ======================================
+            MY FRAMES — PRIVATE
+        ====================================== */}
+
+        <Route
+          path="my"
+          element={
+            <PrivateRoute>
+              <MyFrames />
+            </PrivateRoute>
+          }
+        />
+
+      </Route>
+
+
+      {/* ==========================================
           PROTECTED APPLICATION
       ========================================== */}
 
@@ -876,6 +1066,9 @@ function AppContent() {
 // - Uses the existing ThemeContext dark class.
 // - Shows the original PageGridBackground when disabled.
 //
+// Frame Shop and My Frames both inherit
+// the same global background.
+//
 // =========================================================
 
 const AppInner = () => {
@@ -1000,6 +1193,8 @@ const AppInner = () => {
             - Login
             - Register
             - OAuth callback
+            - Frame Shop
+            - My Frames
             - Not found
 
             Actual animation depends on

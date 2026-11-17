@@ -1,6 +1,10 @@
+
 // src/components/profile/hero/ProfileHeroIdentity.jsx
 
-import React, { memo, useState } from "react";
+import React, {
+    memo,
+    useState,
+} from "react";
 
 import {
     Briefcase,
@@ -14,6 +18,23 @@ import UserImage from "../../../assests/userImage.jpeg";
 import {
     getSkillBadgeClass,
 } from "../profileHelpers";
+
+// =========================================================
+// FSOCIETY — PROFILE AVATAR FRAME
+// =========================================================
+//
+// New:
+// Public equipped frame overlay.
+//
+// - Real profile frame image
+// - Rarity glow
+// - Santa Hat support
+// - Public profile visibility
+// - No changes to existing avatar dimensions
+//
+// =========================================================
+
+import ProfileAvatarFrame from "./ProfileAvatarFrame";
 
 // =========================================================
 // GET USER INITIALS
@@ -31,7 +52,10 @@ const getInitials = (name) => {
 
     return parts
         .slice(0, 2)
-        .map((part) => part.charAt(0).toUpperCase())
+        .map(
+            (part) =>
+                part.charAt(0).toUpperCase()
+        )
         .join("");
 };
 
@@ -46,17 +70,35 @@ const getInitials = (name) => {
 // Position:
 // - Mobile: -56px
 // - Desktop: -64px
+//
+// New:
+//
+// ProfileAvatarFrame is displayed on top of
+// the existing avatar.
+//
+// The existing avatar size stays unchanged:
+//
+// - Mobile: 96px
+// - Desktop: 128px
+//
+// FSociety membership badge stays visible.
+//
 // =========================================================
 
 const ProfileAvatar = memo(function ProfileAvatar({
     image,
     fullName,
+    username,
 }) {
-    const [primaryFailed, setPrimaryFailed] =
-        useState(false);
+    const [
+        primaryFailed,
+        setPrimaryFailed,
+    ] = useState(false);
 
-    const [fallbackFailed, setFallbackFailed] =
-        useState(false);
+    const [
+        fallbackFailed,
+        setFallbackFailed,
+    ] = useState(false);
 
     // =====================================================
     // IMAGE SOURCE
@@ -97,7 +139,9 @@ const ProfileAvatar = memo(function ProfileAvatar({
                 sm:-mt-16
             "
         >
-            {/* AVATAR GLOW */}
+            {/* =====================================
+                AVATAR GLOW
+            ===================================== */}
 
             <span
                 aria-hidden="true"
@@ -111,7 +155,9 @@ const ProfileAvatar = memo(function ProfileAvatar({
                 "
             />
 
-            {/* AVATAR IMAGE */}
+            {/* =====================================
+                AVATAR IMAGE
+            ===================================== */}
 
             {showImage ? (
                 <img
@@ -172,7 +218,46 @@ const ProfileAvatar = memo(function ProfileAvatar({
                 </div>
             )}
 
-            {/* FSOCIETY MEMBERSHIP BADGE */}
+            {/* =====================================
+                PROFILE FRAME OVERLAY — NEW
+            ===================================== */}
+            {/*
+                The frame is fetched from:
+
+                GET /api/users/:username/equipped-frame/
+
+                It is decorative and does not replace
+                the existing avatar image.
+
+                The 600x600 transparent PNG scales
+                over the existing avatar dimensions.
+
+                Santa Hat:
+                - Positioned above avatar by PNG
+                - Never rotated
+                - Glow can animate
+
+                Public profile:
+                - Owner sees equipped frame
+                - Visitors see equipped frame
+                - No frame means normal avatar
+            */}
+
+            {username && (
+                <ProfileAvatarFrame
+                    username={username}
+                />
+            )}
+
+            {/* =====================================
+                FSOCIETY MEMBERSHIP BADGE
+            ===================================== */}
+            {/*
+                Existing badge preserved.
+
+                z-40 makes the badge remain visible
+                above the decorative frame layer.
+            */}
 
             <span
                 title="FSociety a’zosi"
@@ -180,6 +265,7 @@ const ProfileAvatar = memo(function ProfileAvatar({
                 className="
                     absolute
                     bottom-1 right-0
+                    z-40
 
                     flex h-7 w-7
                     items-center
@@ -208,6 +294,7 @@ const ProfileAvatar = memo(function ProfileAvatar({
 // PROFILE HERO IDENTITY
 //
 // - Avatar
+// - Equipped Profile Frame — NEW
 // - Full Name
 // - Username
 // - Skill Level
@@ -216,19 +303,36 @@ const ProfileAvatar = memo(function ProfileAvatar({
 // - Location
 //
 // Layout:
+//
 // Avatar and text are raised by approximately 8px
 // compared with the previous version.
+//
+// No changes to the existing content layout.
+//
 // =========================================================
 
 const ProfileHeroIdentity = ({
     currentUser,
 }) => {
-    const user = currentUser || {};
+    // =====================================================
+    // SAFE USER DATA
+    // =====================================================
+
+    const user =
+        currentUser || {};
+
+    // =====================================================
+    // DISPLAY NAME
+    // =====================================================
 
     const displayName =
         user.fullName ||
         user.username ||
         "Foydalanuvchi";
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
         <div
@@ -250,6 +354,7 @@ const ProfileHeroIdentity = ({
                 }`}
                 image={user.profileImage}
                 fullName={displayName}
+                username={user.username}
             />
 
             {/* =====================================
@@ -260,6 +365,8 @@ const ProfileHeroIdentity = ({
 
                 Now:
                 pt-1 sm:pt-2
+
+                Preserved from the existing design.
             ====================================== */}
 
             <div
@@ -271,7 +378,9 @@ const ProfileHeroIdentity = ({
                     sm:pt-2
                 "
             >
-                {/* NAME + SKILL LEVEL */}
+                {/* =====================================
+                    NAME + SKILL LEVEL
+                ====================================== */}
 
                 <div
                     className="
@@ -280,6 +389,8 @@ const ProfileHeroIdentity = ({
                         gap-2
                     "
                 >
+                    {/* NAME */}
+
                     <h1
                         className="
                             max-w-full
@@ -346,7 +457,9 @@ const ProfileHeroIdentity = ({
                     )}
                 </div>
 
-                {/* USERNAME */}
+                {/* =====================================
+                    USERNAME
+                ====================================== */}
 
                 {user.username && (
                     <p
@@ -384,7 +497,9 @@ const ProfileHeroIdentity = ({
                         sm:mt-3 sm:text-sm
                     "
                 >
-                    {/* POSITION */}
+                    {/* =====================================
+                        POSITION
+                    ====================================== */}
 
                     <span
                         className="
@@ -414,7 +529,9 @@ const ProfileHeroIdentity = ({
                         </span>
                     </span>
 
-                    {/* COMPANY */}
+                    {/* =====================================
+                        COMPANY
+                    ====================================== */}
 
                     <span
                         className="
@@ -444,7 +561,9 @@ const ProfileHeroIdentity = ({
                         </span>
                     </span>
 
-                    {/* LOCATION */}
+                    {/* =====================================
+                        LOCATION
+                    ====================================== */}
 
                     <span
                         className="
@@ -478,5 +597,9 @@ const ProfileHeroIdentity = ({
         </div>
     );
 };
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default memo(ProfileHeroIdentity);
