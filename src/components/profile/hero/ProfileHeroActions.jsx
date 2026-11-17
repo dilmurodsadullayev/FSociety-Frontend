@@ -1,323 +1,484 @@
-// src/components/profile/hero/ProfileHeroActions.jsx
 
 import React, { memo } from "react";
 
+import { Link } from "react-router-dom";
+
 import {
-    Bot,
-    CheckCircle2,
-    Image as ImageIcon,
-    Loader2,
-    Pencil,
+  Bot,
+  CheckCircle2,
+  Gem,
+  Loader2,
+  Pencil,
+  ShoppingBag,
 } from "lucide-react";
 
 // =========================================================
-// SHARED BUTTON STYLES
+// FSOCIETY — PROFILE HERO ACTIONS
+// =========================================================
+//
+// Location:
+// src/components/profile/hero/ProfileHeroActions.jsx
+//
+// Features:
+// - Telegram bot connection
+// - Telegram linked state
+// - Profile editing
+// - My Frames navigation
+// - Frame Shop navigation
+// - Profile owner permission
+// - Desktop single-row layout
+// - Mobile responsive 2x2 layout
+// - Dark / Light mode
+// - Accessible buttons
+//
+// IMPORTANT:
+//
+// Cover image edit button has been removed from
+// this action group.
+//
+// Cover editing remains available through
+// the separate button on the profile cover.
+//
+// Original callback contracts are preserved.
+//
 // =========================================================
 
-const BUTTON_BASE = `
-    inline-flex min-h-10 min-w-0
-    items-center justify-center gap-2
+// =========================================================
+// SHARED BUTTON BASE
+// =========================================================
 
-    rounded-xl border
-    px-3 py-2.5
+const BUTTON_BASE = [
+  "inline-flex",
+  "min-h-10",
+  "min-w-0",
+  "shrink-0",
+  "items-center",
+  "justify-center",
+  "gap-1.5",
+  "whitespace-nowrap",
+  "rounded-xl",
+  "border",
+  "px-2.5",
+  "py-2",
+  "text-[11px]",
+  "font-bold",
+  "shadow-sm",
+  "transition-[background-color,border-color,color,box-shadow]",
+  "duration-200",
+  "focus-visible:outline-none",
+  "focus-visible:ring-2",
+  "focus-visible:ring-indigo-500/60",
+  "focus-visible:ring-offset-2",
+  "disabled:cursor-not-allowed",
+  "disabled:opacity-50",
+  "motion-reduce:transition-none",
+].join(" ");
 
-    text-xs font-bold
-    shadow-sm
-
-    transition-colors
-
-    focus-visible:outline-none
-    focus-visible:ring-2
-    focus-visible:ring-indigo-500/60
-
-    disabled:cursor-not-allowed
-    disabled:opacity-50
-
-    sm:px-4
-    sm:text-sm
-`;
+// =========================================================
+// BUTTON COLORS
+// =========================================================
 
 const BUTTON_TONES = {
-    neutral: `
-        border-slate-200
-        bg-white/90
-        text-slate-700
+  neutral: `
+    border-slate-200
+    bg-white/90
+    text-slate-700
 
-        hover:bg-slate-100
+    hover:border-slate-300
+    hover:bg-slate-100
 
-        dark:border-white/15
-        dark:bg-white/[0.07]
-        dark:text-slate-100
+    dark:border-white/15
+    dark:bg-white/[0.07]
+    dark:text-slate-100
 
-        dark:hover:bg-white/[0.12]
-    `,
+    dark:hover:border-white/20
+    dark:hover:bg-white/[0.12]
+  `,
 
-    pink: `
-        border-pink-500/30
-        bg-pink-600
-        text-white
+  linked: `
+    border-emerald-300
+    bg-emerald-50
+    text-emerald-800
 
-        hover:bg-pink-500
+    hover:border-emerald-400
+    hover:bg-emerald-100
 
-        dark:border-pink-500/40
-    `,
+    dark:border-emerald-400/25
+    dark:bg-emerald-500/10
+    dark:text-emerald-300
 
-    linked: `
-        border-emerald-300
-        bg-emerald-50
-        text-emerald-800
+    dark:hover:bg-emerald-500/15
+  `,
 
-        hover:bg-emerald-100
+  pink: `
+    border-pink-500/30
+    bg-pink-600
+    text-white
 
-        dark:border-emerald-400/25
-        dark:bg-emerald-500/10
-        dark:text-emerald-300
+    hover:border-pink-500
+    hover:bg-pink-500
 
-        dark:hover:bg-emerald-500/15
-    `,
+    dark:border-pink-500/40
+    dark:bg-pink-600
+
+    dark:hover:bg-pink-500
+  `,
+
+  vault: `
+    border-violet-300
+    bg-violet-50
+    text-violet-800
+
+    hover:border-violet-400
+    hover:bg-violet-100
+
+    dark:border-violet-400/30
+    dark:bg-violet-500/10
+    dark:text-violet-200
+
+    dark:hover:border-violet-400/50
+    dark:hover:bg-violet-500/20
+  `,
+
+  shop: `
+    border-cyan-500/30
+    bg-cyan-600
+    text-white
+
+    hover:border-cyan-400
+    hover:bg-cyan-500
+
+    dark:border-cyan-400/35
+    dark:bg-cyan-500/20
+    dark:text-cyan-100
+
+    dark:hover:border-cyan-400/50
+    dark:hover:bg-cyan-500/30
+  `,
 };
 
 // =========================================================
-// REUSABLE ACTION BUTTON
+// BUTTON COMPONENT
 // =========================================================
 
 const ActionButton = memo(function ActionButton({
-    children,
-    onClick,
-    disabled = false,
-    tone = "neutral",
-    label,
-    className = "",
+  children,
+  onClick,
+  disabled = false,
+  tone = "neutral",
+  label,
+  className = "",
 }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={
-                disabled ||
-                typeof onClick !== "function"
-            }
-            aria-label={label}
-            className={`
-                ${BUTTON_BASE}
+  const isDisabled =
+    disabled ||
+    typeof onClick !== "function";
 
-                ${
-                    BUTTON_TONES[tone] ||
-                    BUTTON_TONES.neutral
-                }
-
-                ${className}
-            `}
-        >
-            {children}
-        </button>
-    );
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isDisabled}
+      aria-label={label}
+      className={`
+        ${BUTTON_BASE}
+        ${BUTTON_TONES[tone] || BUTTON_TONES.neutral}
+        ${className}
+      `}
+    >
+      {children}
+    </button>
+  );
 });
 
 // =========================================================
-// PROFILE HERO ACTIONS
+// NAVIGATION LINK COMPONENT
+// =========================================================
 //
-// Responsibilities:
+// Uses React Router to avoid page reloads.
 //
-// - Telegram bot connection
-// - Telegram connected state
-// - Telegram loading state
-// - Cover image editing
-// - Profile editing
-// - Owner permissions
-// - Desktop / Mobile layout
-// - Light / Dark Mode
-//
-// Original callbacks preserved:
-//
-// onConnectTelegram
-// onEditCover
-// onEditProfile
+// =========================================================
+
+const ActionLink = memo(function ActionLink({
+  children,
+  to,
+  tone = "neutral",
+  label,
+  className = "",
+}) {
+  return (
+    <Link
+      to={to}
+      aria-label={label}
+      className={`
+        ${BUTTON_BASE}
+        ${BUTTON_TONES[tone] || BUTTON_TONES.neutral}
+        ${className}
+      `}
+    >
+      {children}
+    </Link>
+  );
+});
+
+// =========================================================
+// MAIN PROFILE HERO ACTIONS
 // =========================================================
 
 const ProfileHeroActions = ({
-    isOwner = false,
+  isOwner = false,
 
-    botLoading = false,
-    isTelegramLinked = false,
+  botLoading = false,
+  isTelegramLinked = false,
 
-    onConnectTelegram,
-    onEditCover,
-    onEditProfile,
+  onConnectTelegram,
+  onEditCover,
+  onEditProfile,
 
-    variant = "desktop",
+  variant = "desktop",
 }) => {
-    // =====================================================
-    // OWNER PERMISSION
-    // =====================================================
+  // =====================================================
+  // PERMISSIONS
+  // =====================================================
+  //
+  // Only profile owner can access these controls.
+  //
+  // =====================================================
 
-    if (!isOwner) {
-        return null;
-    }
+  if (!isOwner) {
+    return null;
+  }
 
-    // =====================================================
-    // RESPONSIVE VARIANT
-    // =====================================================
+  // =====================================================
+  // MOBILE / DESKTOP
+  // =====================================================
 
-    const isMobile = variant === "mobile";
+  const isMobile = variant === "mobile";
 
-    // =====================================================
-    // TELEGRAM STATUS
-    // =====================================================
+  // =====================================================
+  // TELEGRAM DATA
+  // =====================================================
 
-    const telegramTone = isTelegramLinked
-        ? "linked"
-        : "neutral";
+  const telegramTone = isTelegramLinked
+    ? "linked"
+    : "neutral";
 
-    const BotIcon = botLoading
-        ? Loader2
-        : isTelegramLinked
-            ? CheckCircle2
-            : Bot;
+  const BotIcon = botLoading
+    ? Loader2
+    : isTelegramLinked
+      ? CheckCircle2
+      : Bot;
 
-    const telegramLabel = isTelegramLinked
-        ? "Telegram bot ulangan"
-        : "Telegram botni ulash";
+  const telegramLabel = botLoading
+    ? "Telegram tekshirilmoqda"
+    : isTelegramLinked
+      ? "Telegram bot ulangan"
+      : "Telegram botni ulash";
 
-    // =====================================================
-    // RENDER
-    // =====================================================
+  // =====================================================
+  // SHARED RESPONSIVE STYLE
+  // =====================================================
 
-    return (
-        <div
-            role="group"
-            aria-label="Profilni boshqarish"
-            className={
-                isMobile
-                    ? `
-                        mt-4 grid min-w-0
-                        grid-cols-3 gap-2
-                        xl:hidden
-                    `
-                    : `
-                        hidden shrink-0
-                        flex-wrap items-center
-                        justify-end gap-2
+  const actionClass = isMobile
+    ? `
+      w-full
+      min-w-0
+      !shrink
+      px-2
+      sm:px-3
+    `
+    : `
+      shrink-0
+    `;
 
-                        xl:mt-4
-                        xl:flex
-                    `
+  const labelClass = isMobile
+    ? "min-w-0 truncate"
+    : "whitespace-nowrap";
+
+  const iconSize = isMobile ? 16 : 15;
+
+  // =====================================================
+  // RESPONSIVE CONTAINER
+  // =====================================================
+  //
+  // MOBILE:
+  //
+  // [ Telegram    ] [ Frame Shop  ]
+  // [ Tahrirlash  ] [ Ramkalarim  ]
+  //
+  // DESKTOP:
+  //
+  // Telegram | Frame Shop | Tahrirlash | Ramkalarim
+  //
+  // All four actions remain on one desktop row.
+  //
+  // =====================================================
+
+  const containerClass = isMobile
+    ? `
+      mt-4
+      grid
+      w-full
+      min-w-0
+      grid-cols-2
+      gap-2
+
+      md:grid-cols-4
+
+      xl:hidden
+    `
+    : `
+      hidden
+      min-w-0
+      shrink-0
+
+      xl:mt-4
+      xl:flex
+      xl:flex-nowrap
+      xl:items-center
+      xl:justify-end
+      xl:gap-2
+    `;
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+
+  return (
+    <div
+      role="group"
+      aria-label="Profilni boshqarish"
+      className={containerClass}
+    >
+      {/* ==========================================
+          1. TELEGRAM BOT
+      ========================================== */}
+
+      <ActionButton
+        tone={telegramTone}
+        onClick={onConnectTelegram}
+        disabled={botLoading}
+        label={telegramLabel}
+        className={actionClass}
+      >
+        <BotIcon
+          size={iconSize}
+          strokeWidth={2}
+          aria-hidden="true"
+          className={`
+            shrink-0
+
+            ${
+              botLoading
+                ? "animate-spin motion-reduce:animate-none"
+                : ""
             }
-        >
-            {/* =====================================
-                TELEGRAM BOT BUTTON
-            ====================================== */}
+          `}
+        />
 
-            <ActionButton
-                tone={telegramTone}
-                onClick={onConnectTelegram}
-                disabled={botLoading}
-                label={telegramLabel}
-                className={
-                    isMobile
-                        ? "w-full px-1.5 sm:px-3"
-                        : ""
-                }
-            >
-                <BotIcon
-                    size={isMobile ? 16 : 17}
-                    aria-hidden="true"
-                    className={`
-                        shrink-0
+        <span className={labelClass}>
+          {botLoading
+            ? "Kutilmoqda"
+            : isTelegramLinked
+              ? "Bot ulangan"
+              : "Botni ulash"}
+        </span>
+      </ActionButton>
 
-                        ${
-                            botLoading
-                                ? "animate-spin motion-reduce:animate-none"
-                                : ""
-                        }
-                    `}
-                />
+      {/* ==========================================
+          2. FRAME SHOP
+      ========================================== */}
+      {/*
+        REPLACES THE OLD "FON RASMI" BUTTON.
 
-                <span
-                    className={
-                        isMobile
-                            ? "min-w-0 truncate"
-                            : "whitespace-nowrap"
-                    }
-                >
-                    {botLoading
-                        ? (
-                            isMobile
-                                ? "Kutilmoqda"
-                                : "Tekshirilmoqda"
-                        )
-                        : isTelegramLinked
-                            ? (
-                                isMobile
-                                    ? "Ulangan"
-                                    : "Bot ulangan"
-                            )
-                            : "Botni ulash"}
-                </span>
-            </ActionButton>
+        The Frame Shop is now on the same
+        row as all the other actions.
 
-            {/* =====================================
-                COVER IMAGE EDIT BUTTON
-            ====================================== */}
+        Original route:
+        /frames/shop
 
-            <ActionButton
-                onClick={onEditCover}
-                label="Fon rasmini tahrirlash"
-                className={
-                    isMobile
-                        ? "w-full px-1.5 sm:px-3"
-                        : ""
-                }
-            >
-                <ImageIcon
-                    size={isMobile ? 16 : 17}
-                    className="shrink-0"
-                    aria-hidden="true"
-                />
+        No reload.
+      */}
 
-                <span
-                    className={
-                        isMobile
-                            ? "min-w-0 truncate"
-                            : "whitespace-nowrap"
-                    }
-                >
-                    Fon rasmi
-                </span>
-            </ActionButton>
+      <ActionLink
+        to="/frames/shop"
+        tone="shop"
+        label="Frame Shop — yangi ramkalarni ko‘rish"
+        className={actionClass}
+      >
+        <ShoppingBag
+          size={iconSize}
+          strokeWidth={2}
+          className="shrink-0"
+          aria-hidden="true"
+        />
 
-            {/* =====================================
-                PROFILE EDIT BUTTON
-            ====================================== */}
+        <span className={labelClass}>
+          Frame Shop
+        </span>
+      </ActionLink>
 
-            <ActionButton
-                tone="pink"
-                onClick={onEditProfile}
-                label="Profilni tahrirlash"
-                className={
-                    isMobile
-                        ? "w-full px-1.5 sm:px-3"
-                        : ""
-                }
-            >
-                <Pencil
-                    size={isMobile ? 16 : 17}
-                    className="shrink-0"
-                    aria-hidden="true"
-                />
+      {/* ==========================================
+          3. EDIT PROFILE
+      ========================================== */}
+      {/*
+        Existing profile edit callback preserved.
 
-                <span
-                    className={
-                        isMobile
-                            ? "min-w-0 truncate"
-                            : "whitespace-nowrap"
-                    }
-                >
-                    Tahrirlash
-                </span>
-            </ActionButton>
-        </div>
-    );
+        This button opens the same profile
+        editing modal as before.
+      */}
+
+      <ActionButton
+        tone="pink"
+        onClick={onEditProfile}
+        label="Profilni tahrirlash"
+        className={actionClass}
+      >
+        <Pencil
+          size={iconSize}
+          strokeWidth={2}
+          className="shrink-0"
+          aria-hidden="true"
+        />
+
+        <span className={labelClass}>
+          Tahrirlash
+        </span>
+      </ActionButton>
+
+      {/* ==========================================
+          4. MY FRAMES
+      ========================================== */}
+      {/*
+        Private profile frame inventory.
+
+        Original route:
+        /frames/my
+
+        User can:
+        - View owned frames
+        - Equip a frame
+        - Unequip a frame
+      */}
+
+      <ActionLink
+        to="/frames/my"
+        tone="vault"
+        label="Mening profil ramkalarim"
+        className={actionClass}
+      >
+        <Gem
+          size={iconSize}
+          strokeWidth={2}
+          className="shrink-0"
+          aria-hidden="true"
+        />
+
+        <span className={labelClass}>
+          Ramkalarim
+        </span>
+      </ActionLink>
+    </div>
+  );
 };
 
 // =========================================================
