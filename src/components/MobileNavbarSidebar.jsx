@@ -21,12 +21,15 @@ import {
   Bug,
   ChevronRight,
   Coins,
+  Gem,
   LogIn,
   LogOut,
   ShieldCheck,
   UserCircle,
   X,
 } from "lucide-react";
+
+import NavbarFramedAvatar from "./navbar/NavbarFramedAvatar";
 
 import FSocietyLogo from "../assests/logo/f_society.png";
 import UserImage from "../assests/userImage.jpeg";
@@ -187,17 +190,6 @@ const SECTION_LABEL_CLASS = `
   text-slate-500
   dark:text-slate-400
 `;
-
-// =========================================================
-// AVATAR FALLBACK
-// =========================================================
-
-const handleAvatarError = (event) => {
-  const image = event.currentTarget;
-
-  image.onerror = null;
-  image.src = UserImage;
-};
 
 // =========================================================
 // MAIN COMPONENT
@@ -729,32 +721,20 @@ function MobileNavbarSidebar({
                     dark:bg-white/[0.035]
                   "
                 >
-                  {/* AVATAR */}
+                  {/* AVATAR — EQUIPPED PROFILE FRAME */}
 
                   <div
                     className="
+                      relative flex
                       h-11 w-11 shrink-0
-
-                      overflow-hidden
-                      rounded-xl
-
-                      border border-slate-200
-
-                      bg-slate-100
-
-                      dark:border-white/10
-                      dark:bg-[#11161e]
+                      items-center justify-center
+                      overflow-visible
                     "
                   >
-                    <img
-                      src={avatarUrl || UserImage}
-                      alt={`${username} avatar`}
-                      onError={handleAvatarError}
-
-                      className="
-                        h-full w-full
-                        object-cover
-                      "
+                    <NavbarFramedAvatar
+                      username={user?.username}
+                      avatarUrl={avatarUrl || UserImage}
+                      size="menu"
                     />
                   </div>
 
@@ -1002,6 +982,59 @@ function MobileNavbarSidebar({
 
                       <span className="min-w-0 flex-1">
                         Profilim
+                      </span>
+
+                      <ChevronRight
+                        size={15}
+                        aria-hidden="true"
+                        className="shrink-0"
+                      />
+                    </Link>
+
+                    {/* MY FRAMES — PRIVATE INVENTORY */}
+
+                    <Link
+                      to="/frames/my"
+                      onClick={closeSidebar}
+                      aria-current={
+                        location.pathname === "/frames/my"
+                          ? "page"
+                          : undefined
+                      }
+                      className={`
+                        ${NAV_ITEM_CLASS}
+
+                        ${
+                          location.pathname === "/frames/my"
+                            ? ACTIVE_ITEM_CLASS
+                            : INACTIVE_ITEM_CLASS
+                        }
+                      `}
+                    >
+                      <span
+                        className="
+                          grid h-9 w-9
+                          shrink-0 place-items-center
+
+                          rounded-lg
+
+                          border border-violet-300/30
+                          bg-violet-500/10
+
+                          text-violet-600
+
+                          dark:border-violet-400/20
+                          dark:text-violet-300
+                        "
+                      >
+                        <Gem
+                          size={18}
+                          aria-hidden="true"
+                        />
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        Ramkalarim
                       </span>
 
                       <ChevronRight
