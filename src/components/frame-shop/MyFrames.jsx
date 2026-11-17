@@ -1,5 +1,5 @@
 
- // src/components/frame-shop/MyFrames.jsx
+// src/components/frame-shop/MyFrames.jsx
 
 import React, {
   memo,
@@ -38,12 +38,10 @@ import {
   Layers3,
   PackageOpen,
   RefreshCw,
-  ShieldCheck,
   ShoppingBag,
   Sparkles,
-  UserRound,
   WandSparkles,
-  Zap,
+  X,
 } from "lucide-react";
 
 import {
@@ -62,39 +60,33 @@ import FrameInventoryCard, {
 } from "./FrameInventoryCard";
 
 // =========================================================
-// FSOCIETY — MY FRAME VAULT
+// FSOCIETY — MY FRAMES / CYBER VAULT 2.0
 // =========================================================
 //
 // Features:
 //
-// - Authentication
-// - Redux inventory and statistics
-// - Premium cyberpunk hero
-// - WinterBackground compatibility
+// - Compact premium header
+// - Inline statistics
+// - Responsive centered inventory grid
 // - Dark / Light mode
-// - Skeleton loading
-// - Error / Empty states
+// - Winter background compatibility
+// - Redux integration
 // - Equip / Unequip
-// - Duplicate request protection
-// - Rarity and status filters
+// - Double-click protection
 // - Server pagination
-// - Reduced motion support
-//
-// Responsive layout:
-//
-// 1 Frame  -> Centered single card
-// 2 Frames -> Two wide cards, slightly shifted right
-// 3 Frames -> Three equal columns
-// 4 Frames -> Balanced 2x2 grid
-// 5+       -> Responsive three-column grid
+// - Status / rarity filters
+// - Loading skeletons
+// - Error and empty states
+// - Refresh after successful mutation
 //
 // IMPORTANT:
 //
-// Backend remains the source of truth.
+// FrameInventoryCard remains responsible for:
 //
-// Only one profile frame can be equipped.
-//
-// Equip / Unequip never deducts FCoin.
+// - Real user avatar
+// - Transparent PNG overlay
+// - FS Winter Royal alignment
+// - Frame metadata and action buttons
 //
 // =========================================================
 
@@ -104,10 +96,10 @@ import FrameInventoryCard, {
 
 const PAGE_SIZE = 9;
 
-const FILTERS = [
+const STATUS_FILTERS = [
   {
     value: "all",
-    label: "Barcha ramkalar",
+    label: "Barchasi",
     Icon: Layers3,
   },
   {
@@ -122,7 +114,7 @@ const FILTERS = [
   },
 ];
 
-const RARITIES = [
+const RARITY_FILTERS = [
   {
     value: "all",
     label: "Barcha darajalar",
@@ -174,129 +166,71 @@ const getErrorMessage = (
 };
 
 // =========================================================
-// RESPONSIVE INVENTORY GRID
+// BALANCED INVENTORY GRID
 // =========================================================
 //
-// One card:
-//       [ FRAME ]
+// 1 Frame:
+//    One centered card.
 //
-// Two cards:
-//    [ FRAME ] [ FRAME ]
+// 2 Frames:
+//    Two centered cards.
+//    Slight 20px right offset on XL.
 //
-// Three cards:
-//  [ FRAME ][ FRAME ][ FRAME ]
+// 4 Frames:
+//    Balanced 2 x 2 layout.
 //
-// Four cards:
-//    [ FRAME ] [ FRAME ]
-//    [ FRAME ] [ FRAME ]
-//
-// Five cards:
-//  [ FRAME ][ FRAME ][ FRAME ]
-//       [ FRAME ][ FRAME ]
-//
-// NEW:
-//
-// When exactly two frames are displayed:
-//
-// - On mobile, no horizontal offset.
-// - On lg screens, shift 12px to the right.
-// - On xl screens, shift 20px to the right.
-//
-// IMPORTANT:
-//
-// Use CSS positioning instead of transform.
-//
-// Framer Motion also uses CSS transforms
-// for its layout animation.
-//
-// This avoids conflicts with animation.
+// Other counts:
+//    Three columns on XL.
+//    Center incomplete final rows.
 //
 // =========================================================
 
 const getInventoryGridClass = (count) => {
-  const common = [
+  const base = [
     "mx-auto",
     "grid",
     "w-full",
     "items-stretch",
-    "gap-4",
-    "xl:gap-5",
+    "gap-3.5",
+    "sm:gap-4",
   ].join(" ");
-
-  // =====================================================
-  // ONE FRAME
-  // =====================================================
 
   if (count === 1) {
     return `
-      ${common}
-      max-w-[430px]
+      ${base}
+      max-w-[390px]
       grid-cols-1
     `;
   }
 
-  // =====================================================
-  // TWO FRAMES — SLIGHT RIGHT OFFSET
-  // =====================================================
-  //
-  // Only this layout receives the adjustment.
-  //
-  // lg:left-3 -> 12px
-  // xl:left-5 -> 20px
-  //
-  // Card widths stay unchanged.
-  //
-  // =====================================================
-
   if (count === 2) {
     return `
-      ${common}
+      ${base}
       relative
-      max-w-[860px]
+      max-w-[760px]
       grid-cols-1
       md:grid-cols-2
-      lg:left-3
       xl:left-5
     `;
   }
 
-  // =====================================================
-  // FOUR FRAMES
-  // =====================================================
-
   if (count === 4) {
     return `
-      ${common}
-      max-w-[860px]
+      ${base}
+      max-w-[760px]
       grid-cols-1
       md:grid-cols-2
     `;
   }
 
-  // =====================================================
-  // THREE OR MORE FRAMES
-  // =====================================================
-  //
-  // Six tracks on desktop.
-  //
-  // Each card spans two tracks.
-  //
-  // Incomplete final rows are centered.
-  //
-  // =====================================================
-
   return `
-    ${common}
-    max-w-[1180px]
+    ${base}
+    max-w-[1150px]
     grid-cols-1
     md:grid-cols-2
     xl:grid-cols-6
   `;
 };
-
-// =========================================================
-// INVENTORY GRID CELL POSITION
-// =========================================================
 
 const getInventoryCellClass = (
   count,
@@ -310,243 +244,96 @@ const getInventoryCellClass = (
     return "min-w-0 h-full";
   }
 
-  let className =
+  let result =
     "min-w-0 h-full xl:col-span-2";
 
   const remainder = count % 3;
-
-  // =====================================================
-  // ONE CARD IN FINAL ROW
-  // =====================================================
 
   if (
     remainder === 1 &&
     index === count - 1
   ) {
-    className +=
-      " xl:col-start-3";
-  }
-
-  // =====================================================
-  // TWO CARDS IN FINAL ROW
-  // =====================================================
-
-  else if (
+    result += " xl:col-start-3";
+  } else if (
     remainder === 2 &&
     index === count - 2
   ) {
-    className +=
-      " xl:col-start-2";
+    result += " xl:col-start-2";
   }
 
-  return className;
+  return result;
 };
 
 // =========================================================
-// HERO HOLOGRAM
+// COMPACT STAT CHIP
 // =========================================================
 
-const InventoryHologram = memo(
-  function InventoryHologram() {
-    const reducedMotion = useReducedMotion();
+const StatChip = memo(
+  function StatChip({
+    label,
+    value,
+    Icon,
+    tone = "cyan",
+  }) {
+    const iconClass = {
+      cyan:
+        "text-cyan-600 dark:text-cyan-300",
+      emerald:
+        "text-emerald-600 dark:text-emerald-300",
+      amber:
+        "text-amber-600 dark:text-amber-300",
+      violet:
+        "text-violet-600 dark:text-violet-300",
+    }[tone];
 
     return (
       <div
-        aria-hidden="true"
         className="
-          pointer-events-none
-          relative mx-auto flex
-          h-[250px] w-full
-          max-w-[340px]
-          items-center justify-center
-          sm:h-[300px]
+          flex min-w-0 items-center gap-2.5
+          rounded-xl border border-slate-200/80
+          bg-white/70 px-3 py-2
+          dark:border-white/10
+          dark:bg-white/[0.045]
         "
       >
-        {/* =====================================
-            AMBIENT GLOW
-        ===================================== */}
-
-        <div
-          className="
-            absolute inset-10
-            rounded-full
-            bg-cyan-400/20
-            blur-[75px]
-          "
-        />
-
-        <div
-          className="
-            absolute inset-10
-            translate-x-6
-            rounded-full
-            bg-violet-500/20
-            blur-[75px]
-          "
-        />
-
-        {/* =====================================
-            OUTER ORBIT
-        ===================================== */}
-
-        <motion.div
-          className="
-            absolute
-            h-[225px] w-[225px]
-            rounded-full
-            border border-dashed
-            border-cyan-300/45
-            sm:h-[275px]
-            sm:w-[275px]
-          "
-          animate={
-            reducedMotion
-              ? undefined
-              : { rotate: 360 }
-          }
-          transition={{
-            duration: 35,
-            ease: "linear",
-            repeat: Infinity,
-          }}
+        <span
+          className={`
+            grid h-8 w-8 shrink-0
+            place-items-center rounded-lg
+            bg-slate-100
+            dark:bg-white/[0.07]
+            ${iconClass}
+          `}
         >
-          <span
-            className="
-              absolute left-1/2
-              top-[-4px]
-              h-2.5 w-2.5
-              rounded-full
-              bg-cyan-300
-              shadow-[0_0_18px_#22d3ee]
-            "
+          <Icon
+            size={16}
+            aria-hidden="true"
           />
-        </motion.div>
+        </span>
 
-        {/* =====================================
-            INNER ORBIT
-        ===================================== */}
-
-        <motion.div
-          className="
-            absolute
-            h-[190px] w-[190px]
-            rounded-full
-            border border-violet-300/45
-            sm:h-[230px]
-            sm:w-[230px]
-          "
-          animate={
-            reducedMotion
-              ? undefined
-              : { rotate: -360 }
-          }
-          transition={{
-            duration: 27,
-            ease: "linear",
-            repeat: Infinity,
-          }}
-        >
-          <span
+        <div className="min-w-0">
+          <p
             className="
-              absolute bottom-4 right-3
-              h-2 w-2
-              rounded-full
-              bg-violet-300
-              shadow-[0_0_18px_#a78bfa]
-            "
-          />
-        </motion.div>
-
-        {/* =====================================
-            CENTRAL FRAME
-        ===================================== */}
-
-        <div
-          className="
-            relative
-            flex h-[155px] w-[155px]
-            items-center justify-center
-            rounded-full
-            bg-gradient-to-br
-            from-cyan-300
-            via-violet-500
-            to-amber-300
-            p-[5px]
-            shadow-[0_0_55px_rgba(34,211,238,0.3)]
-            sm:h-[185px]
-            sm:w-[185px]
-          "
-        >
-          <div
-            className="
-              flex h-full w-full
-              items-center justify-center
-              rounded-full
-              border-[7px]
-              border-[#10182b]
-              bg-gradient-to-br
-              from-[#1b2a45]
-              to-[#070c18]
+              truncate font-mono
+              text-[9px] font-semibold
+              uppercase tracking-[0.08em]
+              text-slate-500
+              dark:text-slate-400
             "
           >
-            <UserRound
-              size={65}
-              strokeWidth={1.2}
-              className="text-cyan-100/80"
-            />
-          </div>
+            {label}
+          </p>
 
-          <div
+          <p
             className="
-              absolute -right-3 top-6
-              flex h-11 w-11
-              items-center justify-center
-              rounded-xl
-              border border-amber-200/50
-              bg-gradient-to-br
-              from-amber-300
-              to-orange-500
-              text-white shadow-lg
+              mt-0.5 truncate
+              text-[16px] font-black
+              leading-5 tabular-nums
+              text-slate-900 dark:text-white
             "
           >
-            <Crown size={22} />
-          </div>
-        </div>
-
-        {/* =====================================
-            FLOATING LABELS
-        ===================================== */}
-
-        <div
-          className="
-            absolute left-0 top-7
-            rounded-xl
-            border border-cyan-300/25
-            bg-slate-950/75
-            px-3 py-2
-            font-mono text-[10px]
-            tracking-wider
-            text-cyan-300
-            backdrop-blur-md
-          "
-        >
-          COLLECTION / PRIVATE
-        </div>
-
-        <div
-          className="
-            absolute bottom-6 right-0
-            rounded-xl
-            border border-violet-300/25
-            bg-slate-950/75
-            px-3 py-2
-            font-mono text-[10px]
-            tracking-wider
-            text-violet-200
-            backdrop-blur-md
-          "
-        >
-          EQUIP YOUR IDENTITY
+            {value}
+          </p>
         </div>
       </div>
     );
@@ -554,7 +341,7 @@ const InventoryHologram = memo(
 );
 
 // =========================================================
-// LOADING SKELETON
+// COMPACT SKELETON
 // =========================================================
 
 const InventorySkeleton = memo(
@@ -562,20 +349,18 @@ const InventorySkeleton = memo(
     return (
       <div
         className="
-          h-full w-full
-          overflow-hidden
-          rounded-[26px]
-          border border-slate-200
-          bg-white/80 p-5
+          h-full min-h-[360px]
+          rounded-[22px] border
+          border-slate-200 bg-white/85
+          p-4
           dark:border-white/10
-          dark:bg-[#0d1424]/90
+          dark:bg-[#0d1526]/90
         "
       >
         <div
           className="
-            h-4 w-24 animate-pulse
-            rounded-full
-            bg-slate-200
+            h-5 w-24 animate-pulse
+            rounded-full bg-slate-200
             motion-reduce:animate-none
             dark:bg-white/10
           "
@@ -583,11 +368,9 @@ const InventorySkeleton = memo(
 
         <div
           className="
-            mx-auto my-8
-            h-40 w-40
-            animate-pulse
-            rounded-full
-            border-[10px]
+            mx-auto my-5
+            h-36 w-36 animate-pulse
+            rounded-full border-[10px]
             border-slate-200
             motion-reduce:animate-none
             dark:border-white/10
@@ -596,9 +379,8 @@ const InventorySkeleton = memo(
 
         <div
           className="
-            mx-auto h-5 w-2/3
-            animate-pulse
-            rounded-lg
+            mx-auto h-4 w-2/3
+            animate-pulse rounded-lg
             bg-slate-200
             motion-reduce:animate-none
             dark:bg-white/10
@@ -607,10 +389,8 @@ const InventorySkeleton = memo(
 
         <div
           className="
-            mt-5 h-20
-            animate-pulse
-            rounded-xl
-            bg-slate-100
+            mt-5 h-14 animate-pulse
+            rounded-xl bg-slate-100
             motion-reduce:animate-none
             dark:bg-white/5
           "
@@ -618,87 +398,10 @@ const InventorySkeleton = memo(
 
         <div
           className="
-            mt-4 h-11
-            animate-pulse
-            rounded-xl
-            bg-slate-200
+            mt-3 h-10 animate-pulse
+            rounded-xl bg-slate-200
             motion-reduce:animate-none
             dark:bg-white/10
-          "
-        />
-      </div>
-    );
-  }
-);
-
-// =========================================================
-// STAT CARD
-// =========================================================
-
-const StatCard = memo(
-  function StatCard({
-    label,
-    value,
-    Icon,
-    color,
-  }) {
-    return (
-      <div
-        className="
-          relative overflow-hidden
-          rounded-2xl
-          border border-slate-200
-          bg-white/80 p-4
-          backdrop-blur-xl
-          dark:border-white/10
-          dark:bg-[#111827]/75
-          sm:p-5
-        "
-      >
-        <div
-          className="
-            flex items-center
-            justify-between gap-2
-          "
-        >
-          <span
-            className="
-              font-mono text-[10px]
-              font-bold tracking-[0.12em]
-              text-slate-500
-              dark:text-slate-400
-            "
-          >
-            {label}
-          </span>
-
-          <Icon
-            size={18}
-            className={color}
-            aria-hidden="true"
-          />
-        </div>
-
-        <p
-          className="
-            mt-3 text-2xl
-            font-black tabular-nums
-            tracking-tight
-            text-slate-900
-            dark:text-white
-            sm:text-3xl
-          "
-        >
-          {value}
-        </p>
-
-        <div
-          className="
-            absolute bottom-0 left-0
-            h-[2px] w-1/3
-            bg-gradient-to-r
-            from-cyan-400/70
-            to-transparent
           "
         />
       </div>
@@ -713,7 +416,8 @@ const StatCard = memo(
 export default function MyFrames() {
   const dispatch = useDispatch();
 
-  const reducedMotion = useReducedMotion();
+  const reducedMotion =
+    useReducedMotion();
 
   // =====================================================
   // AUTH
@@ -749,7 +453,8 @@ export default function MyFrames() {
   // LOCAL STATE
   // =====================================================
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] =
+    useState(1);
 
   const [
     statusFilter,
@@ -767,15 +472,15 @@ export default function MyFrames() {
   ] = useState(null);
 
   // =====================================================
-  // REQUEST LOCKS
+  // REFS
   // =====================================================
-
-  const requestLockRef = useRef(false);
 
   const mountedRef = useRef(false);
 
+  const requestLockRef = useRef(false);
+
   // =====================================================
-  // MOUNT LIFECYCLE
+  // LIFECYCLE
   // =====================================================
 
   useEffect(() => {
@@ -802,9 +507,7 @@ export default function MyFrames() {
       })
     );
 
-    return () => {
-      request.abort();
-    };
+    return () => request.abort();
   }, [
     dispatch,
     isAuthenticated,
@@ -812,7 +515,7 @@ export default function MyFrames() {
   ]);
 
   // =====================================================
-  // FETCH STATS
+  // FETCH STATISTICS
   // =====================================================
 
   useEffect(() => {
@@ -824,16 +527,14 @@ export default function MyFrames() {
       fetchProfileFrameStats()
     );
 
-    return () => {
-      request.abort();
-    };
+    return () => request.abort();
   }, [
     dispatch,
     isAuthenticated,
   ]);
 
   // =====================================================
-  // INVENTORY ITEMS
+  // INVENTORY DATA
   // =====================================================
 
   const allItems = useMemo(
@@ -845,15 +546,17 @@ export default function MyFrames() {
   );
 
   // =====================================================
-  // FILTERS — CURRENT SERVER PAGE
+  // FILTER CURRENT SERVER PAGE
   // =====================================================
 
   const visibleItems = useMemo(() => {
     return allItems.filter((ownership) => {
-      const frame = getOwnedFrame(ownership);
+      const frame =
+        getOwnedFrame(ownership);
 
       const equipped = Boolean(
-        ownership?.is_equipped
+        ownership?.is_equipped ??
+        frame?.is_equipped
       );
 
       const rarity = String(
@@ -893,14 +596,15 @@ export default function MyFrames() {
   // TOTAL OWNED
   // =====================================================
 
-  const countNumber = Number(
+  const parsedCount = Number(
     inventory?.count
   );
 
   const totalOwned =
-    Number.isFinite(countNumber)
-      ? Math.max(0, countNumber)
-      : 0;
+    inventory?.count != null &&
+    Number.isFinite(parsedCount)
+      ? Math.max(0, parsedCount)
+      : allItems.length;
 
   // =====================================================
   // EQUIPPED FRAME
@@ -908,7 +612,10 @@ export default function MyFrames() {
 
   const equippedOnPage = allItems.find(
     (ownership) =>
-      Boolean(ownership?.is_equipped)
+      Boolean(
+        ownership?.is_equipped ??
+        getOwnedFrame(ownership)?.is_equipped
+      )
   );
 
   const equippedFrameId =
@@ -920,40 +627,45 @@ export default function MyFrames() {
     Boolean(equippedFrameId);
 
   // =====================================================
-  // SPENT FCOIN
+  // FCoin STATISTICS
   // =====================================================
 
-  const totalSpentValue =
+  const spentValue =
     stats?.data?.total_fcoin_spent ??
     stats?.data?.total_coins_spent;
 
-  const totalSpent =
-    totalSpentValue == null
+  const spent =
+    spentValue == null
       ? "—"
-      : formatNumber(totalSpentValue);
+      : formatNumber(spentValue);
 
   // =====================================================
-  // REWARDS ON CURRENT PAGE
+  // CURRENT PAGE REWARDS
   // =====================================================
 
-  const currentPageGifts =
-    allItems.filter((ownership) =>
+  const pageRewards = allItems.filter(
+    (ownership) =>
       [
         "gift",
         "event",
         "achievement",
         "event_reward",
-      ].includes(ownership?.source)
-    ).length;
+      ].includes(
+        String(
+          ownership?.source || ""
+        ).toLowerCase()
+      )
+  ).length;
 
   // =====================================================
   // PAGINATION
   // =====================================================
 
-  const canGoPrevious = page > 1;
+  const canPrevious = page > 1;
 
-  const canGoNext =
-    Boolean(inventory?.next);
+  const canNext = Boolean(
+    inventory?.next
+  );
 
   const showPagination = Boolean(
     inventory?.loaded &&
@@ -961,13 +673,13 @@ export default function MyFrames() {
     !inventory?.error &&
     totalOwned > 0 &&
     (
-      canGoPrevious ||
-      canGoNext
+      canPrevious ||
+      canNext
     )
   );
 
   // =====================================================
-  // BALANCED GRID
+  // GRID / FILTER STATE
   // =====================================================
 
   const gridClass =
@@ -975,33 +687,71 @@ export default function MyFrames() {
       visibleItems.length
     );
 
+  const activeFilters =
+    statusFilter !== "all" ||
+    rarityFilter !== "all";
+
   // =====================================================
   // REFRESH
   // =====================================================
 
-  const refreshInventory = useCallback(() => {
-    if (!isAuthenticated) {
-      return;
-    }
+  const refreshInventory = useCallback(
+    () => {
+      if (!isAuthenticated) {
+        return;
+      }
 
-    dispatch(
-      fetchMyProfileFrames({
-        page,
-        pageSize: PAGE_SIZE,
-      })
-    );
+      dispatch(
+        fetchMyProfileFrames({
+          page,
+          pageSize: PAGE_SIZE,
+        })
+      );
 
-    dispatch(
-      fetchProfileFrameStats()
-    );
-  }, [
-    dispatch,
-    isAuthenticated,
-    page,
-  ]);
+      dispatch(
+        fetchProfileFrameStats()
+      );
+    },
+    [
+      dispatch,
+      isAuthenticated,
+      page,
+    ]
+  );
 
   // =====================================================
-  // EQUIP
+  // REFRESH AFTER MUTATION
+  // =====================================================
+
+  const refreshAfterMutation = useCallback(
+    () => {
+      dispatch(
+        fetchProfileFrameStats()
+      );
+
+      if (page === 1) {
+        dispatch(
+          fetchMyProfileFrames({
+            page: 1,
+            pageSize: PAGE_SIZE,
+          })
+        );
+      } else {
+        setPage(1);
+      }
+
+      window.dispatchEvent(
+        new Event("fsociety:frame-updated")
+      );
+    },
+    [
+      dispatch,
+      page,
+    ]
+  );
+
+  // =====================================================
+  // EQUIP FRAME
   // =====================================================
 
   const handleEquip = useCallback(
@@ -1014,19 +764,16 @@ export default function MyFrames() {
         return;
       }
 
-      const frame = getOwnedFrame(
-        ownership
-      );
+      const frame =
+        getOwnedFrame(ownership);
 
-      const frameId = getOwnedFrameId(
-        ownership
-      );
+      const frameId =
+        getOwnedFrameId(ownership);
 
       if (!frameId) {
         toast.error(
           "Ramka identifikatori topilmadi."
         );
-
         return;
       }
 
@@ -1034,14 +781,10 @@ export default function MyFrames() {
         toast.error(
           "Bu ramka hozir faol emas."
         );
-
         return;
       }
 
-      // Synchronous request lock.
-
       requestLockRef.current = true;
-
       setBusyFrameId(frameId);
 
       try {
@@ -1057,13 +800,7 @@ export default function MyFrames() {
           `“${frame?.name || "Ramka"}” avatar uchun o‘rnatildi!`
         );
 
-        setPage(1);
-
-        // Update public avatar frame listeners.
-
-        window.dispatchEvent(
-          new Event("fsociety:frame-updated")
-        );
+        refreshAfterMutation();
       } catch (error) {
         if (mountedRef.current) {
           toast.error(
@@ -1085,11 +822,12 @@ export default function MyFrames() {
       dispatch,
       isAuthenticated,
       mutation?.loading,
+      refreshAfterMutation,
     ]
   );
 
   // =====================================================
-  // UNEQUIP
+  // UNEQUIP FRAME
   // =====================================================
 
   const handleUnequip = useCallback(
@@ -1102,16 +840,13 @@ export default function MyFrames() {
         return;
       }
 
-      const frame = getOwnedFrame(
-        ownership
-      );
+      const frame =
+        getOwnedFrame(ownership);
 
-      const frameId = getOwnedFrameId(
-        ownership
-      );
+      const frameId =
+        getOwnedFrameId(ownership);
 
       requestLockRef.current = true;
-
       setBusyFrameId(frameId);
 
       try {
@@ -1127,11 +862,7 @@ export default function MyFrames() {
           `“${frame?.name || "Ramka"}” avatardan yechildi.`
         );
 
-        setPage(1);
-
-        window.dispatchEvent(
-          new Event("fsociety:frame-updated")
-        );
+        refreshAfterMutation();
       } catch (error) {
         if (mountedRef.current) {
           toast.error(
@@ -1153,17 +884,9 @@ export default function MyFrames() {
       dispatch,
       isAuthenticated,
       mutation?.loading,
+      refreshAfterMutation,
     ]
   );
-
-  // =====================================================
-  // RESET FILTERS
-  // =====================================================
-
-  const resetFilters = useCallback(() => {
-    setStatusFilter("all");
-    setRarityFilter("all");
-  }, []);
 
   // =====================================================
   // AUTH GUARD
@@ -1189,16 +912,16 @@ export default function MyFrames() {
     <main
       className="
         relative isolate
-        min-h-screen w-full
-        min-w-0 overflow-hidden
-        px-3 pb-20 pt-6
+        min-h-screen w-full min-w-0
+        overflow-hidden
+        px-3 pb-14 pt-3
         text-slate-900 dark:text-white
         sm:px-5 lg:px-8
       "
     >
-      {/* =====================================
-          BACKGROUND AMBIENCE
-      ===================================== */}
+      {/* ======================================
+          BACKGROUND ACCENTS
+      ====================================== */}
 
       <div
         aria-hidden="true"
@@ -1209,19 +932,19 @@ export default function MyFrames() {
       >
         <div
           className="
-            absolute -left-32 top-20
-            h-[420px] w-[420px]
-            rounded-full bg-cyan-400/[0.07]
-            blur-[100px]
+            absolute -left-28 top-0
+            h-72 w-72 rounded-full
+            bg-cyan-400/[0.055]
+            blur-[85px]
           "
         />
 
         <div
           className="
-            absolute -right-32 top-[540px]
-            h-[420px] w-[420px]
-            rounded-full bg-violet-500/[0.08]
-            blur-[100px]
+            absolute -right-24 top-52
+            h-72 w-72 rounded-full
+            bg-violet-500/[0.06]
+            blur-[90px]
           "
         />
       </div>
@@ -1230,25 +953,24 @@ export default function MyFrames() {
         className="
           relative mx-auto flex
           w-full max-w-7xl
-          flex-col gap-8
+          flex-col gap-4 sm:gap-5
         "
       >
-        {/* =====================================
-            HERO
-        ===================================== */}
+        {/* ======================================
+            COMPACT HERO
+        ====================================== */}
 
         <section
           className="
-            relative isolate overflow-hidden
-            rounded-[30px]
-            border border-slate-200/70
-            bg-gradient-to-br
-            from-white via-sky-50 to-violet-50
-            shadow-[0_18px_60px_rgba(15,23,42,0.06)]
-            dark:border-cyan-400/10
-            dark:from-[#0b1428]
-            dark:via-[#101631]
-            dark:to-[#1b1135]
+            relative overflow-hidden
+            rounded-[22px]
+            border border-slate-200/80
+            bg-white/90
+            shadow-[0_14px_38px_rgba(15,23,42,0.07)]
+            backdrop-blur-2xl
+            dark:border-cyan-400/15
+            dark:bg-[#0b1426]/90
+            dark:shadow-[0_18px_45px_rgba(0,0,0,0.22)]
           "
         >
           <div
@@ -1256,265 +978,289 @@ export default function MyFrames() {
             className="
               pointer-events-none
               absolute inset-0
-              opacity-30 dark:opacity-20
             "
             style={{
-              backgroundImage:
-                "linear-gradient(rgba(100,116,139,.2) 1px, transparent 1px), linear-gradient(90deg,rgba(100,116,139,.2) 1px, transparent 1px)",
-              backgroundSize: "38px 38px",
-              maskImage:
-                "linear-gradient(to bottom, black, transparent)",
+              background:
+                "radial-gradient(circle at 0% 0%,rgba(34,211,238,0.12),transparent 40%),radial-gradient(circle at 100% 100%,rgba(139,92,246,0.12),transparent 40%)",
             }}
           />
 
+          {/* HERO CONTENT */}
+
           <div
             className="
-              relative grid items-center gap-4
-              px-5 py-8
-              sm:px-9 sm:py-10
-              lg:grid-cols-[1.15fr_0.85fr]
-              lg:px-12
+              relative flex flex-wrap
+              items-center justify-between
+              gap-3 px-4 py-4 sm:px-6
             "
           >
-            <div className="min-w-0">
-              <span
+            <div
+              className="
+                flex min-w-0
+                items-center gap-3
+              "
+            >
+              <div
                 className="
-                  inline-flex items-center gap-2
-                  rounded-full border
-                  border-cyan-300/60
-                  bg-cyan-50/80
-                  px-3 py-1.5
-                  font-mono text-[10px]
-                  font-bold tracking-[0.13em]
-                  text-cyan-800
-                  dark:border-cyan-400/20
-                  dark:bg-cyan-400/10
-                  dark:text-cyan-300
+                  relative grid h-12 w-12
+                  shrink-0 place-items-center
+                  rounded-2xl border
+                  border-violet-400/30
+                  bg-violet-500/10
+                  text-violet-700
+                  dark:text-violet-300
                 "
               >
-                <ShieldCheck size={14} />
-                FSOCIETY / PRIVATE INVENTORY
-              </span>
-
-              <h1
-                className="
-                  mt-5
-                  font-['Space_Grotesk']
-                  text-[clamp(2.2rem,5.5vw,4.5rem)]
-                  font-black
-                  leading-[1.04]
-                  tracking-[-0.055em]
-                  text-slate-900 dark:text-white
-                "
-              >
-                My Frame
+                <Gem
+                  size={25}
+                  strokeWidth={1.6}
+                  aria-hidden="true"
+                />
 
                 <span
                   className="
-                    block
-                    bg-gradient-to-r
-                    from-cyan-600
-                    via-violet-600
-                    to-fuchsia-600
-                    bg-clip-text
-                    text-transparent
-                    dark:from-cyan-300
-                    dark:via-violet-400
-                    dark:to-fuchsia-400
+                    absolute -right-1 -top-1
+                    h-2.5 w-2.5
+                    rounded-full border-2
+                    border-white bg-amber-400
+                    dark:border-[#101827]
                   "
-                >
-                  Vault.
-                </span>
-              </h1>
-
-              <p
-                className="
-                  mt-5 max-w-[510px]
-                  text-sm leading-7
-                  text-slate-600
-                  dark:text-slate-300
-                  sm:text-base
-                "
-              >
-                Sening ramkalaring — sening uslubing.
-                Xarid qilingan va mukofot sifatida
-                olingan ramkalarni boshqar.
-                Birini avatar uchun tanla va
-                developer identitetingni namoyish et.
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link
-                  to="/frames/shop"
-                  className="
-                    inline-flex min-h-11
-                    items-center justify-center gap-2
-                    rounded-xl
-                    bg-gradient-to-r
-                    from-cyan-500 to-blue-600
-                    px-5 py-2.5
-                    text-sm font-bold text-white
-                    shadow-[0_8px_25px_rgba(14,165,233,0.24)]
-                    transition hover:brightness-110
-                  "
-                >
-                  <ShoppingBag size={17} />
-                  Frame Shop
-                  <ArrowRight size={16} />
-                </Link>
-
-                <div
-                  className="
-                    inline-flex min-h-11
-                    items-center gap-2 rounded-xl
-                    border border-slate-200
-                    bg-white/70 px-4 py-2.5
-                    text-sm font-semibold
-                    text-slate-700
-                    dark:border-white/10
-                    dark:bg-white/5
-                    dark:text-slate-200
-                  "
-                >
-                  <Gem
-                    size={17}
-                    className="text-violet-500"
-                  />
-
-                  {inventory?.loaded
-                    ? `${formatNumber(totalOwned)} ta ramka`
-                    : "Kolleksiya yuklanmoqda"}
-                </div>
+                />
               </div>
 
-              <p
-                className="
-                  mt-5 flex items-center gap-2
-                  font-mono text-[10px]
-                  uppercase tracking-widest
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                <Sparkles
-                  size={13}
-                  className="text-violet-500"
-                />
+              <div className="min-w-0">
+                <p
+                  className="
+                    flex items-center gap-1.5
+                    font-mono text-[9px]
+                    font-bold tracking-[0.14em]
+                    text-violet-700
+                    dark:text-violet-300
+                  "
+                >
+                  <Sparkles
+                    size={12}
+                    aria-hidden="true"
+                  />
 
-                Own • Equip • Stand Out
-              </p>
+                  FSOCIETY / PRIVATE VAULT
+                </p>
+
+                <h1
+                  className="
+                    mt-1 font-['Space_Grotesk']
+                    text-2xl font-black
+                    tracking-[-0.045em]
+                    text-slate-900
+                    dark:text-white
+                    sm:text-[30px]
+                  "
+                >
+                  My{" "}
+
+                  <span
+                    className="
+                      bg-gradient-to-r
+                      from-cyan-600
+                      via-blue-600
+                      to-violet-600
+                      bg-clip-text text-transparent
+                      dark:from-cyan-300
+                      dark:via-blue-400
+                      dark:to-violet-300
+                    "
+                  >
+                    Frames
+                  </span>
+                </h1>
+
+                <p
+                  className="
+                    mt-1 text-[11px]
+                    text-slate-600
+                    dark:text-slate-300
+                    sm:text-xs
+                  "
+                >
+                  Kolleksiyangni boshqar.
+                  Bir vaqtda faqat bitta ramka
+                  faol bo‘ladi.
+                </p>
+              </div>
             </div>
 
-            <InventoryHologram />
+            {/* HERO ACTIONS */}
+
+            <div
+              className="
+                flex shrink-0 flex-wrap
+                items-center gap-2
+              "
+            >
+              <Link
+                to="/frames/shop"
+                className="
+                  inline-flex min-h-9
+                  items-center justify-center
+                  gap-1.5 rounded-xl
+                  border border-cyan-400/30
+                  bg-cyan-500/10
+                  px-3 text-[11px] font-bold
+                  text-cyan-700 transition
+                  hover:bg-cyan-500/20
+                  dark:text-cyan-200
+                "
+              >
+                <ShoppingBag
+                  size={15}
+                  aria-hidden="true"
+                />
+
+                Frame Shop
+
+                <ArrowRight
+                  size={13}
+                  aria-hidden="true"
+                />
+              </Link>
+
+              <button
+                type="button"
+                onClick={refreshInventory}
+                disabled={
+                  inventory?.loading ||
+                  mutation?.loading
+                }
+                aria-label="Kolleksiyani yangilash"
+                title="Yangilash"
+                className="
+                  inline-flex h-9 w-9
+                  items-center justify-center
+                  rounded-xl border
+                  border-slate-200
+                  bg-white/80 text-slate-600
+                  transition hover:border-cyan-400
+                  disabled:opacity-50
+                  dark:border-white/10
+                  dark:bg-white/5
+                  dark:text-slate-300
+                "
+              >
+                <RefreshCw
+                  size={15}
+                  className={
+                    inventory?.loading
+                      ? "animate-spin motion-reduce:animate-none"
+                      : ""
+                  }
+                />
+              </button>
+            </div>
           </div>
+
+          {/* INLINE STATS */}
+
+          <div
+            className="
+              relative grid grid-cols-2
+              gap-2 border-t
+              border-slate-200/70
+              px-4 py-3
+              dark:border-white/[0.08]
+              sm:px-6 lg:grid-cols-4
+            "
+          >
+            <StatChip
+              label="Mening ramkalarim"
+              value={
+                inventory?.loaded
+                  ? formatNumber(totalOwned)
+                  : "—"
+              }
+              Icon={Layers3}
+              tone="cyan"
+            />
+
+            <StatChip
+              label="Faol ramka"
+              value={
+                !stats?.loaded &&
+                !inventory?.loaded
+                  ? "—"
+                  : hasEquippedFrame
+                    ? "01"
+                    : "00"
+              }
+              Icon={WandSparkles}
+              tone="emerald"
+            />
+
+            <StatChip
+              label="Sarflangan FCoin"
+              value={spent}
+              Icon={Coins}
+              tone="amber"
+            />
+
+            <StatChip
+              label="Sahifadagi mukofotlar"
+              value={
+                inventory?.loaded
+                  ? formatNumber(pageRewards)
+                  : "—"
+              }
+              Icon={Crown}
+              tone="violet"
+            />
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="
+              absolute inset-x-0 bottom-0
+              h-[2px]
+              bg-gradient-to-r
+              from-cyan-400/65
+              via-violet-500/55
+              to-transparent
+            "
+          />
         </section>
 
-        {/* =====================================
-            STATS
-        ===================================== */}
-
-        <section
-          aria-label="Kolleksiya statistikasi"
-          className="
-            grid grid-cols-2 gap-3
-            lg:grid-cols-4
-          "
-        >
-          <StatCard
-            label="MENING RAMKALARIM"
-            value={
-              inventory?.loaded
-                ? formatNumber(totalOwned)
-                : "—"
-            }
-            Icon={Layers3}
-            color="text-cyan-600 dark:text-cyan-300"
-          />
-
-          <StatCard
-            label="FAOL RAMKA"
-            value={
-              !stats?.loaded &&
-              !inventory?.loaded
-                ? "—"
-                : hasEquippedFrame
-                  ? "01"
-                  : "00"
-            }
-            Icon={WandSparkles}
-            color="text-emerald-600 dark:text-emerald-300"
-          />
-
-          <StatCard
-            label="SARFLANGAN FCOIN"
-            value={totalSpent}
-            Icon={Coins}
-            color="text-amber-600 dark:text-amber-300"
-          />
-
-          <StatCard
-            label="SAHIFADAGI MUKOFOTLAR"
-            value={
-              inventory?.loaded
-                ? formatNumber(currentPageGifts)
-                : "—"
-            }
-            Icon={Crown}
-            color="text-violet-600 dark:text-violet-300"
-          />
-        </section>
-
-        {/* =====================================
-            COLLECTION
-        ===================================== */}
+        {/* ======================================
+            INVENTORY COLLECTION
+        ====================================== */}
 
         <section
           aria-labelledby="inventory-title"
           className="
-            min-w-0 scroll-mt-28
+            min-w-0 scroll-mt-24
           "
         >
-          {/* =====================================
-              COLLECTION HEADER
-          ===================================== */}
+          {/* COLLECTION HEADING */}
 
           <div
             className="
-              mb-6 flex flex-wrap
-              items-end justify-between gap-4
+              mb-3 flex flex-wrap
+              items-center justify-between
+              gap-3
             "
           >
-            <div>
-              <p
-                className="
-                  mb-2 flex items-center gap-2
-                  font-mono text-[10px]
-                  font-bold uppercase
-                  tracking-[0.17em]
-                  text-cyan-700
-                  dark:text-cyan-300
-                "
-              >
-                <Zap size={14} />
-                Personal Armory
-              </p>
-
+            <div className="min-w-0">
               <h2
                 id="inventory-title"
                 className="
                   font-['Space_Grotesk']
-                  text-2xl font-black
+                  text-lg font-extrabold
                   tracking-tight
-                  text-slate-900
-                  dark:text-white
-                  sm:text-3xl
+                  sm:text-xl
                 "
               >
                 Mening{" "}
 
                 <span
                   className="
-                    text-cyan-600
+                    text-cyan-700
                     dark:text-cyan-300
                   "
                 >
@@ -1524,194 +1270,215 @@ export default function MyFrames() {
 
               <p
                 className="
-                  mt-2 text-sm
+                  mt-0.5 text-[11px]
                   text-slate-500
                   dark:text-slate-400
                 "
               >
-                Faqat bitta ramka bir vaqtda
-                faol bo‘ladi.
+                O‘zingga mos ramkani tanla
+                va avatar uchun o‘rnat.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={refreshInventory}
-              disabled={
-                inventory?.loading ||
-                mutation?.loading
-              }
+            <span
               className="
-                inline-flex h-10
-                items-center gap-2
-                rounded-xl
-                border border-slate-200
-                bg-white/80 px-4
-                text-xs font-bold
-                text-slate-700
-                transition
-                hover:border-cyan-400
-                disabled:opacity-50
-                dark:border-white/10
-                dark:bg-white/5
-                dark:text-slate-200
+                rounded-full border
+                border-cyan-400/20
+                bg-cyan-400/10
+                px-2.5 py-1
+                font-mono text-[10px]
+                font-bold
+                text-cyan-700
+                dark:text-cyan-300
               "
             >
-              <RefreshCw
-                size={15}
-                className={
-                  inventory?.loading
-                    ? "animate-spin motion-reduce:animate-none"
-                    : ""
-                }
-              />
-
-              Yangilash
-            </button>
+              {inventory?.loaded
+                ? `${formatNumber(totalOwned)} OWNED`
+                : "INVENTORY"}
+            </span>
           </div>
 
-          {/* =====================================
-              FILTERS
-          ===================================== */}
+          {/* ====================================
+              COMPACT FILTERS
+          ==================================== */}
 
           <div
             className="
-              mb-5 rounded-[22px]
-              border border-slate-200
-              bg-white/85 p-3
+              mb-3 rounded-[18px]
+              border border-slate-200/80
+              bg-white/90 p-3
+              shadow-[0_8px_25px_rgba(15,23,42,0.05)]
               backdrop-blur-xl
               dark:border-white/10
-              dark:bg-[#101827]/90
-              sm:p-4
+              dark:bg-[#0c1527]/90
             "
           >
-            {/* STATUS FILTER */}
-
-            <div className="flex flex-wrap items-center gap-2">
-              {FILTERS.map(
-                ({ value, label, Icon }) => {
-                  const active =
-                    statusFilter === value;
-
-                  return (
-                    <button
-                      type="button"
-                      key={value}
-                      aria-pressed={active}
-                      onClick={() =>
-                        setStatusFilter(value)
-                      }
-                      className={`
-                        inline-flex min-h-10
-                        items-center gap-2
-                        rounded-xl border
-                        px-3 py-2
-                        text-xs font-bold
-                        transition
-
-                        ${
-                          active
-                            ? `
-                              border-cyan-500
-                              bg-cyan-500
-                              text-white
-                              shadow-[0_4px_18px_rgba(6,182,212,0.18)]
-                            `
-                            : `
-                              border-slate-200
-                              bg-slate-50
-                              text-slate-600
-                              hover:border-cyan-300
-                              dark:border-white/10
-                              dark:bg-white/5
-                              dark:text-slate-300
-                            `
-                        }
-                      `}
-                    >
-                      <Icon size={14} />
-                      {label}
-                    </button>
-                  );
-                }
-              )}
-            </div>
-
-            {/* RARITY FILTER */}
-
             <div
               className="
-                mt-3 flex flex-wrap
-                items-center
+                flex flex-col
                 justify-between gap-3
+                md:flex-row md:items-center
               "
             >
-              <label
-                htmlFor="inventory-rarity"
-                className="
-                  text-xs font-medium
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Rarity bo‘yicha:
-              </label>
+              {/* STATUS FILTERS */}
 
-              <select
-                id="inventory-rarity"
-                value={rarityFilter}
-                onChange={(event) =>
-                  setRarityFilter(
-                    event.target.value
-                  )
-                }
+              <div
                 className="
-                  h-10 min-w-[180px]
-                  rounded-xl
-                  border border-slate-200
-                  bg-slate-50 px-3
-                  text-sm font-semibold
-                  text-slate-700
-                  outline-none
-                  focus:border-cyan-400
-                  dark:border-white/10
-                  dark:bg-[#192238]
-                  dark:text-slate-200
+                  flex flex-wrap items-center
+                  gap-1.5
                 "
               >
-                {RARITIES.map((item) => (
-                  <option
-                    key={item.value}
-                    value={item.value}
+                {STATUS_FILTERS.map(
+                  ({
+                    value,
+                    label,
+                    Icon,
+                  }) => {
+                    const active =
+                      statusFilter === value;
+
+                    return (
+                      <button
+                        type="button"
+                        key={value}
+                        aria-pressed={active}
+                        onClick={() =>
+                          setStatusFilter(value)
+                        }
+                        className={`
+                          inline-flex min-h-9
+                          items-center gap-1.5
+                          rounded-lg border
+                          px-2.5 py-1.5
+                          text-[11px] font-bold
+                          transition
+                          focus-visible:outline-2
+                          focus-visible:outline-cyan-500
+
+                          ${
+                            active
+                              ? `
+                                border-cyan-500
+                                bg-cyan-500 text-white
+                                shadow-[0_4px_14px_rgba(6,182,212,0.16)]
+                              `
+                              : `
+                                border-slate-200
+                                bg-slate-50
+                                text-slate-600
+                                hover:border-cyan-300
+                                dark:border-white/10
+                                dark:bg-white/5
+                                dark:text-slate-300
+                              `
+                          }
+                        `}
+                      >
+                        <Icon
+                          size={13}
+                          aria-hidden="true"
+                        />
+
+                        {label}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+
+              {/* RARITY SELECT */}
+
+              <div
+                className="
+                  flex min-w-0
+                  items-center gap-2
+                "
+              >
+                <label
+                  htmlFor="my-frame-rarity"
+                  className="
+                    shrink-0 text-[11px]
+                    font-medium text-slate-500
+                    dark:text-slate-400
+                  "
+                >
+                  Daraja:
+                </label>
+
+                <select
+                  id="my-frame-rarity"
+                  value={rarityFilter}
+                  onChange={(event) =>
+                    setRarityFilter(
+                      event.target.value
+                    )
+                  }
+                  className="
+                    h-9 min-w-0 flex-1
+                    rounded-xl border
+                    border-slate-200
+                    bg-slate-50 px-3
+                    text-[11px] font-semibold
+                    text-slate-700 outline-none
+                    focus:border-cyan-400
+                    dark:border-white/10
+                    dark:bg-[#192238]
+                    dark:text-slate-200
+                    md:w-[175px] md:flex-none
+                  "
+                >
+                  {RARITY_FILTERS.map(
+                    (item) => (
+                      <option
+                        key={item.value}
+                        value={item.value}
+                      >
+                        {item.label}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {activeFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setRarityFilter("all");
+                    }}
+                    aria-label="Filtrlarni tozalash"
+                    title="Tozalash"
+                    className="
+                      inline-flex h-9 w-9
+                      shrink-0 items-center
+                      justify-center rounded-lg
+                      border border-slate-200
+                      text-slate-500
+                      hover:border-rose-300
+                      hover:text-rose-600
+                      dark:border-white/10
+                    "
                   >
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+                    <X
+                      size={15}
+                      aria-hidden="true"
+                    />
+                  </button>
+                )}
+              </div>
             </div>
-
-            <p
-              className="
-                mt-3 text-[11px]
-                text-slate-500
-                dark:text-slate-400
-              "
-            >
-              Filtrlar joriy yuklangan sahifadagi
-              ramkalarga qo‘llanadi.
-            </p>
           </div>
 
-          {/* =====================================
-              RESULTS SUMMARY
-          ===================================== */}
+          {/* ====================================
+              RESULT SUMMARY
+          ==================================== */}
 
           <div
             className="
-              mb-4 flex flex-wrap
-              items-center
-              justify-between gap-3
-              text-xs text-slate-500
+              mb-3 flex flex-wrap
+              items-center justify-between
+              gap-2 text-[11px]
+              text-slate-500
               dark:text-slate-400
             "
           >
@@ -1721,31 +1488,30 @@ export default function MyFrames() {
                 : `${visibleItems.length} ta ramka ko‘rsatilmoqda`}
             </span>
 
-            {showPagination && (
-              <span
-                className="
-                  font-mono text-[10px]
-                  uppercase tracking-wider
-                "
-              >
-                Sahifa {page}
-              </span>
-            )}
+            <span
+              className="
+                font-mono text-[10px]
+              "
+            >
+              Filtrlar joriy sahifaga qo‘llanadi
+              {showPagination
+                ? ` · Sahifa ${page}`
+                : ""}
+            </span>
           </div>
 
-          {/* =====================================
-              ERROR
-          ===================================== */}
+          {/* ====================================
+              ERROR STATE
+          ==================================== */}
 
           {inventory?.error &&
             !inventory?.loading && (
               <div
                 role="alert"
                 className="
-                  mb-5 flex flex-wrap
-                  items-center
-                  justify-between gap-3
-                  rounded-2xl
+                  mb-4 flex flex-wrap
+                  items-center justify-between
+                  gap-3 rounded-2xl
                   border border-rose-300/60
                   bg-rose-50 p-4
                   text-sm text-rose-700
@@ -1768,15 +1534,15 @@ export default function MyFrames() {
                     px-3 py-2 font-bold
                   "
                 >
-                  <RefreshCw size={15} />
+                  <RefreshCw size={14} />
                   Qayta urinish
                 </button>
               </div>
             )}
 
-          {/* =====================================
+          {/* ====================================
               LOADING SKELETONS
-          ===================================== */}
+          ==================================== */}
 
           {(authLoading ||
             inventory?.loading) && (
@@ -1804,21 +1570,9 @@ export default function MyFrames() {
             </div>
           )}
 
-          {/* =====================================
-              FRAME CARDS
-          ===================================== */}
-          {/*
-            Card width stays controlled by CSS Grid.
-
-            Two frames:
-            - max-width: 860px
-            - Two equal columns on desktop
-            - 12px right offset on lg
-            - 20px right offset on xl
-
-            Other frame counts:
-            - Original centered layout
-          */}
+          {/* ====================================
+              FRAME INVENTORY CARDS
+          ==================================== */}
 
           {!authLoading &&
             !inventory?.loading &&
@@ -1832,8 +1586,10 @@ export default function MyFrames() {
                   (ownership, index) => (
                     <div
                       key={
-                        ownership.id ??
-                        getOwnedFrameId(ownership) ??
+                        ownership?.id ??
+                        getOwnedFrameId(
+                          ownership
+                        ) ??
                         index
                       }
                       className={
@@ -1860,9 +1616,9 @@ export default function MyFrames() {
               </motion.div>
             )}
 
-          {/* =====================================
-              EMPTY COLLECTION
-          ===================================== */}
+          {/* ====================================
+              EMPTY INVENTORY
+          ==================================== */}
 
           {!authLoading &&
             !inventory?.loading &&
@@ -1871,35 +1627,27 @@ export default function MyFrames() {
             totalOwned === 0 && (
               <div
                 className="
-                  rounded-[26px]
+                  rounded-[22px]
                   border border-dashed
                   border-slate-300
-                  bg-white/70
-                  px-5 py-16
-                  text-center
+                  bg-white/80
+                  px-5 py-11 text-center
                   dark:border-white/15
-                  dark:bg-white/[0.035]
+                  dark:bg-[#0d1526]/85
                 "
               >
-                <div
+                <PackageOpen
+                  size={30}
                   className="
-                    mx-auto flex h-16 w-16
-                    items-center justify-center
-                    rounded-2xl
-                    border border-cyan-400/20
-                    bg-cyan-400/10
-                    text-cyan-600
+                    mx-auto text-cyan-600
                     dark:text-cyan-300
                   "
-                >
-                  <PackageOpen size={29} />
-                </div>
+                  aria-hidden="true"
+                />
 
                 <h3
                   className="
-                    mt-5 text-lg font-bold
-                    text-slate-900
-                    dark:text-white
+                    mt-3 text-base font-bold
                   "
                 >
                   Kolleksiyang hozircha bo‘sh
@@ -1907,42 +1655,40 @@ export default function MyFrames() {
 
                 <p
                   className="
-                    mx-auto mt-2 max-w-sm
-                    text-sm leading-6
+                    mx-auto mt-1.5
+                    max-w-sm text-xs leading-6
                     text-slate-500
                     dark:text-slate-400
                   "
                 >
                   Frame Shop orqali birinchi
-                  ramkangni sotib ol yoki tadbirlarda
-                  qatnashib maxsus mukofotlarni
-                  qo‘lga kirit.
+                  ramkangni xarid qil yoki
+                  tadbir mukofotini qo‘lga kirit.
                 </p>
 
                 <Link
                   to="/frames/shop"
                   className="
-                    mt-5 inline-flex
+                    mt-4 inline-flex
                     items-center gap-2
                     rounded-xl
                     bg-gradient-to-r
                     from-cyan-500 to-blue-600
-                    px-5 py-3
-                    text-sm font-bold
-                    text-white
-                    transition hover:brightness-110
+                    px-4 py-2.5
+                    text-xs font-bold text-white
+                    hover:brightness-110
                   "
                 >
-                  <ShoppingBag size={17} />
-                  Frame Shop'ga o‘tish
-                  <ArrowRight size={16} />
+                  <ShoppingBag size={15} />
+                  Frame Shop
+                  <ArrowRight size={14} />
                 </Link>
               </div>
             )}
 
-          {/* =====================================
-              FILTERED EMPTY
-          ===================================== */}
+          {/* ====================================
+              FILTERED EMPTY STATE
+          ==================================== */}
 
           {!authLoading &&
             !inventory?.loading &&
@@ -1952,49 +1698,53 @@ export default function MyFrames() {
             visibleItems.length === 0 && (
               <div
                 className="
-                  rounded-[26px]
+                  rounded-[22px]
                   border border-dashed
                   border-slate-300
-                  bg-white/70
-                  px-5 py-14
+                  bg-white/80 px-5 py-10
                   text-center
                   dark:border-white/15
-                  dark:bg-white/[0.035]
+                  dark:bg-[#0d1526]/85
                 "
               >
                 <Gem
-                  size={32}
+                  size={28}
                   className="
-                    mx-auto
-                    text-violet-500
+                    mx-auto text-violet-500
                     dark:text-violet-300
                   "
+                  aria-hidden="true"
                 />
 
-                <h3 className="mt-4 text-lg font-bold">
+                <h3
+                  className="
+                    mt-3 text-base font-bold
+                  "
+                >
                   Mos ramka topilmadi
                 </h3>
 
                 <p
                   className="
-                    mt-2 text-sm
+                    mt-1.5 text-xs
                     text-slate-500
                     dark:text-slate-400
                   "
                 >
-                  Bu sahifada tanlangan filtrga
-                  mos ramka yo‘q.
+                  Joriy sahifada tanlangan
+                  filtrlarga mos ramka yo‘q.
                 </p>
 
                 <button
                   type="button"
-                  onClick={resetFilters}
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setRarityFilter("all");
+                  }}
                   className="
-                    mt-5 rounded-xl
-                    bg-cyan-600
-                    px-4 py-2.5
-                    text-sm font-bold
-                    text-white
+                    mt-4 rounded-xl
+                    bg-cyan-600 px-4 py-2.5
+                    text-xs font-bold text-white
                     hover:bg-cyan-500
                   "
                 >
@@ -2003,58 +1753,56 @@ export default function MyFrames() {
               </div>
             )}
 
-          {/* =====================================
-              PAGINATION
-          ===================================== */}
+          {/* ====================================
+              SERVER PAGINATION
+          ==================================== */}
 
           {showPagination && (
             <nav
               aria-label="Kolleksiya sahifalari"
               className="
-                mt-8 flex items-center
+                mt-6 flex items-center
                 justify-center gap-3
               "
             >
               <button
                 type="button"
                 disabled={
-                  !canGoPrevious ||
+                  !canPrevious ||
                   mutation?.loading
                 }
                 onClick={() =>
-                  setPage((old) =>
-                    Math.max(1, old - 1)
+                  setPage((value) =>
+                    Math.max(1, value - 1)
                   )
                 }
                 className="
-                  inline-flex h-10
+                  inline-flex min-h-9
                   items-center gap-1
-                  rounded-xl
-                  border border-slate-200
-                  bg-white px-4
-                  text-sm font-semibold
+                  rounded-xl border
+                  border-slate-200 bg-white
+                  px-3 text-xs font-bold
                   text-slate-700
-                  transition hover:border-cyan-400
-                  disabled:cursor-not-allowed
+                  hover:border-cyan-400
                   disabled:opacity-40
                   dark:border-white/10
                   dark:bg-[#111827]
                   dark:text-slate-200
                 "
               >
-                <ChevronLeft size={17} />
+                <ChevronLeft size={15} />
                 Oldingi
               </button>
 
               <span
                 className="
-                  inline-flex h-10 min-w-10
+                  inline-flex h-9 min-w-9
                   items-center justify-center
-                  rounded-xl
-                  border border-cyan-400/30
-                  bg-cyan-400/10
-                  px-3 text-sm
-                  font-black tabular-nums
+                  rounded-xl border
+                  border-cyan-400/30
+                  bg-cyan-400/10 px-3
+                  text-xs font-bold
+                  tabular-nums
                   text-cyan-700
                   dark:text-cyan-300
                 "
@@ -2065,24 +1813,22 @@ export default function MyFrames() {
               <button
                 type="button"
                 disabled={
-                  !canGoNext ||
+                  !canNext ||
                   mutation?.loading
                 }
                 onClick={() =>
-                  setPage((old) =>
-                    old + 1
+                  setPage(
+                    (value) => value + 1
                   )
                 }
                 className="
-                  inline-flex h-10
+                  inline-flex min-h-9
                   items-center gap-1
-                  rounded-xl
-                  border border-slate-200
-                  bg-white px-4
-                  text-sm font-semibold
+                  rounded-xl border
+                  border-slate-200 bg-white
+                  px-3 text-xs font-bold
                   text-slate-700
-                  transition hover:border-cyan-400
-                  disabled:cursor-not-allowed
+                  hover:border-cyan-400
                   disabled:opacity-40
                   dark:border-white/10
                   dark:bg-[#111827]
@@ -2090,102 +1836,60 @@ export default function MyFrames() {
                 "
               >
                 Keyingi
-                <ChevronRight size={17} />
+                <ChevronRight size={15} />
               </button>
             </nav>
           )}
         </section>
 
-        {/* =====================================
-            BOTTOM BANNER
-        ===================================== */}
+        {/* ======================================
+            COMPACT FOOTER
+        ====================================== */}
 
-        <section
+        <div
           className="
-            relative overflow-hidden
-            rounded-[24px]
-            border border-violet-300/30
-            bg-gradient-to-r
-            from-violet-50 via-sky-50 to-cyan-50
-            p-5
+            flex flex-wrap items-center
+            justify-between gap-2
+            rounded-2xl border
+            border-violet-300/20
+            bg-white/65 px-4 py-3
+            text-xs text-slate-600
+            backdrop-blur-lg
             dark:border-violet-400/15
-            dark:from-[#1a1433]
-            dark:via-[#141e38]
-            dark:to-[#0b2736]
-            sm:p-7
+            dark:bg-[#11172b]/75
+            dark:text-slate-300
           "
         >
-          <div
+          <span
             className="
-              relative flex flex-col
-              justify-between gap-4
-              sm:flex-row sm:items-center
+              inline-flex items-center gap-2
             "
           >
-            <div className="flex items-start gap-3">
-              <div
-                className="
-                  flex h-11 w-11
-                  shrink-0 items-center
-                  justify-center rounded-xl
-                  bg-violet-500/15
-                  text-violet-600
-                  dark:text-violet-300
-                "
-              >
-                <Sparkles size={21} />
-              </div>
-
-              <div>
-                <h3
-                  className="
-                    font-['Space_Grotesk']
-                    text-base font-bold
-                    text-slate-900
-                    dark:text-white
-                    sm:text-lg
-                  "
-                >
-                  Your code. Your identity.
-                </h3>
-
-                <p
-                  className="
-                    mt-1 text-xs leading-6
-                    text-slate-600
-                    dark:text-slate-300
-                    sm:text-sm
-                  "
-                >
-                  Ramkalar faqat bezak emas —
-                  FSociety'dagi yutuqlaringning
-                  bir qismi.
-                </p>
-              </div>
-            </div>
-
-            <Link
-              to="/frames/shop"
+            <Sparkles
+              size={15}
               className="
-                inline-flex items-center
-                justify-center gap-2
-                self-start rounded-xl
-                border border-violet-300/50
-                bg-white/70 px-4 py-2.5
-                text-xs font-bold
-                text-violet-700
-                transition hover:bg-white
-                dark:border-violet-400/25
-                dark:bg-white/5
-                dark:text-violet-200
-                dark:hover:bg-white/10
+                text-violet-600
+                dark:text-violet-300
               "
-            >
-              Yangi ramkalar
-              <ArrowRight size={15} />
-            </Link>
-          </div>
-        </section>
+            />
+
+            Your code. Your identity.
+          </span>
+
+          <Link
+            to="/frames/shop"
+            className="
+              inline-flex items-center
+              gap-1 font-bold
+              text-violet-700
+              hover:underline
+              dark:text-violet-300
+            "
+          >
+            Yangi ramkalar
+            <ArrowRight size={13} />
+          </Link>
+        </div>
       </div>
     </main>
   );

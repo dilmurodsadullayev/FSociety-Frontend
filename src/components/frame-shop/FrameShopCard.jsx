@@ -1,9 +1,22 @@
 
  // src/components/frame-shop/FrameShopCard.jsx
 
-import React, { memo, useEffect, useId, useMemo, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { Link } from "react-router-dom";
+
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "framer-motion";
 
 import {
   ArrowUpRight,
@@ -12,393 +25,441 @@ import {
   Coins,
   Crown,
   Gem,
+  Gift,
+  Info,
+  Loader2,
   LockKeyhole,
-  ShieldCheck,
+  Shield,
   ShoppingBag,
   Sparkles,
-  UserRound,
+  WandSparkles,
   Zap,
 } from "lucide-react";
 
-import { BACKEND_URL } from "../../services/config";
 import FrameShopPreview from "./FrameShopPreview";
 
 // =========================================================
-// FSOCIETY — FRAME SHOP CARD
+// FSOCIETY — FRAME SHOP CARD / CYBER VAULT 2.0
 // =========================================================
 //
-// Features:
-// - Premium cyberpunk card
-// - Dark / light mode
-// - Responsive
-// - Frame image overlay
-// - CSS fallback frame
-// - Rarity-specific visual effects
-// - Reduced motion support
-// - Purchase / owned states
-// - Expandable information
+// Compact premium card for the Frame Shop catalog.
+//
+// Keeps the parent's existing contract:
+//   frame, index, isAuthenticated, isBusy, onPurchase
+//
+// Responsibilities:
+// - Show rarity and limited edition status
+// - Show equipped / owned / available status
+// - Display the corrected PNG frame preview
+// - Show price in FCoin
+// - Toggle detailed frame information
+// - Route owned frames to My Frames
+// - Request purchase through the parent callback
+// - Support inactive / event-only frames
+// - Respect reduced-motion preferences
+// - Responsive Dark / Light design
+//
+// The frame is NEVER purchased inside this component.
+// The confirmation modal and balance checks stay in FrameShop.jsx.
+//
+// =========================================================
+
+// =========================================================
+// RARITY DESIGN SYSTEM
 // =========================================================
 
 const RARITY = {
   common: {
     label: "COMMON",
-    Icon: ShieldCheck,
-    text: "text-slate-600 dark:text-slate-300",
-    badge: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300",
-    gradient: "from-slate-400 via-slate-200 to-slate-500",
-    glow: "bg-slate-400/20",
-    ring: "border-slate-400/60",
-    tint: "from-slate-400/15 via-transparent to-slate-400/5",
-    button: "from-slate-600 to-slate-800",
+    Icon: Shield,
+    badge:
+      "border-slate-300/80 bg-slate-100 text-slate-600 " +
+      "dark:border-slate-400/25 dark:bg-slate-400/10 dark:text-slate-200",
+    rail: "from-slate-300 via-slate-500 to-slate-300",
+    glow: "bg-slate-400/15",
+    button:
+      "from-slate-600 to-slate-800 hover:from-slate-500 hover:to-slate-700",
+    accent: "text-slate-600 dark:text-slate-300",
   },
   rare: {
     label: "RARE",
     Icon: Gem,
-    text: "text-sky-700 dark:text-sky-300",
-    badge: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300",
-    gradient: "from-cyan-400 via-blue-500 to-cyan-300",
-    glow: "bg-cyan-400/25",
-    ring: "border-cyan-400/70",
-    tint: "from-cyan-400/15 via-transparent to-blue-500/10",
-    button: "from-cyan-600 to-blue-600",
+    badge:
+      "border-cyan-300/80 bg-cyan-50 text-cyan-700 " +
+      "dark:border-cyan-400/25 dark:bg-cyan-400/10 dark:text-cyan-200",
+    rail: "from-cyan-300 via-sky-500 to-cyan-300",
+    glow: "bg-cyan-400/15",
+    button:
+      "from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500",
+    accent: "text-cyan-600 dark:text-cyan-300",
   },
   epic: {
     label: "EPIC",
     Icon: Zap,
-    text: "text-violet-700 dark:text-violet-300",
-    badge: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300",
-    gradient: "from-violet-400 via-fuchsia-500 to-indigo-500",
-    glow: "bg-violet-500/25",
-    ring: "border-violet-400/70",
-    tint: "from-violet-500/15 via-transparent to-fuchsia-500/10",
-    button: "from-violet-600 to-fuchsia-600",
+    badge:
+      "border-violet-300/80 bg-violet-50 text-violet-700 " +
+      "dark:border-violet-400/25 dark:bg-violet-400/10 dark:text-violet-200",
+    rail: "from-violet-400 via-fuchsia-500 to-violet-400",
+    glow: "bg-violet-500/15",
+    button:
+      "from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500",
+    accent: "text-violet-600 dark:text-violet-300",
   },
   legendary: {
     label: "LEGENDARY",
     Icon: Crown,
-    text: "text-amber-700 dark:text-amber-300",
-    badge: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300",
-    gradient: "from-amber-300 via-orange-400 to-yellow-200",
-    glow: "bg-amber-400/30",
-    ring: "border-amber-400/80",
-    tint: "from-amber-400/20 via-transparent to-orange-500/10",
-    button: "from-amber-500 to-orange-600",
+    badge:
+      "border-amber-300/80 bg-amber-50 text-amber-800 " +
+      "dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200",
+    rail: "from-amber-300 via-orange-500 to-amber-300",
+    glow: "bg-amber-400/15",
+    button:
+      "from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500",
+    accent: "text-amber-700 dark:text-amber-300",
   },
 };
 
-const numberFormat = new Intl.NumberFormat("uz-UZ", {
-  maximumFractionDigits: 0,
-});
+const formatAmount = (value) =>
+  new Intl.NumberFormat("uz-UZ", {
+    maximumFractionDigits: 0,
+  }).format(value);
 
-const getImageUrl = (value) => {
-  const image =
-    typeof value === "string"
-      ? value
-      : typeof value?.url === "string"
-        ? value.url
-        : "";
-
-  if (!image || !image.trim()) return null;
-
-  const trimmed = image.trim();
-
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-
-  if (/^[a-z][a-z\d+.-]*:/i.test(trimmed) || trimmed.startsWith("//")) {
+const parsePrice = (value) => {
+  if (value === "" || value === null || value === undefined) {
     return null;
   }
 
-  const origin = String(BACKEND_URL || "")
-    .replace(/\/+$/, "");
-
-  return trimmed.startsWith("/")
-    ? `${origin}${trimmed}`
-    : `${origin}/${trimmed}`;
-};
-
-const safePrice = (value) => {
   const price = Number(value);
-  return Number.isFinite(price) && price >= 0 ? price : 0;
+
+  return Number.isFinite(price) && price >= 0
+    ? price
+    : null;
 };
 
-// =========================================================
-// FRAME PREVIEW
-// =========================================================
-
-const FramePreview = memo(function FramePreview({
-  frame,
-  config,
-  reduceMotion,
-}) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  const imageUrl = useMemo(
-    () => getImageUrl(frame?.image_url || frame?.image),
-    [frame?.image_url, frame?.image]
-  );
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [imageUrl]);
-
-  const showImage = Boolean(imageUrl && !imageFailed);
-
-  return (
-    <div
-      aria-label={`${frame?.name || "Ramka"} ko‘rinishi`}
-      role="img"
-      className="relative mx-auto flex h-[190px] w-[190px] items-center justify-center sm:h-[210px] sm:w-[210px]"
-    >
-      {/* Ambient light */}
-      <div
-        aria-hidden="true"
-        className={`absolute inset-[12%] rounded-full blur-[36px] ${config.glow}`}
-      />
-
-      {/* Orbit lines */}
-      <div
-        aria-hidden="true"
-        className={`absolute inset-2 rounded-full border border-dashed ${config.ring} opacity-40`}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-5 rotate-45 rounded-full border border-white/20 dark:border-white/10"
-      />
-
-      {/* Rotating orbit markers */}
-      <motion.div
-        aria-hidden="true"
-        className="absolute inset-1 rounded-full"
-        animate={reduceMotion ? undefined : { rotate: 360 }}
-        transition={{
-          duration: 28,
-          ease: "linear",
-          repeat: Infinity,
-        }}
-      >
-        <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.75)]" />
-        <span className="absolute bottom-0 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-violet-400" />
-      </motion.div>
-
-      {/* Avatar placeholder */}
-      <div className="absolute inset-[23%] flex items-center justify-center overflow-hidden rounded-full border border-white/25 bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 shadow-inner dark:from-slate-700 dark:via-slate-900 dark:to-slate-950">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-cyan-400/10" />
-        <UserRound
-          className="relative h-14 w-14 text-slate-500/60 dark:text-slate-300/65"
-          strokeWidth={1.3}
-        />
-      </div>
-
-      {/* Real uploaded frame image */}
-      {showImage ? (
-        <img
-          src={imageUrl}
-          alt=""
-          onError={() => setImageFailed(true)}
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_0_16px_rgba(139,92,246,0.28)]"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        /* Premium fallback when no image exists */
-        <div
-          aria-hidden="true"
-          className={`absolute inset-[15%] rounded-full bg-gradient-to-br ${config.gradient} p-[4px] shadow-[0_0_28px_rgba(139,92,246,0.18)]`}
-        >
-          <div className="h-full w-full rounded-full border-[5px] border-white/70 bg-transparent shadow-[inset_0_0_16px_rgba(15,23,42,0.3)] dark:border-slate-950/80" />
-          <span className="absolute -top-1 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-white/80 bg-white/80 shadow-lg" />
-          <span className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-white/80 bg-white/80 shadow-lg" />
-        </div>
-      )}
-
-      <div
-        aria-hidden="true"
-        className={`absolute bottom-0 right-1 flex h-10 w-10 items-center justify-center rounded-xl border border-white/40 bg-gradient-to-br ${config.gradient} text-white shadow-lg`}
-      >
-        <config.Icon size={18} strokeWidth={2} />
-      </div>
-    </div>
-  );
-});
+const compactText = (value) =>
+  typeof value === "string" ? value.trim() : "";
 
 // =========================================================
-// CARD
+// CATALOG ITEM
 // =========================================================
 
-const FrameShopCard = memo(function FrameShopCard({
+function FrameShopCard({
   frame,
   index = 0,
-  onPurchase,
   isAuthenticated = false,
   isBusy = false,
+  onPurchase,
 }) {
-  const reduceMotion = useReducedMotion();
-  const detailsId = useId();
+  const reducedMotion = useReducedMotion();
+  const infoId = useId();
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const [expanded, setExpanded] = useState(false);
+  const frameId = frame?.id;
+  const frameCode = compactText(frame?.code);
+  const name = compactText(frame?.name) || "Nomsiz ramka";
+  const description = compactText(frame?.description);
 
-  const rarity = String(frame?.rarity || "common").toLowerCase();
-  const config = RARITY[rarity] || RARITY.common;
+  const rarityKey = String(frame?.rarity || "common")
+    .trim()
+    .toLowerCase();
 
-  const price = safePrice(frame?.price);
-  const isOwned = Boolean(frame?.is_owned);
-  const isEquipped = Boolean(frame?.is_equipped);
-  const isLimited = Boolean(frame?.is_limited_edition);
+  const theme = RARITY[rarityKey] || RARITY.common;
+  const RarityIcon = theme.Icon;
+
+  const owned = Boolean(
+    frame?.is_owned ?? frame?.owned ?? frame?.is_purchased
+  );
+
+  const equipped = Boolean(
+    frame?.is_equipped ?? frame?.equipped
+  );
+
+  // An equipped frame is necessarily owned, even if a public
+  // serializer omits the is_owned flag.
+  const isOwned = owned || equipped;
+  const isActive = frame?.is_active !== false;
+  const isLimited = Boolean(frame?.is_limited_edition ?? frame?.is_limited);
   const isAnimated = Boolean(frame?.is_animated);
+  const price = parsePrice(frame?.price);
+  const hasValidFrameId = Number.isSafeInteger(Number(frameId)) && Number(frameId) > 0;
 
-  const description =
-    typeof frame?.description === "string"
-      ? frame.description.trim()
-      : "";
+  const isEventOnly = price === 0;
+  const canRequestPurchase = Boolean(
+    !isOwned &&
+      isActive &&
+      price !== null &&
+      Number.isSafeInteger(price) &&
+      price > 0 &&
+      hasValidFrameId &&
+      typeof onPurchase === "function" &&
+      !isBusy
+  );
 
-  if (!frame) return null;
+  // Reset the info panel if React reuses the card for another frame.
+  useEffect(() => {
+    setDetailsOpen(false);
+  }, [frameId]);
+
+  // Escape closes the optional information panel.
+  useEffect(() => {
+    if (!detailsOpen) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setDetailsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [detailsOpen]);
+
+  const statusText = useMemo(() => {
+    if (equipped) return "ACTIVE FRAME";
+    if (isOwned) return "OWNED";
+    if (!isActive) return "UNAVAILABLE";
+    if (isEventOnly) return "EVENT EXCLUSIVE";
+    return "UNLOCK YOUR STYLE";
+  }, [equipped, isOwned, isActive, isEventOnly]);
+
+  const handlePurchase = useCallback(() => {
+    if (!canRequestPurchase) return;
+    onPurchase(frame);
+  }, [canRequestPurchase, frame, onPurchase]);
+
+  if (!frame || typeof frame !== "object") {
+    return null;
+  }
 
   return (
     <motion.article
-      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.38, delay: Math.min(index, 8) * 0.045 }}
-      whileHover={reduceMotion ? undefined : { y: -5 }}
-      className="group relative flex min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-200/80 bg-white/85 shadow-[0_14px_38px_rgba(15,23,42,0.045)] backdrop-blur-xl transition-[border-color,box-shadow] duration-300 hover:border-cyan-400/40 hover:shadow-[0_24px_65px_rgba(59,130,246,0.13)] dark:border-white/[0.09] dark:bg-[#0d1424]/90 dark:shadow-[0_20px_55px_rgba(0,0,0,0.2)] dark:hover:border-cyan-400/30 dark:hover:shadow-[0_24px_70px_rgba(8,145,178,0.13)]"
+      whileHover={reducedMotion ? undefined : { y: -3 }}
+      transition={{
+        duration: 0.3,
+        delay: Math.min(Math.max(0, index), 7) * 0.035,
+        ease: "easeOut",
+      }}
+      className="group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/90 bg-white/95 shadow-[0_12px_34px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[0_18px_46px_rgba(15,23,42,0.13)] dark:border-white/10 dark:bg-[#0d1526]/95 dark:shadow-[0_18px_48px_rgba(0,0,0,0.24)] dark:hover:border-white/20 dark:hover:shadow-[0_23px_54px_rgba(0,0,0,0.35)]"
     >
-      {/* Accent strip */}
-      <div className={`h-[3px] w-full bg-gradient-to-r ${config.gradient}`} />
-
+      {/* Rarity accent: intentionally very thin. */}
       <div
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${config.tint} opacity-75`}
+        className={`h-[2px] shrink-0 bg-gradient-to-r ${theme.rail}`}
       />
 
-      <div className="relative flex h-full flex-col p-4 sm:p-5">
-        {/* Card header */}
-        <div className="flex min-h-[30px] items-start justify-between gap-2">
+      {/* Ambient color behind the frame; no busy additional decoration. */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute left-1/2 top-10 h-40 w-48 -translate-x-1/2 rounded-full blur-[60px] ${theme.glow}`}
+      />
+
+      <div className="relative flex h-full min-w-0 flex-col px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4">
+        {/* Compact header */}
+        <div className="flex min-h-6 items-center justify-between gap-2">
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-[0.13em] ${config.badge}`}
+            className={`inline-flex min-w-0 items-center gap-1 rounded-full border px-2 py-1 font-mono text-[9px] font-bold tracking-[0.08em] ${theme.badge}`}
           >
-            <config.Icon size={12} />
-            {config.label}
+            <RarityIcon size={11} aria-hidden="true" className="shrink-0" />
+            {theme.label}
           </span>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
             {isLimited && (
-              <span className="rounded-full border border-rose-400/25 bg-rose-400/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300">
-                Limited
+              <span className="rounded-full border border-rose-300/50 bg-rose-50/90 px-2 py-1 font-mono text-[9px] font-bold text-rose-600 dark:border-rose-400/25 dark:bg-rose-500/10 dark:text-rose-300">
+                LIMITED
               </span>
             )}
-            {isAnimated && (
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/10 text-violet-500 dark:text-violet-300"
-                title="Animatsiyali ramka"
-              >
-                <Sparkles size={13} />
+
+            {isOwned && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-1 font-mono text-[9px] font-bold text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <Check size={10} aria-hidden="true" />
+                {equipped ? "EQUIPPED" : "OWNED"}
               </span>
             )}
           </div>
         </div>
 
-        {/* Showcase */}
-        <div className="relative flex min-h-[226px] items-center justify-center py-2">
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-6 top-5 h-32 rounded-full bg-gradient-to-r from-cyan-400/5 via-violet-400/10 to-amber-400/5 blur-3xl"
-          />
+        {/* Frame artwork: reuses the corrected overlay alignment. */}
+        <div className="relative mx-auto flex h-[188px] w-full items-center justify-center sm:h-[197px]">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 scale-[0.80] sm:scale-[0.83]">
+            <FrameShopPreview frame={frame} />
+          </div>
 
-          <FrameShopPreview frame={frame} />
+          {/* Small rarity mark, not overlaid on the face. */}
+          {isAnimated && (
+            <span className="absolute bottom-1 right-2 inline-flex items-center gap-1 rounded-lg border border-violet-300/60 bg-violet-50/90 px-2 py-1 text-[9px] font-bold text-violet-700 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
+              <Sparkles size={11} aria-hidden="true" />
+              ANIMATED
+            </span>
+          )}
         </div>
 
-        {/* Title */}
-        <div className="mt-1 min-w-0 text-center">
-          <p className="mb-1 font-mono text-[10px] font-medium tracking-[0.2em] text-slate-400 dark:text-slate-500">
+        {/* Name and status */}
+        <div className="min-w-0 text-center">
+          <p className="font-mono text-[9px] font-semibold tracking-[0.20em] text-slate-400 dark:text-slate-500">
             FS / COLLECTIBLE
           </p>
-
-          <h3 className="truncate font-['Space_Grotesk'] text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-            {frame.name || "Nomsiz ramka"}
+          <h3
+            title={name}
+            className="mt-1 line-clamp-2 min-h-[24px] break-words font-['Space_Grotesk'] text-[16px] font-extrabold leading-6 tracking-tight text-slate-900 dark:text-slate-100"
+          >
+            {name}
           </h3>
-
-          <p className={`mt-1 text-[11px] font-bold uppercase tracking-[0.16em] ${config.text}`}>
-            {isEquipped
-              ? "EQUIPPED"
-              : isOwned
-                ? "COLLECTED"
-                : "UNLOCK YOUR STYLE"}
+          <p className={`mt-0.5 font-mono text-[9px] font-bold tracking-[0.12em] ${theme.accent}`}>
+            {statusText}
           </p>
         </div>
 
-        {/* Divider */}
-        <div className="my-4 h-px bg-gradient-to-r from-transparent via-slate-300/80 to-transparent dark:via-white/15" />
-
-        {/* Price */}
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Narxi
-            </p>
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <Coins size={19} className="text-amber-500" />
-              <span className="text-xl font-black tabular-nums tracking-tight text-slate-900 dark:text-white">
-                {numberFormat.format(price)}
-              </span>
-              <span className="text-xs font-bold text-amber-600 dark:text-amber-300">
-                FCoin
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setExpanded((value) => !value)}
-            aria-expanded={expanded}
-            aria-controls={detailsId}
-            className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
-          >
-            Info
-            <ChevronDown
-              size={14}
-              className={`transition-transform ${expanded ? "rotate-180" : ""}`}
-            />
-          </button>
-        </div>
-
-        {/* Expandable description */}
-        {expanded && (
-          <div
-            id={detailsId}
-            className="mb-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs leading-5 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
-          >
-            {description || "Bu kolleksion ramka profilingiz uchun maxsus bezak."}
-          </div>
-        )}
-
-        {/* Action */}
-        <button
-          type="button"
-          disabled={isBusy || isOwned}
-          onClick={() => onPurchase?.(frame)}
-          className={`mt-auto inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 ${
-            isOwned
-              ? "cursor-default border border-emerald-400/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-              : `bg-gradient-to-r ${config.button} text-white shadow-lg hover:brightness-110 disabled:cursor-wait disabled:opacity-60`
-          }`}
-        >
-          {isOwned ? (
-            <>
-              <Check size={17} />
-              {isEquipped ? "O‘rnatilgan" : "Kolleksiyada"}
-            </>
-          ) : (
-            <>
-              {isAuthenticated ? <ShoppingBag size={17} /> : <LockKeyhole size={17} />}
-              {isBusy ? "Jarayonda..." : isAuthenticated ? "Sotib olish" : "Kirish va sotib olish"}
-              {!isBusy && <ArrowUpRight size={16} />}
-            </>
+        {/* Detailed information: collapsed by default, never removes data. */}
+        <AnimatePresence initial={false}>
+          {detailsOpen && (
+            <motion.div
+              id={infoId}
+              key="frame-details"
+              initial={reducedMotion ? false : { height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={reducedMotion ? undefined : { height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3 text-[11px] leading-5 text-slate-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
+                <p className="font-semibold text-slate-800 dark:text-slate-200">
+                  {description || "Ushbu ramka FSociety profilini bezash uchun mo‘ljallangan."}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {frameCode && (
+                    <span className="max-w-full break-all rounded-md bg-white px-2 py-1 font-mono text-[9px] text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                      {frameCode}
+                    </span>
+                  )}
+                  {isLimited && (
+                    <span className="rounded-md bg-rose-500/10 px-2 py-1 text-[9px] font-bold text-rose-600 dark:text-rose-300">
+                      Limited edition
+                    </span>
+                  )}
+                  {isAnimated && (
+                    <span className="rounded-md bg-violet-500/10 px-2 py-1 text-[9px] font-bold text-violet-700 dark:text-violet-300">
+                      Animated
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
           )}
-        </button>
+        </AnimatePresence>
+
+        {/* Footer remains aligned at bottom for cards of equal height. */}
+        <div className="mt-auto pt-3">
+          <div className="flex items-end justify-between gap-3 border-t border-slate-200/70 pt-3 dark:border-white/[0.08]">
+            <div className="min-w-0">
+              <p className="font-mono text-[9px] font-semibold tracking-[0.10em] text-slate-400 dark:text-slate-500">
+                NARXI
+              </p>
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                {price !== null && price > 0 ? (
+                  <>
+                    <Coins size={16} className="shrink-0 text-amber-500" aria-hidden="true" />
+                    <span className="font-['Space_Grotesk'] text-lg font-black tabular-nums text-slate-900 dark:text-white">
+                      {formatAmount(price)}
+                    </span>
+                    <span className="self-end pb-[2px] text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                      FCoin
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Gift size={16} className="text-violet-500" aria-hidden="true" />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                      {isEventOnly ? "Mukofot" : "—"}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              aria-expanded={detailsOpen}
+              aria-controls={detailsOpen ? infoId : undefined}
+              onClick={() => setDetailsOpen((prev) => !prev)}
+              className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-2.5 text-[11px] font-bold text-slate-600 transition-colors hover:border-cyan-300 hover:text-cyan-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:border-cyan-400/40 dark:hover:text-cyan-200"
+            >
+              <Info size={13} aria-hidden="true" />
+              Info
+              <ChevronDown
+                size={12}
+                aria-hidden="true"
+                className={`transition-transform ${detailsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          </div>
+
+          {/* Preserve the parent onPurchase callback and modal flow. */}
+          {equipped ? (
+            <div className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+              <Check size={15} aria-hidden="true" />
+              O‘rnatilgan
+            </div>
+          ) : isOwned ? (
+            <Link
+              to="/frames/my"
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-violet-300/60 bg-violet-50 px-3 py-2.5 text-xs font-bold text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-400/25 dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20"
+            >
+              <WandSparkles size={15} aria-hidden="true" />
+              Avatarimga o‘rnatish
+              <ArrowUpRight size={13} aria-hidden="true" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={!canRequestPurchase}
+              onClick={handlePurchase}
+              aria-label={
+                !isActive
+                  ? `${name} hozircha mavjud emas`
+                  : isEventOnly
+                    ? `${name} tadbir orqali olinadi`
+                    : isAuthenticated
+                      ? `${name} ramkasini sotib olish`
+                      : `${name} ramkasini sotib olish uchun kirish`
+              }
+              className={`mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r px-3 py-2.5 text-xs font-extrabold text-white shadow-[0_6px_20px_rgba(15,23,42,0.14)] transition-[filter,box-shadow] hover:shadow-[0_8px_24px_rgba(15,23,42,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:focus-visible:ring-offset-[#0d1526] ${theme.button}`}
+            >
+              {isBusy ? (
+                <Loader2 size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+              ) : !isActive ? (
+                <LockKeyhole size={15} aria-hidden="true" />
+              ) : isEventOnly ? (
+                <Gift size={15} aria-hidden="true" />
+              ) : !isAuthenticated ? (
+                <LockKeyhole size={15} aria-hidden="true" />
+              ) : (
+                <ShoppingBag size={15} aria-hidden="true" />
+              )}
+
+              <span>
+                {isBusy
+                  ? "Tekshirilmoqda..."
+                  : !isActive
+                    ? "Hozir mavjud emas"
+                    : isEventOnly
+                      ? "Tadbir mukofoti"
+                      : !isAuthenticated
+                        ? "Kirish va sotib olish"
+                        : "Sotib olish"}
+              </span>
+
+              {!isBusy && isActive && !isEventOnly && (
+                <ArrowUpRight size={14} aria-hidden="true" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </motion.article>
   );
-});
+}
 
-export default FrameShopCard;
+export default memo(FrameShopCard);
