@@ -19,8 +19,9 @@ import timeAgo from "../../utils/timeAgo";
 
 import {
     getUserAvatarUrl,
-    handleUserImageError,
 } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 import {
     siteToast,
@@ -188,36 +189,17 @@ const CommentAuthor = React.memo(({
         : null;
 
     const avatarElement = (
-        <img
-            src={avatar}
-
-            alt={`${authorName} avatar`}
-
-            loading="lazy"
-            decoding="async"
-
-            onError={handleUserImageError}
-
-            className="
-                h-11
-                w-11
-                shrink-0
-
-                rounded-xl
-                border
-                border-[#dce5f0]
-
-                bg-slate-100
-
-                object-cover
-
-                sm:h-12
-                sm:w-12
-
-                dark:border-white/[0.09]
-                dark:bg-[#141c2a]
-            "
-        />
+        <span className="inline-flex h-[66px] w-[66px] shrink-0 items-center justify-center sm:h-[72px] sm:w-[72px]">
+            <PublicFramedAvatar
+                username={username}
+                avatarUrl={avatar}
+                displayName={authorName}
+                className="h-11 w-11 sm:h-12 sm:w-12"
+                plainClassName="rounded-xl"
+                showFrame={Boolean(username)}
+                loading="lazy"
+            />
+        </span>
     );
 
     if (!profilePath) {
@@ -291,9 +273,11 @@ const ProjectCommentCard = ({
         author
     );
 
-    const avatar = getUserAvatarUrl(
-        author
-    );
+    const avatar =
+        author.image ||
+        author.avatar ||
+        author.image_url ||
+        getUserAvatarUrl(author);
 
     // =====================================================
     // USER PROFILE

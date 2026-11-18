@@ -20,8 +20,9 @@ import {
 
 import {
     getUserAvatarUrl,
-    handleUserImageError,
 } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 import {formatPrettyDate} from '../../utils/formatDate'
 import {
@@ -775,9 +776,18 @@ const ProjectsPageCard = ({
     // USER
     // =====================================================
 
-    const username =
-        project?.user?.username ||
-        "developer";
+    const authorUsername =
+        typeof project?.user?.username === "string"
+            ? project.user.username.trim()
+            : "";
+
+    const username = authorUsername || "developer";
+
+    const authorAvatar =
+        project?.user?.image ||
+        project?.user?.avatar ||
+        project?.user?.image_url ||
+        getUserAvatarUrl(project?.user);
 
     const profileUrl =
         `/${encodeURIComponent(username)}/profile`;
@@ -1190,34 +1200,17 @@ const ProjectsPageCard = ({
                             dark:hover:text-cyan-300
                         "
                     >
-                        <img
-                            src={getUserAvatarUrl(
-                                project?.user
-                            )}
-
-                            alt={`${username} avatar`}
-
-                            onError={handleUserImageError}
-
-                            loading="lazy"
-                            decoding="async"
-
-                            className="
-                                h-6
-                                w-6
-                                shrink-0
-
-                                rounded-full
-                                border
-                                border-[#dce5f0]
-
-                                bg-slate-100
-                                object-cover
-
-                                dark:border-white/10
-                                dark:bg-[#18212d]
-                            "
-                        />
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center">
+                            <PublicFramedAvatar
+                                username={authorUsername}
+                                avatarUrl={authorAvatar}
+                                displayName={username}
+                                className="h-6 w-6"
+                                plainClassName="rounded-full"
+                                showFrame={Boolean(authorUsername)}
+                                loading="lazy"
+                            />
+                        </span>
 
                         <span
                             className="

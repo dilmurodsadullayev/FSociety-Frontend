@@ -23,8 +23,9 @@ import {
 
 import {
     getUserAvatarUrl,
-    handleUserImageError,
 } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 // =========================================================
 // DISCUSSION HELPERS
@@ -161,9 +162,16 @@ const CommentEditModal = ({
         author
     );
 
-    const avatar = getUserAvatarUrl(
-        author
-    );
+    const avatar =
+        author.image ||
+        author.avatar ||
+        author.image_url ||
+        getUserAvatarUrl(author);
+
+    const frameUsername =
+        typeof author.username === "string"
+            ? author.username.trim()
+            : "";
 
     // =====================================================
     // ERROR
@@ -707,29 +715,17 @@ const CommentEditModal = ({
                                 dark:bg-white/[0.025]
                             "
                         >
-                            <img
-                                src={avatar}
-
-                                alt={`${authorName} avatar`}
-
-                                loading="lazy"
-
-                                onError={handleUserImageError}
-
-                                className="
-                                    h-10
-                                    w-10
-                                    shrink-0
-
-                                    rounded-xl
-                                    border
-                                    border-[#dce5f0]
-
-                                    object-cover
-
-                                    dark:border-white/[0.09]
-                                "
-                            />
+                            <span className="inline-flex h-[60px] w-[60px] shrink-0 items-center justify-center">
+                                <PublicFramedAvatar
+                                    username={frameUsername}
+                                    avatarUrl={avatar}
+                                    displayName={authorName}
+                                    className="h-10 w-10"
+                                    plainClassName="rounded-xl"
+                                    showFrame={Boolean(frameUsername)}
+                                    loading="lazy"
+                                />
+                            </span>
 
                             <div className="min-w-0">
                                 <p

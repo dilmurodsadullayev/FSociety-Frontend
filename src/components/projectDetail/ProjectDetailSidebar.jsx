@@ -13,7 +13,7 @@ import {
 
 import ProjectPromotion from "../promotions/ProjectPromotion";
 
-import UserImage from "../../assests/userImage.jpeg";
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 import {
     getAuthorName,
@@ -169,21 +169,6 @@ const SidebarHeading = React.memo(({
 });
 
 // =========================================================
-// AUTHOR AVATAR ERROR
-// =========================================================
-
-const handleAvatarError = (event) => {
-    const image = event.currentTarget;
-
-    // Prevent repeated fallback errors.
-    image.onerror = null;
-
-    if (!image.src.endsWith("/userImage.jpeg")) {
-        image.src = UserImage;
-    }
-};
-
-// =========================================================
 // AUTHOR CARD
 // =========================================================
 
@@ -201,7 +186,7 @@ const ProjectAuthorCard = React.memo(({
     );
 
     const authorImage = getImageUrl(
-        owner.image
+        owner.image || owner.avatar || owner.image_url
     );
 
     const skillLevel =
@@ -220,31 +205,17 @@ const ProjectAuthorCard = React.memo(({
         <>
             {/* AVATAR */}
 
-            <img
-                src={authorImage}
-                alt={`${authorName} avatar`}
-
-                loading="lazy"
-                decoding="async"
-
-                onError={handleAvatarError}
-
-                className="
-                    h-14
-                    w-14
-                    shrink-0
-
-                    rounded-2xl
-                    border
-                    border-[#dce5f0]
-
-                    bg-slate-100
-                    object-cover
-
-                    dark:border-white/[0.10]
-                    dark:bg-[#121a27]
-                "
-            />
+            <span className="inline-flex h-[84px] w-[84px] shrink-0 items-center justify-center">
+                <PublicFramedAvatar
+                    username={username}
+                    avatarUrl={authorImage}
+                    displayName={authorName}
+                    className="h-14 w-14"
+                    plainClassName="rounded-2xl"
+                    showFrame={Boolean(username)}
+                    loading="lazy"
+                />
+            </span>
 
             {/* USER INFORMATION */}
 

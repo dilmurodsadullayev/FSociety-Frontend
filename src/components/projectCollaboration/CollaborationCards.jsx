@@ -3,6 +3,8 @@ import React from "react";
 
 import { Link } from "react-router-dom";
 
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
+
 import {
     Check,
     Crown,
@@ -57,26 +59,14 @@ export const MemberAvatar = React.memo(({
 }) => {
     const name = getAuthorName(user);
 
+    const username =
+        typeof user?.username === "string"
+            ? user.username.trim()
+            : "";
+
     const imageUrl = getImageUrl(
-        user?.image
+        user?.image || user?.avatar || user?.image_url
     );
-
-    // =====================================================
-    // IMAGE FALLBACK
-    // =====================================================
-
-    const handleImageError = (event) => {
-        const image = event.currentTarget;
-
-        // Prevent repeated error events.
-        image.onerror = null;
-
-        const fallbackUrl = getImageUrl(null);
-
-        if (fallbackUrl) {
-            image.src = fallbackUrl;
-        }
-    };
 
     // =====================================================
     // SIZE
@@ -89,37 +79,29 @@ export const MemberAvatar = React.memo(({
                 ? "h-14 w-14"
                 : "h-12 w-12";
 
+    const slotClass =
+        size === "small"
+            ? "h-[60px] w-[60px]"
+            : size === "large"
+                ? "h-[84px] w-[84px]"
+                : "h-[72px] w-[72px]";
+
     // =====================================================
     // JSX
     // =====================================================
 
     return (
-        <img
-            src={imageUrl}
-
-            alt={`${name} avatar`}
-
-            loading="lazy"
-            decoding="async"
-
-            onError={handleImageError}
-
-            className={`
-                shrink-0
-
-                rounded-xl
-                border
-                border-[#dce5f0]
-
-                bg-slate-100
-                object-cover
-
-                dark:border-white/[0.10]
-                dark:bg-[#141c2a]
-
-                ${sizeClass}
-            `}
-        />
+        <span className={`inline-flex shrink-0 items-center justify-center ${slotClass}`}>
+            <PublicFramedAvatar
+                username={username}
+                avatarUrl={imageUrl}
+                displayName={name}
+                className={sizeClass}
+                plainClassName="rounded-xl"
+                showFrame={Boolean(username)}
+                loading="lazy"
+            />
+        </span>
     );
 });
 

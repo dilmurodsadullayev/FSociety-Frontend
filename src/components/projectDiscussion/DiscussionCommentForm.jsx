@@ -14,8 +14,9 @@ import {
 
 import {
     getUserAvatarUrl,
-    handleUserImageError,
 } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 // =========================================================
 // DISCUSSION HELPERS
@@ -102,9 +103,16 @@ const DiscussionCommentForm = ({
     // USER AVATAR
     // =====================================================
 
-    const avatar = getUserAvatarUrl(
-        user
-    );
+    const avatar =
+        user?.image ||
+        user?.avatar ||
+        user?.image_url ||
+        getUserAvatarUrl(user);
+
+    const frameUsername =
+        typeof user?.username === "string"
+            ? user.username.trim()
+            : "";
 
     const username =
         user?.username ||
@@ -236,35 +244,17 @@ const DiscussionCommentForm = ({
                     CURRENT USER AVATAR
                 ================================== */}
 
-                <img
-                    src={avatar}
-
-                    alt={`${username} avatar`}
-
-                    loading="lazy"
-                    decoding="async"
-
-                    onError={handleUserImageError}
-
-                    className="
-                        h-10
-                        w-10
-                        shrink-0
-
-                        rounded-xl
-                        border
-                        border-[#dce5f0]
-
-                        bg-slate-100
-                        object-cover
-
-                        sm:h-12
-                        sm:w-12
-
-                        dark:border-white/[0.09]
-                        dark:bg-[#141c2a]
-                    "
-                />
+                <span className="inline-flex h-[60px] w-[60px] shrink-0 items-center justify-center sm:h-[72px] sm:w-[72px]">
+                    <PublicFramedAvatar
+                        username={frameUsername}
+                        avatarUrl={avatar}
+                        displayName={username}
+                        className="h-10 w-10 sm:h-12 sm:w-12"
+                        plainClassName="rounded-xl"
+                        showFrame={loggedIn && Boolean(frameUsername)}
+                        loading="lazy"
+                    />
+                </span>
 
                 {/* ==================================
                     INPUT CONTENT

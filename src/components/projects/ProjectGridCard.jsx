@@ -25,8 +25,9 @@ import {
 
 import {
     getUserAvatarUrl,
-    handleUserImageError,
 } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 import {
     isProjectPromoted,
@@ -265,13 +266,19 @@ const ProjectGridCard = ({
     // =====================================================
 
     const avatar =
-        project?.user
+        project?.user?.image ||
+        project?.user?.avatar ||
+        project?.user?.image_url ||
+        (
+            project?.user
+                ? getUserAvatarUrl(project.user)
+                : UserImage
+        );
 
-            ? getUserAvatarUrl(
-                project.user
-            )
-
-            : UserImage;
+    const authorUsername =
+        typeof project?.user?.username === "string"
+            ? project.user.username.trim()
+            : "";
 
 
     // =====================================================
@@ -980,34 +987,17 @@ const ProjectGridCard = ({
                                     />
 
 
-                                    <img
-                                        src={
-                                            avatar
-                                        }
-
-                                        alt={
-                                            project
-                                                ?.user
-                                                ?.username
-                                            ||
-                                            "User"
-                                        }
-
-                                        onError={
-                                            handleUserImageError
-                                        }
-
-                                        className="
-                                            relative
-                                            h-10
-                                            w-10
-                                            rounded-xl
-                                            border
-                                            border-white/[0.07]
-                                            bg-gray-900
-                                            object-cover
-                                        "
-                                    />
+                                    <span className="relative inline-flex h-[60px] w-[60px] shrink-0 items-center justify-center">
+                                        <PublicFramedAvatar
+                                            username={authorUsername}
+                                            avatarUrl={avatar}
+                                            displayName={ownerName}
+                                            className="h-10 w-10"
+                                            plainClassName="rounded-xl"
+                                            showFrame={Boolean(authorUsername)}
+                                            loading="lazy"
+                                        />
+                                    </span>
 
                                 </div>
 

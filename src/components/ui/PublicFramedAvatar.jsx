@@ -47,6 +47,7 @@ import {
 const FRAME_CACHE_TTL_MS = 5 * 60 * 1000;
 const NO_FRAME_CACHE_TTL_MS = 60 * 1000;
 const ERROR_CACHE_TTL_MS = 15 * 1000;
+const FRAME_REQUEST_TIMEOUT_MS = 10 * 1000;
 const MAX_CACHED_USERS = 200;
 
 const frameCache = new Map();
@@ -198,10 +199,17 @@ const loadPublicEquippedFrame = (username) => {
     `${encodeURIComponent(username)}/` +
     "equipped-frame/";
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    FRAME_REQUEST_TIMEOUT_MS
+  );
+
   const promise = fetch(endpoint, {
     method: "GET",
     credentials: "omit",
     cache: "no-store",
+    signal: controller.signal,
 
     headers: {
       Accept: "application/json",
@@ -259,6 +267,8 @@ const loadPublicEquippedFrame = (username) => {
     })
 
     .finally(() => {
+      clearTimeout(timeoutId);
+
       if (
         pendingRequests.get(key) === promise
       ) {
@@ -374,11 +384,15 @@ function PublicFramedAvatar({
     }
 
     let alive = true;
+    const revisionAtStart = cacheRevision;
 
     loadPublicEquippedFrame(
       safeUsername
     ).then((frame) => {
-      if (alive) {
+      if (
+        alive &&
+        revisionAtStart === cacheRevision
+      ) {
         setFrameResult({
           username: safeUsername,
           frame,
@@ -454,6 +468,14 @@ function PublicFramedAvatar({
     [avatarUrl]
   );
 
+  useEffect(() => {
+    setFailedFrameUrl(null);
+  }, [safeUsername, frameUrl, refreshKey]);
+
+  useEffect(() => {
+    setFailedAvatarUrl(null);
+  }, [safeUsername, resolvedAvatarUrl, refreshKey]);
+
   // =====================================================
   // FRAME READY
   // =====================================================
@@ -522,8 +544,13 @@ function PublicFramedAvatar({
   const fallbackInitial =
     accessibleName.charAt(0).toUpperCase();
 
+  const displayedAvatarUrl =
+    failedAvatarUrl === resolvedAvatarUrl
+      ? DefaultUserImage
+      : resolvedAvatarUrl;
+
   const showAvatarImage =
-    failedAvatarUrl !== resolvedAvatarUrl;
+    failedAvatarUrl !== DefaultUserImage;
 
   // =====================================================
   // RENDER
@@ -587,14 +614,14 @@ function PublicFramedAvatar({
       >
         {showAvatarImage ? (
           <img
-            src={resolvedAvatarUrl}
+            src={displayedAvatarUrl}
             alt=""
             loading={loading}
             decoding="async"
             draggable={false}
             onError={() =>
               setFailedAvatarUrl(
-                resolvedAvatarUrl
+                displayedAvatarUrl
               )
             }
             className="
@@ -644,9 +671,10 @@ function PublicFramedAvatar({
             onLoad={() =>
               setLoadedFrameUrl(frameUrl)
             }
-            onError={() =>
-              setFailedFrameUrl(frameUrl)
-            }
+            onError={() => {
+              setLoadedFrameUrl(null);
+              setFailedFrameUrl(frameUrl);
+            }}
             className={`
               pointer-events-none
               absolute left-1/2
