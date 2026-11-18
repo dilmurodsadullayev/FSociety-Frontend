@@ -21,8 +21,9 @@ import {
 
 import {
     getUserAvatarUrl,
-    handleUserImageError,
 } from "../../utils/imageUtils";
+
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 
 // =========================================================
 // NOTIFICATION TYPE COLORS — LIGHT / DARK MODE
@@ -147,7 +148,14 @@ const NotificationCard = ({
 
     const senderUsername = getSenderUsername(sender);
 
-    const senderImage = getUserAvatarUrl(sender);
+    const frameUsername = typeof sender === "string"
+        ? sender.trim()
+        : typeof sender.username === "string"
+            ? sender.username.trim()
+            : "";
+
+    const senderImage =
+        sender.image || sender.avatar || sender.image_url || getUserAvatarUrl(sender);
 
     const meta = getNotificationMeta(notification);
 
@@ -397,28 +405,18 @@ const NotificationCard = ({
 
                 <div
                     className="
-                        relative w-fit shrink-0
+                        relative inline-flex h-[84px] w-[84px] shrink-0
+                        items-center justify-center
                     "
                 >
-                    <img
-                        src={senderImage}
-                        alt={`${senderUsername} avatar`}
-                        onError={handleUserImageError}
+                    <PublicFramedAvatar
+                        username={frameUsername}
+                        avatarUrl={senderImage}
+                        displayName={senderUsername}
+                        className="h-14 w-14"
+                        plainClassName="rounded-2xl border-2 border-white dark:border-slate-600"
+                        showFrame={Boolean(frameUsername)}
                         loading="lazy"
-                        className="
-                            h-14 w-14 rounded-2xl border-2
-
-                            border-white
-                            bg-slate-100
-
-                            object-cover
-
-                            shadow-[0_5px_15px_rgba(15,23,42,0.16)]
-
-                            dark:border-slate-600
-                            dark:bg-[#161b22]
-                            dark:shadow-black/30
-                        "
                     />
 
                     {/* NOTIFICATION TYPE ICON */}
@@ -426,7 +424,7 @@ const NotificationCard = ({
                     <div
                         aria-hidden="true"
                         className={`
-                            absolute -bottom-1.5 -right-1.5
+                            absolute z-20 -bottom-1.5 -right-1.5
 
                             grid h-8 w-8 place-items-center
 

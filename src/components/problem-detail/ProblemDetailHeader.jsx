@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 
 import UserImage from "../../assests/userImage.jpeg";
+import { BACKEND_URL } from "../../services/config";
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
 import timeAgo from "../../utils/timeAgo";
 
 import {
@@ -51,11 +53,6 @@ import {
 // CONFIG
 // =========================================================
 
-const BACKEND_URL = (
-    process.env.REACT_APP_BACKEND_URL ||
-    "http://127.0.0.1:8000"
-).replace(/\/+$/, "");
-
 const DEFAULT_STACK_COLOR = "#64748B";
 
 // =========================================================
@@ -63,11 +60,13 @@ const DEFAULT_STACK_COLOR = "#64748B";
 // =========================================================
 
 const getImageUrl = (value) => {
-    if (typeof value !== "string") {
+    const source = typeof value === "string" ? value : value?.url;
+
+    if (typeof source !== "string") {
         return UserImage;
     }
 
-    const image = value.trim();
+    const image = source.trim();
 
     if (!image) {
         return UserImage;
@@ -573,44 +572,21 @@ const OwnerActions = React.memo(({
 
 const AuthorAvatar = React.memo(({
     src,
+    username,
     name,
 }) => {
-    const handleError = (event) => {
-        const image = event.currentTarget;
-
-        image.onerror = null;
-        image.src = UserImage;
-    };
-
     return (
-        <img
-            src={src || UserImage}
-            alt={`${name} avatar`}
-            onError={handleError}
-            loading="lazy"
-            decoding="async"
-            className="
-                h-12
-                w-12
-                shrink-0
-
-                rounded-2xl
-                border-2
-                border-white
-
-                bg-slate-100
-
-                object-cover
-
-                shadow-sm
-
-                sm:h-14
-                sm:w-14
-
-                dark:border-white/[0.15]
-                dark:bg-slate-800
-            "
-        />
+        <span className="inline-flex h-[72px] w-[72px] shrink-0 items-center justify-center sm:h-[84px] sm:w-[84px]">
+            <PublicFramedAvatar
+                username={username}
+                avatarUrl={src}
+                displayName={name}
+                className="h-12 w-12 sm:h-14 sm:w-14"
+                plainClassName="rounded-2xl border-2 border-white dark:border-white/[0.15]"
+                showFrame={Boolean(username)}
+                loading="lazy"
+            />
+        </span>
     );
 });
 
@@ -725,7 +701,7 @@ const ProblemDetailHeader = ({
         "Noma’lum foydalanuvchi";
 
     const avatar = getImageUrl(
-        user.image
+        user.image || user.avatar || user.image_url
     );
 
     // =====================================================
@@ -1187,6 +1163,7 @@ const ProblemDetailHeader = ({
                 >
                     <AuthorAvatar
                         src={avatar}
+                        username={typeof user.username === "string" ? username : ""}
                         name={displayName}
                     />
 

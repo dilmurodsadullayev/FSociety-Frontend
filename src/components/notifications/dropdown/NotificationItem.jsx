@@ -11,7 +11,7 @@ import {
     UserRound,
 } from "lucide-react";
 
-import PlaceholderUserImage from "../../../assests/userImage.jpeg";
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
 
 import {
     timeUntilDeadline,
@@ -19,7 +19,6 @@ import {
 
 import {
     formatDateTime,
-    getAbsoluteImageUrl,
     getNotificationMeta,
     getNotificationText,
     getNotificationUrl,
@@ -44,9 +43,13 @@ const NotificationItem = ({
 
     const username = getSenderUsername(sender);
 
-    const avatarUrl = getAbsoluteImageUrl(
-        sender?.image
-    );
+    const frameUsername = typeof sender === "string"
+        ? sender.trim()
+        : typeof sender.username === "string"
+            ? sender.username.trim()
+            : "";
+
+    const avatarUrl = sender.image || sender.avatar || sender.image_url;
 
     const notificationUrl = getNotificationUrl(
         notification
@@ -80,17 +83,6 @@ const NotificationItem = ({
         }
 
         onClose?.();
-    };
-
-    // =====================================================
-    // IMAGE FALLBACK
-    // =====================================================
-
-    const handleImageError = (event) => {
-        event.currentTarget.onerror = null;
-
-        event.currentTarget.src =
-            PlaceholderUserImage;
     };
 
     // =====================================================
@@ -177,32 +169,20 @@ const NotificationItem = ({
                     AVATAR + TYPE ICON
                 ====================================== */}
 
-                <div className="relative shrink-0">
-                    <img
-                        src={avatarUrl}
-                        alt={username}
-                        onError={handleImageError}
-                        className="
-                            h-11
-                            w-11
-
-                            rounded-xl
-
-                            border
-                            border-[#dce4f0]
-
-                            bg-[#eaf0f8]
-
-                            object-cover
-
-                            dark:border-white/[0.08]
-                            dark:bg-[#161b22]
-                        "
+                <div className="relative inline-flex h-[66px] w-[66px] shrink-0 items-center justify-center">
+                    <PublicFramedAvatar
+                        username={frameUsername}
+                        avatarUrl={avatarUrl}
+                        displayName={username}
+                        className="h-11 w-11"
+                        plainClassName="rounded-xl"
+                        showFrame={Boolean(frameUsername)}
+                        loading="lazy"
                     />
 
                     <span
                         className={`
-                            absolute
+                            absolute z-20
                             -bottom-1
                             -right-1
 

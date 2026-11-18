@@ -122,6 +122,10 @@ const imageSource = (value) => {
         ? value.url
         : null;
 
+  if (candidate?.trim() === DefaultUserImage) {
+    return DefaultUserImage;
+  }
+
   return candidate?.trim()
     ? getMediaUrl(candidate.trim(), null)
     : null;

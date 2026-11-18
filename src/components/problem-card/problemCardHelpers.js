@@ -1,6 +1,7 @@
 
 import UserImage from "../../assests/userImage.jpeg";
 import timeAgo from "../../utils/timeAgo";
+import { BACKEND_URL } from "../../services/config";
 
 import {
     DEFAULT_STACK_COLOR,
@@ -29,10 +30,7 @@ import {
 // CONFIG
 // =========================================================
 
-export const BACKEND_URL = (
-    process.env.REACT_APP_BACKEND_URL ||
-    "http://127.0.0.1:8000"
-).replace(/\/+$/, "");
+export { BACKEND_URL };
 
 export const MAX_LANGUAGES =
     PROBLEM_CARD_LIMITS.languages;
@@ -135,11 +133,16 @@ export const cleanText = (
 // =========================================================
 
 export const getImageUrl = (image) => {
-    if (typeof image !== "string") {
+    const source =
+        typeof image === "string"
+            ? image
+            : image?.url;
+
+    if (typeof source !== "string") {
         return UserImage;
     }
 
-    const value = image.trim();
+    const value = source.trim();
 
     if (!value) {
         return UserImage;
@@ -459,16 +462,21 @@ export const normalizeProblemCardData = (
             ? source.user
             : {};
 
-    const resolvedUsername = cleanText(
+    const usernameValue = (
         sourceUser.username ??
         (
             typeof source.user === "string"
                 ? source.user
                 : undefined
         ) ??
-        legacy.username,
-        "unknown"
+        legacy.username
     );
+
+    const frameUsername = typeof usernameValue === "string"
+        ? usernameValue.trim()
+        : "";
+
+    const resolvedUsername = cleanText(usernameValue, "unknown");
 
     const resolvedFirstName = cleanText(
         sourceUser.first_name ??
@@ -491,7 +499,9 @@ export const normalizeProblemCardData = (
     );
 
     const avatar = getImageUrl(
-        sourceUser.image ??
+        sourceUser.image ||
+        sourceUser.avatar ||
+        sourceUser.image_url ||
         legacy.image
     );
 
@@ -646,6 +656,7 @@ export const normalizeProblemCardData = (
 
         author: {
             username: resolvedUsername,
+            frameUsername,
             firstName: resolvedFirstName,
             lastName: resolvedLastName,
             fullName,

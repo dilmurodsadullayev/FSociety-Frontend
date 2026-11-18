@@ -1,12 +1,12 @@
 
 import React, {
   memo,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 
 import { Link } from "react-router-dom";
+
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
 
 import {
   CalendarDays,
@@ -21,7 +21,6 @@ import formatProblemCreatedAt from "../../../utils/formatProblemCreatedAt";
 
 import {
   getProblemDisplayName,
-  getProblemInitials,
   getProblemStatusMeta,
   parseProblemDate,
 } from "./myProblemCardHelpers";
@@ -116,73 +115,23 @@ const toBoolean = (value) => {
 const AuthorAvatar = memo(function AuthorAvatar({
   user,
   image,
+  username,
   displayName,
 }) {
-  const [imageFailed, setImageFailed] =
-    useState(false);
-
-  const avatarUrl = useMemo(() => {
-    if (!image) {
-      return null;
-    }
-
-    return getUserAvatarUrl({
-      ...(user &&
-      typeof user === "object" &&
-      !Array.isArray(user)
-        ? user
-        : {}),
-      image,
-    });
-  }, [user, image]);
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [avatarUrl]);
-
-  const initials =
-    getProblemInitials(displayName);
+  const avatarUrl =
+    image || user?.avatar || user?.image_url || getUserAvatarUrl(user);
 
   return (
-    <span
-      className="
-        relative flex h-10 w-10 shrink-0
-        items-center justify-center
-        overflow-hidden rounded-full
-
-        border border-blue-200
-        bg-gradient-to-br
-        from-blue-100 to-indigo-100
-
-        text-[12px] font-extrabold
-        text-blue-700
-
-        ring-2 ring-white
-
-        dark:border-blue-400/25
-        dark:from-blue-500/20
-        dark:to-indigo-500/20
-        dark:text-blue-200
-        dark:ring-[#091528]
-      "
-    >
-      {avatarUrl && !imageFailed ? (
-        <img
-          src={avatarUrl}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          onError={() => setImageFailed(true)}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="select-none font-mono"
-        >
-          {initials}
-        </span>
-      )}
+    <span className="inline-flex h-[60px] w-[60px] shrink-0 items-center justify-center">
+      <PublicFramedAvatar
+        username={username}
+        avatarUrl={avatarUrl}
+        displayName={displayName}
+        className="h-10 w-10"
+        plainClassName="rounded-full border-blue-200 ring-2 ring-white dark:border-blue-400/25 dark:ring-[#091528]"
+        showFrame={Boolean(username)}
+        loading="lazy"
+      />
     </span>
   );
 });
@@ -285,6 +234,7 @@ function MyProblemCardHeader({
       <AuthorAvatar
         user={user}
         image={resolvedImage}
+        username={resolvedUsername}
         displayName={displayName}
       />
 

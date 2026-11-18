@@ -7,6 +7,8 @@ import {
 
 import UserImage from "../../assests/userImage.jpeg";
 
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
+
 import {
     getProblemCardStatusConfig,
 } from "./problemCardConfig";
@@ -42,6 +44,7 @@ import {
 
 const AuthorAvatar = React.memo(({
     src,
+    username,
     name,
     statusConfig,
 }) => {
@@ -57,59 +60,32 @@ const AuthorAvatar = React.memo(({
     );
 
     // =====================================================
-    // IMAGE FALLBACK
-    // =====================================================
-
-    const handleImageError = (event) => {
-        const image = event.currentTarget;
-
-        image.onerror = null;
-        image.src = UserImage;
-    };
-
-    // =====================================================
     // JSX
     // =====================================================
 
     return (
         <div
             className="
-                relative
-                h-11
-                w-11
+                relative inline-flex
+                h-[66px]
+                w-[66px]
                 shrink-0
+                items-center justify-center
 
-                sm:h-12
-                sm:w-12
+                sm:h-[72px]
+                sm:w-[72px]
             "
         >
             {/* AVATAR */}
 
-            <img
-                src={imageSrc}
-                alt={`${avatarName} avatar`}
-                onError={handleImageError}
-
+            <PublicFramedAvatar
+                username={username}
+                avatarUrl={imageSrc}
+                displayName={avatarName}
+                className="h-11 w-11 sm:h-12 sm:w-12"
+                plainClassName={`rounded-2xl border-2 ${statusConfig.avatarBorder}`}
+                showFrame={Boolean(username)}
                 loading="lazy"
-                decoding="async"
-
-                className={`
-                    h-full
-                    w-full
-
-                    rounded-2xl
-
-                    border-2
-                    object-cover
-
-                    bg-slate-100
-
-                    shadow-sm
-
-                    dark:bg-slate-800
-
-                    ${statusConfig.avatarBorder}
-                `}
             />
 
             {/* STATUS DOT */}
@@ -118,7 +94,7 @@ const AuthorAvatar = React.memo(({
                 aria-hidden="true"
 
                 className={`
-                    absolute
+                    absolute z-20
                     -bottom-0.5
                     -right-0.5
 
@@ -454,6 +430,12 @@ const ProblemCardHeader = ({
             >
                 <AuthorAvatar
                     src={authorData.avatar}
+                    username={
+                        authorData.frameUsername ??
+                        (authorData.username === "unknown"
+                            ? ""
+                            : authorData.username)
+                    }
                     name={authorName}
 
                     statusConfig={config}

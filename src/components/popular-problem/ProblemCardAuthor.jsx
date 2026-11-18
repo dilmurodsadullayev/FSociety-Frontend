@@ -36,7 +36,11 @@ const ProblemCardAuthor = ({ user }) => {
 
     const fullName = getFullName(user);
 
-    const avatarUrl = getUserAvatarUrl(user);
+    const avatarUrl =
+        user?.image ||
+        user?.avatar ||
+        user?.image_url ||
+        getUserAvatarUrl(user);
 
     const levelConfig = getLevelConfig(user);
 
@@ -78,8 +82,8 @@ const ProblemCardAuthor = ({ user }) => {
                     className="
                         relative
                         flex
-                        h-10
-                        w-10
+                        h-[54px]
+                        w-[54px]
                         shrink-0
                         items-center
                         justify-center

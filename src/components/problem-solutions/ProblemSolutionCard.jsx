@@ -16,14 +16,14 @@ import {
 
 import ProblemSolutionCode from "./ProblemSolutionCode";
 
+import PublicFramedAvatar from "../ui/PublicFramedAvatar";
+
 import {
-    getSolutionImageUrl,
     getSolutionLanguageName,
     getSolutionSkillLevel,
     getSolutionStarCount,
     getSolutionTimeLabel,
     isSolutionAuthor,
-    SOLUTION_DEFAULT_AVATAR,
 } from "./problemSolutionsHelpers";
 
 // =========================================================
@@ -34,35 +34,18 @@ const AuthorAvatar = memo(({
     username,
     image,
 }) => {
-    const handleError = (event) => {
-        event.currentTarget.onerror = null;
-        event.currentTarget.src = SOLUTION_DEFAULT_AVATAR;
-    };
-
     const avatar = (
-        <img
-            src={getSolutionImageUrl(image)}
-            alt={`${username || "Foydalanuvchi"} avatari`}
-            loading="lazy"
-            decoding="async"
-            onError={handleError}
-            className="
-                h-11
-                w-11
-                shrink-0
-                rounded-2xl
-                border
-                border-slate-200
-                bg-slate-100
-                object-cover
-
-                sm:h-12
-                sm:w-12
-
-                dark:border-white/[0.12]
-                dark:bg-slate-800
-            "
-        />
+        <span className="inline-flex h-[66px] w-[66px] shrink-0 items-center justify-center sm:h-[72px] sm:w-[72px]">
+            <PublicFramedAvatar
+                username={username}
+                avatarUrl={image}
+                displayName={username || "Foydalanuvchi"}
+                className="h-11 w-11 sm:h-12 sm:w-12"
+                plainClassName="rounded-2xl"
+                showFrame={Boolean(username)}
+                loading="lazy"
+            />
+        </span>
     );
 
     return username ? (
@@ -297,7 +280,9 @@ const ProblemSolutionCard = ({
     const responseId = response.id;
     const user = response.user || {};
 
-    const username = user.username || "";
+    const username = typeof user.username === "string"
+        ? user.username.trim()
+        : "";
     const accepted = Boolean(response.is_selected);
     const author = isSolutionAuthor(response, authUser);
 
@@ -406,7 +391,7 @@ const ProblemSolutionCard = ({
                 <div className="flex min-w-0 items-center gap-3">
                     <AuthorAvatar
                         username={username}
-                        image={user.image}
+                        image={user.image || user.avatar || user.image_url}
                     />
 
                     <div className="min-w-0">
