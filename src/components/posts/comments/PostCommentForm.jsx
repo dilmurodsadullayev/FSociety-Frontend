@@ -21,6 +21,7 @@ import {
 
 import { siteToast } from "../../ui/AuthToast";
 import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
+import { getUserAvatarUrl } from "../../../utils/imageUtils";
 
 // =========================================================
 // FSOCIETY — COMPACT COMMENT COMPOSER
@@ -90,15 +91,7 @@ const createInitialAvatar = (initial) => {
 const CommentFormAvatar = memo(function CommentFormAvatar({ user }) {
   const [imageError, setImageError] = useState(false);
 
-  const rawImage =
-    user?.image?.url ??
-    user?.image ??
-    user?.avatar?.url ??
-    user?.avatar ??
-    user?.image_url ??
-    "";
-
-  const image = typeof rawImage === "string" ? rawImage.trim() : "";
+  const image = getUserAvatarUrl(user, "");
 
   useEffect(() => {
     setImageError(false);
@@ -113,7 +106,7 @@ const CommentFormAvatar = memo(function CommentFormAvatar({ user }) {
 
   if (accountUsername) {
     return (
-      <div className="relative shrink-0">
+      <div className="relative mr-1 shrink-0">
         <PublicFramedAvatar
           username={accountUsername}
           avatarUrl={image || createInitialAvatar(initial)}
@@ -127,7 +120,7 @@ const CommentFormAvatar = memo(function CommentFormAvatar({ user }) {
   }
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative mr-1 shrink-0">
       {image && !imageError ? (
         <img
           src={image}

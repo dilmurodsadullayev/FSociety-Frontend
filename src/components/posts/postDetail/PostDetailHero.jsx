@@ -111,7 +111,7 @@ const AuthorDetails = React.memo(
         username={username}
         avatarUrl={authorImage}
         displayName={authorName}
-        className="h-14 w-14 sm:h-16 sm:w-16"
+        className="mr-2 h-14 w-14 sm:h-16 sm:w-16"
         plainClassName="rounded-2xl"
       />
     );

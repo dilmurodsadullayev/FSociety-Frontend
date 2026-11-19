@@ -131,14 +131,26 @@ export const getUserAvatarUrl = (
     }
 
 
-    const image =
-        user.image ||
-        user.avatar ||
-        user.image_url ||
-        user.profile_image ||
-        user.profile_photo ||
-        user.photo ||
-        null;
+    const image = [
+        user.image,
+        user.avatar,
+        user.image_url,
+        user.profile_image,
+        user.profile_photo,
+        user.photo,
+    ]
+        .map((value) =>
+            typeof value === "string"
+                ? value.trim()
+                : typeof value?.url === "string"
+                  ? value.url.trim()
+                  : ""
+        )
+        .find(Boolean);
+
+    if (image === DefaultUserImage) {
+        return DefaultUserImage;
+    }
 
 
     return getMediaUrl(

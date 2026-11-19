@@ -27,6 +27,7 @@ import CommentTime from "./item/CommentTime";
 import PostCommentEditForm from "./item/PostCommentEditForm";
 import usePostCommentActions from "./item/usePostCommentActions";
 import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
+import { getUserAvatarUrl } from "../../../utils/imageUtils";
 // =========================================================
 // FSOCIETY — COMMENT ITEM
 // REDDIT x MR. ROBOT
@@ -123,16 +124,6 @@ return text.length > 45
     ? `Sharh (${text.slice(0, 45)}...)`
     : `Sharh (${text})`;
 };
-const getAvatarImage = (user) => {
-const image =
-    user?.image?.url ??
-    user?.image ??
-    user?.avatar ??
-    "";
-return typeof image === "string"
-    ? image.trim()
-    : "";
-};
 // =========================================================
 // AVATAR
 // =========================================================
@@ -145,7 +136,10 @@ const CommentAvatar = memo(
   }) {
 const [imageError, setImageError] =
       useState(false);
-const imageUrl = getAvatarImage(user);
+const imageUrl = deleted ? "" : getUserAvatarUrl(user, "");
+const username = !deleted && typeof user?.username === "string"
+      ? user.username.trim()
+      : "";
     useEffect(() => {
       setImageError(false);
     }, [imageUrl]);
@@ -160,9 +154,9 @@ const avatarSize = root
       ? "h-9 w-9 sm:h-10 sm:w-10"
       : "h-8 w-8 sm:h-9 sm:w-9";
   // Keep deleted comments anonymous; use the shared frame cache for active authors.
-  const content = !deleted && user?.username ? (
+  const content = !deleted && username ? (
     <PublicFramedAvatar
-      username={user.username}
+      username={username}
       avatarUrl={imageUrl || null}
       displayName={displayName}
       className={avatarSize}
@@ -207,10 +201,10 @@ const avatarSize = root
         </span>
       );
 return (
-      <div className="relative shrink-0">
-        {!deleted && user?.username ? (
+      <div className="relative ml-1.5 mr-1 shrink-0">
+        {!deleted && username ? (
           <Link
-            to={`/${encodeURIComponent(user.username)}/profile/`}
+            to={`/${encodeURIComponent(username)}/profile/`}
             aria-label={`${displayName} profiliga o'tish`}
             className="
               block rounded-xl
@@ -229,7 +223,7 @@ return (
             aria-hidden="true"
             className="
               pointer-events-none
-              absolute -bottom-0.5 -right-0.5
+              absolute -bottom-0.5 -right-0.5 z-20
               h-2.5 w-2.5
               rounded-full
               border-2 border-white
@@ -478,7 +472,7 @@ const actions = usePostCommentActions({
 const [
     showReplies,
     setShowReplies,
-  ] = useState(true);
+  ] = useState(false);
 const [
     showReplyEditor,
     setShowReplyEditor,
@@ -504,7 +498,9 @@ const user = isDeleted
     ? null
     : comment?.user;
 const username =
-    user?.username || "";
+    typeof user?.username === "string"
+      ? user.username.trim()
+      : "";
 const displayName = isDeleted
     ? "O‘chirilgan sharh"
     : getDisplayName(user);

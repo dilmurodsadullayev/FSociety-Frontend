@@ -17,8 +17,9 @@ import {
 
 import {
   getUserAvatarUrl,
-  handleUserImageError,
 } from "../../../utils/imageUtils";
+
+import PublicFramedAvatar from "../../ui/PublicFramedAvatar";
 
 import {
   getAuthorName,
@@ -275,49 +276,13 @@ const PostAuthorCard = React.memo(
       <>
         {/* AVATAR */}
 
-        {authorImage ? (
-          <img
-            src={authorImage}
-            alt={`${authorName} profil rasmi`}
-            onError={handleUserImageError}
-            className="
-              h-14
-              w-14
-              shrink-0
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-100
-              object-cover
-
-              dark:border-white/[0.08]
-              dark:bg-[#101827]
-            "
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="
-              grid
-              h-14
-              w-14
-              shrink-0
-              place-items-center
-
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-100
-              text-slate-500
-
-              dark:border-white/[0.08]
-              dark:bg-white/[0.04]
-              dark:text-slate-400
-            "
-          >
-            <UserRound size={24} />
-          </div>
-        )}
+        <PublicFramedAvatar
+          username={username}
+          avatarUrl={authorImage}
+          displayName={authorName}
+          className="mr-2 h-14 w-14"
+          plainClassName="rounded-xl"
+        />
 
         {/* USER INFO */}
 
