@@ -1,50 +1,54 @@
 
+// src/App.js
+
 import React, {
-  useContext,
-  useEffect,
-  useRef,
+    useContext,
+    useEffect,
+    useRef,
 } from "react";
 
 import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Outlet,
-  Navigate,
+    BrowserRouter as Router,
+    Routes,
+    Route,
+    Outlet,
+    Navigate,
 } from "react-router-dom";
 
 import {
-  useDispatch,
-  useSelector,
+    useDispatch,
+    useSelector,
 } from "react-redux";
+
 
 // =========================================================
 // FSOCIETY — APPLICATION COMPONENTS
 // =========================================================
 
 import {
-  Main,
-  Navbar,
-  Footer,
-  Login,
-  Register,
-  Problems,
-  Feedback,
-  FCoin,
-  Users,
-  Profile,
-  NotFound,
-  ProblemDetail,
-  ProblemCreate,
-  ProblemSolutionUpdate,
-  FCoinHistory,
-  NotificationsPage,
-  MyProblems,
-  ProjectDetail,
-  PostDetail,
-  Projects,
-  SocialCallback,
+    Main,
+    Navbar,
+    Footer,
+    Login,
+    Register,
+    Problems,
+    Feedback,
+    FCoin,
+    Users,
+    Profile,
+    NotFound,
+    ProblemDetail,
+    ProblemCreate,
+    ProblemSolutionUpdate,
+    FCoinHistory,
+    NotificationsPage,
+    MyProblems,
+    ProjectDetail,
+    PostDetail,
+    Projects,
+    SocialCallback,
 } from "./components";
+
 
 // =========================================================
 // FSOCIETY — PROFILE FRAMES
@@ -70,30 +74,34 @@ import MyFrames from "./components/frame-shop/MyFrames";
 
 import FrameVaultNavigation from "./components/frame-shop/FrameVaultNavigation";
 
+
 // =========================================================
 // SERVICES
 // =========================================================
 
 import AuthService from "./services/auth";
 
+
 // =========================================================
 // REDUX AUTH
 // =========================================================
 
 import {
-  logoutUser,
-  signUserStart,
-  signUserSuccess,
+    logoutUser,
+    signUserStart,
+    signUserSuccess,
 } from "./features/auth/Auth";
+
 
 // =========================================================
 // NOTIFICATION WEBSOCKET
 // =========================================================
 
 import {
-  connectWebSocket,
-  disconnectWebSocket,
+    connectWebSocket,
+    disconnectWebSocket,
 } from "./middleware/notificationMiddleware";
+
 
 // =========================================================
 // GLOBAL UI
@@ -103,31 +111,54 @@ import AppLoader from "./components/AppLoader";
 
 import AuthToast from "./components/ui/AuthToast";
 
+
 // =========================================================
 // THEME CONTEXT
 // =========================================================
 
 import {
-  ThemeContext,
-  ThemeProvider,
+    ThemeContext,
+    ThemeProvider,
 } from "./context/ThemeContext";
+
 
 // =========================================================
 // NEW YEAR / WINTER EXPERIENCE
 // =========================================================
 
 import {
-  NewYearProvider,
-  useNewYear,
+    NewYearProvider,
+    useNewYear,
 } from "./features/newYear/context/NewYearContext";
 
 import Snowfall from "./features/newYear/components/Snowfall";
+
 
 // =========================================================
 // GLOBAL SHARED BACKGROUND
 // =========================================================
 
 import WinterBackground from "./components/ui/winter/WinterBackground";
+
+
+// =========================================================
+// DAILY NEW YEAR GIFT 2027
+// =========================================================
+//
+// Global Daily Gift controller:
+//
+// - Loads public event information.
+// - Loads authenticated gift eligibility.
+// - Reacts to authentication changes.
+// - Initializes shared Redux state.
+// - Prevents duplicate pending requests.
+//
+// The controller is independent of Winter Mode.
+//
+// =========================================================
+
+import DailyGiftController from "./components/daily-gift/DailyGiftController";
+
 
 // =========================================================
 // FSOCIETY — APPLICATION
@@ -152,12 +183,15 @@ import WinterBackground from "./components/ui/winter/WinterBackground";
 // - NewYearProvider integration
 // - Global snowfall integration
 // - Global winter background
+// - Daily New Year Gift initialization
 //
 // IMPORTANT:
 //
 // Theme state is managed ONLY by ThemeContext.
 //
 // Winter state is managed ONLY by NewYearProvider.
+//
+// Daily Gift state is managed ONLY by Redux.
 //
 // App.js does not create another theme state.
 // App.js does not write theme to localStorage.
@@ -166,6 +200,8 @@ import WinterBackground from "./components/ui/winter/WinterBackground";
 // WinterBackground is rendered ONCE globally.
 //
 // Snowfall is rendered globally through AppInner.
+//
+// DailyGiftController is rendered ONCE globally.
 //
 // Frame Shop:
 //
@@ -188,27 +224,33 @@ import WinterBackground from "./components/ui/winter/WinterBackground";
 // =========================================================
 
 const getAuthenticatedUser = (response) => {
-  const user =
-    response?.user ??
-    response;
 
-  if (
-    !user ||
-    typeof user !== "object" ||
-    Array.isArray(user)
-  ) {
-    return null;
-  }
+    const user =
+        response?.user ??
+        response;
 
-  if (
-    user.id === null ||
-    user.id === undefined ||
-    user.id === ""
-  ) {
-    return null;
-  }
 
-  return user;
+    if (
+        !user ||
+        typeof user !== "object" ||
+        Array.isArray(user)
+    ) {
+
+        return null;
+    }
+
+
+    if (
+        user.id === null ||
+        user.id === undefined ||
+        user.id === ""
+    ) {
+
+        return null;
+    }
+
+
+    return user;
 };
 
 
@@ -217,39 +259,46 @@ const getAuthenticatedUser = (response) => {
 // =========================================================
 
 const PrivateRoute = ({ children }) => {
-  const {
-    isLoggedIn,
-    isLoading,
-  } = useSelector(
-    (state) => state.auth
-  );
 
-  // =====================================================
-  // INITIAL AUTH LOADING
-  // =====================================================
-
-  if (isLoading) {
-    return <AppLoader />;
-  }
-
-  // =====================================================
-  // NOT AUTHENTICATED
-  // =====================================================
-
-  if (!isLoggedIn) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-      />
+    const {
+        isLoggedIn,
+        isLoading,
+    } = useSelector(
+        (state) => state.auth
     );
-  }
 
-  // =====================================================
-  // AUTHENTICATED
-  // =====================================================
 
-  return children;
+    // =====================================================
+    // INITIAL AUTH LOADING
+    // =====================================================
+
+    if (isLoading) {
+
+        return <AppLoader />;
+    }
+
+
+    // =====================================================
+    // NOT AUTHENTICATED
+    // =====================================================
+
+    if (!isLoggedIn) {
+
+        return (
+
+            <Navigate
+                to="/login"
+                replace
+            />
+        );
+    }
+
+
+    // =====================================================
+    // AUTHENTICATED
+    // =====================================================
+
+    return children;
 };
 
 
@@ -273,65 +322,75 @@ const PrivateRoute = ({ children }) => {
 // =========================================================
 
 const PublicAuthPage = ({ children }) => {
-  const {
-    isLoggedIn,
-    isLoading,
-  } = useSelector(
-    (state) => state.auth
-  );
 
-  // =====================================================
-  // AUTH LOADING
-  // =====================================================
-
-  if (isLoading) {
-    return <AppLoader />;
-  }
-
-  // =====================================================
-  // ALREADY AUTHENTICATED
-  // =====================================================
-
-  if (isLoggedIn) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
+    const {
+        isLoggedIn,
+        isLoading,
+    } = useSelector(
+        (state) => state.auth
     );
-  }
 
-  // =====================================================
-  // PUBLIC PAGE
-  // =====================================================
 
-  return (
-    <div
-      className="
-        relative
-        z-10
+    // =====================================================
+    // AUTH LOADING
+    // =====================================================
 
-        flex min-h-screen
-        min-h-[100dvh]
+    if (isLoading) {
 
-        w-full min-w-0
-        flex-col
+        return <AppLoader />;
+    }
 
-        bg-transparent
-        text-slate-900
 
-        dark:bg-transparent
-        dark:text-slate-100
+    // =====================================================
+    // ALREADY AUTHENTICATED
+    // =====================================================
 
-        transition-colors
-        duration-200
+    if (isLoggedIn) {
 
-        motion-reduce:transition-none
-      "
-    >
-      {children}
-    </div>
-  );
+        return (
+
+            <Navigate
+                to="/"
+                replace
+            />
+        );
+    }
+
+
+    // =====================================================
+    // PUBLIC PAGE
+    // =====================================================
+
+    return (
+
+        <div
+            className="
+                relative
+                z-10
+
+                flex min-h-screen
+                min-h-[100dvh]
+
+                w-full min-w-0
+                flex-col
+
+                bg-transparent
+                text-slate-900
+
+                dark:bg-transparent
+                dark:text-slate-100
+
+                transition-colors
+                duration-200
+
+                motion-reduce:transition-none
+            "
+        >
+
+            {children}
+
+        </div>
+    );
 };
 
 
@@ -344,8 +403,8 @@ const PublicAuthPage = ({ children }) => {
 // This preserves the existing Navbar contract:
 //
 // <Navbar
-//   isDarkMode={isDarkMode}
-//   toggleTheme={toggleTheme}
+//     isDarkMode={isDarkMode}
+//     toggleTheme={toggleTheme}
 // />
 //
 // Background is inherited from the global
@@ -372,154 +431,176 @@ const PublicAuthPage = ({ children }) => {
 // =========================================================
 
 const AppLayout = ({
-  requireAuth = true,
-  showFrameNavigation = false,
+
+    requireAuth = true,
+
+    showFrameNavigation = false,
+
 }) => {
 
-  // =====================================================
-  // THEME CONTEXT
-  // =====================================================
 
-  const {
-    isDark,
-    toggleTheme,
-  } = useContext(ThemeContext);
+    // =====================================================
+    // THEME CONTEXT
+    // =====================================================
 
-  const isDarkMode = isDark;
-
-  // =====================================================
-  // SHARED LAYOUT
-  // =====================================================
-  //
-  // The Navbar / Footer / Outlet structure
-  // remains identical to the existing code.
-  //
-  // Frame Vault navigation is only rendered
-  // when the dedicated frames layout requests it.
-  //
-  // =====================================================
-
-  const layout = (
-    <div
-      className="
-        relative
-        z-10
-
-        flex min-h-screen
-        min-h-[100dvh]
-
-        w-full min-w-0
-        flex-col
-
-        bg-transparent
-        text-gray-800
-
-        dark:bg-transparent
-        dark:text-gray-200
-
-        transition-colors
-        duration-300
-
-        motion-reduce:transition-none
-      "
-    >
-
-      {/* =====================================
-          NAVBAR
-      ===================================== */}
-
-      <Navbar
-        isDarkMode={isDarkMode}
-        toggleTheme={toggleTheme}
-      />
+    const {
+        isDark,
+        toggleTheme,
+    } = useContext(ThemeContext);
 
 
-      {/* =====================================
-          FRAME VAULT NAVIGATION
-      ===================================== */}
-      {/*
-        Visible only inside /frames routes.
-
-        Provides:
-        - Frame Shop
-        - My Frames
-        - Active route indicator
-        - Responsive cyberpunk navigation
-
-        My Frames remains protected independently
-        by its nested PrivateRoute.
-      */}
-
-      {showFrameNavigation && (
-        <FrameVaultNavigation />
-      )}
+    const isDarkMode = isDark;
 
 
-      {/* =====================================
-          MAIN CONTENT
-      ===================================== */}
+    // =====================================================
+    // SHARED LAYOUT
+    // =====================================================
+    //
+    // The Navbar / Footer / Outlet structure
+    // remains identical to the existing code.
+    //
+    // Frame Vault navigation is only rendered
+    // when the dedicated frames layout requests it.
+    //
+    // Daily Gift entry points are handled by
+    // the existing Navbar and future HomeSidebar.
+    //
+    // =====================================================
 
-      <div
-        className="
-          min-w-0
-          flex-grow
+    const layout = (
 
-          bg-transparent
-          text-gray-800
+        <div
+            className="
+                relative
+                z-10
 
-          dark:bg-transparent
-          dark:text-gray-200
+                flex min-h-screen
+                min-h-[100dvh]
 
-          transition-colors
-          duration-300
+                w-full min-w-0
+                flex-col
 
-          motion-reduce:transition-none
-        "
-      >
-        <Outlet />
-      </div>
+                bg-transparent
+                text-gray-800
+
+                dark:bg-transparent
+                dark:text-gray-200
+
+                transition-colors
+                duration-300
+
+                motion-reduce:transition-none
+            "
+        >
+
+            {/* ==========================================
+                NAVBAR
+            ========================================== */}
+
+            <Navbar
+                isDarkMode={isDarkMode}
+                toggleTheme={toggleTheme}
+            />
 
 
-      {/* =====================================
-          FOOTER
-      ===================================== */}
+            {/* ==========================================
+                FRAME VAULT NAVIGATION
+            ========================================== */}
 
-      <Footer />
+            {/*
+                Visible only inside /frames routes.
 
-    </div>
-  );
+                Provides:
 
-  // =====================================================
-  // PROTECTED APPLICATION LAYOUT
-  // =====================================================
-  //
-  // Existing routes continue to use PrivateRoute.
-  //
-  // =====================================================
+                - Frame Shop
+                - My Frames
+                - Active route indicator
+                - Responsive cyberpunk navigation
 
-  if (requireAuth) {
-    return (
-      <PrivateRoute>
-        {layout}
-      </PrivateRoute>
+                My Frames remains protected independently
+                by its nested PrivateRoute.
+            */}
+
+            {showFrameNavigation && (
+
+                <FrameVaultNavigation />
+
+            )}
+
+
+            {/* ==========================================
+                MAIN CONTENT
+            ========================================== */}
+
+            <div
+                className="
+                    min-w-0
+                    flex-grow
+
+                    bg-transparent
+                    text-gray-800
+
+                    dark:bg-transparent
+                    dark:text-gray-200
+
+                    transition-colors
+                    duration-300
+
+                    motion-reduce:transition-none
+                "
+            >
+
+                <Outlet />
+
+            </div>
+
+
+            {/* ==========================================
+                FOOTER
+            ========================================== */}
+
+            <Footer />
+
+        </div>
     );
-  }
 
-  // =====================================================
-  // PUBLIC APPLICATION LAYOUT
-  // =====================================================
-  //
-  // Used by:
-  //
-  // /frames/shop
-  // /frames/my
-  //
-  // Individual private child routes can still
-  // wrap their element in PrivateRoute.
-  //
-  // =====================================================
 
-  return layout;
+    // =====================================================
+    // PROTECTED APPLICATION LAYOUT
+    // =====================================================
+    //
+    // Existing routes continue to use PrivateRoute.
+    //
+    // =====================================================
+
+    if (requireAuth) {
+
+        return (
+
+            <PrivateRoute>
+
+                {layout}
+
+            </PrivateRoute>
+        );
+    }
+
+
+    // =====================================================
+    // PUBLIC APPLICATION LAYOUT
+    // =====================================================
+    //
+    // Used by:
+    //
+    // /frames/shop
+    // /frames/my
+    //
+    // Individual private child routes can still
+    // wrap their element in PrivateRoute.
+    //
+    // =====================================================
+
+    return layout;
 };
 
 
@@ -528,525 +609,676 @@ const AppLayout = ({
 // =========================================================
 
 function AppContent() {
-  const dispatch = useDispatch();
 
-  // =====================================================
-  // AUTH STATE
-  // =====================================================
+    const dispatch = useDispatch();
 
-  const isLoggedIn = useSelector(
-    (state) =>
-      Boolean(state.auth?.isLoggedIn)
-  );
 
-  // =====================================================
-  // AUTH REQUEST GENERATION
-  //
-  // Prevent an outdated auth response
-  // from restoring a logged-out user.
-  // =====================================================
+    // =====================================================
+    // AUTH STATE
+    // =====================================================
 
-  const authGenerationRef = useRef(0);
+    const isLoggedIn = useSelector(
 
-  // =====================================================
-  // FORCE LOGOUT LISTENER
-  // =====================================================
-  //
-  // services/api.js emits "auth:logout"
-  // when refresh authentication fails.
-  //
-  // Register the listener before starting
-  // the initial user session request.
-  //
-  // =====================================================
-
-  useEffect(() => {
-    const handleForceLogout = () => {
-
-      // Invalidate pending auth checks.
-      ++authGenerationRef.current;
-
-      // Clear Redux authentication.
-      dispatch(
-        logoutUser()
-      );
-
-      // Disconnect notification socket.
-      dispatch(
-        disconnectWebSocket()
-      );
-    };
-
-    window.addEventListener(
-      "auth:logout",
-      handleForceLogout
+        (state) =>
+            Boolean(state.auth?.isLoggedIn)
     );
 
-    return () => {
-      window.removeEventListener(
-        "auth:logout",
-        handleForceLogout
-      );
-    };
-  }, [dispatch]);
+
+    // =====================================================
+    // AUTH REQUEST GENERATION
+    // =====================================================
+    //
+    // Prevent an outdated auth response
+    // from restoring a logged-out user.
+    //
+    // =====================================================
+
+    const authGenerationRef = useRef(0);
 
 
-  // =====================================================
-  // INITIAL AUTHENTICATION CHECK
-  // =====================================================
-  //
-  // Verify existing JWT cookie session.
-  //
-  // Existing endpoint:
-  // GET /users/user/
-  //
-  // The Axios instance handles cookies
-  // and token refresh.
-  //
-  // =====================================================
+    // =====================================================
+    // FORCE LOGOUT LISTENER
+    // =====================================================
+    //
+    // services/api.js emits "auth:logout"
+    // when refresh authentication fails.
+    //
+    // Register the listener before starting
+    // the initial user session request.
+    //
+    // Daily Gift private state is also cleared
+    // by its Redux slice when logoutUser is dispatched.
+    //
+    // =====================================================
 
-  useEffect(() => {
-    let isMounted = true;
+    useEffect(() => {
 
-    const currentGeneration =
-      ++authGenerationRef.current;
+        const handleForceLogout = () => {
 
-    // ===================================================
-    // REQUEST VALIDITY
-    // ===================================================
+            // Invalidate pending auth checks.
 
-    const isCurrentRequest = () =>
-      isMounted &&
-      currentGeneration ===
-        authGenerationRef.current;
+            ++authGenerationRef.current;
 
-    // ===================================================
-    // CHECK USER STATUS
-    // ===================================================
 
-    const checkUserStatus = async () => {
-      dispatch(
-        signUserStart()
-      );
+            // Clear Redux authentication.
 
-      try {
-        const response =
-          await AuthService.getUser();
+            dispatch(
+                logoutUser()
+            );
 
-        if (!isCurrentRequest()) {
-          return;
-        }
 
-        const authenticatedUser =
-          getAuthenticatedUser(response);
+            // Disconnect notification socket.
 
-        // ===============================================
-        // VALID SESSION
-        // ===============================================
+            dispatch(
+                disconnectWebSocket()
+            );
+        };
 
-        if (authenticatedUser) {
-          dispatch(
-            signUserSuccess(
-              authenticatedUser
-            )
-          );
 
-          return;
-        }
+        window.addEventListener(
 
-        // ===============================================
-        // NO AUTHENTICATED USER
-        // ===============================================
+            "auth:logout",
 
-        dispatch(
-          logoutUser()
+            handleForceLogout
         );
 
-      } catch (error) {
-        if (!isCurrentRequest()) {
-          return;
+
+        return () => {
+
+            window.removeEventListener(
+
+                "auth:logout",
+
+                handleForceLogout
+            );
+        };
+
+    }, [dispatch]);
+
+
+    // =====================================================
+    // INITIAL AUTHENTICATION CHECK
+    // =====================================================
+    //
+    // Verify existing JWT cookie session.
+    //
+    // Existing endpoint:
+    //
+    // GET /users/user/
+    //
+    // The Axios instance handles cookies
+    // and token refresh.
+    //
+    // On successful authentication, DailyGiftReducer
+    // initializes the ownerId from signUserSuccess.
+    //
+    // DailyGiftController then loads event eligibility.
+    //
+    // =====================================================
+
+    useEffect(() => {
+
+        let isMounted = true;
+
+
+        const currentGeneration =
+            ++authGenerationRef.current;
+
+
+        // =================================================
+        // REQUEST VALIDITY
+        // =================================================
+
+        const isCurrentRequest = () =>
+
+            isMounted &&
+
+            currentGeneration ===
+                authGenerationRef.current;
+
+
+        // =================================================
+        // CHECK USER STATUS
+        // =================================================
+
+        const checkUserStatus = async () => {
+
+            dispatch(
+                signUserStart()
+            );
+
+
+            try {
+
+                const response =
+                    await AuthService.getUser();
+
+
+                if (!isCurrentRequest()) {
+
+                    return;
+                }
+
+
+                const authenticatedUser =
+                    getAuthenticatedUser(response);
+
+
+                // =========================================
+                // VALID SESSION
+                // =========================================
+
+                if (authenticatedUser) {
+
+                    dispatch(
+
+                        signUserSuccess(
+                            authenticatedUser
+                        )
+                    );
+
+
+                    return;
+                }
+
+
+                // =========================================
+                // NO AUTHENTICATED USER
+                // =========================================
+
+                dispatch(
+                    logoutUser()
+                );
+
+            } catch (error) {
+
+                if (!isCurrentRequest()) {
+
+                    return;
+                }
+
+
+                // =========================================
+                // AUTH CHECK FAILED
+                // =========================================
+                //
+                // A 401 response can mean the visitor
+                // is simply not authenticated.
+                //
+                // Do not show a global error toast.
+                //
+                // Do not use signUserFailure here,
+                // because this is initial auth checking,
+                // not a failed Login form submission.
+                //
+                // =========================================
+
+                dispatch(
+                    logoutUser()
+                );
+            }
+        };
+
+
+        checkUserStatus();
+
+
+        // =================================================
+        // CLEANUP
+        // =================================================
+
+        return () => {
+
+            isMounted = false;
+
+            ++authGenerationRef.current;
+        };
+
+    }, [dispatch]);
+
+
+    // =====================================================
+    // WEBSOCKET NOTIFICATIONS
+    // =====================================================
+    //
+    // Signed in:
+    //
+    // - Connect notification WebSocket
+    //
+    // Signed out:
+    //
+    // - Disconnect notification WebSocket
+    //
+    // =====================================================
+
+    useEffect(() => {
+
+        if (isLoggedIn) {
+
+            dispatch(
+                connectWebSocket()
+            );
+
+        } else {
+
+            dispatch(
+                disconnectWebSocket()
+            );
         }
 
-        // ===============================================
-        // AUTH CHECK FAILED
-        // ===============================================
-        //
-        // A 401 response can mean the visitor
-        // is simply not authenticated.
-        //
-        // Do not show a global error toast.
-        //
-        // Do not use signUserFailure here,
-        // because this is initial auth checking,
-        // not a failed Login form submission.
-        //
-        // ===============================================
-
-        dispatch(
-          logoutUser()
-        );
-      }
-    };
-
-    checkUserStatus();
-
-    // ===================================================
-    // CLEANUP
-    // ===================================================
-
-    return () => {
-      isMounted = false;
-
-      ++authGenerationRef.current;
-    };
-  }, [dispatch]);
-
-
-  // =====================================================
-  // WEBSOCKET NOTIFICATIONS
-  // =====================================================
-  //
-  // Signed in:
-  // - Connect notification WebSocket
-  //
-  // Signed out:
-  // - Disconnect notification WebSocket
-  //
-  // =====================================================
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      dispatch(
-        connectWebSocket()
-      );
-    } else {
-      dispatch(
-        disconnectWebSocket()
-      );
-    }
-
-    return () => {
-      dispatch(
-        disconnectWebSocket()
-      );
-    };
-  }, [
-    dispatch,
-    isLoggedIn,
-  ]);
-
-
-  // =====================================================
-  // ROUTES
-  // =====================================================
-
-  return (
-    <Routes>
-
-      {/* ==========================================
-          PUBLIC AUTHENTICATION
-      ========================================== */}
-
-      {/* LOGIN */}
-
-      <Route
-        path="/login"
-        element={
-          <PublicAuthPage>
-            <Login />
-          </PublicAuthPage>
-        }
-      />
-
-
-      {/* REGISTER */}
-
-      <Route
-        path="/register"
-        element={
-          <PublicAuthPage>
-            <Register />
-          </PublicAuthPage>
-        }
-      />
-
-
-      {/* ==========================================
-          OAUTH CALLBACK
-      ========================================== */}
-
-      <Route
-        path="/callback/:provider"
-        element={
-          <div
-            className="
-              relative
-              z-10
-
-              flex min-h-screen
-              min-h-[100dvh]
-
-              w-full min-w-0
-
-              items-center
-              justify-center
-
-              bg-transparent
-              text-slate-900
-
-              dark:bg-transparent
-              dark:text-gray-100
-
-              transition-colors
-              duration-200
-            "
-          >
-            <SocialCallback />
-          </div>
-        }
-      />
-
-
-      {/* ==========================================
-          PROFILE FRAMES — FRAME VAULT
-      ========================================== */}
-      {/*
-        FSOCIETY FRAME VAULT
-
-        Shared layout:
-        Navbar + FrameVaultNavigation + Outlet + Footer
-
-        Public:
-        /frames/shop
-
-        Private:
-        /frames/my
-
-        Authentication:
-
-        - Shop can be browsed by guests.
-        - Purchases require JWT authentication.
-        - My Frames requires authentication.
-        - Inventory API permissions are enforced
-          independently by the Django backend.
-
-        Existing PurchaseConfirmationModal is used
-        by FrameShop during purchases.
-
-        WinterBackground and Snowfall are inherited
-        from AppInner for both pages.
-      */}
-
-      <Route
-        path="/frames"
-        element={
-          <AppLayout
-            requireAuth={false}
-            showFrameNavigation
-          />
-        }
-      >
-
-        {/* ======================================
-            FRAME SHOP — PUBLIC
-        ====================================== */}
-
-        <Route
-          path="shop"
-          element={
-            <FrameShop />
-          }
-        />
-
-
-        {/* ======================================
-            MY FRAMES — PRIVATE
-        ====================================== */}
-
-        <Route
-          path="my"
-          element={
-            <PrivateRoute>
-              <MyFrames />
-            </PrivateRoute>
-          }
-        />
-
-      </Route>
-
-
-      {/* ==========================================
-          PROTECTED APPLICATION
-      ========================================== */}
-
-      <Route
-        path="/"
-        element={
-          <AppLayout />
-        }
-      >
-
-        {/* ======================================
-            HOME
-        ====================================== */}
-
-        <Route
-          index
-          element={<Main />}
-        />
-
-
-        {/* ======================================
-            PROBLEMS
-        ====================================== */}
 
-        <Route
-          path="problems"
-          element={<Problems />}
-        />
-
-        <Route
-          path="my-problems"
-          element={<MyProblems />}
-        />
+        return () => {
 
-        <Route
-          path="problem-create"
-          element={<ProblemCreate />}
-        />
+            dispatch(
+                disconnectWebSocket()
+            );
+        };
 
-        <Route
-          path="problem/:id/edit"
-          element={<ProblemCreate />}
-        />
+    }, [
 
-        <Route
-          path="problem/:id/solution/:solutionId/edit"
-          element={
-            <ProblemSolutionUpdate />
-          }
-        />
+        dispatch,
 
-        <Route
-          path="problem/:id/detail"
-          element={<ProblemDetail />}
-        />
+        isLoggedIn,
+    ]);
 
 
-        {/* ======================================
-            FEEDBACK
-        ====================================== */}
+    // =====================================================
+    // ROUTES
+    // =====================================================
 
-        <Route
-          path="feedback"
-          element={<Feedback />}
-        />
+    return (
 
+        <Routes>
 
-        {/* ======================================
-            FCOIN
-        ====================================== */}
+            {/* ==========================================
+                PUBLIC AUTHENTICATION
+            ========================================== */}
 
-        <Route
-          path="fcoin"
-          element={<FCoin />}
-        />
 
-        <Route
-          path="fcoin-history"
-          element={<FCoinHistory />}
-        />
+            {/* LOGIN */}
 
+            <Route
 
-        {/* ======================================
-            USERS / PROFILE
-        ====================================== */}
+                path="/login"
 
-        <Route
-          path="users"
-          element={<Users />}
-        />
+                element={
 
-        <Route
-          path=":username/profile"
-          element={<Profile />}
-        />
+                    <PublicAuthPage>
 
+                        <Login />
 
-        {/* ======================================
-            PROJECTS
-        ====================================== */}
+                    </PublicAuthPage>
+                }
+            />
 
-        <Route
-          path="projects"
-          element={<Projects />}
-        />
 
-        <Route
-          path="project/:projectId/detail"
-          element={<ProjectDetail />}
-        />
+            {/* REGISTER */}
 
+            <Route
 
-        {/* ======================================
-            NOTIFICATIONS
-        ====================================== */}
+                path="/register"
 
-        <Route
-          path="notifications"
-          element={<NotificationsPage />}
-        />
+                element={
 
+                    <PublicAuthPage>
 
-        {/* ======================================
-            POSTS
-        ====================================== */}
+                        <Register />
 
-        <Route
-          path=":username/post/:slug/"
-          element={<PostDetail />}
-        />
+                    </PublicAuthPage>
+                }
+            />
 
-      </Route>
 
+            {/* ==========================================
+                OAUTH CALLBACK
+            ========================================== */}
 
-      {/* ==========================================
-          NOT FOUND
-      ========================================== */}
+            <Route
 
-      <Route
-        path="*"
-        element={
-          <div
-            className="
-              relative
-              z-10
+                path="/callback/:provider"
 
-              flex min-h-screen
-              min-h-[100dvh]
+                element={
 
-              w-full min-w-0
+                    <div
+                        className="
+                            relative
+                            z-10
 
-              items-center
-              justify-center
+                            flex min-h-screen
+                            min-h-[100dvh]
 
-              bg-transparent
-              text-slate-900
+                            w-full min-w-0
 
-              dark:bg-transparent
-              dark:text-gray-100
+                            items-center
+                            justify-center
 
-              transition-colors
-              duration-200
-            "
-          >
-            <NotFound />
-          </div>
-        }
-      />
+                            bg-transparent
+                            text-slate-900
 
-    </Routes>
-  );
+                            dark:bg-transparent
+                            dark:text-gray-100
+
+                            transition-colors
+                            duration-200
+                        "
+                    >
+
+                        <SocialCallback />
+
+                    </div>
+                }
+            />
+
+
+            {/* ==========================================
+                PROFILE FRAMES — FRAME VAULT
+            ========================================== */}
+
+            {/*
+                FSOCIETY FRAME VAULT
+
+                Shared layout:
+
+                Navbar + FrameVaultNavigation
+                + Outlet + Footer
+
+                Public:
+                /frames/shop
+
+                Private:
+                /frames/my
+
+                Authentication:
+
+                - Shop can be browsed by guests.
+                - Purchases require JWT authentication.
+                - My Frames requires authentication.
+                - Inventory API permissions are enforced
+                  independently by the Django backend.
+
+                Existing PurchaseConfirmationModal is used
+                by FrameShop during purchases.
+
+                WinterBackground and Snowfall are inherited
+                from AppInner for both pages.
+
+                Global Daily Gift Controller also remains
+                available on these routes.
+            */}
+
+            <Route
+
+                path="/frames"
+
+                element={
+
+                    <AppLayout
+
+                        requireAuth={false}
+
+                        showFrameNavigation
+                    />
+                }
+            >
+
+                {/* ======================================
+                    FRAME SHOP — PUBLIC
+                ====================================== */}
+
+                <Route
+
+                    path="shop"
+
+                    element={
+
+                        <FrameShop />
+                    }
+                />
+
+
+                {/* ======================================
+                    MY FRAMES — PRIVATE
+                ====================================== */}
+
+                <Route
+
+                    path="my"
+
+                    element={
+
+                        <PrivateRoute>
+
+                            <MyFrames />
+
+                        </PrivateRoute>
+                    }
+                />
+
+            </Route>
+
+
+            {/* ==========================================
+                PROTECTED APPLICATION
+            ========================================== */}
+
+            <Route
+
+                path="/"
+
+                element={
+
+                    <AppLayout />
+                }
+            >
+
+                {/* ======================================
+                    HOME
+                ====================================== */}
+
+                <Route
+
+                    index
+
+                    element={<Main />}
+                />
+
+
+                {/* ======================================
+                    PROBLEMS
+                ====================================== */}
+
+                <Route
+
+                    path="problems"
+
+                    element={<Problems />}
+                />
+
+
+                <Route
+
+                    path="my-problems"
+
+                    element={<MyProblems />}
+                />
+
+
+                <Route
+
+                    path="problem-create"
+
+                    element={<ProblemCreate />}
+                />
+
+
+                <Route
+
+                    path="problem/:id/edit"
+
+                    element={<ProblemCreate />}
+                />
+
+
+                <Route
+
+                    path="problem/:id/solution/:solutionId/edit"
+
+                    element={
+
+                        <ProblemSolutionUpdate />
+                    }
+                />
+
+
+                <Route
+
+                    path="problem/:id/detail"
+
+                    element={<ProblemDetail />}
+                />
+
+
+                {/* ======================================
+                    FEEDBACK
+                ====================================== */}
+
+                <Route
+
+                    path="feedback"
+
+                    element={<Feedback />}
+                />
+
+
+                {/* ======================================
+                    FCOIN
+                ====================================== */}
+
+                <Route
+
+                    path="fcoin"
+
+                    element={<FCoin />}
+                />
+
+
+                <Route
+
+                    path="fcoin-history"
+
+                    element={<FCoinHistory />}
+                />
+
+
+                {/* ======================================
+                    USERS / PROFILE
+                ====================================== */}
+
+                <Route
+
+                    path="users"
+
+                    element={<Users />}
+                />
+
+
+                <Route
+
+                    path=":username/profile"
+
+                    element={<Profile />}
+                />
+
+
+                {/* ======================================
+                    PROJECTS
+                ====================================== */}
+
+                <Route
+
+                    path="projects"
+
+                    element={<Projects />}
+                />
+
+
+                <Route
+
+                    path="project/:projectId/detail"
+
+                    element={<ProjectDetail />}
+                />
+
+
+                {/* ======================================
+                    NOTIFICATIONS
+                ====================================== */}
+
+                <Route
+
+                    path="notifications"
+
+                    element={<NotificationsPage />}
+                />
+
+
+                {/* ======================================
+                    POSTS
+                ====================================== */}
+
+                <Route
+
+                    path=":username/post/:slug/"
+
+                    element={<PostDetail />}
+                />
+
+            </Route>
+
+
+            {/* ==========================================
+                NOT FOUND
+            ========================================== */}
+
+            <Route
+
+                path="*"
+
+                element={
+
+                    <div
+
+                        className="
+                            relative
+                            z-10
+
+                            flex min-h-screen
+                            min-h-[100dvh]
+
+                            w-full min-w-0
+
+                            items-center
+                            justify-center
+
+                            bg-transparent
+                            text-slate-900
+
+                            dark:bg-transparent
+                            dark:text-gray-100
+
+                            transition-colors
+                            duration-200
+                        "
+                    >
+
+                        <NotFound />
+
+                    </div>
+                }
+            />
+
+        </Routes>
+    );
 }
 
 
@@ -1069,146 +1301,200 @@ function AppContent() {
 // Frame Shop and My Frames both inherit
 // the same global background.
 //
+// Daily Gift:
+//
+// - Controller is mounted once.
+// - Controller is outside individual routes.
+// - Authentication is managed by Redux.
+// - Event visibility is controlled by the backend.
+// - Independent of winter appearance settings.
+// - Future global modal will use the same controller.
+//
 // =========================================================
 
 const AppInner = () => {
 
-  // =====================================================
-  // WINTER BACKGROUND SETTINGS
-  // =====================================================
 
-  const { settings } = useNewYear();
+    // =====================================================
+    // WINTER BACKGROUND SETTINGS
+    // =====================================================
 
-  // IMPORTANT:
-  //
-  // If the setting has not been initialized yet,
-  // winter background remains enabled.
-  //
-  // Explicit false still disables winter background
-  // and restores PageGridBackground.
-  //
-  const isWinterBackgroundEnabled =
-    settings?.winterBackgroundEnabled ?? true;
+    const { settings } = useNewYear();
 
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+    // IMPORTANT:
+    //
+    // If the setting has not been initialized yet,
+    // winter background remains enabled.
+    //
+    // Explicit false still disables winter background
+    // and restores PageGridBackground.
 
-  return (
-    <Router>
-
-      {/* =====================================
-          GLOBAL APPLICATION ROOT
-      ===================================== */}
-
-      <div
-        className="
-          relative
-          isolate
-
-          min-h-screen
-          min-h-[100dvh]
-
-          w-full
-          min-w-0
-
-          overflow-x-clip
-        "
-      >
-
-        {/* =====================================
-            GLOBAL SHARED BACKGROUND
-
-            Rendered ONCE for the entire app.
-
-            Winter ON:
-            - Dark: winter-dark.webp
-            - Light: winter-light.webp
-
-            Winter OFF:
-            - Original PageGridBackground
-
-            The fixed wrapper keeps the background
-            behind every route and page.
-        ===================================== */}
-
-        <div
-          aria-hidden="true"
-          className="
-            pointer-events-none
-            fixed
-            inset-0
-            z-0
-            overflow-hidden
-          "
-        >
-          <WinterBackground
-            enabled={isWinterBackgroundEnabled}
-            showMonogram
-            showCubes
-          />
-        </div>
+    const isWinterBackgroundEnabled =
+        settings?.winterBackgroundEnabled ?? true;
 
 
-        {/* =====================================
-            GLOBAL APPLICATION CONTENT
-        ===================================== */}
+    // =====================================================
+    // RENDER
+    // =====================================================
 
-        <div
-          className="
-            relative
-            z-10
-            min-h-screen
-            min-h-[100dvh]
-          "
-        >
+    return (
 
-          {/* =====================================
-              UNIVERSAL TOAST
-          ===================================== */}
+        <Router>
 
-          <AuthToast />
+            {/* ==========================================
+                GLOBAL APPLICATION ROOT
+            ========================================== */}
+
+            <div
+
+                className="
+                    relative
+                    isolate
+
+                    min-h-screen
+                    min-h-[100dvh]
+
+                    w-full
+                    min-w-0
+
+                    overflow-x-clip
+                "
+            >
+
+                {/* ======================================
+                    GLOBAL SHARED BACKGROUND
+
+                    Rendered ONCE for the entire app.
+
+                    Winter ON:
+
+                    - Dark: winter-dark.webp
+                    - Light: winter-light.webp
+
+                    Winter OFF:
+
+                    - Original PageGridBackground
+
+                    The fixed wrapper keeps the background
+                    behind every route and page.
+                ====================================== */}
+
+                <div
+
+                    aria-hidden="true"
+
+                    className="
+                        pointer-events-none
+
+                        fixed
+                        inset-0
+
+                        z-0
+
+                        overflow-hidden
+                    "
+                >
+
+                    <WinterBackground
+
+                        enabled={isWinterBackgroundEnabled}
+
+                        showMonogram
+
+                        showCubes
+                    />
+
+                </div>
 
 
-          {/* =====================================
-              APPLICATION ROUTES
-          ===================================== */}
+                {/* ======================================
+                    GLOBAL APPLICATION CONTENT
+                ====================================== */}
 
-          <AppContent />
+                <div
+
+                    className="
+                        relative
+                        z-10
+
+                        min-h-screen
+                        min-h-[100dvh]
+                    "
+                >
+
+                    {/* ==================================
+                        UNIVERSAL TOAST
+                    ================================== */}
+
+                    <AuthToast />
 
 
-          {/* =====================================
-              GLOBAL WINTER SNOWFALL
-          ===================================== */}
-          {/*
-            Rendered outside individual routes.
+                    {/* ==================================
+                        APPLICATION ROUTES
+                    ================================== */}
 
-            Therefore snowfall can appear on:
+                    <AppContent />
 
-            - Home
-            - Problems
-            - Projects
-            - Profiles
-            - Login
-            - Register
-            - OAuth callback
-            - Frame Shop
-            - My Frames
-            - Not found
 
-            Actual animation depends on
-            NewYearContext settings.
-          */}
+                    {/* ==================================
+                        GLOBAL DAILY NEW YEAR GIFT
 
-          <Snowfall />
+                        Mounted once for the application.
 
-        </div>
+                        Responsibilities:
 
-      </div>
+                        - Read authenticated Redux session.
+                        - Fetch public event information.
+                        - Fetch authenticated gift status.
+                        - Initialize Daily Gift Redux state.
+                        - React to account changes.
 
-    </Router>
-  );
+                        Navbar and HomeSidebar consume
+                        the same shared Redux state.
+
+                        This component does not submit
+                        automatic gift claim requests.
+
+                        It remains active independently
+                        of Winter Mode visual settings.
+                    ================================== */}
+
+                    <DailyGiftController />
+
+
+                    {/* ==================================
+                        GLOBAL WINTER SNOWFALL
+                    ================================== */}
+
+                    {/*
+                        Rendered outside individual routes.
+
+                        Therefore snowfall can appear on:
+
+                        - Home
+                        - Problems
+                        - Projects
+                        - Profiles
+                        - Login
+                        - Register
+                        - OAuth callback
+                        - Frame Shop
+                        - My Frames
+                        - Not found
+
+                        Actual animation depends on
+                        NewYearContext settings.
+                    */}
+
+                    <Snowfall />
+
+                </div>
+
+            </div>
+
+        </Router>
+    );
 };
 
 
@@ -1228,6 +1514,7 @@ const AppInner = () => {
 //                                       ├── WinterBackground
 //                                       ├── AuthToast
 //                                       ├── AppContent
+//                                       ├── DailyGiftController
 //                                       └── Snowfall
 //
 // ThemeProvider is already installed in index.js.
@@ -1237,36 +1524,50 @@ const AppInner = () => {
 //
 // This avoids duplicate theme state.
 //
+// DailyGiftController uses the existing Redux Provider.
+// No additional context provider is required.
+//
 // =========================================================
 
 function App() {
 
-  const existingThemeContext =
-    useContext(ThemeContext);
+    const existingThemeContext =
+        useContext(ThemeContext);
 
-  // =====================================================
-  // EXISTING THEME PROVIDER
-  // =====================================================
 
-  if (existingThemeContext) {
+    // =====================================================
+    // EXISTING THEME PROVIDER
+    // =====================================================
+
+    if (existingThemeContext) {
+
+        return (
+
+            <NewYearProvider>
+
+                <AppInner />
+
+            </NewYearProvider>
+        );
+    }
+
+
+    // =====================================================
+    // PROVIDE THEME IF NOT INSTALLED
+    // =====================================================
+
     return (
-      <NewYearProvider>
-        <AppInner />
-      </NewYearProvider>
+
+        <ThemeProvider>
+
+            <NewYearProvider>
+
+                <AppInner />
+
+            </NewYearProvider>
+
+        </ThemeProvider>
     );
-  }
-
-  // =====================================================
-  // PROVIDE THEME IF NOT INSTALLED
-  // =====================================================
-
-  return (
-    <ThemeProvider>
-      <NewYearProvider>
-        <AppInner />
-      </NewYearProvider>
-    </ThemeProvider>
-  );
 }
 
 

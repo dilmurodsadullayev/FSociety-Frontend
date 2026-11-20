@@ -1,16 +1,21 @@
 
+// src/components/navbar/NavbarActions.jsx
+
 import React, {
-  memo,
-  useCallback,
+    memo,
+    useCallback,
 } from "react";
 
-import { Link } from "react-router-dom";
+import {
+    Link,
+} from "react-router-dom";
 
 import {
-  LogIn,
-  Menu,
-  X,
+    LogIn,
+    Menu,
+    X,
 } from "lucide-react";
+
 
 // =========================================================
 // EXISTING COMPONENTS
@@ -20,6 +25,7 @@ import NotificationDropdown from "../NotificationDropdown";
 
 import ThemeToggle from "../ui/ThemeToggle";
 
+
 // =========================================================
 // NAVBAR COMPONENTS
 // =========================================================
@@ -28,11 +34,20 @@ import NavbarCoin from "./NavbarCoin";
 
 import NavbarUserMenu from "./NavbarUserMenu";
 
+
 // =========================================================
 // WINTER EXPERIENCE
 // =========================================================
 
 import WinterExperienceButton from "../../features/newYear/components/WinterExperienceButton";
+
+
+// =========================================================
+// DAILY NEW YEAR GIFT 2027
+// =========================================================
+
+import DailyGiftButton from "../daily-gift/DailyGiftButton";
+
 
 // =========================================================
 // FSOCIETY — NAVBAR ACTIONS
@@ -45,6 +60,7 @@ import WinterExperienceButton from "../../features/newYear/components/WinterExpe
 // Features:
 //
 // - Compact FCoin balance
+// - Daily New Year Gift button
 // - Light / Dark mode
 // - Winter Experience
 // - Notification dropdown
@@ -53,501 +69,731 @@ import WinterExperienceButton from "../../features/newYear/components/WinterExpe
 // - Mobile hamburger
 // - Accessible buttons
 // - Responsive spacing
+// - Navbar popover exclusivity
 //
 // Existing Navbar.jsx props are preserved.
 //
-// New props:
+// Daily Gift:
 //
-// - winterSettingsOpen
-// - toggleWinterSettings
+// - Shared Redux state
+// - Shared global modal
+// - Independent from Winter Mode settings
+// - Event-based visibility
+// - No direct claim requests
 //
 // =========================================================
 
+
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
+
 function NavbarActions({
-  // =======================================================
-  // AUTH
-  // =======================================================
 
-  isLoggedIn = false,
+    // =====================================================
+    // AUTH
+    // =====================================================
 
-  user = null,
+    isLoggedIn = false,
 
-  avatarUrl = "",
+    user = null,
 
-  // =======================================================
-  // USER MENU
-  // =======================================================
+    avatarUrl = "",
 
-  openUserMenu = false,
 
-  setOpenUserMenu,
+    // =====================================================
+    // USER MENU
+    // =====================================================
 
-  userMenuRef,
+    openUserMenu = false,
 
-  // =======================================================
-  // NOTIFICATIONS
-  // =======================================================
+    setOpenUserMenu,
 
-  openNotifications = false,
+    userMenuRef,
 
-  setOpenNotifications,
 
-  notificationsRef,
+    // =====================================================
+    // NOTIFICATIONS
+    // =====================================================
 
-  // =======================================================
-  // WINTER EXPERIENCE
-  // =======================================================
+    openNotifications = false,
 
-  winterSettingsOpen = false,
+    setOpenNotifications,
 
-  toggleWinterSettings,
+    notificationsRef,
 
-  // =======================================================
-  // MOBILE SIDEBAR
-  // =======================================================
 
-  isMobileMenuOpen = false,
+    // =====================================================
+    // WINTER EXPERIENCE
+    // =====================================================
 
-  toggleMobileMenu,
+    winterSettingsOpen = false,
 
-  // =======================================================
-  // LOGOUT
-  // =======================================================
+    toggleWinterSettings,
 
-  handleLogout,
+
+    // =====================================================
+    // MOBILE SIDEBAR
+    // =====================================================
+
+    isMobileMenuOpen = false,
+
+    toggleMobileMenu,
+
+
+    // =====================================================
+    // LOGOUT
+    // =====================================================
+
+    handleLogout,
+
 }) {
 
-  // =======================================================
-  // NOTIFICATION MENU EXCLUSIVITY
-  // =======================================================
-  //
-  // Opening notifications should close the
-  // user dropdown, avoiding overlapping
-  // popovers on compact screens.
-  //
-  // =======================================================
 
-  const setNotificationsExclusive =
-    useCallback(
-      (nextValue) => {
-        if (
-          typeof setOpenUserMenu === "function"
-        ) {
-          setOpenUserMenu(false);
-        }
+    // =====================================================
+    // CLOSE EXISTING POPOVERS
+    //
+    // Shared by:
+    //
+    // - Winter Experience
+    // - Daily Gift
+    //
+    // Prevent overlapping Navbar dropdowns.
+    // =====================================================
 
-        if (
-          typeof setOpenNotifications === "function"
-        ) {
-          setOpenNotifications(nextValue);
-        }
-      },
-      [
-        setOpenUserMenu,
-        setOpenNotifications,
-      ]
+    const closeNavbarPopovers = useCallback(
+        () => {
+
+            if (
+                typeof setOpenUserMenu === "function"
+            ) {
+
+                setOpenUserMenu(false);
+            }
+
+
+            if (
+                typeof setOpenNotifications === "function"
+            ) {
+
+                setOpenNotifications(false);
+            }
+        },
+
+        [
+            setOpenUserMenu,
+
+            setOpenNotifications,
+        ]
     );
 
-  // =======================================================
-  // WINTER SETTINGS TOGGLE
-  // =======================================================
-  //
-  // Before opening Winter Experience:
-  //
-  // - Close user menu.
-  // - Close notifications.
-  // - Toggle winter settings sidebar.
-  //
-  // Winter sidebar visibility itself is
-  // controlled by Navbar.jsx.
-  //
-  // =======================================================
 
-  const handleWinterToggle = useCallback(
-    () => {
-      if (
-        typeof setOpenUserMenu === "function"
-      ) {
-        setOpenUserMenu(false);
-      }
+    // =====================================================
+    // NOTIFICATION MENU EXCLUSIVITY
+    //
+    // Opening notifications should close the
+    // user dropdown, avoiding overlapping
+    // popovers on compact screens.
+    //
+    // Existing setter behavior is preserved.
+    // =====================================================
 
-      if (
-        typeof setOpenNotifications === "function"
-      ) {
-        setOpenNotifications(false);
-      }
+    const setNotificationsExclusive =
+        useCallback(
 
-      if (
-        typeof toggleWinterSettings === "function"
-      ) {
-        toggleWinterSettings();
-      }
-    },
-    [
-      setOpenUserMenu,
-      setOpenNotifications,
-      toggleWinterSettings,
-    ]
-  );
+            (nextValue) => {
 
-  // =======================================================
-  // RENDER
-  // =======================================================
+                if (
+                    typeof setOpenUserMenu === "function"
+                ) {
 
-  return (
-    <div
-      className="
-        relative
+                    setOpenUserMenu(false);
+                }
 
-        flex
-        min-w-0
-        shrink-0
 
-        items-center
-        justify-end
+                if (
+                    typeof setOpenNotifications === "function"
+                ) {
 
-        gap-1
+                    setOpenNotifications(
+                        nextValue
+                    );
+                }
+            },
 
-        min-[390px]:gap-1.5
+            [
+                setOpenUserMenu,
 
-        sm:gap-2
+                setOpenNotifications,
+            ]
+        );
 
-        xl:gap-2.5
-      "
-    >
-      {/* ==========================================
-          FCOIN BALANCE
-      ========================================== */}
 
-      {isLoggedIn && (
+    // =====================================================
+    // WINTER SETTINGS TOGGLE
+    //
+    // Before opening Winter Experience:
+    //
+    // - Close user menu.
+    // - Close notifications.
+    // - Toggle winter settings sidebar.
+    //
+    // Winter sidebar visibility itself is
+    // controlled by Navbar.jsx.
+    // =====================================================
+
+    const handleWinterToggle = useCallback(
+        () => {
+
+            closeNavbarPopovers();
+
+
+            if (
+                typeof toggleWinterSettings === "function"
+            ) {
+
+                toggleWinterSettings();
+            }
+        },
+
+        [
+            closeNavbarPopovers,
+
+            toggleWinterSettings,
+        ]
+    );
+
+
+    // =====================================================
+    // DAILY GIFT MODAL OPEN
+    //
+    // DailyGiftButton opens the global Redux modal.
+    //
+    // This callback only manages existing Navbar UI:
+    //
+    // - Close user menu.
+    // - Close notifications.
+    // - Close Winter Settings if currently open.
+    // - Close mobile navigation if currently open.
+    //
+    // Do not change authentication or gift state here.
+    // =====================================================
+
+    const handleDailyGiftOpen = useCallback(
+        () => {
+
+            // =============================================
+            // CLOSE NAVBAR POPOVERS
+            // =============================================
+
+            closeNavbarPopovers();
+
+
+            // =============================================
+            // CLOSE WINTER SETTINGS
+            //
+            // Toggle only when the sidebar is open.
+            // =============================================
+
+            if (
+                winterSettingsOpen
+                &&
+                typeof toggleWinterSettings === "function"
+            ) {
+
+                toggleWinterSettings();
+            }
+
+
+            // =============================================
+            // CLOSE MOBILE NAVIGATION
+            //
+            // Preserve the existing parent-controlled
+            // mobile sidebar state.
+            // =============================================
+
+            if (
+                isMobileMenuOpen
+                &&
+                typeof toggleMobileMenu === "function"
+            ) {
+
+                toggleMobileMenu();
+            }
+        },
+
+        [
+            closeNavbarPopovers,
+
+            winterSettingsOpen,
+
+            toggleWinterSettings,
+
+            isMobileMenuOpen,
+
+            toggleMobileMenu,
+        ]
+    );
+
+
+    // =====================================================
+    // RENDER
+    // =====================================================
+
+    return (
+
         <div
-          className="
-            hidden
-            shrink-0
 
-            min-[390px]:flex
+            className="
+                relative
 
-            lg:hidden
-            xl:flex
-          "
+                flex
+                min-w-0
+                shrink-0
+
+                items-center
+                justify-end
+
+                gap-1
+
+                min-[390px]:gap-1.5
+
+                sm:gap-2
+
+                xl:gap-2.5
+            "
         >
-          <NavbarCoin
-            coins={user?.coins ?? 0}
-          />
+
+            {/* ==========================================
+                FCOIN BALANCE
+            ========================================== */}
+
+            {isLoggedIn && (
+
+                <div
+
+                    className="
+                        hidden
+                        shrink-0
+
+                        min-[390px]:flex
+
+                        lg:hidden
+                        xl:flex
+                    "
+                >
+
+                    <NavbarCoin
+
+                        coins={
+                            user?.coins ?? 0
+                        }
+                    />
+
+                </div>
+            )}
+
+
+            {/* ==========================================
+                DAILY NEW YEAR GIFT 2027
+
+                Position:
+
+                FCoin -> Daily Gift -> Theme Toggle
+
+                Visibility is controlled internally
+                by DailyGiftButton.
+
+                Only authenticated users can access
+                the Daily Gift modal.
+            ========================================== */}
+
+            {isLoggedIn && (
+
+                <DailyGiftButton
+
+                    onOpen={
+                        handleDailyGiftOpen
+                    }
+                />
+            )}
+
+
+            {/* ==========================================
+                LIGHT / DARK MODE
+            ========================================== */}
+
+            <div
+
+                className="
+                    relative
+
+                    flex
+                    shrink-0
+
+                    items-center
+                    justify-center
+                "
+            >
+
+                <ThemeToggle />
+
+            </div>
+
+
+            {/* ==========================================
+                WINTER EXPERIENCE
+            ========================================== */}
+
+            <div
+
+                className="
+                    relative
+
+                    flex
+                    shrink-0
+
+                    items-center
+                    justify-center
+                "
+            >
+
+                <WinterExperienceButton
+
+                    isOpen={
+                        winterSettingsOpen
+                    }
+
+                    onClick={
+                        handleWinterToggle
+                    }
+                />
+
+            </div>
+
+
+            {/* ==========================================
+                AUTHENTICATED USER ACTIONS
+            ========================================== */}
+
+            {isLoggedIn ? (
+
+                <>
+
+                    {/* ==================================
+                        NOTIFICATIONS
+                    ================================== */}
+
+                    <NotificationDropdown
+
+                        openNotifications={
+                            openNotifications
+                        }
+
+                        setOpenNotifications={
+                            setNotificationsExclusive
+                        }
+
+                        notificationsRef={
+                            notificationsRef
+                        }
+                    />
+
+
+                    {/* ==================================
+                        USER PROFILE MENU
+                    ================================== */}
+
+                    <NavbarUserMenu
+
+                        user={user}
+
+                        avatarUrl={avatarUrl}
+
+                        openUserMenu={
+                            openUserMenu
+                        }
+
+                        setOpenUserMenu={
+                            setOpenUserMenu
+                        }
+
+                        setOpenNotifications={
+                            setOpenNotifications
+                        }
+
+                        userMenuRef={
+                            userMenuRef
+                        }
+
+                        handleLogout={
+                            handleLogout
+                        }
+                    />
+
+                </>
+
+            ) : (
+
+                /* ======================================
+                   LOGIN BUTTON
+                ====================================== */
+
+                <Link
+
+                    to="/login"
+
+                    aria-label="Tizimga kirish"
+
+                    className="
+                        group/login
+
+                        relative
+
+                        inline-flex
+                        h-10
+                        shrink-0
+
+                        items-center
+                        justify-center
+
+                        gap-2
+
+                        rounded-xl
+
+                        border border-indigo-500/20
+
+                        bg-indigo-600
+
+                        px-2.5
+
+                        text-[13px]
+                        font-bold
+
+                        text-white
+
+                        shadow-[0_4px_14px_rgba(79,70,229,0.15)]
+
+                        transition-[background-color,border-color,transform]
+
+                        duration-200
+
+                        hover:border-indigo-400/40
+                        hover:bg-indigo-500
+
+                        active:scale-95
+
+                        focus-visible:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-indigo-500
+                        focus-visible:ring-offset-2
+
+                        dark:border-indigo-400/20
+                        dark:shadow-none
+                        dark:focus-visible:ring-offset-[#080c12]
+
+                        sm:px-4
+
+                        motion-reduce:transform-none
+                        motion-reduce:transition-none
+                    "
+                >
+
+                    <LogIn
+
+                        size={17}
+
+                        strokeWidth={2}
+
+                        aria-hidden="true"
+
+                        className="
+                            shrink-0
+
+                            transition-transform
+
+                            duration-200
+
+                            group-hover/login:translate-x-0.5
+
+                            motion-reduce:transform-none
+                        "
+                    />
+
+
+                    <span
+
+                        className="
+                            hidden
+                            whitespace-nowrap
+                            font-semibold
+
+                            sm:inline
+                        "
+                    >
+
+                        Kirish
+
+                    </span>
+
+                </Link>
+            )}
+
+
+            {/* ==========================================
+                MOBILE SIDEBAR BUTTON
+            ========================================== */}
+
+            <button
+
+                type="button"
+
+                onClick={
+                    toggleMobileMenu
+                }
+
+                aria-label={
+
+                    isMobileMenuOpen
+
+                        ? "Mobil menyuni yopish"
+
+                        : "Mobil menyuni ochish"
+                }
+
+                aria-expanded={
+                    Boolean(isMobileMenuOpen)
+                }
+
+                aria-controls="fsociety-mobile-navigation"
+
+                className="
+                    group/mobile
+
+                    relative
+
+                    inline-flex
+                    h-10 w-10
+                    shrink-0
+
+                    items-center
+                    justify-center
+
+                    overflow-hidden
+
+                    rounded-xl
+
+                    border
+                    border-cyan-600/20
+
+                    bg-cyan-500/[0.07]
+
+                    text-cyan-700
+
+                    transition-[background-color,border-color,transform]
+
+                    duration-200
+
+                    hover:border-cyan-600/35
+                    hover:bg-cyan-500/[0.12]
+
+                    active:scale-95
+
+                    focus-visible:outline-none
+                    focus-visible:ring-2
+                    focus-visible:ring-cyan-500
+                    focus-visible:ring-offset-2
+
+                    lg:hidden
+
+                    dark:border-cyan-400/10
+                    dark:bg-cyan-400/[0.05]
+                    dark:text-cyan-300
+
+                    dark:hover:border-cyan-400/25
+                    dark:hover:bg-cyan-400/[0.09]
+
+                    dark:focus-visible:ring-offset-[#080c12]
+
+                    motion-reduce:transform-none
+                    motion-reduce:transition-none
+                "
+            >
+
+                {/* ======================================
+                    SUBTLE HOVER
+                ====================================== */}
+
+                <span
+
+                    aria-hidden="true"
+
+                    className="
+                        pointer-events-none
+
+                        absolute inset-0
+
+                        bg-cyan-500/[0.04]
+
+                        opacity-0
+
+                        transition-opacity
+
+                        duration-200
+
+                        group-hover/mobile:opacity-100
+
+                        dark:bg-cyan-400/[0.03]
+                    "
+                />
+
+
+                {/* ======================================
+                    ICON
+                ====================================== */}
+
+                <span
+
+                    className="
+                        relative z-10
+
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+
+                    {isMobileMenuOpen ? (
+
+                        <X
+
+                            size={20}
+
+                            strokeWidth={2}
+
+                            aria-hidden="true"
+                        />
+
+                    ) : (
+
+                        <Menu
+
+                            size={20}
+
+                            strokeWidth={2}
+
+                            aria-hidden="true"
+                        />
+                    )}
+
+                </span>
+
+            </button>
+
         </div>
-      )}
-
-      {/* ==========================================
-          LIGHT / DARK MODE
-      ========================================== */}
-
-      <div
-        className="
-          relative
-
-          flex
-          shrink-0
-
-          items-center
-          justify-center
-        "
-      >
-        <ThemeToggle />
-      </div>
-
-      {/* ==========================================
-          WINTER EXPERIENCE
-      ========================================== */}
-
-      <div
-        className="
-          relative
-
-          flex
-          shrink-0
-
-          items-center
-          justify-center
-        "
-      >
-        <WinterExperienceButton
-          isOpen={winterSettingsOpen}
-          onClick={handleWinterToggle}
-        />
-      </div>
-
-      {/* ==========================================
-          AUTHENTICATED USER ACTIONS
-      ========================================== */}
-
-      {isLoggedIn ? (
-        <>
-          {/* ====================================
-              NOTIFICATIONS
-          ==================================== */}
-
-          <NotificationDropdown
-            openNotifications={
-              openNotifications
-            }
-
-            setOpenNotifications={
-              setNotificationsExclusive
-            }
-
-            notificationsRef={
-              notificationsRef
-            }
-          />
-
-          {/* ====================================
-              USER PROFILE MENU
-          ==================================== */}
-
-          <NavbarUserMenu
-            user={user}
-
-            avatarUrl={avatarUrl}
-
-            openUserMenu={
-              openUserMenu
-            }
-
-            setOpenUserMenu={
-              setOpenUserMenu
-            }
-
-            setOpenNotifications={
-              setOpenNotifications
-            }
-
-            userMenuRef={
-              userMenuRef
-            }
-
-            handleLogout={
-              handleLogout
-            }
-          />
-        </>
-      ) : (
-        /* ======================================
-           LOGIN BUTTON
-        ====================================== */
-
-        <Link
-          to="/login"
-
-          aria-label="Tizimga kirish"
-
-          className="
-            group/login
-
-            relative
-
-            inline-flex
-            h-10
-            shrink-0
-
-            items-center
-            justify-center
-
-            gap-2
-
-            rounded-xl
-
-            border border-indigo-500/20
-
-            bg-indigo-600
-
-            px-2.5
-
-            text-[13px]
-            font-bold
-
-            text-white
-
-            shadow-[0_4px_14px_rgba(79,70,229,0.15)]
-
-            transition-[background-color,border-color,transform]
-            duration-200
-
-            hover:border-indigo-400/40
-            hover:bg-indigo-500
-
-            active:scale-95
-
-            focus-visible:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-indigo-500
-            focus-visible:ring-offset-2
-
-            dark:border-indigo-400/20
-            dark:shadow-none
-            dark:focus-visible:ring-offset-[#080c12]
-
-            sm:px-4
-
-            motion-reduce:transform-none
-            motion-reduce:transition-none
-          "
-        >
-          <LogIn
-            size={17}
-
-            strokeWidth={2}
-
-            aria-hidden="true"
-
-            className="
-              shrink-0
-
-              transition-transform
-              duration-200
-
-              group-hover/login:translate-x-0.5
-
-              motion-reduce:transform-none
-            "
-          />
-
-          <span
-            className="
-              hidden
-              whitespace-nowrap
-              font-semibold
-
-              sm:inline
-            "
-          >
-            Kirish
-          </span>
-        </Link>
-      )}
-
-      {/* ==========================================
-          MOBILE SIDEBAR BUTTON
-      ========================================== */}
-
-      <button
-        type="button"
-
-        onClick={toggleMobileMenu}
-
-        aria-label={
-          isMobileMenuOpen
-            ? "Mobil menyuni yopish"
-            : "Mobil menyuni ochish"
-        }
-
-        aria-expanded={
-          Boolean(isMobileMenuOpen)
-        }
-
-        aria-controls="fsociety-mobile-navigation"
-
-        className="
-          group/mobile
-
-          relative
-
-          inline-flex
-          h-10 w-10
-          shrink-0
-
-          items-center
-          justify-center
-
-          overflow-hidden
-
-          rounded-xl
-
-          border
-          border-cyan-600/20
-
-          bg-cyan-500/[0.07]
-
-          text-cyan-700
-
-          transition-[background-color,border-color,transform]
-          duration-200
-
-          hover:border-cyan-600/35
-          hover:bg-cyan-500/[0.12]
-
-          active:scale-95
-
-          focus-visible:outline-none
-          focus-visible:ring-2
-          focus-visible:ring-cyan-500
-          focus-visible:ring-offset-2
-
-          lg:hidden
-
-          dark:border-cyan-400/10
-          dark:bg-cyan-400/[0.05]
-          dark:text-cyan-300
-
-          dark:hover:border-cyan-400/25
-          dark:hover:bg-cyan-400/[0.09]
-
-          dark:focus-visible:ring-offset-[#080c12]
-
-          motion-reduce:transform-none
-          motion-reduce:transition-none
-        "
-      >
-        {/* SUBTLE HOVER */}
-
-        <span
-          aria-hidden="true"
-          className="
-            pointer-events-none
-
-            absolute inset-0
-
-            bg-cyan-500/[0.04]
-
-            opacity-0
-
-            transition-opacity
-            duration-200
-
-            group-hover/mobile:opacity-100
-
-            dark:bg-cyan-400/[0.03]
-          "
-        />
-
-        {/* ICON */}
-
-        <span
-          className="
-            relative z-10
-
-            flex
-            items-center
-            justify-center
-          "
-        >
-          {isMobileMenuOpen ? (
-            <X
-              size={20}
-              strokeWidth={2}
-              aria-hidden="true"
-            />
-          ) : (
-            <Menu
-              size={20}
-              strokeWidth={2}
-              aria-hidden="true"
-            />
-          )}
-        </span>
-      </button>
-    </div>
-  );
+    );
 }
+
 
 // =========================================================
 // EXPORT
