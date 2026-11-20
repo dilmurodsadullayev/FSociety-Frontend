@@ -6,6 +6,7 @@ import {
     configureStore,
 } from "@reduxjs/toolkit";
 
+
 // =========================================================
 // AUTH
 // =========================================================
@@ -18,6 +19,7 @@ import AuthReducer, {
     checkAuthSuccess,
     checkAuthFailure,
 } from "../features/auth/Auth";
+
 
 // =========================================================
 // EXISTING REDUCERS
@@ -51,23 +53,34 @@ import BotReducer from "../features/bot";
 
 import promotionReducer from "../features/promotions";
 
+
 // =========================================================
 // SITE UPDATES
 // =========================================================
 
 import updatesReducer from "../features/updates/Updates";
 
+
 // =========================================================
-// PROFILE FRAMES SHOP — NEW
+// PROFILE FRAMES SHOP
 // =========================================================
 
 import profileFramesReducer from "../features/profileFrames";
+
+
+// =========================================================
+// DAILY NEW YEAR GIFT 2027
+// =========================================================
+
+import DailyGiftReducer from "../features/dailyGift/dailyGiftSlice";
+
 
 // =========================================================
 // MIDDLEWARE
 // =========================================================
 
 import notificationMiddleware from "../middleware/notificationMiddleware";
+
 
 // =========================================================
 // FSOCIETY — APPLICATION REDUCERS
@@ -78,15 +91,18 @@ import notificationMiddleware from "../middleware/notificationMiddleware";
 // Keep all existing Redux keys unchanged.
 //
 // Components depend on:
+//
 // state.auth
 // state.user
 // state.coin
 // state.profile
 // state.notifications
+// state.profileFrames
 // etc.
 //
-// New:
-// state.profileFrames
+// Daily New Year Gift:
+//
+// state.dailyGift
 //
 // =========================================================
 
@@ -98,11 +114,13 @@ const appReducer = combineReducers({
 
     auth: AuthReducer,
 
+
     // =====================================================
     // COMMENTS
     // =====================================================
 
     comment: CommentReducer,
+
 
     // =====================================================
     // PROBLEMS
@@ -112,11 +130,13 @@ const appReducer = combineReducers({
 
     problemResponse: problemResponseReducer,
 
+
     // =====================================================
     // USERS
     // =====================================================
 
     user: UserReducer,
+
 
     // =====================================================
     // FEEDBACK
@@ -124,11 +144,13 @@ const appReducer = combineReducers({
 
     feedback: FeedbackReducer,
 
+
     // =====================================================
     // NOTIFICATIONS
     // =====================================================
 
     notifications: notificationReducer,
+
 
     // =====================================================
     // COINS
@@ -136,11 +158,13 @@ const appReducer = combineReducers({
 
     coin: CoinReducer,
 
+
     // =====================================================
     // PROFILE
     // =====================================================
 
     profile: ProfileReducer,
+
 
     // =====================================================
     // PROJECTS
@@ -148,11 +172,13 @@ const appReducer = combineReducers({
 
     project: ProjectReducer,
 
+
     // =====================================================
     // POSTS
     // =====================================================
 
     post: PostReducer,
+
 
     // =====================================================
     // ROADMAP
@@ -160,11 +186,13 @@ const appReducer = combineReducers({
 
     roadmap: RoadmapReducer,
 
+
     // =====================================================
     // BADGES
     // =====================================================
 
     badge: BadgeReducer,
+
 
     // =====================================================
     // TELEGRAM BOT
@@ -172,11 +200,13 @@ const appReducer = combineReducers({
 
     bot: BotReducer,
 
+
     // =====================================================
     // SITE UPDATES
     // =====================================================
 
     updates: updatesReducer,
+
 
     // =====================================================
     // PROMOTIONS
@@ -184,11 +214,13 @@ const appReducer = combineReducers({
 
     promotion: promotionReducer,
 
+
     // =====================================================
     // PROFILE FRAMES SHOP
     // =====================================================
     //
     // Handles:
+    //
     // - Shop catalog
     // - Frame details
     // - My frame inventory
@@ -200,13 +232,39 @@ const appReducer = combineReducers({
 
     profileFrames: profileFramesReducer,
 
+
+    // =====================================================
+    // DAILY NEW YEAR GIFT 2027
+    // =====================================================
+    //
+    // Handles:
+    //
+    // - Event information
+    // - Daily gift eligibility
+    // - Gift claim lifecycle
+    // - Reward result
+    // - Uncertain claim recovery
+    // - Reward history
+    // - Global modal state
+    // - Authentication cleanup
+    // - Stale response protection
+    //
+    // Authentication cleanup is handled internally
+    // by DailyGiftReducer through extraReducers.
+    //
+    // =====================================================
+
+    dailyGift: DailyGiftReducer,
+
 });
+
 
 // =========================================================
 // AUTH SESSION HELPERS
 // =========================================================
 
 const getUserId = (user) => {
+
     if (
         user === null
         ||
@@ -214,15 +272,22 @@ const getUserId = (user) => {
         ||
         Array.isArray(user)
     ) {
+
         return null;
     }
 
-    const id = user.id ?? user.pk ?? null;
+
+    const id =
+        user.id ?? user.pk ?? null;
+
 
     return id === undefined || id === ""
+
         ? null
+
         : id;
 };
+
 
 // =========================================================
 // FRAME STATE INVALIDATION
@@ -236,13 +301,22 @@ const getUserId = (user) => {
 // 4. A different account logs in
 //
 // Do not reset the other existing Redux slices.
+//
+// Daily Gift authentication cleanup is managed
+// separately inside dailyGiftSlice.js.
+//
 // =========================================================
 
-const shouldResetFrameState = (state, action) => {
+const shouldResetFrameState = (
+    state,
+    action
+) => {
 
     if (!state?.profileFrames) {
+
         return false;
     }
+
 
     // =====================================================
     // LOGOUT / AUTH FAILURE
@@ -257,8 +331,10 @@ const shouldResetFrameState = (state, action) => {
         ||
         signUserFailer.match(action)
     ) {
+
         return true;
     }
+
 
     // =====================================================
     // ACCOUNT LOGIN / RESTORE
@@ -269,9 +345,11 @@ const shouldResetFrameState = (state, action) => {
         ||
         checkAuthSuccess.match(action)
     ) {
+
         const previousUserId = getUserId(
             state.auth?.user
         );
+
 
         const nextUser = (
             action.payload?.user
@@ -279,9 +357,11 @@ const shouldResetFrameState = (state, action) => {
             action.payload
         );
 
+
         const nextUserId = getUserId(
             nextUser
         );
+
 
         // A new session should never inherit
         // an anonymous or unknown account's cache.
@@ -291,8 +371,10 @@ const shouldResetFrameState = (state, action) => {
             ||
             nextUserId === null
         ) {
+
             return true;
         }
+
 
         // Clear cached private frame data
         // when switching between accounts.
@@ -301,8 +383,10 @@ const shouldResetFrameState = (state, action) => {
             String(nextUserId);
     }
 
+
     return false;
 };
+
 
 // =========================================================
 // ROOT REDUCER
@@ -316,15 +400,29 @@ const shouldResetFrameState = (state, action) => {
 // the original authentication action.
 //
 // Existing reducers keep their original behavior.
+//
+// DailyGiftReducer receives the same authentication
+// action and handles its own session cleanup.
+//
+// This avoids duplicate state reset logic and
+// preserves the Daily Gift ownerId initialization.
+//
 // =========================================================
 
-const rootReducer = (state, action) => {
+const rootReducer = (
+    state,
+    action
+) => {
 
     if (
         state
         &&
-        shouldResetFrameState(state, action)
+        shouldResetFrameState(
+            state,
+            action
+        )
     ) {
+
         return appReducer(
             {
                 ...state,
@@ -335,15 +433,18 @@ const rootReducer = (state, action) => {
 
                 profileFrames: undefined,
             },
+
             action
         );
     }
+
 
     return appReducer(
         state,
         action
     );
 };
+
 
 // =========================================================
 // FSOCIETY — REDUX STORE
@@ -357,8 +458,23 @@ export const store = configureStore({
 
     reducer: rootReducer,
 
+
     // =====================================================
     // MIDDLEWARE
+    // =====================================================
+    //
+    // Keep the default Redux Toolkit middleware:
+    //
+    // - Redux Thunk
+    // - Serializable state validation
+    // - Immutable state validation
+    //
+    // Existing WebSocket notification middleware
+    // remains unchanged.
+    //
+    // Daily Gift async operations use the default
+    // Redux Toolkit thunk middleware.
+    //
     // =====================================================
 
     middleware: (
@@ -369,6 +485,7 @@ export const store = configureStore({
                 notificationMiddleware
             ),
 
+
     // =====================================================
     // REDUX DEVTOOLS
     // =====================================================
@@ -378,16 +495,28 @@ export const store = configureStore({
 
 });
 
+
 // =========================================================
 // OPTIONAL ROOT REDUCER EXPORT
 // =========================================================
 //
 // Useful for isolated Redux tests.
+//
 // Does not change existing store imports.
+//
+// Can also be used to test:
+//
+// - Daily Gift initial state
+// - Authentication cleanup
+// - Account switching
+// - Profile Frames state invalidation
+// - Stale async response protection
+//
 // =========================================================
 
 export {
     rootReducer,
 };
+
 
 export default store;
