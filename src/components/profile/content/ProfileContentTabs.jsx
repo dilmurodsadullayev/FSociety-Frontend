@@ -17,6 +17,7 @@ const PROFILE_TABS = [
     { key: "projects", label: "Loyihalar" },
     { key: "posts", label: "Postlar / Javoblar" },
     { key: "roadmap", label: "Yo‘l xaritasi" },
+    { key: "achievements", label: "Yutuqlar" },
 ];
 
 // =========================================================

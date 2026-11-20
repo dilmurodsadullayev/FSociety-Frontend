@@ -106,6 +106,7 @@ const PROFILE_TAB_VALUES = new Set([
     "projects",
     "posts",
     "roadmap",
+    "achievements",
 ]);
 
 // =========================================================

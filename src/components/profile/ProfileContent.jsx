@@ -6,6 +6,7 @@ import React, { memo, useId } from "react";
 import ProfilePosts from "./ProfilePosts";
 import ProfileProjects from "./ProfileProjects";
 import ProfileRoadmap from "./ProfileRoadmap";
+import ProfileAchievements from "./achievements/ProfileAchievements";
 
 import ProfileContentTabs from "./content/ProfileContentTabs";
 
@@ -35,6 +36,8 @@ const ProfileContent = ({
     username,
     activeTab = "projects",
     onTabChange,
+    achievements,
+    isOwner,
 }) => {
     // =====================================================
     // UNIQUE ID
@@ -153,6 +156,16 @@ const ProfileContent = ({
                         username={username}
                     />
                 )}
+            </div>
+            <div
+                id={`${idPrefix}-panel-achievements`}
+                role="tabpanel"
+                aria-labelledby={`${idPrefix}-tab-achievements`}
+                tabIndex={0}
+                hidden={activeTab !== "achievements"}
+                className="min-w-0 w-full"
+            >
+                {activeTab === "achievements" && <ProfileAchievements achievements={achievements} isOwner={isOwner} />}
             </div>
         </section>
     );

@@ -142,6 +142,7 @@ const ProfilePostsPagination = ({
     hasNextPage = false,
     isLoading = false,
     onPageChange,
+    ariaLabel = "Postlar sahifalari",
 }) => {
     // =====================================================
     // PAGE NUMBERS
@@ -192,7 +193,7 @@ const ProfilePostsPagination = ({
 
     return (
         <section
-            aria-label="Postlar sahifalari"
+            aria-label={ariaLabel}
             className="
                 relative
                 min-w-0
@@ -212,7 +213,7 @@ const ProfilePostsPagination = ({
             "
         >
             <nav
-                aria-label="Postlar sahifalash navigatsiyasi"
+                aria-label={`${ariaLabel} navigatsiyasi`}
                 className="
                     relative
                     z-10

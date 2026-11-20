@@ -7,7 +7,7 @@ import React, { memo } from "react";
 // PROFILE COMPONENTS
 // =========================================================
 
-import ProfileBadges from "./ProfileBadges";
+import ProfileRecentAchievements from "./sidebar/ProfileRecentAchievements";
 
 import ProfileSidebarDetails from "./sidebar/ProfileSidebarDetails";
 
@@ -38,6 +38,9 @@ const ProfileSidebar = ({
     currentUser,
     birthdayStatus,
     username,
+    achievements,
+    isOwner,
+    onViewAchievements,
 }) => {
     // =====================================================
     // SAFE USER DATA
@@ -131,17 +134,13 @@ const ProfileSidebar = ({
             />
 
             {/* =========================================
-                PROFILE BADGES
-
-                Original component is reused.
-
-                Its existing Redux, API requests,
-                loading and badge functionality
-                are not changed.
+                LATEST OWNED ACHIEVEMENTS
             ========================================== */}
 
-            <ProfileBadges
-                username={username}
+            <ProfileRecentAchievements
+                achievements={achievements}
+                isOwner={isOwner}
+                onViewAll={onViewAchievements}
             />
         </aside>
     );

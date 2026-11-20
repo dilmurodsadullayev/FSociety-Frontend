@@ -1,7 +1,8 @@
 
 // src/components/Profile.jsx
 
-import React, { memo } from "react";
+import React, { memo, useRef } from "react";
+import useProfileAchievements from "../hooks/achievements/useProfileAchievements";
 
 import {
     AlertCircle,
@@ -213,6 +214,17 @@ const Profile = () => {
         handleOpenCoverModal,
         handleCloseCoverModal,
     } = useProfilePage();
+
+    const achievements = useProfileAchievements(username, profileMatchesRoute);
+    const contentRef = useRef(null);
+    const showAchievements = () => {
+        setActiveTab("achievements");
+        const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        contentRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+        requestAnimationFrame(() => {
+            contentRef.current?.querySelector('[role="tab"][id$="-tab-achievements"]')?.focus({ preventScroll: true });
+        });
+    };
 
     // =====================================================
     // 1. USER NOT FOUND — HTTP 404
@@ -440,6 +452,9 @@ const Profile = () => {
                         "
                     >
                         <ProfileSidebar
+                            achievements={achievements}
+                            isOwner={isOwner}
+                            onViewAchievements={showAchievements}
                             currentUser={currentUser}
                             birthdayStatus={
                                 birthdayStatus
@@ -464,13 +479,18 @@ const Profile = () => {
                             min-w-0
                         "
                     >
-                        <ProfileContent
-                            username={username}
-                            activeTab={activeTab}
-                            onTabChange={
-                                setActiveTab
-                            }
-                        />
+                        <div ref={contentRef} className="min-w-0 scroll-mt-24">
+                            <ProfileContent
+                                key={username}
+                                achievements={achievements}
+                                isOwner={isOwner}
+                                username={username}
+                                activeTab={activeTab}
+                                onTabChange={
+                                    setActiveTab
+                                }
+                            />
+                        </div>
                     </div>
                 </div>
 
