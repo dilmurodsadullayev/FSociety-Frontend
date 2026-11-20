@@ -1,13 +1,23 @@
 
 // src/components/daily-gift/DailyGiftController.jsx
 
-import { memo } from "react";
+import React, { memo } from "react";
+
 
 // =========================================================
-// DAILY GIFT HOOK
+// DAILY GIFT HOOKS
 // =========================================================
 
 import useDailyGift from "../../hooks/dailyGift/useDailyGift";
+
+import useDailyGiftModal from "../../hooks/dailyGift/useDailyGiftModal";
+
+
+// =========================================================
+// DAILY GIFT COMPONENTS
+// =========================================================
+
+import DailyGiftModal from "./DailyGiftModal";
 
 
 // =========================================================
@@ -16,40 +26,91 @@ import useDailyGift from "../../hooks/dailyGift/useDailyGift";
 //
 // Responsibilities:
 //
-// - Initialize Daily Gift data
-// - Load event information
+// - Initialize event information
 // - Load authenticated gift eligibility
-// - React to authentication changes
-// - Prevent duplicate initialization requests
+// - Observe authentication changes
+// - Manage global modal rendering
+// - Connect modal actions to Redux hooks
+// - Preserve pending claim requests
 //
-// This controller must be mounted only once,
-// inside the application's Redux Provider.
+// Mounted once inside App.js.
 //
-// Gift availability is independent of Winter Mode.
-//
-// Modal rendering and countdown synchronization
-// will be integrated in subsequent stages.
+// Independent of Winter Mode settings.
 //
 // =========================================================
 
 function DailyGiftController() {
 
     // =====================================================
-    // INITIALIZE DAILY GIFT
+    // GLOBAL EVENT INITIALIZATION
     // =====================================================
 
-    useDailyGift({
+    const gift = useDailyGift({
+
         autoLoad: true,
+
     });
 
 
     // =====================================================
-    // HEADLESS CONTROLLER
-    //
-    // No visible UI at this stage.
+    // GLOBAL MODAL STATE
     // =====================================================
 
-    return null;
+    const modal = useDailyGiftModal();
+
+
+    // =====================================================
+    // SESSION PROTECTION
+    //
+    // Never display private reward information
+    // to an unauthenticated user.
+    // =====================================================
+
+    if (!gift.hasValidSession) {
+
+        return null;
+    }
+
+
+    // =====================================================
+    // MODAL VISIBILITY
+    //
+    // Navbar DailyGiftButton opens the modal
+    // through the shared Redux state.
+    //
+    // The controller observes that same state.
+    // =====================================================
+
+    if (!modal.isOpen) {
+
+        return null;
+    }
+
+
+    // =====================================================
+    // GLOBAL MODAL RENDER
+    //
+    // Key prevents component-local state from
+    // surviving an authenticated account change.
+    //
+    // The modal remains outside individual routes.
+    //
+    // Claim requests belong to Redux thunks and
+    // are not canceled when the modal closes.
+    //
+    // =====================================================
+
+    return (
+
+        <DailyGiftModal
+
+            key={gift.ownerId}
+
+            gift={gift}
+
+            modal={modal}
+        />
+    );
 }
 
 
