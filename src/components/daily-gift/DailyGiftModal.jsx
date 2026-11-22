@@ -1,4 +1,6 @@
 
+// src/components/daily-gift/DailyGiftModal.jsx
+
 import React, {
     memo,
     useEffect,
@@ -7,7 +9,13 @@ import React, {
     useState,
 } from "react";
 
-import { createPortal } from "react-dom";
+import {
+    createPortal,
+} from "react-dom";
+
+import {
+    useReducedMotion,
+} from "framer-motion";
 
 import {
     AlertCircle,
@@ -32,9 +40,33 @@ import {
     DAILY_GIFT_EVENT_STATUS,
 } from "../../config/dailyGiftConfig";
 
+import GiftBox3D from "./GiftBox3D";
+
 
 // =========================================================
 // FSOCIETY — DAILY GIFT MODAL
+// =========================================================
+//
+// Features:
+//
+// - Native HTML dialog
+// - React Portal
+// - CSS 3D gift box
+// - Backend-driven gift opening
+// - Reward reveal transition
+// - Duplicate-claim protection via existing hooks
+// - Explicit claim recovery
+// - Dark / Light mode
+// - Responsive UI
+// - Reduced motion support
+//
+// All reward authorization remains on the backend.
+//
+// =========================================================
+
+
+// =========================================================
+// CONSTANTS
 // =========================================================
 
 const {
@@ -45,28 +77,34 @@ const {
 } = DAILY_GIFT_EVENT_STATUS;
 
 
+const REVEAL_DELAY_MS = 1100;
+
+
 // =========================================================
-// SHARED STYLES
+// BUTTON STYLES
 // =========================================================
 
 const PRIMARY_BUTTON = `
     inline-flex w-full
     items-center justify-center gap-2
 
-    rounded-xl px-5 py-3.5
+    rounded-xl
 
     bg-gradient-to-r
-    from-cyan-600 to-blue-600
+    from-cyan-600
+    to-blue-600
 
-    text-sm font-semibold text-white
+    px-5 py-3.5
 
-    shadow-lg shadow-cyan-500/20
+    text-sm font-semibold
+    text-white
+
+    shadow-lg
+    shadow-cyan-500/20
 
     transition-all duration-200
 
     hover:brightness-110
-
-    motion-safe:active:scale-[0.98]
 
     focus-visible:outline-none
     focus-visible:ring-2
@@ -76,14 +114,17 @@ const PRIMARY_BUTTON = `
     disabled:opacity-50
     disabled:shadow-none
 
+    motion-safe:active:scale-[0.98]
     motion-reduce:transition-none
 `;
+
 
 const SECONDARY_BUTTON = `
     inline-flex w-full
     items-center justify-center gap-2
 
     rounded-xl border
+
     border-slate-200
     dark:border-white/10
 
@@ -93,6 +134,7 @@ const SECONDARY_BUTTON = `
     px-4 py-3
 
     text-sm font-medium
+
     text-slate-700
     dark:text-slate-300
 
@@ -111,22 +153,20 @@ const SECONDARY_BUTTON = `
 
 
 // =========================================================
-// REWARD RARITY CONFIG
+// REWARD RARITY STYLES
 // =========================================================
 
-const RARITY_STYLES = {
+const RARITY_STYLES = Object.freeze({
 
     common: {
         label: "COMMON",
 
-        text: `
-            text-slate-600
-            dark:text-slate-300
-        `,
+        text: "text-slate-600 dark:text-slate-300",
 
         surface: `
             border-slate-300
             bg-slate-100
+
             dark:border-slate-500/30
             dark:bg-slate-500/10
         `,
@@ -135,14 +175,12 @@ const RARITY_STYLES = {
     rare: {
         label: "RARE",
 
-        text: `
-            text-blue-600
-            dark:text-blue-400
-        `,
+        text: "text-blue-600 dark:text-blue-400",
 
         surface: `
             border-blue-300
             bg-blue-50
+
             dark:border-blue-500/30
             dark:bg-blue-500/10
         `,
@@ -151,35 +189,31 @@ const RARITY_STYLES = {
     epic: {
         label: "EPIC",
 
-        text: `
-            text-purple-600
-            dark:text-purple-400
-        `,
+        text: "text-violet-600 dark:text-violet-400",
 
         surface: `
-            border-purple-300
-            bg-purple-50
-            dark:border-purple-500/30
-            dark:bg-purple-500/10
+            border-violet-300
+            bg-violet-50
+
+            dark:border-violet-500/30
+            dark:bg-violet-500/10
         `,
     },
 
     legendary: {
         label: "LEGENDARY",
 
-        text: `
-            text-amber-600
-            dark:text-amber-400
-        `,
+        text: "text-amber-600 dark:text-amber-400",
 
         surface: `
             border-amber-300
             bg-amber-50
+
             dark:border-amber-500/40
             dark:bg-amber-500/10
         `,
     },
-};
+});
 
 
 // =========================================================
@@ -223,7 +257,7 @@ const formatDate = (
 
 
 // =========================================================
-// ERROR MESSAGE NORMALIZER
+// ERROR MESSAGE
 // =========================================================
 
 const getErrorMessage = (error) => {
@@ -250,16 +284,12 @@ const getErrorMessage = (error) => {
 
 const getRewardIcon = (reward) => {
 
-    if (reward.rarity === "legendary") {
-        return Crown;
-    }
-
-    const type =
+    const awardedType =
         reward.awarded_reward_type
         ??
         reward.type;
 
-    switch (type) {
+    switch (awardedType) {
 
         case "coin":
             return Coins;
@@ -274,217 +304,34 @@ const getRewardIcon = (reward) => {
             return Trophy;
 
         default:
-            return Gift;
+            return reward.rarity === "legendary"
+                ? Crown
+                : Gift;
     }
 };
 
 
 // =========================================================
-// GIFT ILLUSTRATION
-// =========================================================
-
-const GiftIllustration = memo(
-    function GiftIllustration({
-        isOpening = false,
-        isScheduled = false,
-    }) {
-
-        return (
-
-            <div
-                aria-hidden="true"
-                className="
-                    relative flex
-                    h-48 sm:h-56
-                    items-center justify-center
-                    overflow-hidden
-                "
-            >
-
-                {/* Radial glow */}
-
-                <div
-                    className="
-                        pointer-events-none
-                        absolute
-
-                        h-44 w-44
-
-                        rounded-full
-
-                        bg-cyan-400/20
-                        dark:bg-cyan-500/20
-
-                        blur-3xl
-                    "
-                />
-
-
-                {/* Decorative particles */}
-
-                <Sparkles
-                    className="
-                        absolute left-[18%] top-[18%]
-
-                        h-5 w-5
-
-                        text-cyan-500/60
-                        dark:text-cyan-300/70
-
-                        motion-safe:animate-pulse
-                    "
-                />
-
-                <Sparkles
-                    className="
-                        absolute right-[19%] bottom-[21%]
-
-                        h-6 w-6
-
-                        text-blue-500/60
-                        dark:text-blue-300/70
-
-                        motion-safe:animate-pulse
-                    "
-                />
-
-                <Snowflake
-                    className="
-                        absolute right-[22%] top-[15%]
-
-                        h-4 w-4
-
-                        text-cyan-500/40
-                        dark:text-cyan-300/50
-                    "
-                />
-
-
-                {/* Outer ring */}
-
-                <div
-                    className="
-                        relative flex
-                        h-40 w-40
-
-                        items-center justify-center
-
-                        rounded-full
-                        border border-dashed
-
-                        border-cyan-500/30
-                        dark:border-cyan-400/30
-
-                        sm:h-44 sm:w-44
-                    "
-                >
-
-                    {/* Inner gift container */}
-
-                    <div
-                        className={`
-                            relative flex
-
-                            h-28 w-28
-                            sm:h-32 sm:w-32
-
-                            items-center justify-center
-
-                            rounded-[2rem]
-                            border border-cyan-400/40
-
-                            bg-gradient-to-br
-
-                            from-cyan-100
-                            via-sky-50
-                            to-blue-100
-
-                            dark:from-cyan-950
-                            dark:via-slate-900
-                            dark:to-blue-950
-
-                            shadow-xl
-                            shadow-cyan-500/20
-
-                            ${
-                                isOpening
-                                    ? "motion-safe:animate-pulse"
-                                    : ""
-                            }
-                        `}
-                    >
-
-                        {isOpening ? (
-
-                            <Loader2
-                                className="
-                                    h-14 w-14
-
-                                    text-cyan-600
-                                    dark:text-cyan-300
-
-                                    motion-safe:animate-spin
-                                "
-                            />
-
-                        ) : isScheduled ? (
-
-                            <CalendarClock
-                                strokeWidth={1.4}
-                                className="
-                                    h-14 w-14
-
-                                    text-violet-600
-                                    dark:text-violet-300
-                                "
-                            />
-
-                        ) : (
-
-                            <Gift
-                                strokeWidth={1.4}
-                                className="
-                                    h-16 w-16
-                                    sm:h-20 sm:w-20
-
-                                    text-cyan-600
-                                    dark:text-cyan-300
-
-                                    drop-shadow-lg
-                                "
-                            />
-
-                        )}
-
-                    </div>
-
-                </div>
-
-            </div>
-        );
-    }
-);
-
-
-// =========================================================
-// REWARD RESULT
+// REWARD RESULT PANEL
 // =========================================================
 
 const RewardResult = memo(
     function RewardResult({
         reward,
-        isHistorical = false,
+        isHistorical,
         onContinue,
     }) {
+
+        const [imageFailed, setImageFailed] =
+            useState(false);
 
         const rarity =
             RARITY_STYLES[reward.rarity]
             ??
             RARITY_STYLES.common;
 
-        const RewardIcon = getRewardIcon(
-            reward
-        );
+        const RewardIcon =
+            getRewardIcon(reward);
 
         const awardedCoins = Number(
             reward.awarded_coins ?? 0
@@ -502,22 +349,55 @@ const RewardResult = memo(
             ??
             "Maxsus mukofot";
 
+        const imageUrl =
+            typeof reward.item?.image_url === "string"
+                ? reward.item.image_url
+                : "";
+
+        const showImage =
+            Boolean(imageUrl)
+            &&
+            !imageFailed;
+
+
         return (
 
-            <div className="space-y-5">
+            <div
+                className="space-y-5"
+                aria-live="polite"
+            >
 
-                <div
-                    className="
-                        text-center
-                    "
-                >
+                {/* =====================================
+                    RESULT HEADER
+                ===================================== */}
+
+                <div className="text-center">
+
+                    <div
+                        className="
+                            mx-auto mb-3
+
+                            flex h-12 w-12
+
+                            items-center justify-center
+
+                            rounded-2xl
+
+                            bg-emerald-500/10
+                            text-emerald-600
+
+                            dark:text-emerald-400
+                        "
+                    >
+
+                        <Sparkles size={25}/>
+
+                    </div>
 
                     <p
                         className="
-                            mb-2
-
                             text-xs font-semibold
-                            uppercase tracking-[0.2em]
+                            uppercase tracking-[0.18em]
 
                             text-emerald-600
                             dark:text-emerald-400
@@ -525,88 +405,167 @@ const RewardResult = memo(
                     >
                         {isHistorical
                             ? "Olingan mukofot"
-                            : "Sovg‘a olindi"}
+                            : "Sovg‘a muvaffaqiyatli ochildi"}
                     </p>
 
                     <h3
                         className="
+                            mt-2
+
                             text-2xl font-bold
+
                             text-slate-900
                             dark:text-white
+
+                            sm:text-3xl
                         "
                     >
-                        {isHistorical
-                            ? "Mukofotingiz"
-                            : "Tabriklaymiz!"}
+                        Tabriklaymiz!
                     </h3>
 
                 </div>
 
 
-                {/* Reward rarity card */}
+                {/* =====================================
+                    REWARD CARD
+                ===================================== */}
 
                 <div
                     className={`
-                        flex flex-col
-                        items-center gap-4
+                        relative isolate
+
+                        overflow-hidden
 
                         rounded-2xl border
-                        p-6 text-center
+
+                        p-5 text-center
+
+                        sm:p-6
 
                         ${rarity.surface}
                     `}
                 >
 
+                    {/* Background glow */}
+
                     <div
-                        className={`
-                            flex h-24 w-24
-                            items-center justify-center
+                        aria-hidden="true"
+                        className="
+                            pointer-events-none
+
+                            absolute -top-20
+                            left-1/2 -z-10
+
+                            h-48 w-48
+
+                            -translate-x-1/2
 
                             rounded-full
 
-                            bg-white/60
-                            dark:bg-slate-950/40
+                            bg-white/40
+                            dark:bg-white/5
 
-                            ${rarity.text}
-                        `}
+                            blur-3xl
+                        "
+                    />
+
+
+                    {/* Reward artwork */}
+
+                    <div
+                        className="
+                            mx-auto mb-5
+
+                            flex h-28 w-28
+
+                            items-center justify-center
+
+                            rounded-3xl border
+
+                            border-white/50
+
+                            bg-white/50
+                            dark:border-white/10
+                            dark:bg-slate-950/30
+
+                            sm:h-32 sm:w-32
+                        "
                     >
 
-                        <RewardIcon
-                            size={48}
-                            strokeWidth={1.5}
-                        />
+                        {showImage ? (
+
+                            <img
+                                src={imageUrl}
+                                alt={rewardName}
+
+                                onError={() =>
+                                    setImageFailed(true)
+                                }
+
+                                className="
+                                    h-full w-full
+                                    object-contain
+
+                                    p-3
+                                "
+                            />
+
+                        ) : (
+
+                            <RewardIcon
+                                size={58}
+                                strokeWidth={1.4}
+
+                                className={rarity.text}
+                            />
+
+                        )}
 
                     </div>
 
-                    <span
+
+                    {/* Rarity */}
+
+                    <p
                         className={`
                             text-xs font-bold
+
                             tracking-[0.2em]
 
                             ${rarity.text}
                         `}
                     >
                         {rarity.label}
-                    </span>
+                    </p>
+
+
+                    {/* Reward name / FCoin */}
 
                     <h4
                         className={`
-                            break-words
-                            text-2xl font-bold
+                            mt-3 break-words
+
+                            text-xl font-bold
+
+                            sm:text-2xl
 
                             ${rarity.text}
                         `}
                     >
                         {hasCoins
+
                             ? `+${awardedCoins.toLocaleString()} FCoin`
+
                             : rewardName}
                     </h4>
+
 
                     {hasCoins && (
 
                         <p
                             className="
-                                text-sm
+                                mt-2 text-sm
+
                                 text-slate-600
                                 dark:text-slate-400
                             "
@@ -616,22 +575,31 @@ const RewardResult = memo(
 
                     )}
 
+
+                    {/* Compensation */}
+
                     {reward.is_compensation && (
 
                         <p
                             className="
-                                rounded-lg
+                                mt-4
 
-                                bg-amber-500/10
+                                rounded-xl border
+
+                                border-amber-300/40
+
+                                bg-amber-400/10
+
                                 px-3 py-2
 
-                                text-xs
+                                text-xs leading-relaxed
+
                                 text-amber-700
                                 dark:text-amber-300
                             "
                         >
-                            Bu mukofot sizda avvaldan
-                            mavjud bo‘lgani uchun
+                            Bu kolleksiya mukofoti sizda
+                            avvaldan mavjud bo‘lgani uchun
                             FCoin kompensatsiyasi berildi.
                         </p>
 
@@ -639,6 +607,10 @@ const RewardResult = memo(
 
                 </div>
 
+
+                {/* =====================================
+                    SERVER CONFIRMATION
+                ===================================== */}
 
                 <div
                     className="
@@ -652,18 +624,25 @@ const RewardResult = memo(
                     "
                 >
 
-                    <CheckCircle2 size={15} />
+                    <CheckCircle2 size={16}/>
 
                     Mukofot serverda qayd etilgan
 
                 </div>
+
+
+                {/* =====================================
+                    CONTINUE BUTTON
+                ===================================== */}
 
                 <button
                     type="button"
                     onClick={onContinue}
                     className={PRIMARY_BUTTON}
                 >
+
                     Davom etish
+
                 </button>
 
             </div>
@@ -673,7 +652,7 @@ const RewardResult = memo(
 
 
 // =========================================================
-// MAIN MODAL
+// MAIN DAILY GIFT MODAL
 // =========================================================
 
 function DailyGiftModal({
@@ -687,35 +666,53 @@ function DailyGiftModal({
 
     const descriptionId = useId();
 
+    const shouldReduceMotion =
+        useReducedMotion();
+
     const [actionError, setActionError] =
         useState("");
 
 
     // =====================================================
-    // EVENT & ELIGIBILITY STATE
+    // CURRENT EVENT DATA
     // =====================================================
 
     const status = gift.status;
 
     const eventStatus =
-        gift.eventStatus;
+        gift.eventStatus
+        ??
+        modal.eventStatus;
 
     const reward =
         modal.reward
         ??
         gift.reward;
 
-    const isScheduled =
-        eventStatus === SCHEDULED;
+    const hasReward = Boolean(
+        modal.hasReward
+        &&
+        reward
+    );
 
-    const isActive =
-        eventStatus === ACTIVE;
 
-    const isDisabled =
-        eventStatus === DISABLED;
+    // =====================================================
+    // REWARD PRESENTATION STATE
+    //
+    // When a reward already exists when the
+    // modal mounts, display it immediately.
+    //
+    // New successful claims trigger the 3D
+    // opening animation first.
+    // =====================================================
 
-    const isFinished =
-        eventStatus === FINISHED;
+    const [rewardReady, setRewardReady] =
+        useState(() => hasReward);
+
+
+    // =====================================================
+    // REQUEST STATES
+    // =====================================================
 
     const isClaimLoading =
         Boolean(gift.isClaimLoading);
@@ -723,46 +720,112 @@ function DailyGiftModal({
     const isStatusLoading =
         Boolean(modal.isStatusLoading);
 
+    const isBusy =
+        isClaimLoading
+        ||
+        isStatusLoading;
+
+
+    // =====================================================
+    // EVENT STATES
+    // =====================================================
+
+    const isActive =
+        eventStatus === ACTIVE;
+
+    const isScheduled =
+        eventStatus === SCHEDULED;
+
+    const isDisabled =
+        eventStatus === DISABLED;
+
+    const isFinished =
+        eventStatus === FINISHED;
+
     const claimedToday =
         Boolean(modal.claimedToday);
-
-    const hasReward =
-        Boolean(modal.hasReward && reward);
-
-    const canRecover =
-        Boolean(modal.canRecover);
 
     const hasUncertainClaim =
         Boolean(modal.hasUncertainClaim);
 
-    const canClaim = (
+    const canRecover =
+        Boolean(modal.canRecover);
 
+
+    const canClaim = (
         isActive
         &&
-        gift.canClaim
+        Boolean(gift.canClaim)
         &&
-        !isClaimLoading
-        &&
-        !isStatusLoading
+        !isBusy
         &&
         !hasUncertainClaim
+        &&
+        !hasReward
     );
 
-    const isBusy =
-        isClaimLoading || isStatusLoading;
+
+    // =====================================================
+    // NEW REWARD REVEAL DELAY
+    //
+    // Only a confirmed backend reward triggers
+    // the opening presentation.
+    //
+    // Never show a success state based only
+    // on a button click.
+    // =====================================================
+
+    useEffect(() => {
+
+        if (!hasReward || rewardReady) {
+            return undefined;
+        }
+
+        const timeoutId = window.setTimeout(
+
+            () => {
+                setRewardReady(true);
+            },
+
+            shouldReduceMotion
+                ? 0
+                : REVEAL_DELAY_MS
+        );
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+
+    }, [
+        hasReward,
+        rewardReady,
+        shouldReduceMotion,
+    ]);
+
+
+    // =====================================================
+    // DISPLAY PHASE
+    // =====================================================
+
+    const isRevealing = (
+        hasReward
+        &&
+        !rewardReady
+    );
+
+    const boxPhase = isRevealing
+
+        ? "revealed"
+
+        : isClaimLoading
+
+            ? "opening"
+
+            : "idle";
 
 
     // =====================================================
     // NATIVE MODAL LIFECYCLE
-    //
-    // Native dialog provides:
-    //
-    // - Modal focus management
-    // - Background interaction blocking
-    // - Escape key handling
-    // - Browser top-layer rendering
-    //
-    // Portal prevents navbar overflow issues.
     // =====================================================
 
     useEffect(() => {
@@ -801,12 +864,12 @@ function DailyGiftModal({
 
 
     // =====================================================
-    // BODY SCROLL LOCK
+    // SCROLL LOCK
     // =====================================================
 
     useEffect(() => {
 
-        const originalOverflow =
+        const previousOverflow =
             document.body.style.overflow;
 
         document.body.style.overflow =
@@ -815,23 +878,21 @@ function DailyGiftModal({
         return () => {
 
             document.body.style.overflow =
-                originalOverflow;
+                previousOverflow;
         };
 
     }, []);
 
 
     // =====================================================
-    // CLOSE HANDLERS
-    //
-    // Closing the modal never cancels an
-    // in-progress claim request.
+    // MODAL CLOSE
     // =====================================================
 
     const handleClose = () => {
 
         modal.closeModal();
     };
+
 
     const handleCancel = (event) => {
 
@@ -840,11 +901,11 @@ function DailyGiftModal({
         handleClose();
     };
 
+
     const handleBackdropClick = (event) => {
 
         if (
-            event.target
-            !==
+            event.target !==
             event.currentTarget
         ) {
             return;
@@ -853,8 +914,7 @@ function DailyGiftModal({
         const bounds =
             event.currentTarget.getBoundingClientRect();
 
-        const isOutside = (
-
+        const outside = (
             event.clientX < bounds.left
             ||
             event.clientX > bounds.right
@@ -864,14 +924,14 @@ function DailyGiftModal({
             event.clientY > bounds.bottom
         );
 
-        if (isOutside) {
+        if (outside) {
             handleClose();
         }
     };
 
 
     // =====================================================
-    // ASYNC ACTION HELPER
+    // ASYNC ACTION WRAPPER
     // =====================================================
 
     const runAction = async (action) => {
@@ -892,12 +952,7 @@ function DailyGiftModal({
 
 
     // =====================================================
-    // CLAIM
-    //
-    // The browser does not select or grant rewards.
-    //
-    // DailyGiftService and the backend remain
-    // authoritative.
+    // CLAIM GIFT
     // =====================================================
 
     const handleClaim = () => {
@@ -915,10 +970,7 @@ function DailyGiftModal({
 
 
     // =====================================================
-    // MANUAL CLAIM RECOVERY
-    //
-    // Only allowed when the existing Redux hook
-    // explicitly permits recovering a claim.
+    // CLAIM RECOVERY
     // =====================================================
 
     const handleRecover = () => {
@@ -955,16 +1007,22 @@ function DailyGiftModal({
     };
 
 
+    // =====================================================
+    // REWARD CONTINUE
+    // =====================================================
+
     const handleContinue = () => {
 
         modal.dismissReward();
+
+        setRewardReady(false);
 
         setActionError("");
     };
 
 
     // =====================================================
-    // PRESENTATION HELPERS
+    // DATE PRESENTATION
     // =====================================================
 
     const timeZone =
@@ -974,15 +1032,18 @@ function DailyGiftModal({
         ??
         "Asia/Tashkent";
 
+    const eventName =
+        gift.event?.name
+        ??
+        "FSociety Daily Gift";
+
     const eventStartsAt =
         gift.eventStartsAt
         ??
         gift.event?.starts_at;
 
-    const eventName =
-        gift.event?.name
-        ??
-        "FSociety Daily Gift";
+    const nextClaimAt =
+        gift.nextClaimAt;
 
     const startDate = formatDate(
         eventStartsAt,
@@ -990,9 +1051,14 @@ function DailyGiftModal({
     );
 
     const nextClaimDate = formatDate(
-        gift.nextClaimAt,
+        nextClaimAt,
         timeZone
     );
+
+
+    // =====================================================
+    // ERROR
+    // =====================================================
 
     const error =
         gift.claimError
@@ -1001,42 +1067,59 @@ function DailyGiftModal({
         ??
         gift.eventError;
 
-    const errorMessage = (
+    const errorMessage =
         actionError
         ||
         (
             error
                 ? getErrorMessage(error)
                 : ""
-        )
-    );
+        );
 
 
     // =====================================================
-    // STATUS CONTENT
+    // STATUS PRESENTATION
     // =====================================================
 
     let statusTitle =
         "Sovg‘a holati tekshirilmoqda";
 
     let statusDescription =
-        "Kunlik sovg‘angiz haqida ma’lumot olinmoqda.";
+        "Serverdan ma’lumot olinmoqda.";
 
     let StatusIcon = Clock3;
 
-    let statusClass = `
+    let statusColor = `
         text-slate-500
         dark:text-slate-400
     `;
 
 
-    if (isClaimLoading) {
+    if (isRevealing) {
 
         statusTitle =
-            "Sovg‘angiz ochilmoqda...";
+            "Sirli sovg‘a ochilmoqda!";
+
+        statusDescription =
+            "Mukofotingiz tayyor, hozir ko‘rsatiladi.";
+
+        StatusIcon = Sparkles;
+
+        statusColor =
+            "text-cyan-600 dark:text-cyan-300";
+
+    } else if (isClaimLoading) {
+
+        statusTitle =
+            "Sovg‘angiz tayyorlanmoqda...";
 
         statusDescription =
             "Server mukofotingizni aniqlamoqda.";
+
+        StatusIcon = Loader2;
+
+        statusColor =
+            "text-cyan-600 dark:text-cyan-300";
 
     } else if (hasUncertainClaim) {
 
@@ -1045,15 +1128,12 @@ function DailyGiftModal({
 
         statusDescription =
             "Oldingi so‘rov natijasi noma’lum. "
-            + "Mukofotni qayta olishdan oldin "
-            + "serverdagi holatni tekshiring.";
+            + "Davom etishdan oldin holatni tekshiring.";
 
         StatusIcon = AlertCircle;
 
-        statusClass = `
-            text-amber-600
-            dark:text-amber-400
-        `;
+        statusColor =
+            "text-amber-600 dark:text-amber-400";
 
     } else if (isScheduled) {
 
@@ -1062,32 +1142,30 @@ function DailyGiftModal({
 
         statusDescription = startDate
 
-            ? `${startDate} da boshlanadi.`
+            ? `Boshlanishi: ${startDate}`
 
             : "Tadbir boshlanishini kuting.";
 
         StatusIcon = CalendarClock;
 
-        statusClass = `
-            text-violet-600
-            dark:text-violet-400
-        `;
+        statusColor =
+            "text-violet-600 dark:text-violet-400";
 
     } else if (isDisabled) {
 
         statusTitle =
-            "Tadbir vaqtincha o‘chirilgan";
+            "Tadbir o‘chirilgan";
 
         statusDescription =
-            "Hozir sovg‘a olish imkoni mavjud emas.";
+            "Hozir sovg‘a olish mumkin emas.";
 
     } else if (isFinished) {
 
         statusTitle =
-            "Tadbir yakunlandi";
+            "Tadbir yakunlangan";
 
         statusDescription =
-            "Ishtirokingiz uchun tashakkur!";
+            "Ishtirokingiz uchun rahmat!";
 
     } else if (claimedToday) {
 
@@ -1102,10 +1180,8 @@ function DailyGiftModal({
 
         StatusIcon = CheckCircle2;
 
-        statusClass = `
-            text-emerald-600
-            dark:text-emerald-400
-        `;
+        statusColor =
+            "text-emerald-600 dark:text-emerald-400";
 
     } else if (canClaim) {
 
@@ -1113,15 +1189,13 @@ function DailyGiftModal({
             "Bugungi sovg‘angiz tayyor!";
 
         statusDescription =
-            "Sovg‘ani oching va tasodifiy "
+            "Qutini oching va tasodifiy "
             + "mukofotni qo‘lga kiriting.";
 
         StatusIcon = CheckCircle2;
 
-        statusClass = `
-            text-emerald-600
-            dark:text-emerald-400
-        `;
+        statusColor =
+            "text-emerald-600 dark:text-emerald-400";
 
     } else if (
         !isStatusLoading
@@ -1138,7 +1212,7 @@ function DailyGiftModal({
 
 
     // =====================================================
-    // PORTAL RENDER
+    // CLIENT ONLY
     // =====================================================
 
     if (typeof document === "undefined") {
@@ -1146,10 +1220,13 @@ function DailyGiftModal({
     }
 
 
+    // =====================================================
+    // MODAL PORTAL
+    // =====================================================
+
     return createPortal(
 
         <dialog
-
             ref={dialogRef}
 
             aria-labelledby={titleId}
@@ -1179,12 +1256,10 @@ function DailyGiftModal({
                 bg-white
                 text-slate-900
 
-                p-0
+                p-0 shadow-2xl
 
-                shadow-2xl
-
-                backdrop:bg-slate-950/70
-                backdrop:backdrop-blur-sm
+                backdrop:bg-slate-950/75
+                backdrop:backdrop-blur-md
 
                 dark:border-cyan-500/20
                 dark:bg-[#0B1220]
@@ -1199,6 +1274,7 @@ function DailyGiftModal({
             <div
                 className="
                     relative isolate
+
                     overflow-hidden
 
                     p-5 sm:p-7
@@ -1206,19 +1282,19 @@ function DailyGiftModal({
             >
 
                 {/* =====================================
-                    BACKGROUND GLOW
+                    BACKGROUND DECORATION
                 ===================================== */}
 
                 <div
                     aria-hidden="true"
                     className="
                         pointer-events-none
-                        absolute
 
-                        -top-32 left-1/2
-                        -z-10
+                        absolute -top-36
+                        left-1/2 -z-10
 
-                        h-72 w-72
+                        h-80 w-80
+
                         -translate-x-1/2
 
                         rounded-full
@@ -1232,13 +1308,12 @@ function DailyGiftModal({
 
 
                 {/* =====================================
-                    HEADER
+                    MODAL HEADER
                 ===================================== */}
 
                 <header
                     className="
-                        mb-5 flex
-                        items-center
+                        flex items-center
                         justify-between gap-3
                     "
                 >
@@ -1251,7 +1326,7 @@ function DailyGiftModal({
                     >
 
                         <Snowflake
-                            size={17}
+                            size={18}
                             className="
                                 shrink-0
 
@@ -1262,11 +1337,11 @@ function DailyGiftModal({
 
                         <span
                             className="
-                                truncate
+                                truncate font-mono
 
-                                font-mono
                                 text-[10px]
                                 font-semibold
+
                                 tracking-[0.12em]
 
                                 text-cyan-700
@@ -1280,10 +1355,16 @@ function DailyGiftModal({
 
                     </div>
 
+
+                    {/* Close */}
+
                     <button
                         type="button"
+
                         onClick={handleClose}
+
                         aria-label="Modalni yopish"
+
                         className="
                             flex h-9 w-9
                             shrink-0
@@ -1304,7 +1385,7 @@ function DailyGiftModal({
                         "
                     >
 
-                        <X size={19} />
+                        <X size={19}/>
 
                     </button>
 
@@ -1312,16 +1393,20 @@ function DailyGiftModal({
 
 
                 {/* =====================================
-                    MODAL TITLE
+                    MAIN TITLE
                 ===================================== */}
 
-                <div className="text-center">
+                <div
+                    className="
+                        mt-5 text-center
+                    "
+                >
 
                     <h2
                         id={titleId}
+
                         className="
-                            text-2xl
-                            font-bold
+                            text-2xl font-bold
                             tracking-tight
 
                             text-slate-900
@@ -1335,6 +1420,7 @@ function DailyGiftModal({
 
                     <p
                         id={descriptionId}
+
                         className="
                             mt-2 break-words
 
@@ -1352,18 +1438,17 @@ function DailyGiftModal({
 
 
                 {/* =====================================
-                    REWARD OR GIFT PRESENTATION
+                    MAIN CONTENT
                 ===================================== */}
 
                 <main
-                    aria-busy={isBusy}
-                    className="mt-6"
+                    aria-busy={isBusy || isRevealing}
+                    className="mt-4"
                 >
 
-                    {hasReward ? (
+                    {hasReward && rewardReady ? (
 
                         <RewardResult
-
                             reward={reward}
 
                             isHistorical={
@@ -1379,10 +1464,17 @@ function DailyGiftModal({
 
                         <>
 
-                            <GiftIllustration
+                            {/* =========================
+                                3D GIFT BOX
+                            ========================= */}
 
-                                isOpening={
-                                    isClaimLoading
+                            <GiftBox3D
+                                phase={boxPhase}
+
+                                rarity={
+                                    reward?.rarity
+                                    ??
+                                    "common"
                                 }
 
                                 isScheduled={
@@ -1391,13 +1483,18 @@ function DailyGiftModal({
                             />
 
 
-                            {/* Event status */}
+                            {/* =========================
+                                STATUS
+                            ========================= */}
 
                             <div
                                 role="status"
                                 aria-live="polite"
+
                                 className="
-                                    mb-6 space-y-2
+                                    mb-5
+
+                                    space-y-2
                                     text-center
                                 "
                             >
@@ -1409,13 +1506,19 @@ function DailyGiftModal({
 
                                         text-sm font-semibold
 
-                                        ${statusClass}
+                                        ${statusColor}
                                     `}
                                 >
 
                                     <StatusIcon
-                                        size={17}
-                                        className="shrink-0"
+                                        size={18}
+                                        className={
+                                            isClaimLoading
+
+                                                ? "motion-safe:animate-spin"
+
+                                                : "shrink-0"
+                                        }
                                     />
 
                                     <span>
@@ -1428,7 +1531,8 @@ function DailyGiftModal({
                                     className="
                                         mx-auto max-w-sm
 
-                                        text-xs leading-relaxed
+                                        text-xs
+                                        leading-relaxed
 
                                         text-slate-500
                                         dark:text-slate-400
@@ -1442,15 +1546,19 @@ function DailyGiftModal({
                             </div>
 
 
-                            {/* Error message */}
+                            {/* =========================
+                                ERROR
+                            ========================= */}
 
-                            {errorMessage && (
+                            {!isRevealing && errorMessage && (
 
                                 <div
                                     role="alert"
+
                                     className="
-                                        mb-4 flex
-                                        items-start gap-2
+                                        mb-4
+
+                                        flex items-start gap-2
 
                                         rounded-xl border
 
@@ -1482,162 +1590,169 @@ function DailyGiftModal({
                             )}
 
 
-                            {/* =================================
-                                ACTIONS
-                            ================================= */}
+                            {/* =========================
+                                ACTION BUTTONS
+                            ========================= */}
 
-                            <div className="space-y-3">
+                            {!isRevealing && (
 
-                                {hasUncertainClaim ? (
+                                <div className="space-y-3">
 
-                                    <>
+                                    {hasUncertainClaim ? (
 
-                                        {canRecover && (
+                                        <>
 
-                                            <button
+                                            {canRecover && (
 
-                                                type="button"
+                                                <button
+                                                    type="button"
 
-                                                onClick={
-                                                    handleRecover
-                                                }
+                                                    onClick={
+                                                        handleRecover
+                                                    }
 
-                                                disabled={isBusy}
+                                                    disabled={isBusy}
 
-                                                className={
-                                                    PRIMARY_BUTTON
-                                                }
-                                            >
+                                                    className={
+                                                        PRIMARY_BUTTON
+                                                    }
+                                                >
 
-                                                <RefreshCw size={17} />
+                                                    <RefreshCw size={18}/>
 
-                                                Natijani tiklash
+                                                    Natijani tiklash
 
-                                            </button>
-
-                                        )}
-
-                                        <button
-
-                                            type="button"
-
-                                            onClick={
-                                                handleRefresh
-                                            }
-
-                                            disabled={isBusy}
-
-                                            className={
-                                                SECONDARY_BUTTON
-                                            }
-                                        >
-                                            Holatni tekshirish
-                                        </button>
-
-                                    </>
-
-                                ) : (
-
-                                    <>
-
-                                        <button
-
-                                            type="button"
-
-                                            disabled={!canClaim}
-
-                                            onClick={
-                                                handleClaim
-                                            }
-
-                                            className={
-                                                PRIMARY_BUTTON
-                                            }
-                                        >
-
-                                            {isBusy ? (
-
-                                                <Loader2
-                                                    size={19}
-                                                    className="
-                                                        motion-safe:animate-spin
-                                                    "
-                                                />
-
-                                            ) : claimedToday ? (
-
-                                                <CheckCircle2 size={19} />
-
-                                            ) : isScheduled ? (
-
-                                                <CalendarClock size={19} />
-
-                                            ) : (
-
-                                                <Gift size={19} />
+                                                </button>
 
                                             )}
 
-                                            {isClaimLoading
-
-                                                ? "Sovg‘a ochilmoqda..."
-
-                                                : isStatusLoading
-
-                                                    ? "Tekshirilmoqda..."
-
-                                                    : claimedToday
-
-                                                        ? "Bugun olindi"
-
-                                                        : isScheduled
-
-                                                            ? "Tadbir kutilmoqda"
-
-                                                            : isFinished
-
-                                                                ? "Tadbir yakunlangan"
-
-                                                                : isDisabled
-
-                                                                    ? "Tadbir o‘chirilgan"
-
-                                                                    : "Sovg‘ani ochish"
-                                            }
-
-                                        </button>
-
-
-                                        {!canClaim && (
 
                                             <button
-
                                                 type="button"
-
-                                                disabled={isBusy}
 
                                                 onClick={
                                                     handleRefresh
                                                 }
+
+                                                disabled={isBusy}
 
                                                 className={
                                                     SECONDARY_BUTTON
                                                 }
                                             >
 
-                                                <RefreshCw size={15} />
+                                                <RefreshCw size={17}/>
 
-                                                Holatni yangilash
+                                                Holatni tekshirish
 
                                             </button>
 
-                                        )}
+                                        </>
 
-                                    </>
+                                    ) : (
 
-                                )}
+                                        <>
 
-                            </div>
+                                            <button
+                                                type="button"
+
+                                                onClick={
+                                                    handleClaim
+                                                }
+
+                                                disabled={!canClaim}
+
+                                                className={
+                                                    PRIMARY_BUTTON
+                                                }
+                                            >
+
+                                                {isBusy ? (
+
+                                                    <Loader2
+                                                        size={19}
+
+                                                        className="
+                                                            motion-safe:animate-spin
+                                                        "
+                                                    />
+
+                                                ) : claimedToday ? (
+
+                                                    <CheckCircle2 size={19}/>
+
+                                                ) : isScheduled ? (
+
+                                                    <CalendarClock size={19}/>
+
+                                                ) : (
+
+                                                    <Gift size={19}/>
+
+                                                )}
+
+
+                                                {isClaimLoading
+
+                                                    ? "Sovg‘a ochilmoqda..."
+
+                                                    : isStatusLoading
+
+                                                        ? "Tekshirilmoqda..."
+
+                                                        : claimedToday
+
+                                                            ? "Bugun olindi"
+
+                                                            : isScheduled
+
+                                                                ? "Tadbir kutilmoqda"
+
+                                                                : isFinished
+
+                                                                    ? "Tadbir yakunlangan"
+
+                                                                    : isDisabled
+
+                                                                        ? "Tadbir o‘chirilgan"
+
+                                                                        : "Sovg‘ani ochish"
+                                                }
+
+                                            </button>
+
+
+                                            {!canClaim && (
+
+                                                <button
+                                                    type="button"
+
+                                                    disabled={isBusy}
+
+                                                    onClick={
+                                                        handleRefresh
+                                                    }
+
+                                                    className={
+                                                        SECONDARY_BUTTON
+                                                    }
+                                                >
+
+                                                    <RefreshCw size={16}/>
+
+                                                    Holatni yangilash
+
+                                                </button>
+
+                                            )}
+
+                                        </>
+
+                                    )}
+
+                                </div>
+
+                            )}
 
                         </>
 
@@ -1675,7 +1790,7 @@ function DailyGiftModal({
                     >
 
                         <ShieldCheck
-                            size={15}
+                            size={16}
                             className="
                                 shrink-0
                                 text-emerald-500
