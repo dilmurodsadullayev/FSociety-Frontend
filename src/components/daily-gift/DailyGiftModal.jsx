@@ -1,6 +1,4 @@
 
-// src/components/daily-gift/DailyGiftModal.jsx
-
 import React, {
     memo,
     useEffect,
@@ -10,7 +8,6 @@ import React, {
 } from "react";
 
 import { createPortal } from "react-dom";
-
 import { useReducedMotion } from "framer-motion";
 
 import {
@@ -36,26 +33,29 @@ import {
     DAILY_GIFT_EVENT_STATUS,
 } from "../../config/dailyGiftConfig";
 
-import GiftBox3D from "./GiftBox3D";
+// Existing FSociety date formatter
+import formatPrettyDate from "../../utils/formatPrettyDate";
 
+// Daily Gift UI
+import GiftBox3D from "./GiftBox3D";
 import RewardRevealEffects from "./RewardRevealEffects";
+import DailyGiftActivityPanel from "./DailyGiftActivityPanel";
+
 
 // =========================================================
 // FSOCIETY — DAILY GIFT MODAL
 // =========================================================
 //
-// Flow:
+// - Server-confirmed gift claims
+// - 3D gift opening animation
+// - Reward rarity effects
+// - Claim recovery
+// - Live countdown
+// - Gift claim history
+// - Uzbek dates using formatPrettyDate
+// - Event timezone support
+// - Responsive dark/light UI
 //
-// 1. Modal opens
-// 2. User sees the closed 3D gift box
-// 3. Claim button dispatches backend request
-// 4. Pending request shows loading animation
-// 5. Successful backend result opens the box
-// 6. Rarity effects play once
-// 7. Confirmed reward appears
-//
-// No optimistic reward grants.
-// No automatic claim retries.
 // =========================================================
 
 const {
@@ -66,9 +66,11 @@ const {
 } = DAILY_GIFT_EVENT_STATUS;
 
 const REVEAL_DURATION_MS = 1250;
+const DEFAULT_TIMEZONE = "Asia/Tashkent";
+
 
 // =========================================================
-// SHARED BUTTON STYLES
+// STYLES
 // =========================================================
 
 const PRIMARY_BUTTON = `
@@ -80,10 +82,9 @@ const PRIMARY_BUTTON = `
     from-cyan-600 to-blue-600
 
     text-sm font-semibold text-white
-
     shadow-lg shadow-cyan-500/20
-    transition-all duration-200
 
+    transition-all duration-200
     hover:brightness-110
 
     focus-visible:outline-none
@@ -92,6 +93,7 @@ const PRIMARY_BUTTON = `
 
     disabled:cursor-not-allowed
     disabled:opacity-50
+    disabled:shadow-none
 
     motion-safe:active:scale-[0.98]
     motion-reduce:transition-none
@@ -100,23 +102,20 @@ const PRIMARY_BUTTON = `
 const SECONDARY_BUTTON = `
     inline-flex w-full
     items-center justify-center gap-2
-
     rounded-xl border
-    border-slate-200
-    dark:border-white/10
 
+    border-slate-200
     bg-slate-50
-    dark:bg-white/[0.05]
 
     px-4 py-3
-    text-sm font-medium
-
-    text-slate-700
-    dark:text-slate-300
+    text-sm font-medium text-slate-700
 
     transition-colors
-
     hover:bg-slate-100
+
+    dark:border-white/10
+    dark:bg-white/[0.05]
+    dark:text-slate-300
     dark:hover:bg-white/10
 
     focus-visible:outline-none
@@ -127,10 +126,6 @@ const SECONDARY_BUTTON = `
     disabled:opacity-50
 `;
 
-// =========================================================
-// RARITY PRESENTATION
-// =========================================================
-
 const RARITY_STYLES = Object.freeze({
     common: {
         label: "COMMON",
@@ -140,7 +135,7 @@ const RARITY_STYLES = Object.freeze({
             dark:border-slate-500/40
             dark:bg-slate-500/10
         `,
-        glow: "shadow-slate-400/10",
+        shadow: "shadow-slate-400/10",
     },
 
     rare: {
@@ -151,7 +146,7 @@ const RARITY_STYLES = Object.freeze({
             dark:border-sky-500/40
             dark:bg-sky-500/10
         `,
-        glow: "shadow-blue-500/20",
+        shadow: "shadow-blue-500/20",
     },
 
     epic: {
@@ -162,7 +157,7 @@ const RARITY_STYLES = Object.freeze({
             dark:border-fuchsia-500/40
             dark:bg-violet-500/10
         `,
-        glow: "shadow-violet-500/25",
+        shadow: "shadow-violet-500/25",
     },
 
     legendary: {
@@ -173,9 +168,10 @@ const RARITY_STYLES = Object.freeze({
             dark:border-yellow-400/50
             dark:bg-amber-500/10
         `,
-        glow: "shadow-amber-500/30",
+        shadow: "shadow-amber-500/30",
     },
 });
+
 
 // =========================================================
 // HELPERS
@@ -196,9 +192,26 @@ const getErrorMessage = (error) => {
     return "So‘rovni bajarishda xatolik yuz berdi.";
 };
 
-const formatDate = (
+
+// =========================================================
+// EVENT DATE FORMATTING
+// =========================================================
+//
+// formatPrettyDate uses the browser's local time.
+//
+// Here we first convert the backend timestamp to
+// the event's timezone and then pass its calendar
+// representation into formatPrettyDate.
+//
+// Example:
+// 2026-11-23T00:00:00+05:00
+// -> 23 noyabr 2026, 00:00
+//
+// =========================================================
+
+const formatEventDateTime = (
     value,
-    timeZone = "Asia/Tashkent"
+    timeZone = DEFAULT_TIMEZONE
 ) => {
     if (!value) {
         return "";
@@ -211,26 +224,71 @@ const formatDate = (
     }
 
     try {
-        return new Intl.DateTimeFormat("uz-UZ", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone,
-        }).format(date);
+        const formatter = new Intl.DateTimeFormat(
+            "en-GB",
+            {
+                timeZone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hourCycle: "h23",
+            }
+        );
+
+        const parts = formatter.formatToParts(date);
+
+        const values = {};
+
+        for (const part of parts) {
+            if (part.type !== "literal") {
+                values[part.type] = part.value;
+            }
+        }
+
+        const {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+        } = values;
+
+        if (
+            !year ||
+            !month ||
+            !day ||
+            !hour ||
+            !minute
+        ) {
+            return "";
+        }
+
+        // The existing utility expects a date
+        // in the browser's local timezone.
+        //
+        // This local calendar representation
+        // preserves the event's wall-clock time.
+
+        const eventLocalDate =
+            `${year}-${month}-${day}T${hour}:${minute}:00`;
+
+        return formatPrettyDate(eventLocalDate);
+
     } catch {
         return "";
     }
 };
 
+
+// =========================================================
+// REWARD ICON
+// =========================================================
+
 const getRewardIcon = (reward) => {
     if (reward?.is_compensation) {
         return Coins;
-    }
-
-    if (reward?.rarity === "legendary") {
-        return Crown;
     }
 
     const type =
@@ -251,9 +309,12 @@ const getRewardIcon = (reward) => {
             return Trophy;
 
         default:
-            return Gift;
+            return reward?.rarity === "legendary"
+                ? Crown
+                : Gift;
     }
 };
+
 
 // =========================================================
 // CONFIRMED REWARD RESULT
@@ -300,20 +361,14 @@ const RewardResult = memo(function RewardResult({
             className="space-y-5"
             aria-live="polite"
         >
-            {/* ==========================================
-                SUCCESS HEADER
-            ========================================== */}
+            {/* SUCCESS HEADER */}
 
             <div className="text-center">
                 <div
                     className="
-                        mx-auto mb-3
-                        flex h-12 w-12
+                        mx-auto mb-3 flex h-12 w-12
                         items-center justify-center
-
-                        rounded-2xl
-                        bg-emerald-500/10
-
+                        rounded-2xl bg-emerald-500/10
                         text-emerald-600
                         dark:text-emerald-400
                     "
@@ -325,7 +380,6 @@ const RewardResult = memo(function RewardResult({
                     className="
                         text-xs font-semibold
                         uppercase tracking-[0.16em]
-
                         text-emerald-600
                         dark:text-emerald-400
                     "
@@ -338,9 +392,7 @@ const RewardResult = memo(function RewardResult({
                 <h3
                     className="
                         mt-2 text-2xl font-bold
-                        text-slate-900
-                        dark:text-white
-
+                        text-slate-900 dark:text-white
                         sm:text-3xl
                     "
                 >
@@ -348,23 +400,16 @@ const RewardResult = memo(function RewardResult({
                 </h3>
             </div>
 
-            {/* ==========================================
-                RARITY REWARD CARD
-            ========================================== */}
+            {/* RARITY CARD */}
 
             <div
                 className={`
-                    relative isolate
-                    overflow-hidden
-
-                    rounded-2xl border
-                    p-5 text-center
-
-                    shadow-xl
-                    sm:p-6
+                    relative isolate overflow-hidden
+                    rounded-2xl border p-5 text-center
+                    shadow-xl sm:p-6
 
                     ${rarity.card}
-                    ${rarity.glow}
+                    ${rarity.shadow}
                 `}
             >
                 <RewardRevealEffects
@@ -374,18 +419,17 @@ const RewardResult = memo(function RewardResult({
                 />
 
                 <div className="relative z-10">
-                    {/* Reward image / fallback */}
+
+                    {/* REWARD IMAGE */}
 
                     <div
                         className="
-                            mx-auto mb-5
-                            flex h-32 w-32
+                            mx-auto mb-5 flex h-32 w-32
                             items-center justify-center
-
                             rounded-3xl border
-                            border-white/60
 
-                            bg-white/60
+                            border-white/60 bg-white/60
+
                             dark:border-white/10
                             dark:bg-slate-950/30
 
@@ -414,12 +458,11 @@ const RewardResult = memo(function RewardResult({
                         )}
                     </div>
 
-                    {/* Rarity */}
+                    {/* RARITY */}
 
                     <span
                         className={`
                             inline-flex rounded-full
-                            border border-current/20
                             px-3 py-1
 
                             text-xs font-bold
@@ -431,13 +474,12 @@ const RewardResult = memo(function RewardResult({
                         {rarity.label}
                     </span>
 
-                    {/* Reward value */}
+                    {/* REWARD */}
 
                     <h4
                         className={`
                             mt-4 break-words
-                            text-xl font-bold
-                            sm:text-2xl
+                            text-xl font-bold sm:text-2xl
 
                             ${rarity.text}
                         `}
@@ -459,44 +501,39 @@ const RewardResult = memo(function RewardResult({
                         </p>
                     )}
 
+                    {/* COMPENSATION */}
+
                     {reward.is_compensation && (
                         <p
                             className="
-                                mt-4 rounded-xl
-                                border border-amber-300/40
+                                mt-4 rounded-xl border
+                                border-amber-300/40
                                 bg-amber-500/10
-
                                 px-3 py-2
-
                                 text-xs leading-relaxed
                                 text-amber-700
                                 dark:text-amber-300
                             "
                         >
-                            Bu kolleksiya mukofoti sizda
-                            avvaldan mavjud bo‘lgani uchun
+                            Bu mukofot sizda avvaldan
+                            mavjud bo‘lgani sababli
                             FCoin kompensatsiyasi berildi.
                         </p>
                     )}
                 </div>
             </div>
 
-            {/* ==========================================
-                SERVER CONFIRMATION
-            ========================================== */}
+            {/* SERVER CONFIRMATION */}
 
             <div
                 className="
-                    flex items-center
-                    justify-center gap-2
-
-                    text-xs
+                    flex items-center justify-center
+                    gap-2 text-xs
                     text-emerald-600
                     dark:text-emerald-400
                 "
             >
                 <CheckCircle2 size={16} />
-
                 Mukofot serverda qayd etilgan
             </div>
 
@@ -510,6 +547,7 @@ const RewardResult = memo(function RewardResult({
         </div>
     );
 });
+
 
 // =========================================================
 // MAIN MODAL
@@ -530,7 +568,7 @@ function DailyGiftModal({
         useState("");
 
     // =====================================================
-    // EVENT AND REWARD DATA
+    // SERVER STATE
     // =====================================================
 
     const status = gift.status;
@@ -544,11 +582,9 @@ function DailyGiftModal({
         gift.reward;
 
     const hasReward = Boolean(
-        modal.hasReward && reward
+        modal.hasReward &&
+        reward
     );
-
-    // Previously confirmed rewards display immediately
-    // when the modal is reopened.
 
     const [rewardReady, setRewardReady] =
         useState(() => hasReward);
@@ -591,8 +627,9 @@ function DailyGiftModal({
         !hasUncertainClaim &&
         !hasReward;
 
+
     // =====================================================
-    // REVEAL AFTER SERVER SUCCESS
+    // REWARD ANIMATION
     // =====================================================
 
     useEffect(() => {
@@ -619,8 +656,7 @@ function DailyGiftModal({
     ]);
 
     const isRevealing =
-        hasReward &&
-        !rewardReady;
+        hasReward && !rewardReady;
 
     const boxPhase = isRevealing
         ? "revealed"
@@ -628,15 +664,13 @@ function DailyGiftModal({
             ? "opening"
             : "idle";
 
-    // Backend confirmation is required before
-    // any rarity reveal effect is displayed.
-
     const confirmedRarity = hasReward
         ? reward.rarity
         : "common";
 
+
     // =====================================================
-    // NATIVE DIALOG LIFECYCLE
+    // DIALOG LIFECYCLE
     // =====================================================
 
     useEffect(() => {
@@ -669,6 +703,7 @@ function DailyGiftModal({
         };
     }, []);
 
+
     // =====================================================
     // BODY SCROLL LOCK
     // =====================================================
@@ -684,6 +719,7 @@ function DailyGiftModal({
                 previousOverflow;
         };
     }, []);
+
 
     // =====================================================
     // ACTIONS
@@ -736,9 +772,7 @@ function DailyGiftModal({
 
         modal.clearError();
 
-        void runAction(
-            gift.claimGift
-        );
+        void runAction(gift.claimGift);
     };
 
     const handleRecover = () => {
@@ -746,9 +780,7 @@ function DailyGiftModal({
             return;
         }
 
-        void runAction(
-            gift.recoverClaim
-        );
+        void runAction(gift.recoverClaim);
     };
 
     const handleRefresh = () => {
@@ -758,25 +790,25 @@ function DailyGiftModal({
 
         modal.clearError();
 
-        void runAction(
-            gift.refresh
-        );
+        void runAction(gift.refresh);
     };
 
     const handleContinue = () => {
         modal.dismissReward();
+
         setRewardReady(false);
         setActionError("");
     };
 
+
     // =====================================================
-    // EVENT DATE AND ERROR PRESENTATION
+    // EVENT DATES — FORMAT PRETTY DATE
     // =====================================================
 
     const timeZone =
         status?.timezone ??
         gift.event?.timezone ??
-        "Asia/Tashkent";
+        DEFAULT_TIMEZONE;
 
     const eventName =
         gift.event?.name ??
@@ -786,15 +818,20 @@ function DailyGiftModal({
         gift.eventStartsAt ??
         gift.event?.starts_at;
 
-    const startDate = formatDate(
+    const startDate = formatEventDateTime(
         eventStartsAt,
         timeZone
     );
 
-    const nextClaimDate = formatDate(
+    const nextClaimDate = formatEventDateTime(
         gift.nextClaimAt,
         timeZone
     );
+
+
+    // =====================================================
+    // ERROR
+    // =====================================================
 
     const error =
         gift.claimError ??
@@ -805,8 +842,9 @@ function DailyGiftModal({
         actionError ||
         (error ? getErrorMessage(error) : "");
 
+
     // =====================================================
-    // STATUS MESSAGES
+    // STATUS PRESENTATION
     // =====================================================
 
     let statusTitle =
@@ -820,6 +858,7 @@ function DailyGiftModal({
     let statusColor =
         "text-slate-500 dark:text-slate-400";
 
+
     if (isRevealing) {
         statusTitle =
             "Sirli sovg‘a ochilmoqda!";
@@ -831,6 +870,7 @@ function DailyGiftModal({
 
         statusColor =
             "text-cyan-600 dark:text-cyan-300";
+
     } else if (isClaimLoading) {
         statusTitle =
             "Sovg‘angiz tayyorlanmoqda...";
@@ -842,18 +882,20 @@ function DailyGiftModal({
 
         statusColor =
             "text-cyan-600 dark:text-cyan-300";
+
     } else if (hasUncertainClaim) {
         statusTitle =
             "Sovg‘a holatini tasdiqlash kerak";
 
         statusDescription =
             "Oldingi so‘rov natijasi noma’lum. "
-            + "Serverdagi holatni qayta tekshiring.";
+            + "Serverdagi holatni tekshiring.";
 
         StatusIcon = AlertCircle;
 
         statusColor =
             "text-amber-600 dark:text-amber-400";
+
     } else if (isScheduled) {
         statusTitle =
             "Tadbir hali boshlanmagan";
@@ -866,18 +908,21 @@ function DailyGiftModal({
 
         statusColor =
             "text-violet-600 dark:text-violet-400";
+
     } else if (isDisabled) {
         statusTitle =
             "Tadbir vaqtincha o‘chirilgan";
 
         statusDescription =
             "Hozir sovg‘a olish mumkin emas.";
+
     } else if (isFinished) {
         statusTitle =
             "Tadbir yakunlangan";
 
         statusDescription =
             "Ishtirokingiz uchun rahmat!";
+
     } else if (claimedToday) {
         statusTitle =
             "Bugungi sovg‘angiz olindi";
@@ -890,6 +935,7 @@ function DailyGiftModal({
 
         statusColor =
             "text-emerald-600 dark:text-emerald-400";
+
     } else if (canClaim) {
         statusTitle =
             "Bugungi sovg‘angiz tayyor!";
@@ -902,6 +948,7 @@ function DailyGiftModal({
 
         statusColor =
             "text-emerald-600 dark:text-emerald-400";
+
     } else if (
         !isStatusLoading &&
         status?.message
@@ -913,8 +960,9 @@ function DailyGiftModal({
             status.message;
     }
 
+
     // =====================================================
-    // CLIENT-ONLY PORTAL
+    // PORTAL
     // =====================================================
 
     if (typeof document === "undefined") {
@@ -943,10 +991,8 @@ function DailyGiftModal({
                 rounded-2xl border
                 border-slate-200
 
-                bg-white
-                p-0 text-slate-900
-
-                shadow-2xl
+                bg-white p-0
+                text-slate-900 shadow-2xl
 
                 backdrop:bg-slate-950/75
                 backdrop:backdrop-blur-md
@@ -956,7 +1002,6 @@ function DailyGiftModal({
                 dark:text-slate-100
 
                 sm:rounded-3xl
-
                 focus:outline-none
             "
         >
@@ -967,9 +1012,7 @@ function DailyGiftModal({
                     p-5 sm:p-7
                 "
             >
-                {/* ======================================
-                    HEADER
-                ====================================== */}
+                {/* HEADER */}
 
                 <header
                     className="
@@ -997,10 +1040,9 @@ function DailyGiftModal({
                                 truncate font-mono
                                 text-[10px] font-semibold
                                 tracking-[0.12em]
-
                                 text-cyan-700
-                                dark:text-cyan-300
 
+                                dark:text-cyan-300
                                 sm:text-xs
                             "
                         >
@@ -1013,10 +1055,8 @@ function DailyGiftModal({
                         onClick={handleClose}
                         aria-label="Modalni yopish"
                         className="
-                            flex h-9 w-9
-                            shrink-0
+                            flex h-9 w-9 shrink-0
                             items-center justify-center
-
                             rounded-xl
 
                             text-slate-500
@@ -1034,9 +1074,7 @@ function DailyGiftModal({
                     </button>
                 </header>
 
-                {/* ======================================
-                    TITLE
-                ====================================== */}
+                {/* TITLE */}
 
                 <div className="mt-5 text-center">
                     <h2
@@ -1059,10 +1097,9 @@ function DailyGiftModal({
                         className="
                             mt-2 break-words
                             text-xs
-
                             text-slate-500
-                            dark:text-slate-400
 
+                            dark:text-slate-400
                             sm:text-sm
                         "
                     >
@@ -1070,14 +1107,10 @@ function DailyGiftModal({
                     </p>
                 </div>
 
-                {/* ======================================
-                    MODAL CONTENT
-                ====================================== */}
+                {/* GIFT + REWARD */}
 
                 <main
-                    aria-busy={
-                        isBusy || isRevealing
-                    }
+                    aria-busy={isBusy || isRevealing}
                     className="mt-4"
                 >
                     {hasReward && rewardReady ? (
@@ -1086,16 +1119,10 @@ function DailyGiftModal({
                             isHistorical={
                                 modal.isHistoricalReward
                             }
-                            onContinue={
-                                handleContinue
-                            }
+                            onContinue={handleContinue}
                         />
                     ) : (
                         <>
-                            {/* ==========================
-                                GIFT BOX + REVEAL EFFECT
-                            ========================== */}
-
                             <div className="relative">
                                 <GiftBox3D
                                     phase={boxPhase}
@@ -1111,9 +1138,7 @@ function DailyGiftModal({
                                 />
                             </div>
 
-                            {/* ==========================
-                                STATUS MESSAGE
-                            ========================== */}
+                            {/* STATUS */}
 
                             <div
                                 role="status"
@@ -1129,7 +1154,6 @@ function DailyGiftModal({
                                         justify-center gap-2
 
                                         text-sm font-semibold
-
                                         ${statusColor}
                                     `}
                                 >
@@ -1151,10 +1175,9 @@ function DailyGiftModal({
                                     className="
                                         mx-auto max-w-sm
                                         text-xs leading-relaxed
-
                                         text-slate-500
-                                        dark:text-slate-400
 
+                                        dark:text-slate-400
                                         sm:text-sm
                                     "
                                 >
@@ -1162,9 +1185,7 @@ function DailyGiftModal({
                                 </p>
                             </div>
 
-                            {/* ==========================
-                                ERROR MESSAGE
-                            ========================== */}
+                            {/* ERROR */}
 
                             {!isRevealing &&
                                 errorMessage && (
@@ -1173,12 +1194,10 @@ function DailyGiftModal({
                                         className="
                                             mb-4 flex
                                             items-start gap-2
-
                                             rounded-xl border
 
                                             border-red-200
                                             bg-red-50
-
                                             p-3 text-xs
                                             text-red-600
 
@@ -1198,9 +1217,7 @@ function DailyGiftModal({
                                     </div>
                                 )}
 
-                            {/* ==========================
-                                ACTION BUTTONS
-                            ========================== */}
+                            {/* ACTIONS */}
 
                             {!isRevealing && (
                                 <div className="space-y-3">
@@ -1287,10 +1304,10 @@ function DailyGiftModal({
                                             {!canClaim && (
                                                 <button
                                                     type="button"
+                                                    disabled={isBusy}
                                                     onClick={
                                                         handleRefresh
                                                     }
-                                                    disabled={isBusy}
                                                     className={
                                                         SECONDARY_BUTTON
                                                     }
@@ -1309,16 +1326,23 @@ function DailyGiftModal({
                     )}
                 </main>
 
-                {/* ======================================
-                    FOOTER
-                ====================================== */}
+                {/* COUNTDOWN + HISTORY */}
+
+                {!isRevealing && (
+                    <DailyGiftActivityPanel
+                        eventStatus={eventStatus}
+                        canClaim={canClaim}
+                        claimedToday={claimedToday}
+                    />
+                )}
+
+                {/* FOOTER */}
 
                 <footer
                     className="
                         mt-6 border-t
                         border-slate-200
                         pt-4
-
                         dark:border-white/[0.07]
                     "
                 >
@@ -1326,9 +1350,7 @@ function DailyGiftModal({
                         className="
                             flex items-center
                             justify-center gap-2
-
                             text-center text-xs
-
                             text-slate-500
                             dark:text-slate-400
                         "
