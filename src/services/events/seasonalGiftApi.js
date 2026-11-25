@@ -1,100 +1,101 @@
-// src/services/events/seasonalGiftApi.js
 
-import * as apiModule from "../api";
+ // src/services/events/seasonalGiftApi.js
+
+import api from "../api";
 
 import {
+    getEventsBasePath,
     normalizeEventSlug,
     normalizeEventsApiError,
+    unwrapEventsResponse,
+    assertEventsObject,
 } from "./eventsApi";
 
 // =========================================================
 // FSOCIETY — SEASONAL GIFT API SERVICE
 // =========================================================
 //
-// One-time gift per user and event.
+// Location:
+// src/services/events/seasonalGiftApi.js
 //
 // Responsibilities:
-// - Seasonal Gift status
-// - Seasonal Gift claim
-// - Seasonal Gift history
-// - Existing Axios client reuse
-// - Request cancellation for GET requests
-// - Error normalization
 //
-// IMPORTANT:
-// - No client-side reward selection
-// - No manual FCoin balance modification
-// - No automatic POST retry
-// - No separate JWT / CSRF interceptor
+// - Get Seasonal Gift status
+// - Claim a one-time Seasonal Gift
+// - Get Seasonal Gift history
+// - Validate event slugs
+// - Reuse the existing Axios client
+// - Normalize backend responses
+// - Handle request errors safely
+//
+// ARCHITECTURE:
+//
+// Seasonal Gift:
+// - One gift per user per event
+// - Reward selected by Django
+// - Claim history stored in backend
+// - No automatic claim POST retries
+//
+// Daily Gift is independent.
+//
+// SECURITY:
+//
+// - No manual JWT handling
+// - No new Axios interceptors
+// - No local FCoin balance modification
+// - No client-selected rewards
 //
 // =========================================================
 
 
 // =========================================================
-// API CLIENT
+// AXIOS CLIENT
+// =========================================================
+//
+// src/services/api.js exports the existing
+// Axios instance as its DEFAULT export.
+//
+// Therefore:
+//
+// import api from "../api";
+//
+// is the correct import.
+//
 // =========================================================
 
 const getApiClient = () => {
-    const candidates = [
-        apiModule.default,
-        apiModule.api,
-        apiModule.apiClient,
-        apiModule.axiosInstance,
-        apiModule.instance,
-    ];
-
-    const client = candidates.find(
-        (candidate) =>
-            candidate &&
-            typeof candidate.get === "function" &&
-            typeof candidate.post === "function"
-    );
-
-    if (!client) {
+    if (
+        !api ||
+        typeof api.get !== "function" ||
+        typeof api.post !== "function"
+    ) {
         throw new Error(
-            "FSociety Axios client topilmadi. " +
-            "src/services/api.js eksportlarini tekshiring."
+            "FSociety Axios client noto‘g‘ri sozlangan."
         );
     }
 
-    return client;
+    return api;
 };
 
 
 // =========================================================
-// API BASE PATH
+// SEASONAL GIFT ENDPOINTS
 // =========================================================
 //
-// baseURL ending in /api:
-//   events/{slug}/seasonal-gift/
+// Backend routes:
 //
-// baseURL without /api:
-//   api/events/{slug}/seasonal-gift/
+// GET
+// /api/events/{slug}/seasonal-gift/status/
 //
-// These paths must be checked against the final
-// Django events/urls.py before integration.
-// =========================================================
-
-const getEventsBasePath = () => {
-    const client = getApiClient();
-
-    const baseURL = String(
-        client.defaults?.baseURL ?? ""
-    )
-        .split(/[?#]/)[0]
-        .replace(/\/+$/, "");
-
-    const hasApiPrefix =
-        /(?:^|\/)api(?:\/v\d+)?$/i.test(baseURL);
-
-    return hasApiPrefix
-        ? "events/"
-        : "api/events/";
-};
-
-
-// =========================================================
-// ENDPOINTS
+// POST
+// /api/events/{slug}/seasonal-gift/claim/
+//
+// GET
+// /api/events/{slug}/seasonal-gift/history/
+//
+// The shared events base path automatically
+// adapts to the Axios baseURL.
+//
 // =========================================================
 
 export const getSeasonalGiftEndpoints = (
@@ -102,64 +103,49 @@ export const getSeasonalGiftEndpoints = (
 ) => {
     const validSlug = normalizeEventSlug(slug);
 
-    const base = [
-        getEventsBasePath().replace(/\/$/, ""),
-        encodeURIComponent(validSlug),
-        "seasonal-gift",
-    ].join("/");
+    const basePath =
+        getEventsBasePath() +
+        encodeURIComponent(validSlug) +
+        "/seasonal-gift/";
 
     return {
-        status: `${base}/status/`,
-        claim: `${base}/claim/`,
-        history: `${base}/history/`,
+        status: `${basePath}status/`,
+        claim: `${basePath}claim/`,
+        history: `${basePath}history/`,
     };
 };
 
 
 // =========================================================
-// RESPONSE HANDLING
+// RESPONSE VALIDATION
 // =========================================================
 //
-// Handles:
-// - Normal Axios response
-// - Existing interceptor returning response.data
+// Axios may return:
 //
-// Does not invent backend response fields.
+// {
+//     data: {...},
+//     status: 200,
+//     config: {...}
+// }
+//
+// The shared unwrapEventsResponse supports
+// standard Axios responses.
+//
+// Backend business fields are preserved.
+//
 // =========================================================
 
-const unwrapResponse = (response) => {
-    const isAxiosResponse =
-        response !== null &&
-        typeof response === "object" &&
-        !Array.isArray(response) &&
-        "data" in response &&
-        (
-            "config" in response ||
-            "headers" in response ||
-            typeof response.status === "number"
-        );
-
-    return isAxiosResponse
-        ? response.data
-        : response;
-};
-
-const assertObjectResponse = (
-    payload,
+const normalizeSeasonalGiftObject = (
+    response,
     operation
 ) => {
-    if (
-        !payload ||
-        typeof payload !== "object" ||
-        Array.isArray(payload)
-    ) {
-        throw new TypeError(
-            `Seasonal Gift ${operation}: ` +
-            "backend javobi noto‘g‘ri."
-        );
-    }
+    const payload =
+        unwrapEventsResponse(response);
 
-    return payload;
+    return assertEventsObject(
+        payload,
+        `Seasonal Gift ${operation}`
+    );
 };
 
 
@@ -167,62 +153,68 @@ const assertObjectResponse = (
 // GET SEASONAL GIFT STATUS
 // =========================================================
 //
-// GET:
-// /api/events/{slug}/seasonal-gift/status/
+// This endpoint is the source of truth for:
 //
-// Backend determines:
-// - can_claim
-// - already_claimed
-// - claim_id
-// - opens_at
-// - countdown_seconds
-// - event_status
+// - Event availability
+// - Gift opening time
+// - Eligibility
+// - Already claimed state
+// - Existing claim
+// - Countdown information
+//
+// The frontend must not calculate eligibility
+// using localStorage or browser dates.
 //
 // =========================================================
 
 export const getSeasonalGiftStatus = async (
     slug,
-    { signal } = {}
+    {
+        signal,
+    } = {}
 ) => {
     const client = getApiClient();
 
-    const endpoint =
-        getSeasonalGiftEndpoints(slug).status;
+    const endpoints =
+        getSeasonalGiftEndpoints(slug);
 
     const response = await client.get(
-        endpoint,
+        endpoints.status,
         {
             ...(signal ? { signal } : {}),
         }
     );
 
-    return assertObjectResponse(
-        unwrapResponse(response),
+    return normalizeSeasonalGiftObject(
+        response,
         "status"
     );
 };
 
 
 // =========================================================
-// CLAIM SEASONAL GIFT
+// POST SEASONAL GIFT CLAIM
 // =========================================================
 //
-// POST:
-// /api/events/{slug}/seasonal-gift/claim/
+// IMPORTANT:
 //
-// A claim must only be initiated by a user action.
+// A Seasonal Gift may be claimed only once
+// per event and authenticated user.
 //
-// NEVER send:
+// The backend must enforce uniqueness.
+//
+// Never include the following in request body:
+//
 // - user_id
-// - reward_id
-// - amount
 // - coins
+// - amount
+// - reward_id
 // - rarity
+// - badge_id
+// - frame_id
 //
-// NEVER automatically retry this POST.
+// The backend chooses the reward.
 //
-// If the connection fails, the backend may have
-// already created a claim. Reconcile via GET.
 // =========================================================
 
 export const claimSeasonalGift = async (
@@ -230,16 +222,27 @@ export const claimSeasonalGift = async (
 ) => {
     const client = getApiClient();
 
-    const endpoint =
-        getSeasonalGiftEndpoints(slug).claim;
+    const endpoints =
+        getSeasonalGiftEndpoints(slug);
+
+    // IMPORTANT:
+    //
+    // Do not automatically retry POST.
+    //
+    // An interrupted network request might
+    // already have committed successfully
+    // on the Django server.
+    //
+    // A following GET status/history can
+    // reconcile an uncertain result.
 
     const response = await client.post(
-        endpoint,
+        endpoints.claim,
         {}
     );
 
-    return assertObjectResponse(
-        unwrapResponse(response),
+    return normalizeSeasonalGiftObject(
+        response,
         "claim"
     );
 };
@@ -249,16 +252,16 @@ export const claimSeasonalGift = async (
 // GET SEASONAL GIFT HISTORY
 // =========================================================
 //
-// GET:
-// /api/events/{slug}/seasonal-gift/history/
+// Supports:
+// - Existing claimed gift
+// - Event-specific history
+// - Backend pagination parameters
 //
-// Accepts backend-supported pagination params.
+// The response may be a list or an object.
 //
-// The backend may return:
-// - An array
-// - A paginated object
+// Its data shape is preserved for the
+// Redux slice and presentation components.
 //
-// Do not silently discard unknown response fields.
 // =========================================================
 
 export const getSeasonalGiftHistory = async (
@@ -270,18 +273,19 @@ export const getSeasonalGiftHistory = async (
 ) => {
     const client = getApiClient();
 
-    const endpoint =
-        getSeasonalGiftEndpoints(slug).history;
+    const endpoints =
+        getSeasonalGiftEndpoints(slug);
 
     const response = await client.get(
-        endpoint,
+        endpoints.history,
         {
             ...(params ? { params } : {}),
             ...(signal ? { signal } : {}),
         }
     );
 
-    const payload = unwrapResponse(response);
+    const payload =
+        unwrapEventsResponse(response);
 
     if (
         payload === null ||
@@ -297,12 +301,70 @@ export const getSeasonalGiftHistory = async (
 
 
 // =========================================================
-// NORMALIZE ERRORS
+// STATUS RESPONSE NORMALIZER
 // =========================================================
 //
-// Reuse shared Events API error normalization.
+// This function validates the response type
+// without inventing backend fields.
 //
-// Never expose backend traceback details in UI.
+// =========================================================
+
+export const normalizeSeasonalGiftStatus = (
+    payload
+) => {
+    return assertEventsObject(
+        payload,
+        "Seasonal Gift status"
+    );
+};
+
+
+// =========================================================
+// CLAIM RESPONSE NORMALIZER
+// =========================================================
+//
+// Preserve actual reward information:
+//
+// - Reward type
+// - Reward name
+// - FCoin amount
+// - Badge / Frame information
+// - Compensation
+// - Claim identifiers
+//
+// Only fields provided by Django exist.
+//
+// =========================================================
+
+export const normalizeSeasonalGiftClaim = (
+    payload
+) => {
+    return assertEventsObject(
+        payload,
+        "Seasonal Gift claim"
+    );
+};
+
+
+// =========================================================
+// ERROR NORMALIZATION
+// =========================================================
+//
+// Reuse the common Events error handler.
+//
+// Supported errors include:
+//
+// 400 - Bad Request
+// 401 - Unauthorized
+// 403 - Forbidden
+// 404 - Not Found
+// 409 - Conflict
+// 429 - Too Many Requests
+// 503 - Service Unavailable
+//
+// The Redux slice is responsible for
+// handling the claim state.
+//
 // =========================================================
 
 export const normalizeSeasonalGiftError = (
@@ -313,7 +375,7 @@ export const normalizeSeasonalGiftError = (
 
 
 // =========================================================
-// DEFAULT EXPORT
+// DEFAULT SERVICE EXPORT
 // =========================================================
 
 const seasonalGiftApi = {

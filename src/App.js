@@ -1,5 +1,5 @@
 
-// src/App.js
+ // src/App.js
 
 import React, {
     useContext,
@@ -19,7 +19,6 @@ import {
     useDispatch,
     useSelector,
 } from "react-redux";
-
 
 // =========================================================
 // FSOCIETY — APPLICATION COMPONENTS
@@ -49,7 +48,6 @@ import {
     SocialCallback,
 } from "./components";
 
-
 // =========================================================
 // FSOCIETY — PROFILE FRAMES
 // =========================================================
@@ -58,13 +56,11 @@ import {
 // Public catalog.
 //
 // MyFrames:
-// Authenticated user inventory.
+// Authenticated user's frame inventory.
 //
 // FrameVaultNavigation:
-// Shared navigation between shop and inventory.
-//
-// Direct imports preserve the existing
-// src/components/index.js export structure.
+// Shared navigation between Frame Shop
+// and My Frames.
 //
 // =========================================================
 
@@ -74,16 +70,14 @@ import MyFrames from "./components/frame-shop/MyFrames";
 
 import FrameVaultNavigation from "./components/frame-shop/FrameVaultNavigation";
 
-
 // =========================================================
-// SERVICES
+// AUTH SERVICE
 // =========================================================
 
 import AuthService from "./services/auth";
 
-
 // =========================================================
-// REDUX AUTH
+// REDUX AUTHENTICATION
 // =========================================================
 
 import {
@@ -91,7 +85,6 @@ import {
     signUserStart,
     signUserSuccess,
 } from "./features/auth/Auth";
-
 
 // =========================================================
 // NOTIFICATION WEBSOCKET
@@ -102,7 +95,6 @@ import {
     disconnectWebSocket,
 } from "./middleware/notificationMiddleware";
 
-
 // =========================================================
 // GLOBAL UI
 // =========================================================
@@ -110,7 +102,6 @@ import {
 import AppLoader from "./components/AppLoader";
 
 import AuthToast from "./components/ui/AuthToast";
-
 
 // =========================================================
 // THEME CONTEXT
@@ -120,7 +111,6 @@ import {
     ThemeContext,
     ThemeProvider,
 } from "./context/ThemeContext";
-
 
 // =========================================================
 // NEW YEAR / WINTER EXPERIENCE
@@ -133,32 +123,11 @@ import {
 
 import Snowfall from "./features/newYear/components/Snowfall";
 
-
 // =========================================================
 // GLOBAL SHARED BACKGROUND
 // =========================================================
 
 import WinterBackground from "./components/ui/winter/WinterBackground";
-
-
-// =========================================================
-// DAILY NEW YEAR GIFT 2027
-// =========================================================
-//
-// Global Daily Gift controller:
-//
-// - Loads public event information.
-// - Loads authenticated gift eligibility.
-// - Reacts to authentication changes.
-// - Initializes shared Redux state.
-// - Prevents duplicate pending requests.
-//
-// The controller is independent of Winter Mode.
-//
-// =========================================================
-
-import DailyGiftController from "./components/daily-gift/DailyGiftController";
-
 
 // =========================================================
 // FSOCIETY — APPLICATION
@@ -166,55 +135,40 @@ import DailyGiftController from "./components/daily-gift/DailyGiftController";
 //
 // Responsibilities:
 //
-// - Routing
-// - ThemeContext integration
-// - Light / Dark mode
-// - Navbar theme toggle
+// - Application routing
 // - Authentication bootstrap
 // - Protected routes
 // - Public authentication pages
-// - Public Frame Shop catalog
-// - Private My Frames collection
-// - Shared Frame Vault navigation
 // - OAuth callback
+// - Frame Shop navigation
 // - WebSocket notifications
 // - Forced logout handling
 // - Global toast
+// - ThemeContext integration
 // - NewYearProvider integration
-// - Global snowfall integration
-// - Global winter background
-// - Daily New Year Gift initialization
+// - WinterBackground
+// - Snowfall
+//
+// EVENTS MIGRATION:
+//
+// The deleted DailyGiftController is no longer
+// imported or rendered.
+//
+// Daily Gift and Seasonal Gift Redux logic now
+// belongs to src/features/events/.
+//
+// The new EventsController will be mounted after
+// its backend integration has been verified.
 //
 // IMPORTANT:
 //
-// Theme state is managed ONLY by ThemeContext.
+// Theme state belongs to ThemeContext.
 //
-// Winter state is managed ONLY by NewYearProvider.
+// Winter state belongs to NewYearProvider.
 //
-// Daily Gift state is managed ONLY by Redux.
+// Authentication state belongs to Redux.
 //
-// App.js does not create another theme state.
-// App.js does not write theme to localStorage.
-// App.js does not directly modify HTML classes.
-//
-// WinterBackground is rendered ONCE globally.
-//
-// Snowfall is rendered globally through AppInner.
-//
-// DailyGiftController is rendered ONCE globally.
-//
-// Frame Shop:
-//
-// - Guests can browse.
-// - Purchases require authentication.
-// - The existing universal purchase confirmation
-//   modal is used in FrameShop.
-//
-// My Frames:
-//
-// - Requires authentication.
-// - Equip / Unequip operations are handled by
-//   the existing MyFrames component and Redux.
+// App.js does not implement its own JWT logic.
 //
 // =========================================================
 
@@ -224,31 +178,25 @@ import DailyGiftController from "./components/daily-gift/DailyGiftController";
 // =========================================================
 
 const getAuthenticatedUser = (response) => {
-
     const user =
         response?.user ??
         response;
-
 
     if (
         !user ||
         typeof user !== "object" ||
         Array.isArray(user)
     ) {
-
         return null;
     }
-
 
     if (
         user.id === null ||
         user.id === undefined ||
         user.id === ""
     ) {
-
         return null;
     }
-
 
     return user;
 };
@@ -259,7 +207,6 @@ const getAuthenticatedUser = (response) => {
 // =========================================================
 
 const PrivateRoute = ({ children }) => {
-
     const {
         isLoggedIn,
         isLoading,
@@ -267,25 +214,20 @@ const PrivateRoute = ({ children }) => {
         (state) => state.auth
     );
 
-
     // =====================================================
-    // INITIAL AUTH LOADING
+    // AUTHENTICATION LOADING
     // =====================================================
 
     if (isLoading) {
-
         return <AppLoader />;
     }
 
-
     // =====================================================
-    // NOT AUTHENTICATED
+    // UNAUTHENTICATED USER
     // =====================================================
 
     if (!isLoggedIn) {
-
         return (
-
             <Navigate
                 to="/login"
                 replace
@@ -293,9 +235,8 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-
     // =====================================================
-    // AUTHENTICATED
+    // AUTHENTICATED USER
     // =====================================================
 
     return children;
@@ -303,26 +244,20 @@ const PrivateRoute = ({ children }) => {
 
 
 // =========================================================
-// PUBLIC AUTH PAGE
+// PUBLIC AUTHENTICATION PAGE
 // =========================================================
 //
-// Used by:
+// Login and Register already contain their
+// own authentication layouts.
 //
-// - Login
-// - Register
+// The global WinterBackground remains behind
+// the page.
 //
-// Login/Register contain their own AuthPageLayout.
-//
-// ThemeContext applies the HTML "dark" class,
-// so no local theme state is required.
-//
-// Background is transparent because the global
-// WinterBackground is rendered behind the application.
+// ThemeContext manages dark / light classes.
 //
 // =========================================================
 
 const PublicAuthPage = ({ children }) => {
-
     const {
         isLoggedIn,
         isLoading,
@@ -330,25 +265,20 @@ const PublicAuthPage = ({ children }) => {
         (state) => state.auth
     );
 
-
     // =====================================================
     // AUTH LOADING
     // =====================================================
 
     if (isLoading) {
-
         return <AppLoader />;
     }
-
 
     // =====================================================
     // ALREADY AUTHENTICATED
     // =====================================================
 
     if (isLoggedIn) {
-
         return (
-
             <Navigate
                 to="/"
                 replace
@@ -356,89 +286,58 @@ const PublicAuthPage = ({ children }) => {
         );
     }
 
-
     // =====================================================
     // PUBLIC PAGE
     // =====================================================
 
     return (
-
         <div
             className="
-                relative
-                z-10
-
+                relative z-10
                 flex min-h-screen
                 min-h-[100dvh]
-
                 w-full min-w-0
                 flex-col
-
                 bg-transparent
                 text-slate-900
-
                 dark:bg-transparent
                 dark:text-slate-100
-
                 transition-colors
                 duration-200
-
                 motion-reduce:transition-none
             "
         >
-
             {children}
-
         </div>
     );
 };
 
 
 // =========================================================
-// APP LAYOUT
+// APPLICATION LAYOUT
 // =========================================================
 //
-// Navbar theme props come from ThemeContext.
+// Preserves:
 //
-// This preserves the existing Navbar contract:
-//
-// <Navbar
-//     isDarkMode={isDarkMode}
-//     toggleTheme={toggleTheme}
-// />
-//
-// Background is inherited from the global
-// WinterBackground component.
+// Navbar
+// Theme toggle
+// FrameVaultNavigation
+// Outlet
+// Footer
 //
 // requireAuth:
-//
-// true:
-// Existing application pages remain protected.
-//
-// false:
-// Public Frame Shop layout.
+// - true: authenticated application pages
+// - false: publicly accessible layout
 //
 // showFrameNavigation:
-//
-// false:
-// Standard application layout.
-//
-// true:
-// Show Frame Vault navigation above page content.
-//
-// All existing pages retain their original layout.
+// - true: show frame vault navigation
 //
 // =========================================================
 
 const AppLayout = ({
-
     requireAuth = true,
-
     showFrameNavigation = false,
-
 }) => {
-
-
     // =====================================================
     // THEME CONTEXT
     // =====================================================
@@ -448,156 +347,87 @@ const AppLayout = ({
         toggleTheme,
     } = useContext(ThemeContext);
 
-
     const isDarkMode = isDark;
 
-
     // =====================================================
-    // SHARED LAYOUT
-    // =====================================================
-    //
-    // The Navbar / Footer / Outlet structure
-    // remains identical to the existing code.
-    //
-    // Frame Vault navigation is only rendered
-    // when the dedicated frames layout requests it.
-    //
-    // Daily Gift entry points are handled by
-    // the existing Navbar and future HomeSidebar.
-    //
+    // SHARED APPLICATION LAYOUT
     // =====================================================
 
     const layout = (
-
         <div
             className="
-                relative
-                z-10
-
+                relative z-10
                 flex min-h-screen
                 min-h-[100dvh]
-
                 w-full min-w-0
                 flex-col
-
                 bg-transparent
                 text-gray-800
-
                 dark:bg-transparent
                 dark:text-gray-200
-
                 transition-colors
                 duration-300
-
                 motion-reduce:transition-none
             "
         >
-
-            {/* ==========================================
+            {/* =========================================
                 NAVBAR
-            ========================================== */}
+            ========================================= */}
 
             <Navbar
                 isDarkMode={isDarkMode}
                 toggleTheme={toggleTheme}
             />
 
-
-            {/* ==========================================
+            {/* =========================================
                 FRAME VAULT NAVIGATION
-            ========================================== */}
-
-            {/*
-                Visible only inside /frames routes.
-
-                Provides:
-
-                - Frame Shop
-                - My Frames
-                - Active route indicator
-                - Responsive cyberpunk navigation
-
-                My Frames remains protected independently
-                by its nested PrivateRoute.
-            */}
+            ========================================= */}
 
             {showFrameNavigation && (
-
                 <FrameVaultNavigation />
-
             )}
 
-
-            {/* ==========================================
+            {/* =========================================
                 MAIN CONTENT
-            ========================================== */}
+            ========================================= */}
 
             <div
                 className="
-                    min-w-0
-                    flex-grow
-
+                    min-w-0 flex-grow
                     bg-transparent
                     text-gray-800
-
                     dark:bg-transparent
                     dark:text-gray-200
-
                     transition-colors
                     duration-300
-
                     motion-reduce:transition-none
                 "
             >
-
                 <Outlet />
-
             </div>
 
-
-            {/* ==========================================
+            {/* =========================================
                 FOOTER
-            ========================================== */}
+            ========================================= */}
 
             <Footer />
-
         </div>
     );
-
 
     // =====================================================
     // PROTECTED APPLICATION LAYOUT
     // =====================================================
-    //
-    // Existing routes continue to use PrivateRoute.
-    //
-    // =====================================================
 
     if (requireAuth) {
-
         return (
-
             <PrivateRoute>
-
                 {layout}
-
             </PrivateRoute>
         );
     }
 
-
     // =====================================================
     // PUBLIC APPLICATION LAYOUT
-    // =====================================================
-    //
-    // Used by:
-    //
-    // /frames/shop
-    // /frames/my
-    //
-    // Individual private child routes can still
-    // wrap their element in PrivateRoute.
-    //
     // =====================================================
 
     return layout;
@@ -605,213 +435,152 @@ const AppLayout = ({
 
 
 // =========================================================
-// APP CONTENT
+// APPLICATION CONTENT
 // =========================================================
 
 function AppContent() {
-
     const dispatch = useDispatch();
 
-
     // =====================================================
-    // AUTH STATE
+    // AUTHENTICATION STATE
     // =====================================================
 
     const isLoggedIn = useSelector(
-
         (state) =>
             Boolean(state.auth?.isLoggedIn)
     );
-
 
     // =====================================================
     // AUTH REQUEST GENERATION
     // =====================================================
     //
-    // Prevent an outdated auth response
-    // from restoring a logged-out user.
+    // Prevents an old authentication request
+    // from restoring a logged-out session.
     //
     // =====================================================
 
     const authGenerationRef = useRef(0);
 
-
     // =====================================================
-    // FORCE LOGOUT LISTENER
+    // FORCED LOGOUT LISTENER
     // =====================================================
     //
-    // services/api.js emits "auth:logout"
-    // when refresh authentication fails.
-    //
-    // Register the listener before starting
-    // the initial user session request.
-    //
-    // Daily Gift private state is also cleared
-    // by its Redux slice when logoutUser is dispatched.
+    // src/services/api.js dispatches the
+    // "auth:logout" browser event when the
+    // session can no longer be refreshed.
     //
     // =====================================================
 
     useEffect(() => {
-
         const handleForceLogout = () => {
-
             // Invalidate pending auth checks.
-
             ++authGenerationRef.current;
 
-
             // Clear Redux authentication.
-
             dispatch(
                 logoutUser()
             );
 
-
-            // Disconnect notification socket.
-
+            // Disconnect notifications.
             dispatch(
                 disconnectWebSocket()
             );
         };
 
-
         window.addEventListener(
-
             "auth:logout",
-
             handleForceLogout
         );
 
-
         return () => {
-
             window.removeEventListener(
-
                 "auth:logout",
-
                 handleForceLogout
             );
         };
-
     }, [dispatch]);
-
 
     // =====================================================
     // INITIAL AUTHENTICATION CHECK
     // =====================================================
     //
-    // Verify existing JWT cookie session.
+    // Verifies the existing JWT cookie session.
     //
-    // Existing endpoint:
+    // AuthService.getUser() uses the existing
+    // Axios configuration.
     //
-    // GET /users/user/
-    //
-    // The Axios instance handles cookies
-    // and token refresh.
-    //
-    // On successful authentication, DailyGiftReducer
-    // initializes the ownerId from signUserSuccess.
-    //
-    // DailyGiftController then loads event eligibility.
+    // Does not create a separate token refresh
+    // mechanism.
     //
     // =====================================================
 
     useEffect(() => {
-
         let isMounted = true;
-
 
         const currentGeneration =
             ++authGenerationRef.current;
 
-
-        // =================================================
+        // ================================================
         // REQUEST VALIDITY
-        // =================================================
+        // ================================================
 
         const isCurrentRequest = () =>
-
             isMounted &&
-
             currentGeneration ===
                 authGenerationRef.current;
 
-
-        // =================================================
-        // CHECK USER STATUS
-        // =================================================
+        // ================================================
+        // INITIAL USER CHECK
+        // ================================================
 
         const checkUserStatus = async () => {
-
             dispatch(
                 signUserStart()
             );
 
-
             try {
-
                 const response =
                     await AuthService.getUser();
 
-
                 if (!isCurrentRequest()) {
-
                     return;
                 }
-
 
                 const authenticatedUser =
                     getAuthenticatedUser(response);
 
-
-                // =========================================
+                // ========================================
                 // VALID SESSION
-                // =========================================
+                // ========================================
 
                 if (authenticatedUser) {
-
                     dispatch(
-
                         signUserSuccess(
                             authenticatedUser
                         )
                     );
 
-
                     return;
                 }
 
-
-                // =========================================
+                // ========================================
                 // NO AUTHENTICATED USER
-                // =========================================
+                // ========================================
 
                 dispatch(
                     logoutUser()
                 );
 
             } catch (error) {
-
                 if (!isCurrentRequest()) {
-
                     return;
                 }
 
-
-                // =========================================
-                // AUTH CHECK FAILED
-                // =========================================
+                // Initial auth failure is not
+                // a failed login form submission.
                 //
-                // A 401 response can mean the visitor
-                // is simply not authenticated.
-                //
-                // Do not show a global error toast.
-                //
-                // Do not use signUserFailure here,
-                // because this is initial auth checking,
-                // not a failed Login form submission.
-                //
-                // =========================================
+                // A guest may normally receive 401.
+                // Avoid an unnecessary global toast.
 
                 dispatch(
                     logoutUser()
@@ -819,680 +588,434 @@ function AppContent() {
             }
         };
 
-
         checkUserStatus();
 
-
-        // =================================================
+        // ================================================
         // CLEANUP
-        // =================================================
+        // ================================================
 
         return () => {
-
             isMounted = false;
 
             ++authGenerationRef.current;
         };
-
     }, [dispatch]);
-
 
     // =====================================================
     // WEBSOCKET NOTIFICATIONS
     // =====================================================
     //
-    // Signed in:
-    //
-    // - Connect notification WebSocket
-    //
-    // Signed out:
-    //
-    // - Disconnect notification WebSocket
+    // Authenticated -> connect
+    // Unauthenticated -> disconnect
     //
     // =====================================================
 
     useEffect(() => {
-
         if (isLoggedIn) {
-
             dispatch(
                 connectWebSocket()
             );
-
         } else {
-
             dispatch(
                 disconnectWebSocket()
             );
         }
 
-
         return () => {
-
             dispatch(
                 disconnectWebSocket()
             );
         };
-
     }, [
-
         dispatch,
-
         isLoggedIn,
     ]);
 
-
     // =====================================================
-    // ROUTES
+    // APPLICATION ROUTES
     // =====================================================
 
     return (
-
         <Routes>
-
-            {/* ==========================================
+            {/* =========================================
                 PUBLIC AUTHENTICATION
-            ========================================== */}
-
-
-            {/* LOGIN */}
+            ========================================= */}
 
             <Route
-
                 path="/login"
-
                 element={
-
                     <PublicAuthPage>
-
                         <Login />
-
                     </PublicAuthPage>
                 }
             />
 
-
-            {/* REGISTER */}
-
             <Route
-
                 path="/register"
-
                 element={
-
                     <PublicAuthPage>
-
                         <Register />
-
                     </PublicAuthPage>
                 }
             />
 
-
-            {/* ==========================================
+            {/* =========================================
                 OAUTH CALLBACK
-            ========================================== */}
+            ========================================= */}
 
             <Route
-
                 path="/callback/:provider"
-
                 element={
-
                     <div
                         className="
-                            relative
-                            z-10
-
+                            relative z-10
                             flex min-h-screen
                             min-h-[100dvh]
-
                             w-full min-w-0
-
-                            items-center
-                            justify-center
-
+                            items-center justify-center
                             bg-transparent
                             text-slate-900
-
-                            dark:bg-transparent
                             dark:text-gray-100
-
                             transition-colors
                             duration-200
                         "
                     >
-
                         <SocialCallback />
-
                     </div>
                 }
             />
 
-
-            {/* ==========================================
+            {/* =========================================
                 PROFILE FRAMES — FRAME VAULT
-            ========================================== */}
-
-            {/*
-                FSOCIETY FRAME VAULT
-
-                Shared layout:
-
-                Navbar + FrameVaultNavigation
-                + Outlet + Footer
-
-                Public:
-                /frames/shop
-
-                Private:
-                /frames/my
-
-                Authentication:
-
-                - Shop can be browsed by guests.
-                - Purchases require JWT authentication.
-                - My Frames requires authentication.
-                - Inventory API permissions are enforced
-                  independently by the Django backend.
-
-                Existing PurchaseConfirmationModal is used
-                by FrameShop during purchases.
-
-                WinterBackground and Snowfall are inherited
-                from AppInner for both pages.
-
-                Global Daily Gift Controller also remains
-                available on these routes.
-            */}
+            ========================================= */}
 
             <Route
-
                 path="/frames"
-
                 element={
-
                     <AppLayout
-
                         requireAuth={false}
-
                         showFrameNavigation
                     />
                 }
             >
-
-                {/* ======================================
-                    FRAME SHOP — PUBLIC
-                ====================================== */}
+                {/* PUBLIC FRAME SHOP */}
 
                 <Route
-
                     path="shop"
-
                     element={
-
                         <FrameShop />
                     }
                 />
 
-
-                {/* ======================================
-                    MY FRAMES — PRIVATE
-                ====================================== */}
+                {/* PRIVATE FRAME INVENTORY */}
 
                 <Route
-
                     path="my"
-
                     element={
-
                         <PrivateRoute>
-
                             <MyFrames />
-
                         </PrivateRoute>
                     }
                 />
-
             </Route>
 
-
-            {/* ==========================================
+            {/* =========================================
                 PROTECTED APPLICATION
-            ========================================== */}
+            ========================================= */}
 
             <Route
-
                 path="/"
-
                 element={
-
                     <AppLayout />
                 }
             >
-
-                {/* ======================================
+                {/* =====================================
                     HOME
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     index
-
-                    element={<Main />}
-                />
-
-
-                {/* ======================================
-                    PROBLEMS
-                ====================================== */}
-
-                <Route
-
-                    path="problems"
-
-                    element={<Problems />}
-                />
-
-
-                <Route
-
-                    path="my-problems"
-
-                    element={<MyProblems />}
-                />
-
-
-                <Route
-
-                    path="problem-create"
-
-                    element={<ProblemCreate />}
-                />
-
-
-                <Route
-
-                    path="problem/:id/edit"
-
-                    element={<ProblemCreate />}
-                />
-
-
-                <Route
-
-                    path="problem/:id/solution/:solutionId/edit"
-
                     element={
+                        <Main />
+                    }
+                />
 
+                {/* =====================================
+                    PROBLEMS
+                ===================================== */}
+
+                <Route
+                    path="problems"
+                    element={
+                        <Problems />
+                    }
+                />
+
+                <Route
+                    path="my-problems"
+                    element={
+                        <MyProblems />
+                    }
+                />
+
+                <Route
+                    path="problem-create"
+                    element={
+                        <ProblemCreate />
+                    }
+                />
+
+                <Route
+                    path="problem/:id/edit"
+                    element={
+                        <ProblemCreate />
+                    }
+                />
+
+                <Route
+                    path="problem/:id/solution/:solutionId/edit"
+                    element={
                         <ProblemSolutionUpdate />
                     }
                 />
 
-
                 <Route
-
                     path="problem/:id/detail"
-
-                    element={<ProblemDetail />}
+                    element={
+                        <ProblemDetail />
+                    }
                 />
 
-
-                {/* ======================================
+                {/* =====================================
                     FEEDBACK
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     path="feedback"
-
-                    element={<Feedback />}
+                    element={
+                        <Feedback />
+                    }
                 />
 
-
-                {/* ======================================
+                {/* =====================================
                     FCOIN
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     path="fcoin"
-
-                    element={<FCoin />}
+                    element={
+                        <FCoin />
+                    }
                 />
 
-
                 <Route
-
                     path="fcoin-history"
-
-                    element={<FCoinHistory />}
+                    element={
+                        <FCoinHistory />
+                    }
                 />
 
-
-                {/* ======================================
+                {/* =====================================
                     USERS / PROFILE
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     path="users"
-
-                    element={<Users />}
+                    element={
+                        <Users />
+                    }
                 />
 
-
                 <Route
-
                     path=":username/profile"
-
-                    element={<Profile />}
+                    element={
+                        <Profile />
+                    }
                 />
 
-
-                {/* ======================================
+                {/* =====================================
                     PROJECTS
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     path="projects"
-
-                    element={<Projects />}
+                    element={
+                        <Projects />
+                    }
                 />
 
-
                 <Route
-
                     path="project/:projectId/detail"
-
-                    element={<ProjectDetail />}
+                    element={
+                        <ProjectDetail />
+                    }
                 />
 
-
-                {/* ======================================
+                {/* =====================================
                     NOTIFICATIONS
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     path="notifications"
-
-                    element={<NotificationsPage />}
+                    element={
+                        <NotificationsPage />
+                    }
                 />
 
-
-                {/* ======================================
+                {/* =====================================
                     POSTS
-                ====================================== */}
+                ===================================== */}
 
                 <Route
-
                     path=":username/post/:slug/"
-
-                    element={<PostDetail />}
+                    element={
+                        <PostDetail />
+                    }
                 />
-
             </Route>
 
-
-            {/* ==========================================
+            {/* =========================================
                 NOT FOUND
-            ========================================== */}
+            ========================================= */}
 
             <Route
-
                 path="*"
-
                 element={
-
                     <div
-
                         className="
-                            relative
-                            z-10
-
+                            relative z-10
                             flex min-h-screen
                             min-h-[100dvh]
-
                             w-full min-w-0
-
-                            items-center
-                            justify-center
-
+                            items-center justify-center
                             bg-transparent
                             text-slate-900
-
-                            dark:bg-transparent
                             dark:text-gray-100
-
                             transition-colors
                             duration-200
                         "
                     >
-
                         <NotFound />
-
                     </div>
                 }
             />
-
         </Routes>
     );
 }
 
 
 // =========================================================
-// ROOT APPLICATION CONTENT
+// GLOBAL APPLICATION ROOT
 // =========================================================
 //
-// NewYearProvider already wraps AppInner.
+// NewYearProvider wraps AppInner.
 //
-// Therefore useNewYear() is available here.
+// useNewYear() is available here.
 //
-// Global background:
+// Global WinterBackground is rendered once.
 //
-// - Rendered only once.
-// - Persists during route navigation.
-// - Reads winterBackgroundEnabled.
-// - Uses the existing ThemeContext dark class.
-// - Shows the original PageGridBackground when disabled.
+// Snowfall is rendered outside the routes.
 //
-// Frame Shop and My Frames both inherit
-// the same global background.
+// Old DailyGiftController was removed.
 //
-// Daily Gift:
-//
-// - Controller is mounted once.
-// - Controller is outside individual routes.
-// - Authentication is managed by Redux.
-// - Event visibility is controlled by the backend.
-// - Independent of winter appearance settings.
-// - Future global modal will use the same controller.
+// EventsController will be integrated after
+// its backend contract and initialization
+// behavior are verified.
 //
 // =========================================================
 
 const AppInner = () => {
-
-
     // =====================================================
     // WINTER BACKGROUND SETTINGS
     // =====================================================
 
     const { settings } = useNewYear();
 
-
-    // IMPORTANT:
-    //
-    // If the setting has not been initialized yet,
-    // winter background remains enabled.
-    //
-    // Explicit false still disables winter background
-    // and restores PageGridBackground.
+    // Explicit false disables winter background.
+    // Other values preserve the existing default.
 
     const isWinterBackgroundEnabled =
-        settings?.winterBackgroundEnabled ?? true;
-
+        settings?.winterBackgroundEnabled ??
+        true;
 
     // =====================================================
     // RENDER
     // =====================================================
 
     return (
-
         <Router>
-
-            {/* ==========================================
+            {/* =========================================
                 GLOBAL APPLICATION ROOT
-            ========================================== */}
+            ========================================= */}
 
             <div
-
                 className="
-                    relative
-                    isolate
-
+                    relative isolate
                     min-h-screen
                     min-h-[100dvh]
-
-                    w-full
-                    min-w-0
-
+                    w-full min-w-0
                     overflow-x-clip
                 "
             >
-
-                {/* ======================================
+                {/* =====================================
                     GLOBAL SHARED BACKGROUND
-
-                    Rendered ONCE for the entire app.
-
-                    Winter ON:
-
-                    - Dark: winter-dark.webp
-                    - Light: winter-light.webp
-
-                    Winter OFF:
-
-                    - Original PageGridBackground
-
-                    The fixed wrapper keeps the background
-                    behind every route and page.
-                ====================================== */}
+                ===================================== */}
 
                 <div
-
                     aria-hidden="true"
-
                     className="
                         pointer-events-none
-
-                        fixed
-                        inset-0
-
-                        z-0
-
+                        fixed inset-0 z-0
                         overflow-hidden
                     "
                 >
-
                     <WinterBackground
-
-                        enabled={isWinterBackgroundEnabled}
-
+                        enabled={
+                            isWinterBackgroundEnabled
+                        }
                         showMonogram
-
                         showCubes
                     />
-
                 </div>
 
-
-                {/* ======================================
+                {/* =====================================
                     GLOBAL APPLICATION CONTENT
-                ====================================== */}
+                ===================================== */}
 
                 <div
-
                     className="
-                        relative
-                        z-10
-
+                        relative z-10
                         min-h-screen
                         min-h-[100dvh]
                     "
                 >
-
-                    {/* ==================================
-                        UNIVERSAL TOAST
-                    ================================== */}
+                    {/* GLOBAL TOAST */}
 
                     <AuthToast />
 
-
-                    {/* ==================================
-                        APPLICATION ROUTES
-                    ================================== */}
+                    {/* APPLICATION ROUTES */}
 
                     <AppContent />
 
-
-                    {/* ==================================
-                        GLOBAL DAILY NEW YEAR GIFT
-
-                        Mounted once for the application.
-
-                        Responsibilities:
-
-                        - Read authenticated Redux session.
-                        - Fetch public event information.
-                        - Fetch authenticated gift status.
-                        - Initialize Daily Gift Redux state.
-                        - React to account changes.
-
-                        Navbar and HomeSidebar consume
-                        the same shared Redux state.
-
-                        This component does not submit
-                        automatic gift claim requests.
-
-                        It remains active independently
-                        of Winter Mode visual settings.
-                    ================================== */}
-
-                    <DailyGiftController />
-
-
-                    {/* ==================================
-                        GLOBAL WINTER SNOWFALL
-                    ================================== */}
-
                     {/*
-                        Rendered outside individual routes.
+                        OLD DAILY GIFT CONTROLLER
+                        HAS BEEN REMOVED.
 
-                        Therefore snowfall can appear on:
+                        The deleted component is not
+                        imported or rendered.
 
-                        - Home
-                        - Problems
-                        - Projects
-                        - Profiles
-                        - Login
-                        - Register
-                        - OAuth callback
-                        - Frame Shop
-                        - My Frames
-                        - Not found
+                        New EventsController integration
+                        will be completed separately.
 
-                        Actual animation depends on
-                        NewYearContext settings.
+                        Seasonal Gift and Daily Gift
+                        will use the new events modules.
                     */}
 
+                    {/* GLOBAL WINTER SNOWFALL */}
+
                     <Snowfall />
-
                 </div>
-
             </div>
-
         </Router>
     );
 };
@@ -1506,66 +1029,45 @@ const AppInner = () => {
 //
 // index.js
 //   └── Redux Provider
-//         └── ThemeProvider
-//               └── App
-//                     └── NewYearProvider
-//                           └── AppInner
-//                                 └── Router
-//                                       ├── WinterBackground
-//                                       ├── AuthToast
-//                                       ├── AppContent
-//                                       ├── DailyGiftController
-//                                       └── Snowfall
+//       └── ThemeProvider
+//           └── App
+//               └── NewYearProvider
+//                   └── AppInner
+//                       └── Router
+//                           ├── WinterBackground
+//                           ├── AuthToast
+//                           ├── AppContent
+//                           └── Snowfall
 //
-// ThemeProvider is already installed in index.js.
-//
-// If it exists above App, reuse it.
-// Otherwise, provide it here.
-//
-// This avoids duplicate theme state.
-//
-// DailyGiftController uses the existing Redux Provider.
-// No additional context provider is required.
+// Avoid duplicate theme providers.
 //
 // =========================================================
 
 function App() {
-
     const existingThemeContext =
         useContext(ThemeContext);
 
-
     // =====================================================
-    // EXISTING THEME PROVIDER
+    // THEME PROVIDER ALREADY INSTALLED
     // =====================================================
 
     if (existingThemeContext) {
-
         return (
-
             <NewYearProvider>
-
                 <AppInner />
-
             </NewYearProvider>
         );
     }
 
-
     // =====================================================
-    // PROVIDE THEME IF NOT INSTALLED
+    // FALLBACK THEME PROVIDER
     // =====================================================
 
     return (
-
         <ThemeProvider>
-
             <NewYearProvider>
-
                 <AppInner />
-
             </NewYearProvider>
-
         </ThemeProvider>
     );
 }

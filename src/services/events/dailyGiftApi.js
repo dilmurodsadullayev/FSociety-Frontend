@@ -1,11 +1,14 @@
 
- // src/services/events/dailyGiftApi.js
+// src/services/events/dailyGiftApi.js
 
-import * as apiModule from "../api";
+import api from "../api";
 
 import {
+    getEventsBasePath,
     normalizeEventSlug,
     normalizeEventsApiError,
+    unwrapEventsResponse,
+    assertEventsObject,
 } from "./eventsApi";
 
 // =========================================================
@@ -13,165 +16,108 @@ import {
 // =========================================================
 //
 // Responsibilities:
-// - Get authenticated Daily Gift status
-// - Claim Daily Gift
-// - Fetch Daily Gift history
-// - Reuse existing Axios client
-// - Support AbortController
-// - Preserve backend response data
+// - Daily Gift status
+// - Daily Gift claim
+// - Daily Gift history
+// - Backend response validation
+// - Pagination support
+// - Request cancellation for GET
+// - Shared API error normalization
 //
 // IMPORTANT:
 //
-// Daily Gift = one claim per event / local day.
+// Daily Gift:
+// One gift per user, event and local day.
 //
-// Seasonal Gift is a separate system.
+// Seasonal Gift:
+// One gift per user and event.
 //
-// This service never selects rewards or amounts.
-// The Django backend is the source of truth.
+// These two systems are independent.
+//
+// This service NEVER:
+// - Selects a reward
+// - Generates random FCoin amounts
+// - Modifies user balance
+// - Retries a claim POST automatically
+// - Creates a new Axios instance
 //
 // =========================================================
 
 
 // =========================================================
-// EXISTING AXIOS CLIENT
+// API CLIENT
 // =========================================================
 //
-// Reuses the same client as eventsApi.js.
+// Import the existing default Axios instance.
 //
-// No new Axios instance.
-// No duplicate token refresh interceptor.
-// No manual JWT handling.
+// All JWT, cookie, CSRF and token refresh logic
+// stays inside src/services/api.js.
 //
 // =========================================================
 
 const getApiClient = () => {
-    const candidates = [
-        apiModule.default,
-        apiModule.api,
-        apiModule.apiClient,
-        apiModule.axiosInstance,
-        apiModule.instance,
-    ];
-
-    const client = candidates.find(
-        (candidate) =>
-            candidate &&
-            typeof candidate.get === "function" &&
-            typeof candidate.post === "function"
-    );
-
-    if (!client) {
+    if (
+        !api ||
+        typeof api.get !== "function" ||
+        typeof api.post !== "function"
+    ) {
         throw new Error(
-            "FSociety Axios client topilmadi. " +
-            "src/services/api.js eksportlarini tekshiring."
+            "FSociety Axios client noto‘g‘ri sozlangan."
         );
     }
 
-    return client;
-};
-
-
-// =========================================================
-// ENDPOINT RESOLVER
-// =========================================================
-//
-// Handles:
-//
-// baseURL = https://domain.com/api/
-// -> events/{slug}/daily-gift/
-//
-// baseURL = https://domain.com/
-// -> api/events/{slug}/daily-gift/
-//
-// =========================================================
-
-const getEventsBasePath = () => {
-    const client = getApiClient();
-
-    const baseURL = String(
-        client.defaults?.baseURL ?? ""
-    )
-        .split(/[?#]/)[0]
-        .replace(/\/+$/, "");
-
-    const alreadyHasApiPrefix =
-        /(?:^|\/)api(?:\/v\d+)?$/i.test(
-            baseURL
-        );
-
-    return alreadyHasApiPrefix
-        ? "events/"
-        : "api/events/";
+    return api;
 };
 
 
 // =========================================================
 // DAILY GIFT ENDPOINTS
 // =========================================================
+//
+// Example:
+//
+// /api/events/new-year-2027/daily-gift/status/
+//
+// /api/events/new-year-2027/daily-gift/claim/
+//
+// /api/events/new-year-2027/daily-gift/history/
+//
+// The base path is shared with eventsApi.js.
+//
+// =========================================================
 
 export const getDailyGiftEndpoints = (slug) => {
     const validSlug = normalizeEventSlug(slug);
 
-    const base = [
-        getEventsBasePath().replace(/\/$/, ""),
-        encodeURIComponent(validSlug),
-        "daily-gift",
-    ].join("/");
+    const basePath =
+        getEventsBasePath() +
+        encodeURIComponent(validSlug) +
+        "/daily-gift/";
 
     return {
-        status: `${base}/status/`,
-        claim: `${base}/claim/`,
-        history: `${base}/history/`,
+        status: `${basePath}status/`,
+        claim: `${basePath}claim/`,
+        history: `${basePath}history/`,
     };
 };
 
 
 // =========================================================
-// RESPONSE NORMALIZATION
-// =========================================================
-//
-// Supports standard Axios responses and an
-// Axios interceptor returning response.data.
-//
-// Does not transform reward fields.
-// Does not fabricate backend values.
-//
+// RESPONSE HELPERS
 // =========================================================
 
-const unwrapResponse = (response) => {
-    if (
-        response &&
-        typeof response === "object" &&
-        !Array.isArray(response) &&
-        "data" in response &&
-        (
-            "config" in response ||
-            "headers" in response ||
-            typeof response.status === "number"
-        )
-    ) {
-        return response.data;
-    }
-
-    return response;
-};
-
-const ensureObjectResponse = (
-    payload,
+const normalizeDailyGiftObject = (
+    response,
     operation
 ) => {
-    if (
-        !payload ||
-        typeof payload !== "object" ||
-        Array.isArray(payload)
-    ) {
-        throw new TypeError(
-            `Daily Gift ${operation}: ` +
-            "backend noto‘g‘ri javob qaytardi."
-        );
-    }
+    const payload = unwrapEventsResponse(
+        response
+    );
 
-    return payload;
+    return assertEventsObject(
+        payload,
+        `Daily Gift ${operation}`
+    );
 };
 
 
@@ -180,15 +126,20 @@ const ensureObjectResponse = (
 // =========================================================
 //
 // GET:
+//
 // /api/events/{slug}/daily-gift/status/
 //
-// The server determines:
-// - Can claim
-// - Already claimed
-// - Claim date
-// - Next claim time
-// - Countdown
+// The backend is responsible for:
+//
+// - Eligibility
+// - Already claimed status
+// - Current claim date
+// - Next claim date
 // - Event availability
+// - Server time
+// - Reward visibility
+//
+// This function preserves the backend payload.
 //
 // =========================================================
 
@@ -200,18 +151,18 @@ export const getDailyGiftStatus = async (
 ) => {
     const client = getApiClient();
 
-    const endpoint =
-        getDailyGiftEndpoints(slug).status;
+    const endpoints =
+        getDailyGiftEndpoints(slug);
 
     const response = await client.get(
-        endpoint,
+        endpoints.status,
         {
             ...(signal ? { signal } : {}),
         }
     );
 
-    return ensureObjectResponse(
-        unwrapResponse(response),
+    return normalizeDailyGiftObject(
+        response,
         "status"
     );
 };
@@ -222,43 +173,41 @@ export const getDailyGiftStatus = async (
 // =========================================================
 //
 // POST:
+//
 // /api/events/{slug}/daily-gift/claim/
 //
-// Never send:
-// - user_id
-// - reward_id
-// - coins
-// - amount
-// - rarity
+// The request body is intentionally empty.
 //
-// The backend chooses and grants rewards.
+// User identity comes from authentication.
 //
-// Request MUST come from explicit user action.
-// Never automatically retry an uncertain POST.
+// Reward selection and granting belong
+// exclusively to the Django backend.
+//
+// IMPORTANT:
+//
+// Do not automatically retry this request.
+//
+// If a timeout occurs after the server has
+// committed the reward, use GET status/history
+// to reconcile the result.
 //
 // =========================================================
 
 export const claimDailyGift = async (
-    slug,
-    {
-        signal,
-    } = {}
+    slug
 ) => {
     const client = getApiClient();
 
-    const endpoint =
-        getDailyGiftEndpoints(slug).claim;
+    const endpoints =
+        getDailyGiftEndpoints(slug);
 
     const response = await client.post(
-        endpoint,
-        {},
-        {
-            ...(signal ? { signal } : {}),
-        }
+        endpoints.claim,
+        {}
     );
 
-    return ensureObjectResponse(
-        unwrapResponse(response),
+    return normalizeDailyGiftObject(
+        response,
         "claim"
     );
 };
@@ -269,14 +218,19 @@ export const claimDailyGift = async (
 // =========================================================
 //
 // GET:
+//
 // /api/events/{slug}/daily-gift/history/
 //
-// Supports pagination/filter parameters
-// accepted by the backend.
+// Supports backend-approved pagination
+// and filtering query parameters.
 //
-// This function preserves the actual payload
-// because the history response may be either
-// a paginated object or an array.
+// Examples:
+//
+// getDailyGiftHistory("new-year-2027");
+//
+// getDailyGiftHistory("new-year-2027", {
+//     params: { page: 2 },
+// });
 //
 // =========================================================
 
@@ -289,18 +243,28 @@ export const getDailyGiftHistory = async (
 ) => {
     const client = getApiClient();
 
-    const endpoint =
-        getDailyGiftEndpoints(slug).history;
+    const endpoints =
+        getDailyGiftEndpoints(slug);
 
     const response = await client.get(
-        endpoint,
+        endpoints.history,
         {
             ...(params ? { params } : {}),
             ...(signal ? { signal } : {}),
         }
     );
 
-    const payload = unwrapResponse(response);
+    const payload = unwrapEventsResponse(
+        response
+    );
+
+    // History may be:
+    //
+    // - An array
+    // - A DRF paginated object
+    // - Another backend-defined object
+    //
+    // Preserve the original payload.
 
     if (
         payload === null ||
@@ -316,24 +280,56 @@ export const getDailyGiftHistory = async (
 
 
 // =========================================================
-// ERROR HANDLER
+// ERROR NORMALIZATION
 // =========================================================
 //
-// Reuse common Events error handling.
+// Reuse common Events API errors.
 //
-// No backend traceback is deliberately exposed.
+// The returned error is Redux-serializable.
 //
 // =========================================================
 
 export const normalizeDailyGiftError = (
     error
 ) => {
-    return normalizeEventsApiError(error);
+    return normalizeEventsApiError(
+        error
+    );
 };
 
 
 // =========================================================
-// SERVICE EXPORT
+// OPTIONAL RESPONSE NORMALIZERS
+// =========================================================
+//
+// These functions are reusable by hooks,
+// Redux thunks and UI components.
+//
+// They do not fabricate missing reward data.
+//
+// =========================================================
+
+export const normalizeDailyGiftStatus = (
+    payload
+) => {
+    return assertEventsObject(
+        payload,
+        "Daily Gift status"
+    );
+};
+
+export const normalizeDailyGiftClaim = (
+    payload
+) => {
+    return assertEventsObject(
+        payload,
+        "Daily Gift claim"
+    );
+};
+
+
+// =========================================================
+// DEFAULT SERVICE EXPORT
 // =========================================================
 
 const dailyGiftApi = {
