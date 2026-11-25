@@ -1,11 +1,11 @@
 
-// src/store/index.js
+ // src/store/index.js
 
 import {
     combineReducers,
     configureStore,
+    createListenerMiddleware,
 } from "@reduxjs/toolkit";
-
 
 // =========================================================
 // AUTH
@@ -20,503 +20,379 @@ import AuthReducer, {
     checkAuthFailure,
 } from "../features/auth/Auth";
 
-
 // =========================================================
 // EXISTING REDUCERS
 // =========================================================
 
 import CommentReducer from "../features/comments/Comment";
-
 import ProblemReducer from "../features/problems/Problems";
-
 import problemResponseReducer from "../features/problemResponse/problemResponse";
-
 import UserReducer from "../features/users";
-
 import FeedbackReducer from "../features/feedback";
-
 import notificationReducer from "../features/notificationSlice";
-
 import CoinReducer from "../features/coins";
-
 import ProfileReducer from "../features/profile";
-
 import ProjectReducer from "../features/projects";
-
 import PostReducer from "../features/posts";
-
 import RoadmapReducer from "../features/roadmap";
-
 import BadgeReducer from "../features/badge";
-
 import BotReducer from "../features/bot";
-
 import promotionReducer from "../features/promotions";
 
-
-// =========================================================
-// SITE UPDATES
-// =========================================================
-
 import updatesReducer from "../features/updates/Updates";
-
-
-// =========================================================
-// PROFILE FRAMES SHOP
-// =========================================================
-
 import profileFramesReducer from "../features/profileFrames";
 
-
 // =========================================================
-// DAILY NEW YEAR GIFT 2027
+// LEGACY DAILY GIFT
+// =========================================================
+//
+// Keep state.dailyGift unchanged until the
+// controlled Daily Gift migration is complete.
 // =========================================================
 
 import DailyGiftReducer from "../features/dailyGift/dailyGiftSlice";
 
+// =========================================================
+// NEW UNIVERSAL EVENTS
+// =========================================================
+
+import eventsReducer from "../features/events/eventsSlice";
+
+import eventsDailyGiftReducer from "../features/events/dailyGiftSlice";
+
+import eventsSeasonalGiftReducer, {
+    claimSeasonalGiftForEvent,
+    fetchSeasonalGiftStatusForEvent,
+} from "../features/events/seasonalGiftSlice";
 
 // =========================================================
-// MIDDLEWARE
+// EXISTING MIDDLEWARE
 // =========================================================
 
 import notificationMiddleware from "../middleware/notificationMiddleware";
 
-
 // =========================================================
-// FSOCIETY — APPLICATION REDUCERS
+// APPLICATION REDUCERS
 // =========================================================
 //
-// Important:
+// Existing Redux keys must remain unchanged.
 //
-// Keep all existing Redux keys unchanged.
+// Legacy:
+//   state.dailyGift
 //
-// Components depend on:
-//
-// state.auth
-// state.user
-// state.coin
-// state.profile
-// state.notifications
-// state.profileFrames
-// etc.
-//
-// Daily New Year Gift:
-//
-// state.dailyGift
+// New:
+//   state.events
+//   state.eventsDailyGift
+//   state.eventsSeasonalGift
 //
 // =========================================================
 
 const appReducer = combineReducers({
-
-    // =====================================================
-    // AUTH
-    // =====================================================
-
+    // Authentication
     auth: AuthReducer,
 
-
-    // =====================================================
-    // COMMENTS
-    // =====================================================
-
+    // Community
     comment: CommentReducer,
-
-
-    // =====================================================
-    // PROBLEMS
-    // =====================================================
-
     problem: ProblemReducer,
-
     problemResponse: problemResponseReducer,
 
-
-    // =====================================================
-    // USERS
-    // =====================================================
-
+    // Users
     user: UserReducer,
-
-
-    // =====================================================
-    // FEEDBACK
-    // =====================================================
-
-    feedback: FeedbackReducer,
-
-
-    // =====================================================
-    // NOTIFICATIONS
-    // =====================================================
-
-    notifications: notificationReducer,
-
-
-    // =====================================================
-    // COINS
-    // =====================================================
-
-    coin: CoinReducer,
-
-
-    // =====================================================
-    // PROFILE
-    // =====================================================
-
     profile: ProfileReducer,
 
+    // Feedback
+    feedback: FeedbackReducer,
 
-    // =====================================================
-    // PROJECTS
-    // =====================================================
+    // Notifications
+    notifications: notificationReducer,
 
+    // FCoin
+    coin: CoinReducer,
+
+    // Projects / Posts
     project: ProjectReducer,
-
-
-    // =====================================================
-    // POSTS
-    // =====================================================
-
     post: PostReducer,
-
-
-    // =====================================================
-    // ROADMAP
-    // =====================================================
-
     roadmap: RoadmapReducer,
 
-
-    // =====================================================
-    // BADGES
-    // =====================================================
-
+    // Badges / Bot
     badge: BadgeReducer,
-
-
-    // =====================================================
-    // TELEGRAM BOT
-    // =====================================================
-
     bot: BotReducer,
 
-
-    // =====================================================
-    // SITE UPDATES
-    // =====================================================
-
+    // Site updates
     updates: updatesReducer,
 
-
-    // =====================================================
-    // PROMOTIONS
-    // =====================================================
-
+    // Promotions
     promotion: promotionReducer,
 
-
-    // =====================================================
-    // PROFILE FRAMES SHOP
-    // =====================================================
-    //
-    // Handles:
-    //
-    // - Shop catalog
-    // - Frame details
-    // - My frame inventory
-    // - Purchases
-    // - Equip / unequip
-    // - Shop statistics
-    //
-    // =====================================================
-
+    // Frame Shop
     profileFrames: profileFramesReducer,
 
-
-    // =====================================================
-    // DAILY NEW YEAR GIFT 2027
-    // =====================================================
-    //
-    // Handles:
-    //
-    // - Event information
-    // - Daily gift eligibility
-    // - Gift claim lifecycle
-    // - Reward result
-    // - Uncertain claim recovery
-    // - Reward history
-    // - Global modal state
-    // - Authentication cleanup
-    // - Stale response protection
-    //
-    // Authentication cleanup is handled internally
-    // by DailyGiftReducer through extraReducers.
-    //
-    // =====================================================
-
+    // Existing Daily Gift
     dailyGift: DailyGiftReducer,
 
+    // New Events architecture
+    events: eventsReducer,
+
+    // Daily Gift — new architecture
+    eventsDailyGift: eventsDailyGiftReducer,
+
+    // Seasonal Gift
+    eventsSeasonalGift: eventsSeasonalGiftReducer,
 });
 
-
 // =========================================================
-// AUTH SESSION HELPERS
+// AUTH HELPERS
 // =========================================================
 
 const getUserId = (user) => {
-
     if (
-        user === null
-        ||
-        typeof user !== "object"
-        ||
+        !user ||
+        typeof user !== "object" ||
         Array.isArray(user)
     ) {
-
         return null;
     }
 
+    const id = user.id ?? user.pk ?? null;
 
-    const id =
-        user.id ?? user.pk ?? null;
-
-
-    return id === undefined || id === ""
-
+    return id === null || id === ""
         ? null
-
-        : id;
+        : String(id);
 };
 
+const getActionUser = (payload) => {
+    return (
+        payload?.user ??
+        payload?.data?.user ??
+        payload?.data ??
+        payload
+    );
+};
+
+const AUTH_FAILURE_TYPES = new Set([
+    logoutUser.type,
+    signUserFailure.type,
+    signUserFailer.type,
+    checkAuthFailure.type,
+]);
+
+const AUTH_SUCCESS_TYPES = new Set([
+    signUserSuccess.type,
+    checkAuthSuccess.type,
+]);
+
+const isAuthFailure = (action) =>
+    AUTH_FAILURE_TYPES.has(action.type);
+
+const isAuthSuccess = (action) =>
+    AUTH_SUCCESS_TYPES.has(action.type);
 
 // =========================================================
-// FRAME STATE INVALIDATION
+// PRIVATE STATE INVALIDATION
 // =========================================================
 //
-// Prevent private frame data from being retained when:
+// Preserve existing Frame Shop behavior.
 //
-// 1. User logs out
-// 2. Authentication check fails
-// 3. Login fails and clears authentication
-// 4. A different account logs in
+// In addition, protect new private gift caches
+// when authentication changes.
 //
-// Do not reset the other existing Redux slices.
-//
-// Daily Gift authentication cleanup is managed
-// separately inside dailyGiftSlice.js.
-//
+// Public event information does not contain
+// user reward ownership and is retained.
 // =========================================================
 
-const shouldResetFrameState = (
+const shouldResetPrivateState = (
     state,
     action
 ) => {
-
-    if (!state?.profileFrames) {
-
+    if (!state) {
         return false;
     }
 
-
-    // =====================================================
-    // LOGOUT / AUTH FAILURE
-    // =====================================================
-
-    if (
-        logoutUser.match(action)
-        ||
-        checkAuthFailure.match(action)
-        ||
-        signUserFailure.match(action)
-        ||
-        signUserFailer.match(action)
-    ) {
-
+    if (isAuthFailure(action)) {
         return true;
     }
 
-
-    // =====================================================
-    // ACCOUNT LOGIN / RESTORE
-    // =====================================================
-
-    if (
-        signUserSuccess.match(action)
-        ||
-        checkAuthSuccess.match(action)
-    ) {
-
-        const previousUserId = getUserId(
-            state.auth?.user
-        );
-
-
-        const nextUser = (
-            action.payload?.user
-            ??
-            action.payload
-        );
-
-
-        const nextUserId = getUserId(
-            nextUser
-        );
-
-
-        // A new session should never inherit
-        // an anonymous or unknown account's cache.
-
-        if (
-            previousUserId === null
-            ||
-            nextUserId === null
-        ) {
-
-            return true;
-        }
-
-
-        // Clear cached private frame data
-        // when switching between accounts.
-
-        return String(previousUserId) !==
-            String(nextUserId);
+    if (!isAuthSuccess(action)) {
+        return false;
     }
 
+    const previousUserId = getUserId(
+        state.auth?.user
+    );
 
-    return false;
+    const nextUserId = getUserId(
+        getActionUser(action.payload)
+    );
+
+    if (
+        previousUserId === null ||
+        nextUserId === null
+    ) {
+        return true;
+    }
+
+    return previousUserId !== nextUserId;
 };
-
 
 // =========================================================
 // ROOT REDUCER
-// =========================================================
-//
-// Reset only profileFrames when authentication changes.
-//
-// No extra dispatch() is required.
-//
-// Redux processes the reset synchronously with
-// the original authentication action.
-//
-// Existing reducers keep their original behavior.
-//
-// DailyGiftReducer receives the same authentication
-// action and handles its own session cleanup.
-//
-// This avoids duplicate state reset logic and
-// preserves the Daily Gift ownerId initialization.
-//
 // =========================================================
 
 const rootReducer = (
     state,
     action
 ) => {
-
-    if (
-        state
-        &&
-        shouldResetFrameState(
-            state,
-            action
-        )
-    ) {
-
-        return appReducer(
-            {
-                ...state,
-
-                // Passing undefined causes the
-                // profileFrames slice to initialize
-                // itself with a clean initial state.
-
-                profileFrames: undefined,
-            },
-
-            action
-        );
+    if (!state) {
+        return appReducer(state, action);
     }
 
+    const resetPrivate =
+        shouldResetPrivateState(state, action);
 
+    if (!resetPrivate) {
+        return appReducer(state, action);
+    }
+
+    // Only the private caches are invalidated.
+    // Existing Redux reducers receive the action
+    // and keep their original behavior.
     return appReducer(
-        state,
+        {
+            ...state,
+
+            profileFrames: undefined,
+
+            eventsDailyGift: undefined,
+
+            eventsSeasonalGift: undefined,
+        },
         action
     );
 };
 
+// =========================================================
+// SEASONAL GIFT RECONCILIATION
+// =========================================================
+//
+// A claim POST may succeed in Django while the
+// browser receives a network error or timeout.
+//
+// We must never automatically repeat that POST.
+//
+// Listener middleware runs AFTER reducers have
+// processed the fulfilled/rejected action.
+//
+// This prevents the earlier timing issue where
+// a status GET could finish before the Redux
+// claim state was updated.
+//
+// =========================================================
+
+const seasonalGiftListener =
+    createListenerMiddleware();
 
 // =========================================================
-// FSOCIETY — REDUX STORE
+// SUCCESSFUL CLAIM
+// =========================================================
+//
+// Refresh authoritative status using GET only.
+// =========================================================
+
+seasonalGiftListener.startListening({
+    matcher: claimSeasonalGiftForEvent.fulfilled.match,
+
+    effect: (action, listenerApi) => {
+        const {
+            slug,
+            ownerId,
+        } = action.payload ?? {};
+
+        if (!slug || !ownerId) {
+            return;
+        }
+
+        const state = listenerApi.getState();
+
+        if (
+            !state.auth?.isLoggedIn ||
+            state.eventsSeasonalGift?.ownerId !==
+                ownerId
+        ) {
+            return;
+        }
+
+        listenerApi.dispatch(
+            fetchSeasonalGiftStatusForEvent(slug)
+        );
+    },
+});
+
+// =========================================================
+// UNCERTAIN CLAIM
+// =========================================================
+//
+// GET status after an uncertain POST result.
+//
+// Never issue another claim POST automatically.
+// =========================================================
+
+seasonalGiftListener.startListening({
+    matcher: claimSeasonalGiftForEvent.rejected.match,
+
+    effect: (action, listenerApi) => {
+        const slug =
+            typeof action.meta?.arg === "string"
+                ? action.meta.arg.trim()
+                : action.meta?.arg?.slug?.trim?.();
+
+        if (!slug) {
+            return;
+        }
+
+        const state = listenerApi.getState();
+
+        const isUncertain =
+            state.eventsSeasonalGift
+                ?.needsReconciliationByEvent?.[slug] ===
+            true;
+
+        if (
+            !isUncertain ||
+            !state.auth?.isLoggedIn ||
+            !state.eventsSeasonalGift?.ownerId
+        ) {
+            return;
+        }
+
+        listenerApi.dispatch(
+            fetchSeasonalGiftStatusForEvent(slug)
+        );
+    },
+});
+
+// =========================================================
+// STORE
 // =========================================================
 
 export const store = configureStore({
-
-    // =====================================================
-    // ROOT REDUCER
-    // =====================================================
-
     reducer: rootReducer,
 
-
-    // =====================================================
-    // MIDDLEWARE
-    // =====================================================
-    //
-    // Keep the default Redux Toolkit middleware:
-    //
-    // - Redux Thunk
-    // - Serializable state validation
-    // - Immutable state validation
-    //
-    // Existing WebSocket notification middleware
-    // remains unchanged.
-    //
-    // Daily Gift async operations use the default
-    // Redux Toolkit thunk middleware.
-    //
-    // =====================================================
-
-    middleware: (
-        getDefaultMiddleware
-    ) =>
-        getDefaultMiddleware()
-            .concat(
-                notificationMiddleware
-            ),
-
-
-    // =====================================================
-    // REDUX DEVTOOLS
-    // =====================================================
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware().concat(
+            notificationMiddleware,
+            seasonalGiftListener.middleware
+        ),
 
     devTools:
         process.env.NODE_ENV !== "production",
-
 });
 
-
 // =========================================================
-// OPTIONAL ROOT REDUCER EXPORT
-// =========================================================
-//
-// Useful for isolated Redux tests.
-//
-// Does not change existing store imports.
-//
-// Can also be used to test:
-//
-// - Daily Gift initial state
-// - Authentication cleanup
-// - Account switching
-// - Profile Frames state invalidation
-// - Stale async response protection
-//
+// EXPORTS
 // =========================================================
 
 export {
     rootReducer,
 };
-
 
 export default store;
