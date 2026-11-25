@@ -21,12 +21,13 @@ import AuthReducer, {
 } from "../features/auth/Auth";
 
 // =========================================================
-// EXISTING REDUCERS
+// EXISTING APPLICATION REDUCERS
 // =========================================================
 
 import CommentReducer from "../features/comments/Comment";
 import ProblemReducer from "../features/problems/Problems";
 import problemResponseReducer from "../features/problemResponse/problemResponse";
+
 import UserReducer from "../features/users";
 import FeedbackReducer from "../features/feedback";
 import notificationReducer from "../features/notificationSlice";
@@ -43,24 +44,14 @@ import updatesReducer from "../features/updates/Updates";
 import profileFramesReducer from "../features/profileFrames";
 
 // =========================================================
-// LEGACY DAILY GIFT
-// =========================================================
-//
-// Keep state.dailyGift unchanged until the
-// controlled Daily Gift migration is complete.
-// =========================================================
-
-import DailyGiftReducer from "../features/dailyGift/dailyGiftSlice";
-
-// =========================================================
-// NEW UNIVERSAL EVENTS
+// UNIVERSAL EVENTS
 // =========================================================
 
 import eventsReducer from "../features/events/eventsSlice";
 
-import eventsDailyGiftReducer from "../features/events/dailyGiftSlice";
+import dailyGiftReducer from "../features/events/dailyGiftSlice";
 
-import eventsSeasonalGiftReducer, {
+import seasonalGiftReducer, {
     claimSeasonalGiftForEvent,
     fetchSeasonalGiftStatusForEvent,
 } from "../features/events/seasonalGiftSlice";
@@ -72,23 +63,105 @@ import eventsSeasonalGiftReducer, {
 import notificationMiddleware from "../middleware/notificationMiddleware";
 
 // =========================================================
+// AUTH HELPERS
+// =========================================================
+
+const getUserId = (user) => {
+    if (
+        !user ||
+        typeof user !== "object" ||
+        Array.isArray(user)
+    ) {
+        return null;
+    }
+
+    const id = user.id ?? user.pk;
+
+    return id === null ||
+        id === undefined ||
+        id === ""
+        ? null
+        : String(id);
+};
+
+const getUserFromPayload = (payload) =>
+    payload?.user ??
+    payload?.data?.user ??
+    payload?.data ??
+    payload;
+
+const AUTH_FAILURE_TYPES = new Set([
+    logoutUser.type,
+    signUserFailure.type,
+    signUserFailer.type,
+    checkAuthFailure.type,
+]);
+
+const AUTH_SUCCESS_TYPES = new Set([
+    signUserSuccess.type,
+    checkAuthSuccess.type,
+]);
+
+const shouldResetPrivateState = (
+    state,
+    action
+) => {
+    if (!state) {
+        return false;
+    }
+
+    if (
+        AUTH_FAILURE_TYPES.has(
+            action.type
+        )
+    ) {
+        return true;
+    }
+
+    if (
+        !AUTH_SUCCESS_TYPES.has(
+            action.type
+        )
+    ) {
+        return false;
+    }
+
+    const previousId = getUserId(
+        state.auth?.user
+    );
+
+    const nextId = getUserId(
+        getUserFromPayload(
+            action.payload
+        )
+    );
+
+    return (
+        previousId === null ||
+        nextId === null ||
+        previousId !== nextId
+    );
+};
+
+// =========================================================
 // APPLICATION REDUCERS
 // =========================================================
 //
-// Existing Redux keys must remain unchanged.
+// Existing Redux keys are preserved.
 //
-// Legacy:
-//   state.dailyGift
+// New Events keys:
 //
-// New:
-//   state.events
-//   state.eventsDailyGift
-//   state.eventsSeasonalGift
+// state.events
+// state.eventsDailyGift
+// state.eventsSeasonalGift
+//
+// The removed state.dailyGift is no longer
+// registered.
 //
 // =========================================================
 
 const appReducer = combineReducers({
-    // Authentication
+    // Auth
     auth: AuthReducer,
 
     // Community
@@ -96,7 +169,7 @@ const appReducer = combineReducers({
     problem: ProblemReducer,
     problemResponse: problemResponseReducer,
 
-    // Users
+    // User / Profile
     user: UserReducer,
     profile: ProfileReducer,
 
@@ -112,150 +185,71 @@ const appReducer = combineReducers({
     // Projects / Posts
     project: ProjectReducer,
     post: PostReducer,
+
+    // Roadmap
     roadmap: RoadmapReducer,
 
-    // Badges / Bot
+    // Achievements
     badge: BadgeReducer,
+
+    // Telegram
     bot: BotReducer,
 
-    // Site updates
+    // Updates
     updates: updatesReducer,
 
     // Promotions
     promotion: promotionReducer,
 
-    // Frame Shop
+    // Profile frames
     profileFrames: profileFramesReducer,
 
-    // Existing Daily Gift
-    dailyGift: DailyGiftReducer,
-
-    // New Events architecture
+    // Universal Events
     events: eventsReducer,
 
-    // Daily Gift — new architecture
-    eventsDailyGift: eventsDailyGiftReducer,
+    // Daily Gift
+    eventsDailyGift: dailyGiftReducer,
 
     // Seasonal Gift
-    eventsSeasonalGift: eventsSeasonalGiftReducer,
+    eventsSeasonalGift: seasonalGiftReducer,
 });
-
-// =========================================================
-// AUTH HELPERS
-// =========================================================
-
-const getUserId = (user) => {
-    if (
-        !user ||
-        typeof user !== "object" ||
-        Array.isArray(user)
-    ) {
-        return null;
-    }
-
-    const id = user.id ?? user.pk ?? null;
-
-    return id === null || id === ""
-        ? null
-        : String(id);
-};
-
-const getActionUser = (payload) => {
-    return (
-        payload?.user ??
-        payload?.data?.user ??
-        payload?.data ??
-        payload
-    );
-};
-
-const AUTH_FAILURE_TYPES = new Set([
-    logoutUser.type,
-    signUserFailure.type,
-    signUserFailer.type,
-    checkAuthFailure.type,
-]);
-
-const AUTH_SUCCESS_TYPES = new Set([
-    signUserSuccess.type,
-    checkAuthSuccess.type,
-]);
-
-const isAuthFailure = (action) =>
-    AUTH_FAILURE_TYPES.has(action.type);
-
-const isAuthSuccess = (action) =>
-    AUTH_SUCCESS_TYPES.has(action.type);
-
-// =========================================================
-// PRIVATE STATE INVALIDATION
-// =========================================================
-//
-// Preserve existing Frame Shop behavior.
-//
-// In addition, protect new private gift caches
-// when authentication changes.
-//
-// Public event information does not contain
-// user reward ownership and is retained.
-// =========================================================
-
-const shouldResetPrivateState = (
-    state,
-    action
-) => {
-    if (!state) {
-        return false;
-    }
-
-    if (isAuthFailure(action)) {
-        return true;
-    }
-
-    if (!isAuthSuccess(action)) {
-        return false;
-    }
-
-    const previousUserId = getUserId(
-        state.auth?.user
-    );
-
-    const nextUserId = getUserId(
-        getActionUser(action.payload)
-    );
-
-    if (
-        previousUserId === null ||
-        nextUserId === null
-    ) {
-        return true;
-    }
-
-    return previousUserId !== nextUserId;
-};
 
 // =========================================================
 // ROOT REDUCER
 // =========================================================
+//
+// Private state must not survive account changes.
+//
+// We preserve public events while clearing:
+// - Profile frames inventory
+// - Daily Gift private state
+// - Seasonal Gift private state
+//
+// =========================================================
 
-const rootReducer = (
+export const rootReducer = (
     state,
     action
 ) => {
     if (!state) {
-        return appReducer(state, action);
+        return appReducer(
+            state,
+            action
+        );
     }
 
-    const resetPrivate =
-        shouldResetPrivateState(state, action);
-
-    if (!resetPrivate) {
-        return appReducer(state, action);
+    if (
+        !shouldResetPrivateState(
+            state,
+            action
+        )
+    ) {
+        return appReducer(
+            state,
+            action
+        );
     }
 
-    // Only the private caches are invalidated.
-    // Existing Redux reducers receive the action
-    // and keep their original behavior.
     return appReducer(
         {
             ...state,
@@ -271,35 +265,30 @@ const rootReducer = (
 };
 
 // =========================================================
-// SEASONAL GIFT RECONCILIATION
+// SEASONAL GIFT LISTENER
 // =========================================================
 //
-// A claim POST may succeed in Django while the
-// browser receives a network error or timeout.
+// Important:
 //
-// We must never automatically repeat that POST.
+// Claim POST can succeed on the server even
+// when the browser receives a network error.
 //
-// Listener middleware runs AFTER reducers have
-// processed the fulfilled/rejected action.
+// We NEVER retry that POST automatically.
 //
-// This prevents the earlier timing issue where
-// a status GET could finish before the Redux
-// claim state was updated.
+// We only fetch the status with GET.
 //
 // =========================================================
 
-const seasonalGiftListener =
+const eventsListenerMiddleware =
     createListenerMiddleware();
 
 // =========================================================
 // SUCCESSFUL CLAIM
 // =========================================================
-//
-// Refresh authoritative status using GET only.
-// =========================================================
 
-seasonalGiftListener.startListening({
-    matcher: claimSeasonalGiftForEvent.fulfilled.match,
+eventsListenerMiddleware.startListening({
+    matcher:
+        claimSeasonalGiftForEvent.fulfilled.match,
 
     effect: (action, listenerApi) => {
         const {
@@ -311,7 +300,8 @@ seasonalGiftListener.startListening({
             return;
         }
 
-        const state = listenerApi.getState();
+        const state =
+            listenerApi.getState();
 
         if (
             !state.auth?.isLoggedIn ||
@@ -322,50 +312,57 @@ seasonalGiftListener.startListening({
         }
 
         listenerApi.dispatch(
-            fetchSeasonalGiftStatusForEvent(slug)
+            fetchSeasonalGiftStatusForEvent(
+                slug
+            )
         );
     },
 });
 
 // =========================================================
-// UNCERTAIN CLAIM
-// =========================================================
-//
-// GET status after an uncertain POST result.
-//
-// Never issue another claim POST automatically.
+// UNCERTAIN CLAIM RESULT
 // =========================================================
 
-seasonalGiftListener.startListening({
-    matcher: claimSeasonalGiftForEvent.rejected.match,
+eventsListenerMiddleware.startListening({
+    matcher:
+        claimSeasonalGiftForEvent.rejected.match,
 
     effect: (action, listenerApi) => {
+        const arg = action.meta?.arg;
+
         const slug =
-            typeof action.meta?.arg === "string"
-                ? action.meta.arg.trim()
-                : action.meta?.arg?.slug?.trim?.();
+            typeof arg === "string"
+                ? arg.trim()
+                : typeof arg?.slug === "string"
+                  ? arg.slug.trim()
+                  : "";
 
         if (!slug) {
             return;
         }
 
-        const state = listenerApi.getState();
+        const state =
+            listenerApi.getState();
 
-        const isUncertain =
+        const needsReconciliation =
             state.eventsSeasonalGift
-                ?.needsReconciliationByEvent?.[slug] ===
-            true;
+                ?.needsReconciliationByEvent
+                ?.[slug] === true;
 
         if (
-            !isUncertain ||
+            !needsReconciliation ||
             !state.auth?.isLoggedIn ||
             !state.eventsSeasonalGift?.ownerId
         ) {
             return;
         }
 
+        // GET only.
+        // No second claim POST.
         listenerApi.dispatch(
-            fetchSeasonalGiftStatusForEvent(slug)
+            fetchSeasonalGiftStatusForEvent(
+                slug
+            )
         );
     },
 });
@@ -377,22 +374,21 @@ seasonalGiftListener.startListening({
 export const store = configureStore({
     reducer: rootReducer,
 
-    middleware: (getDefaultMiddleware) =>
+    middleware: (
+        getDefaultMiddleware
+    ) =>
         getDefaultMiddleware().concat(
             notificationMiddleware,
-            seasonalGiftListener.middleware
+            eventsListenerMiddleware.middleware
         ),
 
     devTools:
-        process.env.NODE_ENV !== "production",
+        process.env.NODE_ENV !==
+        "production",
 });
 
 // =========================================================
-// EXPORTS
+// EXPORT
 // =========================================================
-
-export {
-    rootReducer,
-};
 
 export default store;
