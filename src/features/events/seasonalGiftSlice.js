@@ -1,15 +1,16 @@
 
- // src/features/events/seasonalGiftSlice.js
+// src/features/events/seasonalGiftSlice.js
 
 import {
     createAsyncThunk,
     createSlice,
+    isAnyOf,
 } from "@reduxjs/toolkit";
 
 import {
     getSeasonalGiftStatus,
-    claimSeasonalGift as requestSeasonalGiftClaim,
     getSeasonalGiftHistory,
+    claimSeasonalGift as requestSeasonalGiftClaim,
     normalizeSeasonalGiftError,
 } from "../../services/events/seasonalGiftApi";
 
@@ -30,27 +31,31 @@ import {
 // FSOCIETY — SEASONAL GIFT REDUX
 // =========================================================
 //
-// One gift per user and event.
+// Location:
+// src/features/events/seasonalGiftSlice.js
 //
-// Architecture:
+// Business rule:
+// ONE GIFT PER USER PER EVENT.
+//
+// Features:
 // - Server-authoritative eligibility
-// - Per-event state
-// - Per-user isolation
-// - Duplicate claim prevention
+// - Per-event claim state
+// - User ownership isolation
+// - Duplicate POST protection
 // - Stale response protection
-// - Uncertain claim reconciliation
-// - No automatic POST retry
+// - Unknown claim reconciliation
+// - History invalidation
+// - Logout cleanup
 //
-// IMPORTANT:
+// The backend grants all rewards.
 //
-// The Redux listener in src/store/index.js
-// refreshes the status AFTER a claim action
-// has finished updating Redux state.
+// No automatic retry of claim POST requests.
 //
 // =========================================================
 
+
 // =========================================================
-// REQUEST STATUS
+// CONSTANTS
 // =========================================================
 
 export const SEASONAL_GIFT_REQUEST_STATUS =
@@ -68,13 +73,23 @@ const {
     FAILED,
 } = SEASONAL_GIFT_REQUEST_STATUS;
 
+const SLUG_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+const UNCERTAIN_HTTP_STATUSES = new Set([
+    408,
+    409,
+    500,
+    502,
+    503,
+    504,
+]);
+
+
 // =========================================================
 // INITIAL STATE
 // =========================================================
 
-const createInitialState = (
-    ownerId = null
-) => ({
+const createInitialState = (ownerId = null) => ({
     ownerId,
 
     statusByEvent: {},
@@ -100,6 +115,7 @@ const createInitialState = (
 
 const EMPTY_STATE = createInitialState();
 
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -116,7 +132,8 @@ const getSlug = (arg) => {
 };
 
 const isValidSlug = (slug) =>
-    /^[a-zA-Z0-9_-]+$/.test(slug);
+    typeof slug === "string" &&
+    SLUG_PATTERN.test(slug);
 
 const getOwnerId = (payload) => {
     const user =
@@ -125,29 +142,32 @@ const getOwnerId = (payload) => {
         payload?.data ??
         payload;
 
-    const id =
-        user?.id ??
-        user?.pk;
+    const id = user?.id ?? user?.pk;
 
-    if (
-        id === null ||
+    return id === null ||
         id === undefined ||
         id === ""
-    ) {
-        return null;
-    }
-
-    return String(id);
+        ? null
+        : String(id);
 };
 
 const getSlice = (state) =>
-    state?.eventsSeasonalGift ??
-    EMPTY_STATE;
+    state?.eventsSeasonalGift ?? EMPTY_STATE;
 
-const canAccessPrivateGift = (state) =>
-    Boolean(
+const isSessionReady = (state) => {
+    const ownerId = getSlice(state).ownerId;
+
+    return Boolean(
         state?.auth?.isLoggedIn &&
-        getSlice(state).ownerId
+        ownerId &&
+        getOwnerId(state.auth?.user) === ownerId
+    );
+};
+
+const isCurrentOwner = (state, ownerId) =>
+    Boolean(
+        state.ownerId &&
+        state.ownerId === ownerId
     );
 
 const isCanceled = (action) =>
@@ -161,80 +181,58 @@ const getActionError = (action) =>
     action.payload ?? {
         status: null,
         code: "REQUEST_FAILED",
-        message:
-            "So‘rovni bajarishda xatolik yuz berdi.",
+        message: "So‘rovni bajarib bo‘lmadi.",
         canceled: false,
     };
 
-const isCurrentOwner = (
-    state,
-    ownerId
-) =>
-    Boolean(
-        state.ownerId &&
-        state.ownerId === ownerId
-    );
 
 // =========================================================
 // BACKEND STATUS HELPERS
 // =========================================================
 //
-// Support direct and envelope-based responses.
+// Backend response may be direct or nested.
 //
-// Do not infer eligibility from local time.
-// Only explicit backend flags are accepted.
+// Only explicit backend flags are considered.
+//
 // =========================================================
 
 const getStatusCandidates = (payload) => [
     payload,
     payload?.data,
     payload?.gift,
-    payload?.data?.gift,
     payload?.eligibility,
+    payload?.data?.gift,
     payload?.data?.eligibility,
 ];
 
 const hasAlreadyClaimed = (payload) =>
     getStatusCandidates(payload).some(
-        (candidate) =>
-            candidate?.already_claimed === true
+        (item) =>
+            item?.already_claimed === true
     );
 
 const backendAllowsClaim = (payload) =>
     getStatusCandidates(payload).some(
-        (candidate) =>
-            candidate?.can_claim === true
+        (item) =>
+            item?.can_claim === true
     );
 
-const hasAuthoritativeClaimDecision = (
-    payload
-) =>
+const hasAuthoritativeDecision = (payload) =>
     getStatusCandidates(payload).some(
-        (candidate) =>
-            typeof candidate?.already_claimed ===
+        (item) =>
+            typeof item?.already_claimed ===
                 "boolean" ||
-            typeof candidate?.can_claim ===
+            typeof item?.can_claim ===
                 "boolean"
     );
 
-// =========================================================
-// AUTH ACTION TYPES
-// =========================================================
+const isUncertainClaimError = (error) =>
+    error.status == null ||
+    UNCERTAIN_HTTP_STATUSES.has(error.status);
 
-const AUTH_SUCCESS_TYPES = new Set([
-    signUserSuccess.type,
-    checkAuthSuccess.type,
-]);
-
-const AUTH_FAILURE_TYPES = new Set([
-    logoutUser.type,
-    signUserFailure.type,
-    signUserFailer.type,
-    checkAuthFailure.type,
-]);
 
 // =========================================================
-// FETCH STATUS
+// FETCH SEASONAL GIFT STATUS
 // =========================================================
 
 export const fetchSeasonalGiftStatusForEvent =
@@ -271,7 +269,9 @@ export const fetchSeasonalGiftStatusForEvent =
                 };
             } catch (error) {
                 return rejectWithValue(
-                    normalizeSeasonalGiftError(error)
+                    normalizeSeasonalGiftError(
+                        error
+                    )
                 );
             }
         },
@@ -283,22 +283,28 @@ export const fetchSeasonalGiftStatusForEvent =
 
                 if (
                     !isValidSlug(slug) ||
-                    !canAccessPrivateGift(state)
+                    !isSessionReady(state)
                 ) {
                     return false;
                 }
 
+                const slice = getSlice(state);
+
+                // Do not fetch eligibility while
+                // a claim POST is in flight.
                 return (
-                    getSlice(state)
-                        .statusRequestByEvent[slug] !==
-                    LOADING
+                    slice.statusRequestByEvent[slug] !==
+                        LOADING &&
+                    slice.claimRequestByEvent[slug] !==
+                        LOADING
                 );
             },
         }
     );
 
+
 // =========================================================
-// FETCH HISTORY
+// FETCH SEASONAL GIFT HISTORY
 // =========================================================
 
 export const fetchSeasonalGiftHistoryForEvent =
@@ -337,7 +343,9 @@ export const fetchSeasonalGiftHistoryForEvent =
                 };
             } catch (error) {
                 return rejectWithValue(
-                    normalizeSeasonalGiftError(error)
+                    normalizeSeasonalGiftError(
+                        error
+                    )
                 );
             }
         },
@@ -349,7 +357,7 @@ export const fetchSeasonalGiftHistoryForEvent =
 
                 if (
                     !isValidSlug(slug) ||
-                    !canAccessPrivateGift(state)
+                    !isSessionReady(state)
                 ) {
                     return false;
                 }
@@ -363,18 +371,19 @@ export const fetchSeasonalGiftHistoryForEvent =
         }
     );
 
+
 // =========================================================
 // CLAIM SEASONAL GIFT
 // =========================================================
 //
-// The backend is the only authority.
+// The backend selects the reward.
 //
-// A verified can_claim=true is required.
+// Only one POST is sent by this thunk.
 //
-// This thunk performs exactly one claim POST.
+// The store listener performs a separate
+// GET after the thunk resolves or rejects
+// with an uncertain result.
 //
-// Status refresh is managed by the Redux listener
-// after the claim action is fully reduced.
 // =========================================================
 
 export const claimSeasonalGiftForEvent =
@@ -408,28 +417,17 @@ export const claimSeasonalGiftForEvent =
                     claimedAt: Date.now(),
                 };
             } catch (error) {
-                const normalizedError =
-                    normalizeSeasonalGiftError(error);
-
-                const status =
-                    normalizedError.status;
-
-                // The server might have committed
-                // the transaction before the error
-                // reached the browser.
-                const uncertain =
-                    status === null ||
-                    [
-                        409,
-                        500,
-                        502,
-                        503,
-                        504,
-                    ].includes(status);
+                const normalized =
+                    normalizeSeasonalGiftError(
+                        error
+                    );
 
                 return rejectWithValue({
-                    ...normalizedError,
-                    needsReconciliation: uncertain,
+                    ...normalized,
+                    needsReconciliation:
+                        isUncertainClaimError(
+                            normalized
+                        ),
                 });
             }
         },
@@ -441,15 +439,18 @@ export const claimSeasonalGiftForEvent =
 
                 if (
                     !isValidSlug(slug) ||
-                    !canAccessPrivateGift(state)
+                    !isSessionReady(state)
                 ) {
                     return false;
                 }
 
                 const slice = getSlice(state);
 
+                // No duplicate POST while loading.
                 if (
                     slice.claimRequestByEvent[slug] ===
+                        LOADING ||
+                    slice.statusRequestByEvent[slug] ===
                         LOADING ||
                     slice.needsReconciliationByEvent[
                         slug
@@ -458,6 +459,7 @@ export const claimSeasonalGiftForEvent =
                     return false;
                 }
 
+                // Seasonal gifts are one-time.
                 if (
                     slice.claimByEvent[slug] ||
                     hasAlreadyClaimed(
@@ -467,14 +469,15 @@ export const claimSeasonalGiftForEvent =
                     return false;
                 }
 
-                // Claim is only available after
-                // an authoritative status request.
+                // An explicit backend eligibility
+                // decision is required.
                 return backendAllowsClaim(
                     slice.statusByEvent[slug]
                 );
             },
         }
     );
+
 
 // =========================================================
 // REDUX SLICE
@@ -486,9 +489,9 @@ const seasonalGiftSlice = createSlice({
     initialState: createInitialState(),
 
     reducers: {
-        // ================================================
+        // ---------------------------------------------
         // CLEAR STATUS ERROR
-        // ================================================
+        // ---------------------------------------------
 
         clearSeasonalGiftStatusError(
             state,
@@ -496,9 +499,7 @@ const seasonalGiftSlice = createSlice({
         ) {
             const slug = getSlug(action.payload);
 
-            if (!slug) {
-                return;
-            }
+            if (!isValidSlug(slug)) return;
 
             delete state.statusErrorByEvent[slug];
 
@@ -511,9 +512,9 @@ const seasonalGiftSlice = createSlice({
             }
         },
 
-        // ================================================
+        // ---------------------------------------------
         // CLEAR CLAIM ERROR
-        // ================================================
+        // ---------------------------------------------
 
         clearSeasonalGiftClaimError(
             state,
@@ -521,9 +522,7 @@ const seasonalGiftSlice = createSlice({
         ) {
             const slug = getSlug(action.payload);
 
-            if (!slug) {
-                return;
-            }
+            if (!isValidSlug(slug)) return;
 
             delete state.claimErrorByEvent[slug];
 
@@ -535,13 +534,35 @@ const seasonalGiftSlice = createSlice({
                     IDLE;
             }
 
-            // An uncertain POST must remain
-            // blocked until a successful GET.
+            // Reconciliation remains unchanged.
         },
 
-        // ================================================
+        // ---------------------------------------------
+        // CLEAR HISTORY ERROR
+        // ---------------------------------------------
+
+        clearSeasonalGiftHistoryError(
+            state,
+            action
+        ) {
+            const slug = getSlug(action.payload);
+
+            if (!isValidSlug(slug)) return;
+
+            delete state.historyErrorByEvent[slug];
+
+            if (
+                state.historyRequestByEvent[slug] ===
+                FAILED
+            ) {
+                state.historyRequestByEvent[slug] =
+                    IDLE;
+            }
+        },
+
+        // ---------------------------------------------
         // INVALIDATE EVENT CACHE
-        // ================================================
+        // ---------------------------------------------
 
         invalidateSeasonalGiftEvent(
             state,
@@ -549,9 +570,7 @@ const seasonalGiftSlice = createSlice({
         ) {
             const slug = getSlug(action.payload);
 
-            if (!slug) {
-                return;
-            }
+            if (!isValidSlug(slug)) return;
 
             delete state.statusByEvent[slug];
             delete state.historyByEvent[slug];
@@ -570,13 +589,13 @@ const seasonalGiftSlice = createSlice({
             delete state.statusErrorByEvent[slug];
             delete state.historyErrorByEvent[slug];
 
-            // Claim and uncertain-result state
-            // are intentionally preserved.
+            // Preserve the existing one-time claim.
+            // Preserve unresolved POST protection.
         },
 
-        // ================================================
+        // ---------------------------------------------
         // RESET PRIVATE STATE
-        // ================================================
+        // ---------------------------------------------
 
         resetSeasonalGiftState() {
             return createInitialState();
@@ -584,349 +603,308 @@ const seasonalGiftSlice = createSlice({
     },
 
     extraReducers: (builder) => {
-        // ================================================
-        // STATUS — PENDING
-        // ================================================
+        // =============================================
+        // STATUS REQUEST
+        // =============================================
 
-        builder.addCase(
-            fetchSeasonalGiftStatusForEvent.pending,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
+        builder
+            .addCase(
+                fetchSeasonalGiftStatusForEvent.pending,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
 
-                if (!slug) {
-                    return;
+                    state.statusRequestByEvent[slug] =
+                        LOADING;
+
+                    state.statusErrorByEvent[slug] =
+                        null;
+
+                    state.pendingStatusIds[slug] =
+                        action.meta.requestId;
                 }
+            )
+            .addCase(
+                fetchSeasonalGiftStatusForEvent.fulfilled,
+                (state, action) => {
+                    const {
+                        slug,
+                        ownerId,
+                        status,
+                        fetchedAt,
+                    } = action.payload;
 
-                state.statusRequestByEvent[slug] =
-                    LOADING;
+                    if (
+                        !isCurrentOwner(state, ownerId) ||
+                        state.pendingStatusIds[slug] !==
+                            action.meta.requestId
+                    ) {
+                        return;
+                    }
 
-                state.statusErrorByEvent[slug] =
-                    null;
+                    state.statusByEvent[slug] =
+                        status;
 
-                state.pendingStatusIds[slug] =
-                    action.meta.requestId;
-            }
-        );
+                    state.statusFetchedAtByEvent[slug] =
+                        fetchedAt;
 
-        // ================================================
-        // STATUS — FULFILLED
-        // ================================================
+                    state.statusRequestByEvent[slug] =
+                        SUCCEEDED;
 
-        builder.addCase(
-            fetchSeasonalGiftStatusForEvent.fulfilled,
-            (state, action) => {
-                const {
-                    slug,
-                    ownerId,
-                    status,
-                    fetchedAt,
-                } = action.payload;
+                    state.statusErrorByEvent[slug] =
+                        null;
 
-                if (
-                    !isCurrentOwner(
-                        state,
-                        ownerId
-                    ) ||
-                    state.pendingStatusIds[slug] !==
+                    // Only a confirmed server
+                    // decision resolves an uncertain
+                    // previous POST.
+                    if (
+                        hasAuthoritativeDecision(status)
+                    ) {
+                        state.needsReconciliationByEvent[
+                            slug
+                        ] = false;
+                    }
+
+                    delete state.pendingStatusIds[slug];
+                }
+            )
+            .addCase(
+                fetchSeasonalGiftStatusForEvent.rejected,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    if (
+                        state.pendingStatusIds[slug] !==
                         action.meta.requestId
-                ) {
-                    return;
+                    ) {
+                        return;
+                    }
+
+                    delete state.pendingStatusIds[slug];
+
+                    state.statusRequestByEvent[slug] =
+                        isCanceled(action)
+                            ? IDLE
+                            : FAILED;
+
+                    state.statusErrorByEvent[slug] =
+                        isCanceled(action)
+                            ? null
+                            : getActionError(action);
                 }
+            );
 
-                state.statusByEvent[slug] =
-                    status;
+        // =============================================
+        // HISTORY REQUEST
+        // =============================================
 
-                state.statusFetchedAtByEvent[slug] =
-                    fetchedAt;
+        builder
+            .addCase(
+                fetchSeasonalGiftHistoryForEvent.pending,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
 
-                state.statusRequestByEvent[slug] =
-                    SUCCEEDED;
+                    state.historyRequestByEvent[slug] =
+                        LOADING;
 
-                state.statusErrorByEvent[slug] =
-                    null;
+                    state.historyErrorByEvent[slug] =
+                        null;
 
-                // Clear uncertain state only when
-                // the backend explicitly confirms
-                // a claim/eligibility decision.
-                if (
-                    hasAuthoritativeClaimDecision(
-                        status
-                    )
-                ) {
+                    state.pendingHistoryIds[slug] =
+                        action.meta.requestId;
+                }
+            )
+            .addCase(
+                fetchSeasonalGiftHistoryForEvent.fulfilled,
+                (state, action) => {
+                    const {
+                        slug,
+                        ownerId,
+                        history,
+                    } = action.payload;
+
+                    if (
+                        !isCurrentOwner(state, ownerId) ||
+                        state.pendingHistoryIds[slug] !==
+                            action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    state.historyByEvent[slug] =
+                        history;
+
+                    state.historyRequestByEvent[slug] =
+                        SUCCEEDED;
+
+                    state.historyErrorByEvent[slug] =
+                        null;
+
+                    delete state.pendingHistoryIds[slug];
+                }
+            )
+            .addCase(
+                fetchSeasonalGiftHistoryForEvent.rejected,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    if (
+                        state.pendingHistoryIds[slug] !==
+                        action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    delete state.pendingHistoryIds[slug];
+
+                    state.historyRequestByEvent[slug] =
+                        isCanceled(action)
+                            ? IDLE
+                            : FAILED;
+
+                    state.historyErrorByEvent[slug] =
+                        isCanceled(action)
+                            ? null
+                            : getActionError(action);
+                }
+            );
+
+        // =============================================
+        // CLAIM REQUEST
+        // =============================================
+
+        builder
+            .addCase(
+                claimSeasonalGiftForEvent.pending,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    state.claimRequestByEvent[slug] =
+                        LOADING;
+
+                    state.claimErrorByEvent[slug] =
+                        null;
+
+                    state.pendingClaimIds[slug] =
+                        action.meta.requestId;
+
+                    // Ignore old status GETs that
+                    // started before the claim.
+                    delete state.pendingStatusIds[slug];
+
+                    state.statusRequestByEvent[slug] =
+                        IDLE;
+                }
+            )
+            .addCase(
+                claimSeasonalGiftForEvent.fulfilled,
+                (state, action) => {
+                    const {
+                        slug,
+                        ownerId,
+                        claim,
+                    } = action.payload;
+
+                    if (
+                        !isCurrentOwner(state, ownerId) ||
+                        state.pendingClaimIds[slug] !==
+                            action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    state.claimByEvent[slug] =
+                        claim;
+
+                    state.claimRequestByEvent[slug] =
+                        SUCCEEDED;
+
+                    state.claimErrorByEvent[slug] =
+                        null;
+
                     state.needsReconciliationByEvent[
                         slug
                     ] = false;
+
+                    // A successful claim changes
+                    // both eligibility and history.
+                    delete state.statusByEvent[slug];
+                    delete state.historyByEvent[slug];
+
+                    delete state.statusFetchedAtByEvent[
+                        slug
+                    ];
+
+                    delete state.pendingHistoryIds[slug];
+
+                    state.statusRequestByEvent[slug] =
+                        IDLE;
+
+                    state.historyRequestByEvent[slug] =
+                        IDLE;
+
+                    delete state.pendingClaimIds[slug];
+
+                    // The store listener will now
+                    // fetch the new status with GET.
                 }
+            )
+            .addCase(
+                claimSeasonalGiftForEvent.rejected,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
 
-                delete state.pendingStatusIds[slug];
-            }
-        );
-
-        // ================================================
-        // STATUS — REJECTED
-        // ================================================
-
-        builder.addCase(
-            fetchSeasonalGiftStatusForEvent.rejected,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (
-                    !slug ||
-                    state.pendingStatusIds[slug] !==
+                    if (
+                        state.pendingClaimIds[slug] !==
                         action.meta.requestId
-                ) {
-                    return;
+                    ) {
+                        return;
+                    }
+
+                    delete state.pendingClaimIds[slug];
+
+                    const error =
+                        getActionError(action);
+
+                    state.claimRequestByEvent[slug] =
+                        FAILED;
+
+                    state.claimErrorByEvent[slug] =
+                        error;
+
+                    state.needsReconciliationByEvent[
+                        slug
+                    ] =
+                        error.needsReconciliation ===
+                            true ||
+                        isCanceled(action);
+
+                    // After this action is reduced,
+                    // the store listener can safely
+                    // reconcile with a GET request.
                 }
+            );
 
-                delete state.pendingStatusIds[slug];
-
-                state.statusRequestByEvent[slug] =
-                    isCanceled(action)
-                        ? IDLE
-                        : FAILED;
-
-                state.statusErrorByEvent[slug] =
-                    isCanceled(action)
-                        ? null
-                        : getActionError(action);
-
-                // Failed GET cannot prove whether
-                // a previous POST committed.
-            }
-        );
-
-        // ================================================
-        // HISTORY — PENDING
-        // ================================================
-
-        builder.addCase(
-            fetchSeasonalGiftHistoryForEvent.pending,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (!slug) {
-                    return;
-                }
-
-                state.historyRequestByEvent[slug] =
-                    LOADING;
-
-                state.historyErrorByEvent[slug] =
-                    null;
-
-                state.pendingHistoryIds[slug] =
-                    action.meta.requestId;
-            }
-        );
-
-        // ================================================
-        // HISTORY — FULFILLED
-        // ================================================
-
-        builder.addCase(
-            fetchSeasonalGiftHistoryForEvent.fulfilled,
-            (state, action) => {
-                const {
-                    slug,
-                    ownerId,
-                    history,
-                } = action.payload;
-
-                if (
-                    !isCurrentOwner(
-                        state,
-                        ownerId
-                    ) ||
-                    state.pendingHistoryIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                state.historyByEvent[slug] =
-                    history;
-
-                state.historyRequestByEvent[slug] =
-                    SUCCEEDED;
-
-                state.historyErrorByEvent[slug] =
-                    null;
-
-                delete state.pendingHistoryIds[slug];
-            }
-        );
-
-        // ================================================
-        // HISTORY — REJECTED
-        // ================================================
-
-        builder.addCase(
-            fetchSeasonalGiftHistoryForEvent.rejected,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (
-                    !slug ||
-                    state.pendingHistoryIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                delete state.pendingHistoryIds[slug];
-
-                state.historyRequestByEvent[slug] =
-                    isCanceled(action)
-                        ? IDLE
-                        : FAILED;
-
-                state.historyErrorByEvent[slug] =
-                    isCanceled(action)
-                        ? null
-                        : getActionError(action);
-            }
-        );
-
-        // ================================================
-        // CLAIM — PENDING
-        // ================================================
-
-        builder.addCase(
-            claimSeasonalGiftForEvent.pending,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (!slug) {
-                    return;
-                }
-
-                state.claimRequestByEvent[slug] =
-                    LOADING;
-
-                state.claimErrorByEvent[slug] =
-                    null;
-
-                state.pendingClaimIds[slug] =
-                    action.meta.requestId;
-
-                // Invalidate previously started
-                // GET status requests.
-                delete state.pendingStatusIds[slug];
-
-                state.statusRequestByEvent[slug] =
-                    IDLE;
-            }
-        );
-
-        // ================================================
-        // CLAIM — FULFILLED
-        // ================================================
-
-        builder.addCase(
-            claimSeasonalGiftForEvent.fulfilled,
-            (state, action) => {
-                const {
-                    slug,
-                    ownerId,
-                    claim,
-                } = action.payload;
-
-                if (
-                    !isCurrentOwner(
-                        state,
-                        ownerId
-                    ) ||
-                    state.pendingClaimIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                state.claimByEvent[slug] = claim;
-
-                state.claimRequestByEvent[slug] =
-                    SUCCEEDED;
-
-                state.claimErrorByEvent[slug] =
-                    null;
-
-                state.needsReconciliationByEvent[slug] =
-                    false;
-
-                // Claimed rewards change history.
-                delete state.historyByEvent[slug];
-
-                delete state.pendingHistoryIds[slug];
-
-                state.historyRequestByEvent[slug] =
-                    IDLE;
-
-                delete state.pendingClaimIds[slug];
-            }
-        );
-
-        // ================================================
-        // CLAIM — REJECTED
-        // ================================================
-
-        builder.addCase(
-            claimSeasonalGiftForEvent.rejected,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (
-                    !slug ||
-                    state.pendingClaimIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                delete state.pendingClaimIds[slug];
-
-                const error = getActionError(action);
-
-                const uncertain =
-                    error.needsReconciliation ===
-                        true ||
-                    isCanceled(action);
-
-                state.claimRequestByEvent[slug] =
-                    FAILED;
-
-                state.claimErrorByEvent[slug] =
-                    error;
-
-                state.needsReconciliationByEvent[slug] =
-                    uncertain;
-
-                // The listener middleware now
-                // performs a GET status request
-                // after this reducer has finished.
-            }
-        );
-
-        // ================================================
+        // =============================================
         // AUTH SUCCESS / ACCOUNT SWITCH
-        // ================================================
+        // =============================================
 
         builder.addMatcher(
-            (action) =>
-                AUTH_SUCCESS_TYPES.has(action.type),
-
+            isAnyOf(
+                signUserSuccess,
+                checkAuthSuccess
+            ),
             (state, action) => {
                 const nextOwnerId =
                     getOwnerId(action.payload);
@@ -941,18 +919,22 @@ const seasonalGiftSlice = createSlice({
             }
         );
 
-        // ================================================
+        // =============================================
         // LOGOUT / AUTH FAILURE
-        // ================================================
+        // =============================================
 
         builder.addMatcher(
-            (action) =>
-                AUTH_FAILURE_TYPES.has(action.type),
-
+            isAnyOf(
+                logoutUser,
+                checkAuthFailure,
+                signUserFailure,
+                signUserFailer
+            ),
             () => createInitialState()
         );
     },
 });
+
 
 // =========================================================
 // ACTIONS
@@ -961,18 +943,19 @@ const seasonalGiftSlice = createSlice({
 export const {
     clearSeasonalGiftStatusError,
     clearSeasonalGiftClaimError,
+    clearSeasonalGiftHistoryError,
     invalidateSeasonalGiftEvent,
     resetSeasonalGiftState,
 } = seasonalGiftSlice.actions;
+
 
 // =========================================================
 // SELECTORS — OWNER
 // =========================================================
 
-export const selectSeasonalGiftOwner = (
-    state
-) =>
+export const selectSeasonalGiftOwner = (state) =>
     getSlice(state).ownerId;
+
 
 // =========================================================
 // SELECTORS — STATUS
@@ -982,8 +965,7 @@ export const selectSeasonalGiftEventStatus = (
     state,
     slug
 ) =>
-    getSlice(state).statusByEvent[slug] ??
-    null;
+    getSlice(state).statusByEvent[slug] ?? null;
 
 export const selectSeasonalGiftStatusLoading = (
     state,
@@ -1004,8 +986,8 @@ export const selectSeasonalGiftStatusFetchedAt = (
     slug
 ) =>
     getSlice(state)
-        .statusFetchedAtByEvent[slug] ??
-    null;
+        .statusFetchedAtByEvent[slug] ?? null;
+
 
 // =========================================================
 // SELECTORS — CLAIM
@@ -1015,8 +997,7 @@ export const selectSeasonalGiftEventClaim = (
     state,
     slug
 ) =>
-    getSlice(state).claimByEvent[slug] ??
-    null;
+    getSlice(state).claimByEvent[slug] ?? null;
 
 export const selectSeasonalGiftClaimLoading = (
     state,
@@ -1039,6 +1020,7 @@ export const selectSeasonalGiftNeedsReconciliation = (
     getSlice(state)
         .needsReconciliationByEvent[slug] === true;
 
+
 // =========================================================
 // SELECTORS — HISTORY
 // =========================================================
@@ -1047,8 +1029,7 @@ export const selectSeasonalGiftEventHistory = (
     state,
     slug
 ) =>
-    getSlice(state).historyByEvent[slug] ??
-    null;
+    getSlice(state).historyByEvent[slug] ?? null;
 
 export const selectSeasonalGiftHistoryLoading = (
     state,
@@ -1064,6 +1045,7 @@ export const selectSeasonalGiftHistoryError = (
     getSlice(state)
         .historyErrorByEvent[slug] ?? null;
 
+
 // =========================================================
 // SELECTORS — DERIVED
 // =========================================================
@@ -1074,18 +1056,15 @@ export const selectSeasonalGiftAlreadyClaimed = (
 ) => {
     const slice = getSlice(state);
 
-    if (
+    return (
         hasAlreadyClaimed(
             slice.statusByEvent[slug]
+        ) ||
+        Boolean(
+            slice.claimByEvent[slug] &&
+            slice.claimRequestByEvent[slug] ===
+                SUCCEEDED
         )
-    ) {
-        return true;
-    }
-
-    return Boolean(
-        slice.claimByEvent[slug] &&
-        slice.claimRequestByEvent[slug] ===
-            SUCCEEDED
     );
 };
 
@@ -1093,14 +1072,17 @@ export const selectSeasonalGiftCanClaim = (
     state,
     slug
 ) => {
+    if (!isSessionReady(state)) {
+        return false;
+    }
+
     const slice = getSlice(state);
 
     if (
-        !state?.auth?.isLoggedIn ||
-        !slice.ownerId ||
-        slice.needsReconciliationByEvent[slug] ||
-        slice.claimRequestByEvent[slug] ===
-            LOADING ||
+        slice.claimRequestByEvent[slug] === LOADING ||
+        slice.statusRequestByEvent[slug] === LOADING ||
+        slice.needsReconciliationByEvent[slug] ===
+            true ||
         slice.claimByEvent[slug] ||
         hasAlreadyClaimed(
             slice.statusByEvent[slug]
@@ -1114,8 +1096,9 @@ export const selectSeasonalGiftCanClaim = (
     );
 };
 
+
 // =========================================================
-// DEFAULT REDUCER
+// DEFAULT EXPORT
 // =========================================================
 
 export default seasonalGiftSlice.reducer;

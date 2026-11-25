@@ -4,12 +4,13 @@
 import {
     createAsyncThunk,
     createSlice,
+    isAnyOf,
 } from "@reduxjs/toolkit";
 
 import {
     getDailyGiftStatus,
-    claimDailyGift as requestDailyGiftClaim,
     getDailyGiftHistory,
+    claimDailyGift as requestDailyGiftClaim,
     normalizeDailyGiftError,
 } from "../../services/events/dailyGiftApi";
 
@@ -20,33 +21,42 @@ import {
 import {
     logoutUser,
     signUserSuccess,
+    signUserFailure,
+    signUserFailer,
+    checkAuthSuccess,
+    checkAuthFailure,
 } from "../auth/Auth";
 
 // =========================================================
-// FSOCIETY — DAILY GIFT REDUX SLICE
+// FSOCIETY — DAILY GIFT REDUX
 // =========================================================
 //
-// New event-based Daily Gift state.
+// Location:
+// src/features/events/dailyGiftSlice.js
 //
-// Responsibilities:
-// - Authenticated owner isolation
-// - Per-event gift status
-// - Per-event claim operation
-// - Per-event history
-// - Duplicate request prevention
+// Daily Gift:
+// One claim per user / event / local day.
+//
+// Features:
+// - Per-event state
+// - User ownership isolation
+// - Auth synchronization
+// - Request deduplication
 // - Stale response protection
+// - Safe claim handling
+// - Unknown claim result protection
+// - History invalidation
 // - Logout cleanup
 //
-// This is NOT the Seasonal Gift slice.
-//
-// Existing legacy Daily Gift files remain untouched
-// until the controlled migration stage.
+// IMPORTANT:
+// The backend controls eligibility and rewards.
+// No FCoin balance is modified in this slice.
 //
 // =========================================================
 
 
 // =========================================================
-// REQUEST STATUS
+// CONSTANTS
 // =========================================================
 
 export const DAILY_GIFT_REQUEST_STATUS =
@@ -64,36 +74,51 @@ const {
     FAILED,
 } = DAILY_GIFT_REQUEST_STATUS;
 
+const SLUG_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+const UNCERTAIN_HTTP_STATUSES = new Set([
+    408,
+    409,
+    500,
+    502,
+    503,
+    504,
+]);
+
 
 // =========================================================
 // INITIAL STATE
 // =========================================================
 
-const createInitialState = (
-    ownerId = null
-) => ({
+const createInitialState = (ownerId = null) => ({
     ownerId,
 
     statusByEvent: {},
-    statusRequestByEvent: {},
-    statusErrorByEvent: {},
-
     claimByEvent: {},
-    claimRequestByEvent: {},
-    claimErrorByEvent: {},
-
     historyByEvent: {},
+
+    statusRequestByEvent: {},
+    claimRequestByEvent: {},
     historyRequestByEvent: {},
+
+    statusErrorByEvent: {},
+    claimErrorByEvent: {},
     historyErrorByEvent: {},
 
     pendingStatusIds: {},
     pendingClaimIds: {},
     pendingHistoryIds: {},
+
+    statusFetchedAtByEvent: {},
+
+    needsReconciliationByEvent: {},
 });
+
+const EMPTY_STATE = createInitialState();
 
 
 // =========================================================
-// HELPERS
+// COMMON HELPERS
 // =========================================================
 
 const getSlug = (arg) => {
@@ -107,6 +132,10 @@ const getSlug = (arg) => {
         : "";
 };
 
+const isValidSlug = (slug) =>
+    typeof slug === "string" &&
+    SLUG_PATTERN.test(slug);
+
 const getOwnerId = (payload) => {
     const user =
         payload?.user ??
@@ -116,54 +145,94 @@ const getOwnerId = (payload) => {
 
     const id = user?.id ?? user?.pk;
 
-    if (
-        id === null ||
+    return id === null ||
         id === undefined ||
         id === ""
-    ) {
-        return null;
-    }
-
-    return String(id);
+        ? null
+        : String(id);
 };
 
-const canLoadPrivateGift = (state) => {
+const selectSlice = (state) =>
+    state?.eventsDailyGift ?? EMPTY_STATE;
+
+const isSessionReady = (state) => {
+    const ownerId = selectSlice(state).ownerId;
+
     return Boolean(
         state?.auth?.isLoggedIn &&
-        state?.eventsDailyGift?.ownerId
+        ownerId &&
+        getOwnerId(state.auth?.user) === ownerId
     );
 };
 
-const isCanceled = (action) => {
-    return Boolean(
+const isCurrentOwner = (state, ownerId) =>
+    Boolean(
+        state.ownerId &&
+        state.ownerId === ownerId
+    );
+
+const isCanceled = (action) =>
+    Boolean(
         action.meta?.aborted ||
         action.payload?.canceled ||
         action.error?.name === "AbortError"
     );
-};
 
 const getActionError = (action) =>
     action.payload ?? {
         status: null,
         code: "REQUEST_FAILED",
-        message: "So‘rovni bajarib bo‘lmadi.",
+        message: "So‘rov bajarilmadi.",
         canceled: false,
     };
 
-const isCurrentOwner = (
-    state,
-    action
-) => {
-    return Boolean(
-        state.ownerId &&
-        state.ownerId ===
-            action.payload?.ownerId
+
+// =========================================================
+// BACKEND ELIGIBILITY HELPERS
+// =========================================================
+//
+// The real claim decision belongs to Django.
+//
+// Support direct and nested response objects.
+//
+// =========================================================
+
+const getStatusCandidates = (payload) => [
+    payload,
+    payload?.data,
+    payload?.gift,
+    payload?.eligibility,
+    payload?.data?.gift,
+    payload?.data?.eligibility,
+];
+
+const serverCanClaim = (payload) =>
+    getStatusCandidates(payload).some(
+        (item) => item?.can_claim === true
     );
-};
+
+const serverClaimedToday = (payload) =>
+    getStatusCandidates(payload).some(
+        (item) =>
+            item?.already_claimed === true ||
+            item?.claimed_today === true
+    );
+
+const hasAuthoritativeDecision = (payload) =>
+    getStatusCandidates(payload).some(
+        (item) =>
+            typeof item?.can_claim === "boolean" ||
+            typeof item?.already_claimed === "boolean" ||
+            typeof item?.claimed_today === "boolean"
+    );
+
+const isUncertainClaimError = (error) =>
+    error.status == null ||
+    UNCERTAIN_HTTP_STATUSES.has(error.status);
 
 
 // =========================================================
-// THUNK — FETCH STATUS
+// FETCH DAILY GIFT STATUS
 // =========================================================
 
 export const fetchDailyGiftStatusForEvent =
@@ -184,9 +253,7 @@ export const fetchDailyGiftStatusForEvent =
                 );
 
                 const ownerId =
-                    getState()
-                        .eventsDailyGift
-                        .ownerId;
+                    selectSlice(getState()).ownerId;
 
                 const status =
                     await getDailyGiftStatus(
@@ -198,6 +265,7 @@ export const fetchDailyGiftStatusForEvent =
                     slug,
                     ownerId,
                     status,
+                    fetchedAt: Date.now(),
                 };
             } catch (error) {
                 return rejectWithValue(
@@ -207,24 +275,24 @@ export const fetchDailyGiftStatusForEvent =
         },
 
         {
-            condition: (
-                arg,
-                { getState }
-            ) => {
+            condition: (arg, { getState }) => {
                 const state = getState();
                 const slug = getSlug(arg);
 
                 if (
-                    !slug ||
-                    !canLoadPrivateGift(state)
+                    !isValidSlug(slug) ||
+                    !isSessionReady(state)
                 ) {
                     return false;
                 }
 
+                const slice = selectSlice(state);
+
                 return (
-                    state.eventsDailyGift
-                        .statusRequestByEvent[slug] !==
-                    LOADING
+                    slice.statusRequestByEvent[slug] !==
+                        LOADING &&
+                    slice.claimRequestByEvent[slug] !==
+                        LOADING
                 );
             },
         }
@@ -232,7 +300,7 @@ export const fetchDailyGiftStatusForEvent =
 
 
 // =========================================================
-// THUNK — FETCH HISTORY
+// FETCH DAILY GIFT HISTORY
 // =========================================================
 
 export const fetchDailyGiftHistoryForEvent =
@@ -253,9 +321,7 @@ export const fetchDailyGiftHistoryForEvent =
                 );
 
                 const ownerId =
-                    getState()
-                        .eventsDailyGift
-                        .ownerId;
+                    selectSlice(getState()).ownerId;
 
                 const history =
                     await getDailyGiftHistory(
@@ -279,22 +345,19 @@ export const fetchDailyGiftHistoryForEvent =
         },
 
         {
-            condition: (
-                arg,
-                { getState }
-            ) => {
+            condition: (arg, { getState }) => {
                 const state = getState();
                 const slug = getSlug(arg);
 
                 if (
-                    !slug ||
-                    !canLoadPrivateGift(state)
+                    !isValidSlug(slug) ||
+                    !isSessionReady(state)
                 ) {
                     return false;
                 }
 
                 return (
-                    state.eventsDailyGift
+                    selectSlice(state)
                         .historyRequestByEvent[slug] !==
                     LOADING
                 );
@@ -304,17 +367,16 @@ export const fetchDailyGiftHistoryForEvent =
 
 
 // =========================================================
-// THUNK — CLAIM DAILY GIFT
+// CLAIM DAILY GIFT
 // =========================================================
 //
-// IMPORTANT:
+// Only one POST per click.
 //
-// Must be called by an explicit user action.
-// No automatic claim on mount.
-// No automatic POST retry.
+// A previously received gift does NOT block
+// claiming on another eligible local day.
 //
-// After a successful claim, refetch status
-// without affecting the claim result.
+// The backend must explicitly report
+// can_claim=true for the current day.
 //
 // =========================================================
 
@@ -325,9 +387,7 @@ export const claimDailyGiftForEvent =
         async (
             arg,
             {
-                dispatch,
                 getState,
-                signal,
                 rejectWithValue,
             }
         ) => {
@@ -337,55 +397,64 @@ export const claimDailyGiftForEvent =
                 );
 
                 const ownerId =
-                    getState()
-                        .eventsDailyGift
-                        .ownerId;
+                    selectSlice(getState()).ownerId;
 
                 const claim =
                     await requestDailyGiftClaim(
-                        slug,
-                        { signal }
-                    );
-
-                // Only a GET is performed here.
-                // Never repeat the claim POST.
-                dispatch(
-                    fetchDailyGiftStatusForEvent(
                         slug
-                    )
-                );
+                    );
 
                 return {
                     slug,
                     ownerId,
                     claim,
+                    claimedAt: Date.now(),
                 };
             } catch (error) {
-                return rejectWithValue(
-                    normalizeDailyGiftError(error)
-                );
+                const normalized =
+                    normalizeDailyGiftError(error);
+
+                return rejectWithValue({
+                    ...normalized,
+                    needsReconciliation:
+                        isUncertainClaimError(
+                            normalized
+                        ),
+                });
             }
         },
 
         {
-            condition: (
-                arg,
-                { getState }
-            ) => {
+            condition: (arg, { getState }) => {
                 const state = getState();
                 const slug = getSlug(arg);
 
                 if (
-                    !slug ||
-                    !canLoadPrivateGift(state)
+                    !isValidSlug(slug) ||
+                    !isSessionReady(state)
                 ) {
                     return false;
                 }
 
-                return (
-                    state.eventsDailyGift
-                        .claimRequestByEvent[slug] !==
-                    LOADING
+                const slice = selectSlice(state);
+
+                if (
+                    slice.claimRequestByEvent[slug] ===
+                        LOADING ||
+                    slice.needsReconciliationByEvent[
+                        slug
+                    ] === true ||
+                    slice.statusRequestByEvent[slug] ===
+                        LOADING
+                ) {
+                    return false;
+                }
+
+                // Do not block based on an old
+                // claimByEvent value: the next local
+                // day may already be eligible.
+                return serverCanClaim(
+                    slice.statusByEvent[slug]
                 );
             },
         }
@@ -402,21 +471,14 @@ const dailyGiftSlice = createSlice({
     initialState: createInitialState(),
 
     reducers: {
-        // ================================================
+        // ---------------------------------------------
         // CLEAR STATUS ERROR
-        // ================================================
+        // ---------------------------------------------
 
-        clearDailyGiftStatusError(
-            state,
-            action
-        ) {
-            const slug = getSlug(
-                action.payload
-            );
+        clearDailyGiftStatusError(state, action) {
+            const slug = getSlug(action.payload);
 
-            if (!slug) {
-                return;
-            }
+            if (!isValidSlug(slug)) return;
 
             delete state.statusErrorByEvent[slug];
 
@@ -429,21 +491,14 @@ const dailyGiftSlice = createSlice({
             }
         },
 
-        // ================================================
+        // ---------------------------------------------
         // CLEAR CLAIM ERROR
-        // ================================================
+        // ---------------------------------------------
 
-        clearDailyGiftClaimError(
-            state,
-            action
-        ) {
-            const slug = getSlug(
-                action.payload
-            );
+        clearDailyGiftClaimError(state, action) {
+            const slug = getSlug(action.payload);
 
-            if (!slug) {
-                return;
-            }
+            if (!isValidSlug(slug)) return;
 
             delete state.claimErrorByEvent[slug];
 
@@ -454,47 +509,59 @@ const dailyGiftSlice = createSlice({
                 state.claimRequestByEvent[slug] =
                     IDLE;
             }
+
+            // Never clear reconciliation here.
         },
 
-        // ================================================
-        // INVALIDATE ONE EVENT
-        // ================================================
+        // ---------------------------------------------
+        // CLEAR HISTORY ERROR
+        // ---------------------------------------------
 
-        invalidateDailyGiftEvent(
-            state,
-            action
-        ) {
-            const slug = getSlug(
-                action.payload
-            );
+        clearDailyGiftHistoryError(state, action) {
+            const slug = getSlug(action.payload);
 
-            if (!slug) {
-                return;
-            }
+            if (!isValidSlug(slug)) return;
 
-            delete state.statusByEvent[slug];
-            delete state.historyByEvent[slug];
+            delete state.historyErrorByEvent[slug];
 
             if (
-                state.statusRequestByEvent[slug] !==
-                LOADING
-            ) {
-                state.statusRequestByEvent[slug] =
-                    IDLE;
-            }
-
-            if (
-                state.historyRequestByEvent[slug] !==
-                LOADING
+                state.historyRequestByEvent[slug] ===
+                FAILED
             ) {
                 state.historyRequestByEvent[slug] =
                     IDLE;
             }
         },
 
-        // ================================================
-        // RESET PRIVATE GIFT STATE
-        // ================================================
+        // ---------------------------------------------
+        // INVALIDATE STATUS AND HISTORY
+        // ---------------------------------------------
+
+        invalidateDailyGiftEvent(state, action) {
+            const slug = getSlug(action.payload);
+
+            if (!isValidSlug(slug)) return;
+
+            delete state.statusByEvent[slug];
+            delete state.historyByEvent[slug];
+            delete state.statusFetchedAtByEvent[slug];
+
+            delete state.pendingStatusIds[slug];
+            delete state.pendingHistoryIds[slug];
+
+            state.statusRequestByEvent[slug] = IDLE;
+            state.historyRequestByEvent[slug] = IDLE;
+
+            delete state.statusErrorByEvent[slug];
+            delete state.historyErrorByEvent[slug];
+
+            // Preserve claim result and unresolved
+            // request state.
+        },
+
+        // ---------------------------------------------
+        // RESET PRIVATE STATE
+        // ---------------------------------------------
 
         resetDailyGiftState() {
             return createInitialState();
@@ -502,15 +569,300 @@ const dailyGiftSlice = createSlice({
     },
 
     extraReducers: (builder) => {
-        // ================================================
-        // AUTH LOGIN
-        // ================================================
+        // =============================================
+        // STATUS REQUEST
+        // =============================================
 
-        builder.addCase(
-            signUserSuccess,
+        builder
+            .addCase(
+                fetchDailyGiftStatusForEvent.pending,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    state.statusRequestByEvent[slug] =
+                        LOADING;
+
+                    state.statusErrorByEvent[slug] =
+                        null;
+
+                    state.pendingStatusIds[slug] =
+                        action.meta.requestId;
+                }
+            )
+            .addCase(
+                fetchDailyGiftStatusForEvent.fulfilled,
+                (state, action) => {
+                    const {
+                        slug,
+                        ownerId,
+                        status,
+                        fetchedAt,
+                    } = action.payload;
+
+                    if (
+                        !isCurrentOwner(state, ownerId) ||
+                        state.pendingStatusIds[slug] !==
+                            action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    state.statusByEvent[slug] = status;
+
+                    state.statusFetchedAtByEvent[slug] =
+                        fetchedAt;
+
+                    state.statusRequestByEvent[slug] =
+                        SUCCEEDED;
+
+                    state.statusErrorByEvent[slug] =
+                        null;
+
+                    if (
+                        hasAuthoritativeDecision(status)
+                    ) {
+                        state.needsReconciliationByEvent[
+                            slug
+                        ] = false;
+                    }
+
+                    delete state.pendingStatusIds[slug];
+                }
+            )
+            .addCase(
+                fetchDailyGiftStatusForEvent.rejected,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    if (
+                        state.pendingStatusIds[slug] !==
+                        action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    delete state.pendingStatusIds[slug];
+
+                    state.statusRequestByEvent[slug] =
+                        isCanceled(action)
+                            ? IDLE
+                            : FAILED;
+
+                    state.statusErrorByEvent[slug] =
+                        isCanceled(action)
+                            ? null
+                            : getActionError(action);
+                }
+            );
+
+        // =============================================
+        // HISTORY REQUEST
+        // =============================================
+
+        builder
+            .addCase(
+                fetchDailyGiftHistoryForEvent.pending,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    state.historyRequestByEvent[slug] =
+                        LOADING;
+
+                    state.historyErrorByEvent[slug] =
+                        null;
+
+                    state.pendingHistoryIds[slug] =
+                        action.meta.requestId;
+                }
+            )
+            .addCase(
+                fetchDailyGiftHistoryForEvent.fulfilled,
+                (state, action) => {
+                    const {
+                        slug,
+                        ownerId,
+                        history,
+                    } = action.payload;
+
+                    if (
+                        !isCurrentOwner(state, ownerId) ||
+                        state.pendingHistoryIds[slug] !==
+                            action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    state.historyByEvent[slug] = history;
+
+                    state.historyRequestByEvent[slug] =
+                        SUCCEEDED;
+
+                    state.historyErrorByEvent[slug] =
+                        null;
+
+                    delete state.pendingHistoryIds[slug];
+                }
+            )
+            .addCase(
+                fetchDailyGiftHistoryForEvent.rejected,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    if (
+                        state.pendingHistoryIds[slug] !==
+                        action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    delete state.pendingHistoryIds[slug];
+
+                    state.historyRequestByEvent[slug] =
+                        isCanceled(action)
+                            ? IDLE
+                            : FAILED;
+
+                    state.historyErrorByEvent[slug] =
+                        isCanceled(action)
+                            ? null
+                            : getActionError(action);
+                }
+            );
+
+        // =============================================
+        // CLAIM REQUEST
+        // =============================================
+
+        builder
+            .addCase(
+                claimDailyGiftForEvent.pending,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    state.claimRequestByEvent[slug] =
+                        LOADING;
+
+                    state.claimErrorByEvent[slug] =
+                        null;
+
+                    state.pendingClaimIds[slug] =
+                        action.meta.requestId;
+
+                    // Ignore status GETs that began
+                    // before this POST.
+                    delete state.pendingStatusIds[slug];
+
+                    state.statusRequestByEvent[slug] =
+                        IDLE;
+                }
+            )
+            .addCase(
+                claimDailyGiftForEvent.fulfilled,
+                (state, action) => {
+                    const {
+                        slug,
+                        ownerId,
+                        claim,
+                    } = action.payload;
+
+                    if (
+                        !isCurrentOwner(state, ownerId) ||
+                        state.pendingClaimIds[slug] !==
+                            action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    state.claimByEvent[slug] = claim;
+
+                    state.claimRequestByEvent[slug] =
+                        SUCCEEDED;
+
+                    state.claimErrorByEvent[slug] =
+                        null;
+
+                    state.needsReconciliationByEvent[
+                        slug
+                    ] = false;
+
+                    // The previous eligibility and
+                    // history are now stale.
+                    delete state.statusByEvent[slug];
+                    delete state.historyByEvent[slug];
+
+                    delete state.statusFetchedAtByEvent[
+                        slug
+                    ];
+
+                    delete state.pendingHistoryIds[slug];
+
+                    state.statusRequestByEvent[slug] =
+                        IDLE;
+
+                    state.historyRequestByEvent[slug] =
+                        IDLE;
+
+                    delete state.pendingClaimIds[slug];
+                }
+            )
+            .addCase(
+                claimDailyGiftForEvent.rejected,
+                (state, action) => {
+                    const slug = getSlug(
+                        action.meta.arg
+                    );
+
+                    if (
+                        state.pendingClaimIds[slug] !==
+                        action.meta.requestId
+                    ) {
+                        return;
+                    }
+
+                    delete state.pendingClaimIds[slug];
+
+                    const error = getActionError(
+                        action
+                    );
+
+                    state.claimRequestByEvent[slug] =
+                        FAILED;
+
+                    state.claimErrorByEvent[slug] =
+                        error;
+
+                    state.needsReconciliationByEvent[
+                        slug
+                    ] =
+                        error.needsReconciliation ===
+                            true ||
+                        isCanceled(action);
+                }
+            );
+
+        // =============================================
+        // AUTH SUCCESS / USER CHANGE
+        // =============================================
+
+        builder.addMatcher(
+            isAnyOf(
+                signUserSuccess,
+                checkAuthSuccess
+            ),
             (state, action) => {
-                const nextOwnerId =
-                    getOwnerId(action.payload);
+                const nextOwnerId = getOwnerId(
+                    action.payload
+                );
 
                 if (
                     nextOwnerId !== state.ownerId
@@ -522,288 +874,18 @@ const dailyGiftSlice = createSlice({
             }
         );
 
-        // ================================================
-        // AUTH LOGOUT
-        // ================================================
+        // =============================================
+        // LOGOUT / AUTH FAILURE
+        // =============================================
 
-        builder.addCase(
-            logoutUser,
+        builder.addMatcher(
+            isAnyOf(
+                logoutUser,
+                checkAuthFailure,
+                signUserFailure,
+                signUserFailer
+            ),
             () => createInitialState()
-        );
-
-        // ================================================
-        // STATUS — PENDING
-        // ================================================
-
-        builder.addCase(
-            fetchDailyGiftStatusForEvent.pending,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                state.statusRequestByEvent[slug] =
-                    LOADING;
-
-                state.statusErrorByEvent[slug] =
-                    null;
-
-                state.pendingStatusIds[slug] =
-                    action.meta.requestId;
-            }
-        );
-
-        // ================================================
-        // STATUS — SUCCESS
-        // ================================================
-
-        builder.addCase(
-            fetchDailyGiftStatusForEvent.fulfilled,
-            (state, action) => {
-                const {
-                    slug,
-                    status,
-                } = action.payload;
-
-                if (
-                    !isCurrentOwner(
-                        state,
-                        action
-                    ) ||
-                    state.pendingStatusIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                state.statusByEvent[slug] = status;
-
-                state.statusRequestByEvent[slug] =
-                    SUCCEEDED;
-
-                state.statusErrorByEvent[slug] =
-                    null;
-
-                delete state.pendingStatusIds[slug];
-            }
-        );
-
-        // ================================================
-        // STATUS — REJECTED
-        // ================================================
-
-        builder.addCase(
-            fetchDailyGiftStatusForEvent.rejected,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (
-                    state.pendingStatusIds[slug] !==
-                    action.meta.requestId
-                ) {
-                    return;
-                }
-
-                delete state.pendingStatusIds[slug];
-
-                state.statusRequestByEvent[slug] =
-                    isCanceled(action)
-                        ? IDLE
-                        : FAILED;
-
-                state.statusErrorByEvent[slug] =
-                    isCanceled(action)
-                        ? null
-                        : getActionError(action);
-            }
-        );
-
-        // ================================================
-        // HISTORY — PENDING
-        // ================================================
-
-        builder.addCase(
-            fetchDailyGiftHistoryForEvent.pending,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                state.historyRequestByEvent[slug] =
-                    LOADING;
-
-                state.historyErrorByEvent[slug] =
-                    null;
-
-                state.pendingHistoryIds[slug] =
-                    action.meta.requestId;
-            }
-        );
-
-        // ================================================
-        // HISTORY — SUCCESS
-        // ================================================
-
-        builder.addCase(
-            fetchDailyGiftHistoryForEvent.fulfilled,
-            (state, action) => {
-                const {
-                    slug,
-                    history,
-                } = action.payload;
-
-                if (
-                    !isCurrentOwner(
-                        state,
-                        action
-                    ) ||
-                    state.pendingHistoryIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                state.historyByEvent[slug] =
-                    history;
-
-                state.historyRequestByEvent[slug] =
-                    SUCCEEDED;
-
-                state.historyErrorByEvent[slug] =
-                    null;
-
-                delete state.pendingHistoryIds[slug];
-            }
-        );
-
-        // ================================================
-        // HISTORY — REJECTED
-        // ================================================
-
-        builder.addCase(
-            fetchDailyGiftHistoryForEvent.rejected,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (
-                    state.pendingHistoryIds[slug] !==
-                    action.meta.requestId
-                ) {
-                    return;
-                }
-
-                delete state.pendingHistoryIds[slug];
-
-                state.historyRequestByEvent[slug] =
-                    isCanceled(action)
-                        ? IDLE
-                        : FAILED;
-
-                state.historyErrorByEvent[slug] =
-                    isCanceled(action)
-                        ? null
-                        : getActionError(action);
-            }
-        );
-
-        // ================================================
-        // CLAIM — PENDING
-        // ================================================
-
-        builder.addCase(
-            claimDailyGiftForEvent.pending,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                state.claimRequestByEvent[slug] =
-                    LOADING;
-
-                state.claimErrorByEvent[slug] =
-                    null;
-
-                state.pendingClaimIds[slug] =
-                    action.meta.requestId;
-            }
-        );
-
-        // ================================================
-        // CLAIM — SUCCESS
-        // ================================================
-
-        builder.addCase(
-            claimDailyGiftForEvent.fulfilled,
-            (state, action) => {
-                const {
-                    slug,
-                    claim,
-                } = action.payload;
-
-                if (
-                    !isCurrentOwner(
-                        state,
-                        action
-                    ) ||
-                    state.pendingClaimIds[slug] !==
-                        action.meta.requestId
-                ) {
-                    return;
-                }
-
-                state.claimByEvent[slug] = claim;
-
-                state.claimRequestByEvent[slug] =
-                    SUCCEEDED;
-
-                state.claimErrorByEvent[slug] =
-                    null;
-
-                // The server now owns the new truth.
-                // Existing history must be refetched.
-                delete state.historyByEvent[slug];
-
-                state.historyRequestByEvent[slug] =
-                    IDLE;
-
-                delete state.pendingClaimIds[slug];
-            }
-        );
-
-        // ================================================
-        // CLAIM — REJECTED
-        // ================================================
-
-        builder.addCase(
-            claimDailyGiftForEvent.rejected,
-            (state, action) => {
-                const slug = getSlug(
-                    action.meta.arg
-                );
-
-                if (
-                    state.pendingClaimIds[slug] !==
-                    action.meta.requestId
-                ) {
-                    return;
-                }
-
-                delete state.pendingClaimIds[slug];
-
-                state.claimRequestByEvent[slug] =
-                    isCanceled(action)
-                        ? IDLE
-                        : FAILED;
-
-                state.claimErrorByEvent[slug] =
-                    isCanceled(action)
-                        ? null
-                        : getActionError(action);
-            }
         );
     },
 });
@@ -816,27 +898,29 @@ const dailyGiftSlice = createSlice({
 export const {
     clearDailyGiftStatusError,
     clearDailyGiftClaimError,
+    clearDailyGiftHistoryError,
     invalidateDailyGiftEvent,
     resetDailyGiftState,
 } = dailyGiftSlice.actions;
 
 
 // =========================================================
-// SELECTORS
+// SELECTORS — OWNER
 // =========================================================
-
-const selectSlice = (state) =>
-    state.eventsDailyGift ?? createInitialState();
 
 export const selectDailyGiftOwner = (state) =>
     selectSlice(state).ownerId;
+
+
+// =========================================================
+// SELECTORS — STATUS
+// =========================================================
 
 export const selectDailyGiftEventStatus = (
     state,
     slug
 ) =>
-    selectSlice(state).statusByEvent[slug] ??
-    null;
+    selectSlice(state).statusByEvent[slug] ?? null;
 
 export const selectDailyGiftEventStatusLoading = (
     state,
@@ -852,12 +936,23 @@ export const selectDailyGiftEventStatusError = (
     selectSlice(state)
         .statusErrorByEvent[slug] ?? null;
 
+export const selectDailyGiftStatusFetchedAt = (
+    state,
+    slug
+) =>
+    selectSlice(state)
+        .statusFetchedAtByEvent[slug] ?? null;
+
+
+// =========================================================
+// SELECTORS — CLAIM
+// =========================================================
+
 export const selectDailyGiftEventClaim = (
     state,
     slug
 ) =>
-    selectSlice(state).claimByEvent[slug] ??
-    null;
+    selectSlice(state).claimByEvent[slug] ?? null;
 
 export const selectDailyGiftEventClaimLoading = (
     state,
@@ -873,12 +968,23 @@ export const selectDailyGiftEventClaimError = (
     selectSlice(state)
         .claimErrorByEvent[slug] ?? null;
 
+export const selectDailyGiftNeedsReconciliation = (
+    state,
+    slug
+) =>
+    selectSlice(state)
+        .needsReconciliationByEvent[slug] === true;
+
+
+// =========================================================
+// SELECTORS — HISTORY
+// =========================================================
+
 export const selectDailyGiftEventHistory = (
     state,
     slug
 ) =>
-    selectSlice(state).historyByEvent[slug] ??
-    null;
+    selectSlice(state).historyByEvent[slug] ?? null;
 
 export const selectDailyGiftEventHistoryLoading = (
     state,
@@ -896,7 +1002,62 @@ export const selectDailyGiftEventHistoryError = (
 
 
 // =========================================================
-// REDUCER
+// SELECTORS — DERIVED STATE
+// =========================================================
+
+export const selectDailyGiftAlreadyClaimed = (
+    state,
+    slug
+) => {
+    const slice = selectSlice(state);
+
+    const status = slice.statusByEvent[slug];
+
+    // A newly eligible local day overrides
+    // any claim result from yesterday.
+    if (serverCanClaim(status)) {
+        return false;
+    }
+
+    if (serverClaimedToday(status)) {
+        return true;
+    }
+
+    return Boolean(
+        !status &&
+        slice.claimByEvent[slug] &&
+        slice.claimRequestByEvent[slug] ===
+            SUCCEEDED
+    );
+};
+
+export const selectDailyGiftCanClaim = (
+    state,
+    slug
+) => {
+    if (!isSessionReady(state)) {
+        return false;
+    }
+
+    const slice = selectSlice(state);
+
+    if (
+        slice.claimRequestByEvent[slug] === LOADING ||
+        slice.statusRequestByEvent[slug] === LOADING ||
+        slice.needsReconciliationByEvent[slug] ===
+            true
+    ) {
+        return false;
+    }
+
+    return serverCanClaim(
+        slice.statusByEvent[slug]
+    );
+};
+
+
+// =========================================================
+// DEFAULT EXPORT
 // =========================================================
 
 export default dailyGiftSlice.reducer;
