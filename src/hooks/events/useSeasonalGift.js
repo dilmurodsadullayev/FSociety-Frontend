@@ -21,8 +21,10 @@ import {
 
     clearSeasonalGiftStatusError,
     clearSeasonalGiftClaimError,
+    clearSeasonalGiftHistoryError,
 
     selectSeasonalGiftOwner,
+
     selectSeasonalGiftEventStatus,
     selectSeasonalGiftStatusLoading,
     selectSeasonalGiftStatusError,
@@ -41,34 +43,35 @@ import {
     selectSeasonalGiftNeedsReconciliation,
 } from "../../features/events/seasonalGiftSlice";
 
-
 // =========================================================
-// FSOCIETY — SEASONAL GIFT HOOK
+// FSOCIETY — UNIVERSAL HOLIDAY GIFT HOOK
 // =========================================================
 //
 // Location:
 // src/hooks/events/useSeasonalGift.js
 //
-// Responsibilities:
+// Used for:
+// - New Year
+// - Navro'z
+// - Ramadan
+// - Future holiday events
 //
-// - Load authenticated gift status
-// - Read backend eligibility
-// - Claim one-time seasonal gifts
-// - Prevent duplicate claim attempts
-// - Fetch gift history
-// - Handle uncertain claim outcomes
-// - Protect against account switching
-// - Provide convenient UI state
+// Business rule:
 //
-// IMPORTANT:
+// ONE GIFT PER USER PER EVENT.
 //
-// The backend chooses all rewards.
+// Flow:
 //
-// This hook never:
-// - Selects random rewards
-// - Modifies FCoin balances directly
-// - Automatically submits claim POST
-// - Retries an uncertain claim POST
+// 1. Load gift eligibility.
+// 2. Show countdown until opening.
+// 3. Backend confirms can_claim.
+// 4. User clicks the gift button.
+// 5. Django randomly selects a reward.
+// 6. Claim is recorded by Django.
+// 7. Frontend displays the result.
+// 8. Further claims are blocked.
+//
+// No daily gifts are supported here.
 //
 // =========================================================
 
@@ -104,19 +107,22 @@ const normalizeSlug = (value) => {
         : "";
 };
 
-const getUserId = (user) => {
-    const id = user?.id ?? user?.pk;
-
+const normalizeUserId = (value) => {
     if (
-        id === null ||
-        id === undefined ||
-        id === ""
+        value === null ||
+        value === undefined ||
+        value === ""
     ) {
         return null;
     }
 
-    return String(id);
+    return String(value);
 };
+
+const getUserId = (user) =>
+    normalizeUserId(
+        user?.id ?? user?.pk
+    );
 
 const createSkippedResult = (reason) => ({
     ok: false,
@@ -145,43 +151,60 @@ export default function useSeasonalGift(
     // EVENT SLUG
     // =====================================================
 
-    const slug = normalizeSlug(eventSlug);
+    const slug =
+        normalizeSlug(eventSlug);
 
-    const isValidSlug = Boolean(slug);
+    const isValidSlug =
+        slug.length > 0;
 
     // =====================================================
-    // AUTHENTICATION
+    // AUTH STATE
     // =====================================================
 
     const isLoggedIn = useSelector(
         (state) =>
-            Boolean(state.auth?.isLoggedIn)
+            Boolean(
+                state.auth?.isLoggedIn
+            )
     );
 
     const authLoading = useSelector(
         (state) =>
-            Boolean(state.auth?.isLoading)
+            Boolean(
+                state.auth?.isLoading
+            )
     );
 
     const userId = useSelector(
         (state) =>
-            getUserId(state.auth?.user)
+            getUserId(
+                state.auth?.user
+            )
     );
+
+    // =====================================================
+    // GIFT OWNER
+    // =====================================================
 
     const ownerId = useSelector(
         selectSeasonalGiftOwner
     );
+
+    // Private data may only be used when
+    // the Redux gift owner matches the
+    // currently authenticated user.
 
     const sessionReady = Boolean(
         enabled &&
         !authLoading &&
         isLoggedIn &&
         userId &&
+        ownerId &&
         ownerId === userId
     );
 
     // =====================================================
-    // GIFT STATUS
+    // STATUS
     // =====================================================
 
     const status = useSelector(
@@ -219,12 +242,12 @@ export default function useSeasonalGift(
     const statusRequest = useSelector(
         (state) =>
             state.eventsSeasonalGift
-                ?.statusRequestByEvent?.[slug] ??
-            IDLE
+                ?.statusRequestByEvent
+                ?.[slug] ?? IDLE
     );
 
     // =====================================================
-    // GIFT CLAIM
+    // CLAIM
     // =====================================================
 
     const claimResult = useSelector(
@@ -254,20 +277,12 @@ export default function useSeasonalGift(
     const claimRequest = useSelector(
         (state) =>
             state.eventsSeasonalGift
-                ?.claimRequestByEvent?.[slug] ??
-            IDLE
-    );
-
-    const needsReconciliation = useSelector(
-        (state) =>
-            selectSeasonalGiftNeedsReconciliation(
-                state,
-                slug
-            )
+                ?.claimRequestByEvent
+                ?.[slug] ?? IDLE
     );
 
     // =====================================================
-    // GIFT HISTORY
+    // HISTORY
     // =====================================================
 
     const history = useSelector(
@@ -297,21 +312,13 @@ export default function useSeasonalGift(
     const historyRequest = useSelector(
         (state) =>
             state.eventsSeasonalGift
-                ?.historyRequestByEvent?.[slug] ??
-            IDLE
+                ?.historyRequestByEvent
+                ?.[slug] ?? IDLE
     );
 
     // =====================================================
-    // SERVER-AUTHORITATIVE ELIGIBILITY
+    // ELIGIBILITY
     // =====================================================
-
-    const alreadyClaimed = useSelector(
-        (state) =>
-            selectSeasonalGiftAlreadyClaimed(
-                state,
-                slug
-            )
-    );
 
     const backendCanClaim = useSelector(
         (state) =>
@@ -321,18 +328,68 @@ export default function useSeasonalGift(
             )
     );
 
-    const canClaim = Boolean(
-        sessionReady &&
-        isValidSlug &&
-        !statusLoading &&
-        !claimLoading &&
-        !needsReconciliation &&
-        !alreadyClaimed &&
-        backendCanClaim
+    const alreadyClaimed = useSelector(
+        (state) =>
+            selectSeasonalGiftAlreadyClaimed(
+                state,
+                slug
+            )
+    );
+
+    const needsReconciliation = useSelector(
+        (state) =>
+            selectSeasonalGiftNeedsReconciliation(
+                state,
+                slug
+            )
     );
 
     // =====================================================
-    // FETCH STATUS
+    // DERIVED STATES
+    // =====================================================
+
+    const isStatusLoaded =
+        statusRequest === SUCCEEDED;
+
+    const isStatusFailed =
+        statusRequest === FAILED;
+
+    const isHistoryLoaded =
+        historyRequest === SUCCEEDED;
+
+    const isOpening =
+        claimRequest === LOADING;
+
+    const isClaimSucceeded =
+        claimRequest === SUCCEEDED;
+
+    const isClaimFailed =
+        claimRequest === FAILED;
+
+    const isRecovering =
+        needsReconciliation;
+
+    const canClaim = Boolean(
+        sessionReady &&
+        isValidSlug &&
+        backendCanClaim &&
+        !alreadyClaimed &&
+        !statusLoading &&
+        !claimLoading &&
+        !needsReconciliation
+    );
+
+    const canOpenGift = canClaim;
+
+    // =====================================================
+    // REFRESH GIFT STATUS
+    // =====================================================
+    //
+    // Use after countdown expiration or
+    // when the user manually refreshes.
+    //
+    // Only GET is executed.
+    //
     // =====================================================
 
     const refreshStatus = useCallback(
@@ -341,7 +398,9 @@ export default function useSeasonalGift(
                 !sessionReady ||
                 !isValidSlug
             ) {
-                return Promise.resolve(null);
+                return Promise.resolve(
+                    null
+                );
             }
 
             return dispatch(
@@ -359,18 +418,19 @@ export default function useSeasonalGift(
     );
 
     // =====================================================
-    // INITIAL STATUS LOAD
+    // INITIAL STATUS FETCH
     // =====================================================
     //
-    // Initial fetch occurs only when:
+    // Only fetch when:
     //
-    // - Auth session is ready
-    // - A valid event slug exists
+    // - User is authenticated
+    // - Owner is synchronized
+    // - Event slug is valid
     // - No status has been loaded
-    // - No status request is running
+    // - Request status is idle
     //
-    // Failed requests are not automatically
-    // retried in an infinite loop.
+    // A failed request does not cause
+    // an infinite automatic retry.
     //
     // =====================================================
 
@@ -401,7 +461,7 @@ export default function useSeasonalGift(
     ]);
 
     // =====================================================
-    // FETCH HISTORY
+    // REFRESH HISTORY
     // =====================================================
 
     const refreshHistory = useCallback(
@@ -410,14 +470,20 @@ export default function useSeasonalGift(
                 !sessionReady ||
                 !isValidSlug
             ) {
-                return Promise.resolve(null);
+                return Promise.resolve(
+                    null
+                );
             }
 
             return dispatch(
-                fetchSeasonalGiftHistoryForEvent({
-                    slug,
-                    ...(params ? { params } : {}),
-                })
+                fetchSeasonalGiftHistoryForEvent(
+                    params
+                        ? {
+                            slug,
+                            params,
+                        }
+                        : slug
+                )
             );
         },
         [
@@ -429,7 +495,15 @@ export default function useSeasonalGift(
     );
 
     // =====================================================
-    // OPTIONAL INITIAL HISTORY LOAD
+    // OPTIONAL INITIAL HISTORY FETCH
+    // =====================================================
+    //
+    // History is not loaded automatically
+    // unless explicitly requested.
+    //
+    // This avoids unnecessary API calls
+    // while browsing event cards.
+    //
     // =====================================================
 
     useEffect(() => {
@@ -459,17 +533,21 @@ export default function useSeasonalGift(
     ]);
 
     // =====================================================
-    // CHECK CURRENT SESSION
+    // CURRENT SESSION VERIFICATION
     // =====================================================
     //
-    // Protect reward UI from showing an old
-    // user's claim after account switching.
+    // A user might log out while a POST is
+    // still running.
+    //
+    // Do not show an old user's reward
+    // after authentication changes.
     //
     // =====================================================
 
     const isSessionCurrent = useCallback(
         (expectedOwnerId) => {
-            const state = store.getState();
+            const state =
+                store.getState();
 
             const currentUserId = getUserId(
                 state.auth?.user
@@ -478,8 +556,10 @@ export default function useSeasonalGift(
             return Boolean(
                 state.auth?.isLoggedIn &&
                 expectedOwnerId &&
-                currentUserId === expectedOwnerId &&
-                state.eventsSeasonalGift?.ownerId ===
+                currentUserId ===
+                    expectedOwnerId &&
+                state.eventsSeasonalGift
+                    ?.ownerId ===
                     expectedOwnerId
             );
         },
@@ -487,36 +567,41 @@ export default function useSeasonalGift(
     );
 
     // =====================================================
-    // CLAIM SEASONAL GIFT
+    // CLAIM EVENT GIFT
     // =====================================================
     //
-    // Must be called only by explicit UI action:
+    // This function must only be called
+    // from an explicit user action.
     //
-    // <button onClick={handleClaim}>
-    //     Sovg‘ani ochish
-    // </button>
+    // The frontend NEVER automatically
+    // opens a gift when countdown reaches 0.
     //
-    // The Redux thunk performs one POST.
-    //
-    // The Redux store listener performs a
-    // follow-up GET after claim completion.
+    // Backend controls:
+    // - Opening date
+    // - Eligibility
+    // - Reward selection
+    // - One-time uniqueness
     //
     // =====================================================
 
     const claimGift = useCallback(
         async () => {
-            // =============================================
-            // VALIDATION
-            // =============================================
+            // ============================================
+            // AUTH / EVENT VALIDATION
+            // ============================================
 
             if (
-                !isValidSlug ||
-                !sessionReady
+                !sessionReady ||
+                !isValidSlug
             ) {
                 return createSkippedResult(
                     "AUTH_OR_EVENT_NOT_READY"
                 );
             }
+
+            // ============================================
+            // UNCERTAIN CLAIM
+            // ============================================
 
             if (needsReconciliation) {
                 return createSkippedResult(
@@ -524,11 +609,19 @@ export default function useSeasonalGift(
                 );
             }
 
+            // ============================================
+            // ALREADY CLAIMED
+            // ============================================
+
             if (alreadyClaimed) {
                 return createSkippedResult(
                     "ALREADY_CLAIMED"
                 );
             }
+
+            // ============================================
+            // NOT YET ELIGIBLE
+            // ============================================
 
             if (!canClaim) {
                 return createSkippedResult(
@@ -536,15 +629,21 @@ export default function useSeasonalGift(
                 );
             }
 
-            // =============================================
-            // CAPTURE CURRENT OWNER
-            // =============================================
+            // ============================================
+            // CAPTURE SESSION OWNER
+            // ============================================
 
-            const expectedOwnerId = ownerId;
+            const expectedOwnerId =
+                ownerId;
 
-            // =============================================
-            // DISPATCH CLAIM
-            // =============================================
+            // ============================================
+            // CLAIM POST
+            // ============================================
+            //
+            // Redux thunk condition prevents
+            // another simultaneous POST.
+            //
+            // ============================================
 
             const action = await dispatch(
                 claimSeasonalGiftForEvent(
@@ -552,9 +651,9 @@ export default function useSeasonalGift(
                 )
             );
 
-            // =============================================
-            // SESSION CHANGED DURING REQUEST
-            // =============================================
+            // ============================================
+            // SESSION CHANGED
+            // ============================================
 
             if (
                 !isSessionCurrent(
@@ -566,47 +665,41 @@ export default function useSeasonalGift(
                 );
             }
 
-            // =============================================
-            // SUCCESS
-            // =============================================
+            // ============================================
+            // CLAIM SUCCESS
+            // ============================================
 
             if (
                 claimSeasonalGiftForEvent
                     .fulfilled.match(action)
             ) {
-                // Refresh history with GET only.
+                // The store listener refreshes
+                // status with GET automatically.
                 //
-                // Status refresh is already handled
-                // by the store listener.
-
-                dispatch(
-                    fetchSeasonalGiftHistoryForEvent(
-                        slug
-                    )
-                );
+                // History is optional and can
+                // be loaded when the modal
+                // requires it.
 
                 return {
                     ok: true,
+
                     skipped: false,
+
+                    slug,
 
                     claim:
                         action.payload?.claim ??
                         null,
 
-                    slug,
+                    claimedAt:
+                        action.payload?.claimedAt ??
+                        null,
                 };
             }
 
-            // =============================================
-            // CONDITION REJECTED
-            // =============================================
-            //
-            // The Redux thunk may reject because
-            // another claim request is pending.
-            //
-            // This does not create a new POST.
-            //
-            // =============================================
+            // ============================================
+            // POST WAS NOT EXECUTED
+            // ============================================
 
             if (
                 action.meta?.condition === true
@@ -616,12 +709,13 @@ export default function useSeasonalGift(
                 );
             }
 
-            // =============================================
-            // CLAIM FAILED / UNKNOWN RESULT
-            // =============================================
+            // ============================================
+            // CLAIM FAILED OR UNCERTAIN
+            // ============================================
 
             return {
                 ok: false,
+
                 skipped: false,
 
                 error:
@@ -637,11 +731,12 @@ export default function useSeasonalGift(
         },
         [
             dispatch,
+
             slug,
             ownerId,
 
-            isValidSlug,
             sessionReady,
+            isValidSlug,
 
             canClaim,
             alreadyClaimed,
@@ -669,8 +764,8 @@ export default function useSeasonalGift(
         },
         [
             dispatch,
-            slug,
             isValidSlug,
+            slug,
         ]
     );
 
@@ -688,41 +783,29 @@ export default function useSeasonalGift(
         },
         [
             dispatch,
-            slug,
             isValidSlug,
+            slug,
         ]
     );
 
-    // =====================================================
-    // DERIVED UI STATE
-    // =====================================================
+    const dismissHistoryError = useCallback(
+        () => {
+            if (!isValidSlug) {
+                return;
+            }
 
-    const isStatusLoaded =
-        statusRequest === SUCCEEDED;
-
-    const isClaimSucceeded =
-        claimRequest === SUCCEEDED;
-
-    const isClaimFailed =
-        claimRequest === FAILED;
-
-    const isOpening =
-        claimRequest === LOADING;
-
-    const isHistoryLoaded =
-        historyRequest === SUCCEEDED;
-
-    const isRecovering =
-        needsReconciliation ||
-        (
-            needsReconciliation &&
-            statusLoading
-        );
-
-    const canOpenGift =
-        canClaim &&
-        !isOpening &&
-        !isRecovering;
+            dispatch(
+                clearSeasonalGiftHistoryError(
+                    slug
+                )
+            );
+        },
+        [
+            dispatch,
+            isValidSlug,
+            slug,
+        ]
+    );
 
     // =====================================================
     // RETURN
@@ -734,12 +817,12 @@ export default function useSeasonalGift(
         isValidSlug,
 
         // Authentication
-        ownerId,
         isLoggedIn,
         authLoading,
         sessionReady,
+        ownerId,
 
-        // Status
+        // Gift status
         status,
         statusRequest,
         statusLoading,
@@ -747,8 +830,9 @@ export default function useSeasonalGift(
         statusFetchedAt,
 
         isStatusLoaded,
+        isStatusFailed,
 
-        // Eligibility
+        // Gift eligibility
         canClaim,
         canOpenGift,
         alreadyClaimed,
@@ -763,7 +847,7 @@ export default function useSeasonalGift(
         isClaimSucceeded,
         isClaimFailed,
 
-        // Recovery
+        // Network reconciliation
         needsReconciliation,
         isRecovering,
 
@@ -774,12 +858,14 @@ export default function useSeasonalGift(
         historyError,
         isHistoryLoaded,
 
-        // Actions
+        // Operations
         refreshStatus,
         refreshHistory,
         claimGift,
 
+        // Error actions
         dismissStatusError,
         dismissClaimError,
+        dismissHistoryError,
     };
 }
