@@ -49,19 +49,7 @@ import {
 } from "./components";
 
 // =========================================================
-// FSOCIETY — PROFILE FRAMES
-// =========================================================
-//
-// FrameShop:
-// Public catalog.
-//
-// MyFrames:
-// Authenticated user's frame inventory.
-//
-// FrameVaultNavigation:
-// Shared navigation between Frame Shop
-// and My Frames.
-//
+// PROFILE FRAMES
 // =========================================================
 
 import FrameShop from "./components/frame-shop/FrameShop";
@@ -69,6 +57,23 @@ import FrameShop from "./components/frame-shop/FrameShop";
 import MyFrames from "./components/frame-shop/MyFrames";
 
 import FrameVaultNavigation from "./components/frame-shop/FrameVaultNavigation";
+
+// =========================================================
+// UNIVERSAL EVENTS — NEW
+// =========================================================
+//
+// Events are public.
+//
+// Claiming a Seasonal Gift requires a valid
+// authenticated session and backend approval.
+//
+// No Daily Gift logic is registered here.
+//
+// =========================================================
+
+import EventsController from "./components/events/EventsController";
+
+import EventsPage from "./components/events/EventsPage";
 
 // =========================================================
 // AUTH SERVICE
@@ -130,51 +135,43 @@ import Snowfall from "./features/newYear/components/Snowfall";
 import WinterBackground from "./components/ui/winter/WinterBackground";
 
 // =========================================================
-// FSOCIETY — APPLICATION
+// FSOCIETY — APPLICATION ARCHITECTURE
 // =========================================================
 //
-// Responsibilities:
-//
-// - Application routing
-// - Authentication bootstrap
-// - Protected routes
-// - Public authentication pages
-// - OAuth callback
-// - Frame Shop navigation
-// - WebSocket notifications
-// - Forced logout handling
-// - Global toast
-// - ThemeContext integration
-// - NewYearProvider integration
-// - WinterBackground
-// - Snowfall
-//
-// EVENTS MIGRATION:
-//
-// The deleted DailyGiftController is no longer
-// imported or rendered.
-//
-// Daily Gift and Seasonal Gift Redux logic now
-// belongs to src/features/events/.
-//
-// The new EventsController will be mounted after
-// its backend integration has been verified.
+// App
+// └── ThemeProvider (when required)
+//     └── NewYearProvider
+//         └── AppInner
+//             └── BrowserRouter
+//                 ├── WinterBackground
+//                 ├── AuthToast
+//                 ├── EventsController
+//                 ├── AppContent
+//                 │   ├── Public authentication
+//                 │   ├── Public Frame Shop
+//                 │   ├── Public Events
+//                 │   └── Protected application
+//                 └── Snowfall
 //
 // IMPORTANT:
 //
-// Theme state belongs to ThemeContext.
+// Authentication: Redux + AuthService
+// Theme: ThemeContext
+// Winter: NewYearContext
+// Events: Redux Events slice
+// Gifts: Seasonal Gift slice
 //
-// Winter state belongs to NewYearProvider.
-//
-// Authentication state belongs to Redux.
-//
-// App.js does not implement its own JWT logic.
+// Daily Gift has been removed.
 //
 // =========================================================
 
 
 // =========================================================
 // AUTHENTICATED USER NORMALIZER
+// =========================================================
+//
+// Preserve the existing AuthService contract.
+//
 // =========================================================
 
 const getAuthenticatedUser = (response) => {
@@ -214,17 +211,13 @@ const PrivateRoute = ({ children }) => {
         (state) => state.auth
     );
 
-    // =====================================================
-    // AUTHENTICATION LOADING
-    // =====================================================
+    // Authentication bootstrap is running.
 
     if (isLoading) {
         return <AppLoader />;
     }
 
-    // =====================================================
-    // UNAUTHENTICATED USER
-    // =====================================================
+    // Not authenticated.
 
     if (!isLoggedIn) {
         return (
@@ -235,10 +228,6 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    // =====================================================
-    // AUTHENTICATED USER
-    // =====================================================
-
     return children;
 };
 
@@ -247,13 +236,9 @@ const PrivateRoute = ({ children }) => {
 // PUBLIC AUTHENTICATION PAGE
 // =========================================================
 //
-// Login and Register already contain their
-// own authentication layouts.
+// Login and Register have their own layouts.
 //
-// The global WinterBackground remains behind
-// the page.
-//
-// ThemeContext manages dark / light classes.
+// Authenticated users are redirected home.
 //
 // =========================================================
 
@@ -265,17 +250,9 @@ const PublicAuthPage = ({ children }) => {
         (state) => state.auth
     );
 
-    // =====================================================
-    // AUTH LOADING
-    // =====================================================
-
     if (isLoading) {
         return <AppLoader />;
     }
-
-    // =====================================================
-    // ALREADY AUTHENTICATED
-    // =====================================================
 
     if (isLoggedIn) {
         return (
@@ -285,10 +262,6 @@ const PublicAuthPage = ({ children }) => {
             />
         );
     }
-
-    // =====================================================
-    // PUBLIC PAGE
-    // =====================================================
 
     return (
         <div
@@ -300,10 +273,10 @@ const PublicAuthPage = ({ children }) => {
                 flex-col
                 bg-transparent
                 text-slate-900
-                dark:bg-transparent
-                dark:text-slate-100
                 transition-colors
                 duration-200
+                dark:bg-transparent
+                dark:text-slate-100
                 motion-reduce:transition-none
             "
         >
@@ -317,20 +290,19 @@ const PublicAuthPage = ({ children }) => {
 // APPLICATION LAYOUT
 // =========================================================
 //
-// Preserves:
+// Shared layout:
 //
 // Navbar
-// Theme toggle
-// FrameVaultNavigation
-// Outlet
+// FrameVaultNavigation (optional)
+// Main content / Outlet
 // Footer
 //
-// requireAuth:
-// - true: authenticated application pages
-// - false: publicly accessible layout
+// requireAuth=false supports:
 //
-// showFrameNavigation:
-// - true: show frame vault navigation
+// /frames/shop
+// /events
+//
+// Existing private routes remain protected.
 //
 // =========================================================
 
@@ -338,20 +310,12 @@ const AppLayout = ({
     requireAuth = true,
     showFrameNavigation = false,
 }) => {
-    // =====================================================
-    // THEME CONTEXT
-    // =====================================================
-
     const {
         isDark,
         toggleTheme,
     } = useContext(ThemeContext);
 
     const isDarkMode = isDark;
-
-    // =====================================================
-    // SHARED APPLICATION LAYOUT
-    // =====================================================
 
     const layout = (
         <div
@@ -363,10 +327,10 @@ const AppLayout = ({
                 flex-col
                 bg-transparent
                 text-gray-800
-                dark:bg-transparent
-                dark:text-gray-200
                 transition-colors
                 duration-300
+                dark:bg-transparent
+                dark:text-gray-200
                 motion-reduce:transition-none
             "
         >
@@ -396,10 +360,10 @@ const AppLayout = ({
                     min-w-0 flex-grow
                     bg-transparent
                     text-gray-800
-                    dark:bg-transparent
-                    dark:text-gray-200
                     transition-colors
                     duration-300
+                    dark:bg-transparent
+                    dark:text-gray-200
                     motion-reduce:transition-none
                 "
             >
@@ -414,9 +378,7 @@ const AppLayout = ({
         </div>
     );
 
-    // =====================================================
-    // PROTECTED APPLICATION LAYOUT
-    // =====================================================
+    // Private application layout.
 
     if (requireAuth) {
         return (
@@ -426,9 +388,7 @@ const AppLayout = ({
         );
     }
 
-    // =====================================================
-    // PUBLIC APPLICATION LAYOUT
-    // =====================================================
+    // Public application layout.
 
     return layout;
 };
@@ -454,7 +414,7 @@ function AppContent() {
     // AUTH REQUEST GENERATION
     // =====================================================
     //
-    // Prevents an old authentication request
+    // Prevent stale authentication responses
     // from restoring a logged-out session.
     //
     // =====================================================
@@ -465,23 +425,25 @@ function AppContent() {
     // FORCED LOGOUT LISTENER
     // =====================================================
     //
-    // src/services/api.js dispatches the
-    // "auth:logout" browser event when the
-    // session can no longer be refreshed.
+    // The existing Axios client dispatches
+    // "auth:logout" when session refresh fails.
     //
     // =====================================================
 
     useEffect(() => {
         const handleForceLogout = () => {
             // Invalidate pending auth checks.
+
             ++authGenerationRef.current;
 
             // Clear Redux authentication.
+
             dispatch(
                 logoutUser()
             );
 
             // Disconnect notifications.
+
             dispatch(
                 disconnectWebSocket()
             );
@@ -504,13 +466,10 @@ function AppContent() {
     // INITIAL AUTHENTICATION CHECK
     // =====================================================
     //
-    // Verifies the existing JWT cookie session.
+    // Uses existing cookie-based JWT session.
     //
-    // AuthService.getUser() uses the existing
-    // Axios configuration.
-    //
-    // Does not create a separate token refresh
-    // mechanism.
+    // No new Axios instance.
+    // No new refresh-token mechanism.
     //
     // =====================================================
 
@@ -520,18 +479,10 @@ function AppContent() {
         const currentGeneration =
             ++authGenerationRef.current;
 
-        // ================================================
-        // REQUEST VALIDITY
-        // ================================================
-
         const isCurrentRequest = () =>
             isMounted &&
             currentGeneration ===
                 authGenerationRef.current;
-
-        // ================================================
-        // INITIAL USER CHECK
-        // ================================================
 
         const checkUserStatus = async () => {
             dispatch(
@@ -547,11 +498,11 @@ function AppContent() {
                 }
 
                 const authenticatedUser =
-                    getAuthenticatedUser(response);
+                    getAuthenticatedUser(
+                        response
+                    );
 
-                // ========================================
-                // VALID SESSION
-                // ========================================
+                // Valid session.
 
                 if (authenticatedUser) {
                     dispatch(
@@ -563,24 +514,20 @@ function AppContent() {
                     return;
                 }
 
-                // ========================================
-                // NO AUTHENTICATED USER
-                // ========================================
+                // Missing or invalid session.
 
                 dispatch(
                     logoutUser()
                 );
-
             } catch (error) {
                 if (!isCurrentRequest()) {
                     return;
                 }
 
-                // Initial auth failure is not
-                // a failed login form submission.
+                // Unauthenticated guests can
+                // legitimately receive HTTP 401.
                 //
-                // A guest may normally receive 401.
-                // Avoid an unnecessary global toast.
+                // Do not show a login-form error.
 
                 dispatch(
                     logoutUser()
@@ -588,11 +535,7 @@ function AppContent() {
             }
         };
 
-        checkUserStatus();
-
-        // ================================================
-        // CLEANUP
-        // ================================================
+        void checkUserStatus();
 
         return () => {
             isMounted = false;
@@ -605,8 +548,8 @@ function AppContent() {
     // WEBSOCKET NOTIFICATIONS
     // =====================================================
     //
-    // Authenticated -> connect
-    // Unauthenticated -> disconnect
+    // Authenticated -> Connect
+    // Guest         -> Disconnect
     //
     // =====================================================
 
@@ -675,9 +618,9 @@ function AppContent() {
                             items-center justify-center
                             bg-transparent
                             text-slate-900
-                            dark:text-gray-100
                             transition-colors
                             duration-200
+                            dark:text-gray-100
                         "
                     >
                         <SocialCallback />
@@ -698,7 +641,7 @@ function AppContent() {
                     />
                 }
             >
-                {/* PUBLIC FRAME SHOP */}
+                {/* Public Frame Shop */}
 
                 <Route
                     path="shop"
@@ -707,7 +650,7 @@ function AppContent() {
                     }
                 />
 
-                {/* PRIVATE FRAME INVENTORY */}
+                {/* Private Frame Inventory */}
 
                 <Route
                     path="my"
@@ -715,6 +658,37 @@ function AppContent() {
                         <PrivateRoute>
                             <MyFrames />
                         </PrivateRoute>
+                    }
+                />
+            </Route>
+
+            {/* =========================================
+                FSOCIETY EVENTS — PUBLIC
+            ========================================= */}
+            {/*
+                Everyone can view event details,
+                holiday dates and countdowns.
+
+                Claiming a gift remains protected
+                by the Seasonal Gift Redux thunk
+                and Django authentication.
+
+                This route is independent of
+                NewYearProvider winter settings.
+            */}
+
+            <Route
+                path="/events"
+                element={
+                    <AppLayout
+                        requireAuth={false}
+                    />
+                }
+            >
+                <Route
+                    index
+                    element={
+                        <EventsPage />
                     }
                 />
             </Route>
@@ -890,9 +864,9 @@ function AppContent() {
                             items-center justify-center
                             bg-transparent
                             text-slate-900
-                            dark:text-gray-100
                             transition-colors
                             duration-200
+                            dark:text-gray-100
                         "
                     >
                         <NotFound />
@@ -907,22 +881,6 @@ function AppContent() {
 // =========================================================
 // GLOBAL APPLICATION ROOT
 // =========================================================
-//
-// NewYearProvider wraps AppInner.
-//
-// useNewYear() is available here.
-//
-// Global WinterBackground is rendered once.
-//
-// Snowfall is rendered outside the routes.
-//
-// Old DailyGiftController was removed.
-//
-// EventsController will be integrated after
-// its backend contract and initialization
-// behavior are verified.
-//
-// =========================================================
 
 const AppInner = () => {
     // =====================================================
@@ -931,23 +889,16 @@ const AppInner = () => {
 
     const { settings } = useNewYear();
 
-    // Explicit false disables winter background.
-    // Other values preserve the existing default.
-
     const isWinterBackgroundEnabled =
         settings?.winterBackgroundEnabled ??
         true;
 
     // =====================================================
-    // RENDER
+    // ROOT RENDER
     // =====================================================
 
     return (
         <Router>
-            {/* =========================================
-                GLOBAL APPLICATION ROOT
-            ========================================= */}
-
             <div
                 className="
                     relative isolate
@@ -958,7 +909,7 @@ const AppInner = () => {
                 "
             >
                 {/* =====================================
-                    GLOBAL SHARED BACKGROUND
+                    GLOBAL WINTER BACKGROUND
                 ===================================== */}
 
                 <div
@@ -979,7 +930,7 @@ const AppInner = () => {
                 </div>
 
                 {/* =====================================
-                    GLOBAL APPLICATION CONTENT
+                    GLOBAL CONTENT
                 ===================================== */}
 
                 <div
@@ -989,29 +940,35 @@ const AppInner = () => {
                         min-h-[100dvh]
                     "
                 >
-                    {/* GLOBAL TOAST */}
+                    {/* GLOBAL AUTH TOAST */}
 
                     <AuthToast />
 
-                    {/* APPLICATION ROUTES */}
+                    {/* =================================
+                        GLOBAL EVENTS CONTROLLER
+                    ================================= */}
+                    {/*
+                        Public event data is loaded
+                        once at application startup.
+
+                        The controller does not claim
+                        gifts or create daily rewards.
+
+                        Navbar can later use this
+                        public Redux state.
+                    */}
+
+                    <EventsController />
+
+                    {/* =================================
+                        APPLICATION ROUTES
+                    ================================= */}
 
                     <AppContent />
 
-                    {/*
-                        OLD DAILY GIFT CONTROLLER
-                        HAS BEEN REMOVED.
-
-                        The deleted component is not
-                        imported or rendered.
-
-                        New EventsController integration
-                        will be completed separately.
-
-                        Seasonal Gift and Daily Gift
-                        will use the new events modules.
-                    */}
-
-                    {/* GLOBAL WINTER SNOWFALL */}
+                    {/* =================================
+                        GLOBAL WINTER SNOWFALL
+                    ================================= */}
 
                     <Snowfall />
                 </div>
@@ -1025,21 +982,7 @@ const AppInner = () => {
 // ROOT APP
 // =========================================================
 //
-// Provider hierarchy:
-//
-// index.js
-//   └── Redux Provider
-//       └── ThemeProvider
-//           └── App
-//               └── NewYearProvider
-//                   └── AppInner
-//                       └── Router
-//                           ├── WinterBackground
-//                           ├── AuthToast
-//                           ├── AppContent
-//                           └── Snowfall
-//
-// Avoid duplicate theme providers.
+// Preserve the existing ThemeProvider fallback.
 //
 // =========================================================
 
@@ -1047,9 +990,7 @@ function App() {
     const existingThemeContext =
         useContext(ThemeContext);
 
-    // =====================================================
-    // THEME PROVIDER ALREADY INSTALLED
-    // =====================================================
+    // ThemeProvider already exists in index.js.
 
     if (existingThemeContext) {
         return (
@@ -1059,9 +1000,7 @@ function App() {
         );
     }
 
-    // =====================================================
-    // FALLBACK THEME PROVIDER
-    // =====================================================
+    // Standalone application fallback.
 
     return (
         <ThemeProvider>

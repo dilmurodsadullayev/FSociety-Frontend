@@ -1,15 +1,19 @@
 
- // src/components/events/EventCountdown.jsx
+// src/components/events/EventCountdown.jsx
 
-import React, { memo, useMemo } from "react";
+import React, {
+    memo,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 
 import {
     CalendarClock,
-    Clock3,
     CheckCircle2,
+    Clock3,
 } from "lucide-react";
-
-import useEventCountdown from "../../hooks/events/useEventCountdown";
 
 // =========================================================
 // FSOCIETY — UNIVERSAL EVENT COUNTDOWN
@@ -18,448 +22,630 @@ import useEventCountdown from "../../hooks/events/useEventCountdown";
 // Location:
 // src/components/events/EventCountdown.jsx
 //
-// Features:
-// - Universal holiday countdown
-// - Server clock synchronization
-// - Dark / Light mode
-// - Mobile responsive
-// - Accessible labels
-// - Reduced-motion friendly
-// - Compact / Card variants
-// - Expiration callback
-//
 // Used by:
-// - New Year
-// - Navro'z
-// - Ramadan
-// - Daily Gift
-// - Seasonal Gift
+// - SeasonalGiftCard
+// - Future Event Detail pages
+// - Holiday countdowns
+//
+// Props:
+//
+// targetTime:
+//   Event opening datetime.
+//
+// serverTime:
+//   Backend's current datetime (optional).
+//
+// receivedAtMs:
+//   Date.now() at which backend status was
+//   received. Used to estimate clock offset.
+//
+// onExpire:
+//   Callback fired once when countdown ends.
 //
 // IMPORTANT:
 //
-// Reaching zero never automatically claims
-// a reward.
+// Countdown does not grant rewards.
 //
-// The optional onExpire callback should only
-// refresh the event's backend status.
+// When it expires, a parent component may
+// refresh backend eligibility using GET.
+//
+// Only Django determines whether a gift
+// is actually claimable.
 //
 // =========================================================
 
 
 // =========================================================
-// CONSTANTS
+// DATE HELPERS
 // =========================================================
 
-const TIME_UNITS = Object.freeze([
-    {
-        key: "days",
-        label: "Kun",
-    },
-    {
-        key: "hours",
-        label: "Soat",
-    },
-    {
-        key: "minutes",
-        label: "Daqiqa",
-    },
-    {
-        key: "seconds",
-        label: "Soniya",
-    },
-]);
-
-// =========================================================
-// HELPERS
-// =========================================================
-
-const formatNumber = (value) => {
-    const number = Number(value);
-
+const parseTimestamp = (value) => {
     if (
-        !Number.isFinite(number) ||
-        number < 0
+        value instanceof Date
     ) {
-        return "00";
+        const timestamp = value.getTime();
+
+        return Number.isFinite(timestamp)
+            ? timestamp
+            : null;
     }
 
-    return String(
-        Math.floor(number)
-    ).padStart(2, "0");
+    if (
+        typeof value === "number"
+    ) {
+        return Number.isFinite(value)
+            ? value
+            : null;
+    }
+
+    if (
+        typeof value !== "string" ||
+        !value.trim()
+    ) {
+        return null;
+    }
+
+    const timestamp = Date.parse(value);
+
+    return Number.isFinite(timestamp)
+        ? timestamp
+        : null;
 };
 
-const getAccessibleTime = (parts) => {
-    const labels = {
-        days: "kun",
-        hours: "soat",
-        minutes: "daqiqa",
-        seconds: "soniya",
-    };
+const padNumber = (value) =>
+    String(value).padStart(2, "0");
 
-    return parts
-        .map(({ key, value }) =>
-            `${value} ${labels[key]}`
-        )
-        .join(", ");
-};
 
 // =========================================================
-// TIME CELL
+// SERVER CLOCK OFFSET
+// =========================================================
+//
+// Example:
+//
+// Browser clock:
+//  20:00:00
+//
+// Server clock:
+//  20:00:05
+//
+// Offset:
+//  +5000 milliseconds
+//
+// The countdown uses an estimate of
+// server time instead of trusting the
+// browser clock completely.
+//
 // =========================================================
 
-const TimeCell = memo(function TimeCell({
-    value,
-    label,
-    compact = false,
-}) {
+const getServerClockOffset = (
+    serverTime,
+    receivedAtMs
+) => {
+    const serverTimestamp =
+        parseTimestamp(serverTime);
+
+    const receivedTimestamp =
+        Number(receivedAtMs);
+
+    if (
+        serverTimestamp === null ||
+        !Number.isFinite(
+            receivedTimestamp
+        ) ||
+        receivedTimestamp <= 0
+    ) {
+        return 0;
+    }
+
     return (
-        <div
-            className={[
-                "flex",
-                "min-w-0",
-                "flex-col",
-                "items-center",
-                "justify-center",
-
-                "rounded-xl",
-                "border",
-
-                "border-slate-200/80",
-                "bg-white/70",
-
-                "dark:border-white/10",
-                "dark:bg-slate-900/60",
-
-                "shadow-sm",
-                "backdrop-blur-sm",
-
-                compact
-                    ? "gap-0.5 px-1.5 py-2"
-                    : "gap-1 px-2 py-3 sm:py-4",
-            ].join(" ")}
-        >
-            <span
-                className={[
-                    "font-bold",
-                    "tracking-tight",
-                    "tabular-nums",
-                    "leading-none",
-
-                    "text-slate-900",
-                    "dark:text-white",
-
-                    compact
-                        ? "text-lg sm:text-xl"
-                        : "text-2xl sm:text-3xl",
-                ].join(" ")}
-            >
-                {formatNumber(value)}
-            </span>
-
-            <span
-                className={[
-                    "font-medium",
-                    "text-slate-500",
-                    "dark:text-slate-400",
-
-                    compact
-                        ? "text-[10px]"
-                        : "text-[11px] sm:text-xs",
-                ].join(" ")}
-            >
-                {label}
-            </span>
-        </div>
+        serverTimestamp -
+        receivedTimestamp
     );
-});
+};
+
 
 // =========================================================
-// EVENT COUNTDOWN
+// MONOTONIC CLOCK
+// =========================================================
+//
+// A monotonic clock avoids jumps if the
+// operating system's clock changes while
+// the countdown is already running.
+//
+// It also handles inactive browser tabs
+// better than decrementing by 1 second.
+//
 // =========================================================
 
-const EventCountdown = memo(
-    function EventCountdown({
-        targetTime = null,
+const getMonotonicTime = () => {
+    if (
+        typeof performance !== "undefined" &&
+        typeof performance.now === "function"
+    ) {
+        return performance.now();
+    }
 
-        serverTime = null,
-        receivedAtMs = null,
+    return Date.now();
+};
 
-        enabled = true,
-        intervalMs = 1000,
 
-        onExpire,
+// =========================================================
+// COUNTDOWN CALCULATION
+// =========================================================
 
-        title = "Tadbir boshlanishigacha",
+const getCountdown = (
+    targetTimestamp,
+    currentTimestamp
+) => {
+    if (targetTimestamp === null) {
+        return null;
+    }
 
-        expiredText = "Belgilangan vaqt yetib keldi",
-
-        invalidText = "Tadbir vaqti belgilanmagan",
-
-        variant = "card",
-
-        showIcon = true,
-        showSeconds = true,
-
-        className = "",
-    }) {
-        // =================================================
-        // COUNTDOWN HOOK
-        // =================================================
-
-        const countdown = useEventCountdown({
-            targetTime,
-            serverTime,
-            receivedAtMs,
-            enabled,
-            intervalMs,
-            onExpire,
-        });
-
-        const {
-            isValid,
-            isExpired,
-
-            days,
-            hours,
-            minutes,
-            seconds,
-        } = countdown;
-
-        // =================================================
-        // PRESENTATION
-        // =================================================
-
-        const compact =
-            variant === "compact";
-
-        const timeParts = useMemo(() => {
-            const values = {
-                days,
-                hours,
-                minutes,
-                seconds,
-            };
-
-            return TIME_UNITS
-                .filter(
-                    ({ key }) =>
-                        showSeconds ||
-                        key !== "seconds"
-                )
-                .map(({ key, label }) => ({
-                    key,
-                    label,
-                    value: values[key],
-                }));
-        }, [
-            days,
-            hours,
-            minutes,
-            seconds,
-            showSeconds,
-        ]);
-
-        const accessibleTime = useMemo(
-            () => getAccessibleTime(timeParts),
-            [timeParts]
+    const remainingMs =
+        Math.max(
+            0,
+            targetTimestamp -
+                currentTimestamp
         );
 
-        // =================================================
-        // WRAPPER STYLES
-        // =================================================
+    // Math.ceil prevents showing 00 seconds
+    // before the target time actually arrives.
 
-        const wrapperClasses = [
-            "w-full",
-            "min-w-0",
+    const totalSeconds = Math.ceil(
+        remainingMs / 1000
+    );
 
-            compact
-                ? "max-w-sm"
-                : "max-w-lg",
+    const days = Math.floor(
+        totalSeconds / 86400
+    );
 
-            !compact
-                ? [
-                    "rounded-2xl",
-                    "border",
-                    "border-slate-200/80",
-                    "bg-white/75",
-                    "p-3",
-                    "shadow-lg",
-                    "shadow-slate-900/5",
+    const hours = Math.floor(
+        (totalSeconds % 86400) / 3600
+    );
 
-                    "dark:border-white/10",
-                    "dark:bg-slate-950/65",
-                    "dark:shadow-black/20",
+    const minutes = Math.floor(
+        (totalSeconds % 3600) / 60
+    );
 
-                    "backdrop-blur-xl",
+    const seconds =
+        totalSeconds % 60;
 
-                    "sm:p-5",
-                ].join(" ")
-                : "",
+    return {
+        remainingMs,
+        days,
+        hours,
+        minutes,
+        seconds,
+        expired:
+            remainingMs === 0,
+    };
+};
 
-            className,
-        ]
-            .filter(Boolean)
-            .join(" ");
 
-        // =================================================
-        // INVALID DATE
-        // =================================================
+// =========================================================
+// COUNTDOWN UNIT
+// =========================================================
 
-        if (!isValid) {
-            return (
-                <div
-                    className={wrapperClasses}
-                    role="status"
-                >
-                    <div
-                        className="
-                            flex items-center
-                            justify-center gap-2
-                            py-3 text-center
-                            text-sm font-medium
-                            text-slate-500
-                            dark:text-slate-400
-                        "
-                    >
-                        <CalendarClock
-                            size={18}
-                            aria-hidden="true"
-                            className="shrink-0"
-                        />
-
-                        <span>{invalidText}</span>
-                    </div>
-                </div>
-            );
-        }
-
-        // =================================================
-        // EXPIRED
-        // =================================================
-
-        if (isExpired) {
-            return (
-                <div
-                    className={wrapperClasses}
-                    role="status"
-                >
-                    <div
-                        className="
-                            flex items-center
-                            justify-center gap-2
-                            py-3 text-center
-                            text-sm font-semibold
-                            text-emerald-700
-                            dark:text-emerald-300
-                        "
-                    >
-                        <CheckCircle2
-                            size={19}
-                            strokeWidth={2}
-                            aria-hidden="true"
-                            className="shrink-0"
-                        />
-
-                        <span>{expiredText}</span>
-                    </div>
-                </div>
-            );
-        }
-
-        // =================================================
-        // ACTIVE COUNTDOWN
-        // =================================================
-
+const CountdownUnit = memo(
+    function CountdownUnit({
+        value,
+        label,
+    }) {
         return (
-            <section
-                className={wrapperClasses}
-                aria-label={title}
+            <div
+                className="
+                    flex min-w-0
+                    flex-col items-center
+                    justify-center
+                    rounded-xl
+                    border
+                    border-violet-200/70
+                    bg-white/80
+                    px-1.5 py-3
+                    dark:border-white/10
+                    dark:bg-white/[0.045]
+                "
             >
-                {/* =====================================
-                    HEADER
-                ===================================== */}
-
-                {title && (
-                    <div
-                        className={[
-                            "flex items-center",
-                            "justify-center",
-                            "gap-2",
-                            "text-center",
-
-                            compact
-                                ? "mb-2"
-                                : "mb-4",
-                        ].join(" ")}
-                    >
-                        {showIcon && (
-                            <Clock3
-                                size={compact ? 15 : 18}
-                                strokeWidth={1.8}
-                                aria-hidden="true"
-                                className="
-                                    shrink-0
-                                    text-sky-600
-                                    dark:text-sky-400
-                                "
-                            />
-                        )}
-
-                        <h3
-                            className={[
-                                "font-semibold",
-                                "text-slate-700",
-                                "dark:text-slate-200",
-
-                                compact
-                                    ? "text-xs"
-                                    : "text-sm sm:text-base",
-                            ].join(" ")}
-                        >
-                            {title}
-                        </h3>
-                    </div>
-                )}
-
-                {/* =====================================
-                    COUNTDOWN GRID
-                ===================================== */}
-
-                <div
-                    role="timer"
-                    aria-live="off"
-                    aria-label={accessibleTime}
+                <span
+                    className="
+                        text-xl font-black
+                        tabular-nums
+                        tracking-tight
+                        text-slate-900
+                        sm:text-2xl
+                        dark:text-white
+                    "
                 >
-                    <div
-                        aria-hidden="true"
-                        className={[
-                            "grid",
-                            "min-w-0",
-                            "gap-1.5",
-                            "sm:gap-3",
+                    {padNumber(value)}
+                </span>
 
-                            showSeconds
-                                ? "grid-cols-4"
-                                : "grid-cols-3",
-                        ].join(" ")}
-                    >
-                        {timeParts.map((part) => (
-                            <TimeCell
-                                key={part.key}
-                                value={part.value}
-                                label={part.label}
-                                compact={compact}
-                            />
-                        ))}
-                    </div>
-                </div>
-            </section>
+                <span
+                    className="
+                        mt-1
+                        text-[10px]
+                        font-semibold
+                        uppercase
+                        tracking-wide
+                        text-slate-500
+                        dark:text-slate-400
+                    "
+                >
+                    {label}
+                </span>
+            </div>
         );
     }
 );
+
+
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
+
+function EventCountdown({
+    targetTime,
+    serverTime = null,
+    receivedAtMs = null,
+    onExpire,
+    className = "",
+}) {
+    // =====================================================
+    // TARGET TIME
+    // =====================================================
+
+    const targetTimestamp = useMemo(
+        () => parseTimestamp(targetTime),
+        [targetTime]
+    );
+
+    // =====================================================
+    // CLOCK OFFSET
+    // =====================================================
+
+    const serverOffset = useMemo(
+        () =>
+            getServerClockOffset(
+                serverTime,
+                receivedAtMs
+            ),
+        [
+            serverTime,
+            receivedAtMs,
+        ]
+    );
+
+    // =====================================================
+    // CURRENT TIME
+    // =====================================================
+
+    const [currentTime, setCurrentTime] =
+        useState(
+            () =>
+                Date.now() +
+                serverOffset
+        );
+
+    // =====================================================
+    // CALLBACK REF
+    // =====================================================
+    //
+    // Avoid restarting the timer whenever
+    // the parent recreates onExpire.
+    //
+    // =====================================================
+
+    const onExpireRef =
+        useRef(onExpire);
+
+    useEffect(() => {
+        onExpireRef.current =
+            onExpire;
+    }, [onExpire]);
+
+    // =====================================================
+    // EXPIRATION GUARD
+    // =====================================================
+    //
+    // Each target timestamp triggers at most
+    // one expiration callback per mount.
+    //
+    // This prevents repeated status API GETs
+    // when the timer reaches zero.
+    //
+    // =====================================================
+
+    const expiredTargetRef = useRef(null);
+
+    // =====================================================
+    // LIVE CLOCK EFFECT
+    // =====================================================
+
+    useEffect(() => {
+        // Anchor the clock using Date.now()
+        // and a monotonic time source.
+
+        const anchorWallTime =
+            Date.now() +
+            serverOffset;
+
+        const anchorMonotonicTime =
+            getMonotonicTime();
+
+        const calculateNow = () =>
+            anchorWallTime +
+            (
+                getMonotonicTime() -
+                anchorMonotonicTime
+            );
+
+        const updateClock = () => {
+            setCurrentTime(
+                calculateNow()
+            );
+        };
+
+        // Update immediately on prop changes.
+
+        updateClock();
+
+        // No timer needed when the target
+        // date is invalid or already passed.
+
+        if (
+            targetTimestamp === null ||
+            targetTimestamp <= anchorWallTime
+        ) {
+            return undefined;
+        }
+
+        const intervalId =
+            window.setInterval(
+                updateClock,
+                1000
+            );
+
+        // Recalculate when user returns
+        // to a previously inactive tab.
+
+        const handleVisibilityChange = () => {
+            if (
+                document.visibilityState ===
+                "visible"
+            ) {
+                updateClock();
+            }
+        };
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
+
+        return () => {
+            window.clearInterval(
+                intervalId
+            );
+
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+        };
+    }, [
+        targetTimestamp,
+        serverOffset,
+    ]);
+
+    // =====================================================
+    // COUNTDOWN VALUES
+    // =====================================================
+
+    const countdown = useMemo(
+        () =>
+            getCountdown(
+                targetTimestamp,
+                currentTime
+            ),
+        [
+            targetTimestamp,
+            currentTime,
+        ]
+    );
+
+    const isExpired =
+        countdown?.expired === true;
+
+    // =====================================================
+    // ON EXPIRE
+    // =====================================================
+    //
+    // The callback can perform a GET status
+    // request through the parent component.
+    //
+    // It must not submit a claim POST.
+    //
+    // =====================================================
+
+    useEffect(() => {
+        if (
+            targetTimestamp === null ||
+            !isExpired
+        ) {
+            return;
+        }
+
+        const targetKey =
+            String(targetTimestamp);
+
+        if (
+            expiredTargetRef.current ===
+            targetKey
+        ) {
+            return;
+        }
+
+        expiredTargetRef.current =
+            targetKey;
+
+        if (
+            typeof onExpireRef.current ===
+            "function"
+        ) {
+            onExpireRef.current();
+        }
+    }, [
+        targetTimestamp,
+        isExpired,
+    ]);
+
+    // =====================================================
+    // INVALID DATE
+    // =====================================================
+
+    if (!countdown) {
+        return (
+            <div
+                className={`
+                    flex items-start gap-2
+                    rounded-xl
+                    border border-slate-200
+                    bg-slate-50
+                    p-3 text-sm
+                    text-slate-500
+                    dark:border-white/10
+                    dark:bg-white/[0.035]
+                    dark:text-slate-400
+                    ${className}
+                `}
+            >
+                <CalendarClock
+                    size={17}
+                    className="mt-0.5 shrink-0"
+                    aria-hidden="true"
+                />
+
+                <span>
+                    Bayram sovg‘asining ochilish
+                    sanasi hali belgilanmagan.
+                </span>
+            </div>
+        );
+    }
+
+    // =====================================================
+    // COUNTDOWN COMPLETED
+    // =====================================================
+
+    if (isExpired) {
+        return (
+            <div
+                role="status"
+                className={`
+                    flex items-start gap-2
+                    rounded-xl
+                    border border-emerald-500/20
+                    bg-emerald-500/10
+                    p-3
+                    text-sm leading-6
+                    text-emerald-800
+                    dark:text-emerald-200
+                    ${className}
+                `}
+            >
+                <CheckCircle2
+                    size={19}
+                    className="mt-0.5 shrink-0"
+                    aria-hidden="true"
+                />
+
+                <div>
+                    <p className="font-bold">
+                        Belgilangan vaqt yetdi!
+                    </p>
+
+                    <p className="mt-0.5 text-xs">
+                        Sovg‘a ochish huquqi
+                        server orqali tekshiriladi.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================
+    // ACTIVE COUNTDOWN
+    // =====================================================
+
+    const units = [
+        {
+            key: "days",
+            label: "Kun",
+            value: countdown.days,
+        },
+        {
+            key: "hours",
+            label: "Soat",
+            value: countdown.hours,
+        },
+        {
+            key: "minutes",
+            label: "Daqiqa",
+            value: countdown.minutes,
+        },
+        {
+            key: "seconds",
+            label: "Soniya",
+            value: countdown.seconds,
+        },
+    ];
+
+    return (
+        <div
+            role="timer"
+            aria-label="Bayram sovg‘asi ochilishigacha qolgan vaqt"
+            aria-live="off"
+            className={className}
+        >
+            <div
+                className="
+                    mb-3
+                    flex items-center gap-2
+                    text-xs font-bold
+                    text-violet-700
+                    dark:text-violet-300
+                "
+            >
+                <Clock3
+                    size={15}
+                    aria-hidden="true"
+                />
+
+                Sovg‘a ochilishigacha
+            </div>
+
+            <div
+                className="
+                    grid grid-cols-4
+                    gap-2 sm:gap-3
+                "
+            >
+                {units.map(
+                    (unit) => (
+                        <CountdownUnit
+                            key={unit.key}
+                            value={unit.value}
+                            label={unit.label}
+                        />
+                    )
+                )}
+            </div>
+        </div>
+    );
+}
+
 
 // =========================================================
 // EXPORT
 // =========================================================
 
-export default EventCountdown;
+export default memo(EventCountdown);
