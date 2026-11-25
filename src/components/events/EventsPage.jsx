@@ -1,21 +1,27 @@
 
- // src/components/events/EventsPage.jsx
+// src/components/events/EventsPage.jsx
 
 import React, {
     memo,
     useCallback,
-    useId,
+    useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
 import {
+    useDispatch,
+    useSelector,
+} from "react-redux";
+
+import {
     AlertCircle,
-    ArrowLeft,
-    ArrowRight,
     CalendarDays,
+    ChevronLeft,
+    ChevronRight,
     Gift,
-    Inbox,
+    Loader2,
     RefreshCw,
     Search,
     Sparkles,
@@ -23,317 +29,233 @@ import {
 } from "lucide-react";
 
 import {
-    useEvents,
-} from "../../hooks/events/useEvents";
-
-import {
+    EVENT_REQUEST_STATUS,
     fetchPublicEvents,
+    selectPublicEvents,
+    selectEventsCount,
+    selectEventsError,
+    selectEventsListStatus,
+    selectEventsNextPage,
+    selectEventsPreviousPage,
 } from "../../features/events/eventsSlice";
 
 import EventCard, {
-    getEventDisplayStatus,
+    getEventStatus,
 } from "./EventCard";
 
 // =========================================================
-// FSOCIETY — EVENTS CENTER PAGE
+// FSOCIETY — EVENTS PAGE
 // =========================================================
+//
+// Location:
+// src/components/events/EventsPage.jsx
 //
 // Features:
-// - Public event catalog
-// - Status filters
-// - Local search
-// - Loading skeletons
-// - Error recovery
+//
+// - Public holiday events
+// - Responsive cards
+// - Live countdown inside EventCard
+// - Seasonal Gift integration
+// - Initial events loading
+// - Error and retry states
 // - Server pagination
-// - Responsive layout
-// - Dark / Light support
+// - Current-page search
+// - Current-page status filtering
+// - Light / Dark mode
+// - Accessible controls
 //
 // IMPORTANT:
-// - No client-side gift claiming
-// - No invented events
-// - No hardcoded holiday calendar
-// - No dependence on Winter Mode
 //
-// Search and filters operate on the currently
-// loaded backend page.
+// Each event has ONE gift per user.
+//
+// No Daily Gift endpoints are used.
 //
 // =========================================================
 
 
 // =========================================================
-// FILTER CONFIGURATION
+// CONSTANTS
 // =========================================================
 
-const EVENT_FILTERS = Object.freeze([
+const {
+    IDLE,
+    LOADING,
+    SUCCEEDED,
+    FAILED,
+} = EVENT_REQUEST_STATUS;
+
+const STATUS_FILTERS = [
     {
-        id: "all",
-        label: "Barchasi",
+        value: "all",
+        label: "Barcha holatlar",
     },
     {
-        id: "active",
+        value: "scheduled",
+        label: "Kutilayotgan",
+    },
+    {
+        value: "active",
         label: "Faol",
     },
     {
-        id: "scheduled",
-        label: "Tez kunda",
-    },
-    {
-        id: "finished",
+        value: "finished",
         label: "Yakunlangan",
     },
     {
-        id: "disabled",
-        label: "Faol emas",
+        value: "disabled",
+        label: "O‘chirilgan",
     },
-]);
-
-const PAGE_PARAM_NAMES = new Set([
-    "page",
-    "page_size",
-    "limit",
-    "offset",
-    "cursor",
-]);
-
-
-// =========================================================
-// HELPERS
-// =========================================================
+];
 
 const normalizeSearch = (value) =>
     String(value ?? "")
         .trim()
-        .toLocaleLowerCase("uz-UZ");
+        .toLocaleLowerCase();
 
-const getEventSearchText = (event) => {
-    return [
-        event?.name,
-        event?.title,
-        event?.description,
-        event?.slug,
-    ]
-        .filter(
-            (value) =>
-                typeof value === "string"
-        )
-        .join(" ")
-        .toLocaleLowerCase("uz-UZ");
-};
 
-// Parse pagination query parameters only.
+// =========================================================
+// FILTER EVENTS
+// =========================================================
 //
-// We deliberately do not request the absolute
-// URL returned by the backend.
+// Filtering is performed only on the
+// currently loaded backend page.
+//
+// The server count and pagination are
+// not modified by local filters.
+//
+// =========================================================
 
-const getPaginationParams = (link) => {
-    if (
-        typeof link !== "string" ||
-        !link.trim()
-    ) {
-        return null;
-    }
+const filterEvents = (
+    events,
+    search,
+    statusFilter
+) => {
+    const term = normalizeSearch(search);
 
-    try {
-        const parsed = new URL(
-            link,
-            "https://fsociety.invalid"
-        );
+    return events.filter((event) => {
+        if (
+            !event ||
+            typeof event !== "object"
+        ) {
+            return false;
+        }
 
-        const params = {};
+        const eventStatus =
+            getEventStatus(event);
 
-        parsed.searchParams.forEach(
-            (value, key) => {
-                if (
-                    PAGE_PARAM_NAMES.has(key)
-                ) {
-                    params[key] = value;
-                }
-            }
-        );
+        if (
+            statusFilter !== "all" &&
+            eventStatus !== statusFilter
+        ) {
+            return false;
+        }
 
-        return Object.keys(params).length
-            ? params
-            : null;
-    } catch {
-        return null;
-    }
+        if (!term) {
+            return true;
+        }
+
+        const searchable = [
+            event.name,
+            event.title,
+            event.description,
+            event.short_description,
+            event.slug,
+        ]
+            .filter(
+                (value) =>
+                    typeof value === "string"
+            )
+            .join(" ")
+            .toLocaleLowerCase();
+
+        return searchable.includes(term);
+    });
 };
 
 
 // =========================================================
-// EVENT CARD SKELETON
+// SKELETON CARD
 // =========================================================
 
-const EventCardSkeleton = memo(
-    function EventCardSkeleton() {
+const EventSkeleton = memo(
+    function EventSkeleton() {
         return (
             <div
                 aria-hidden="true"
                 className="
-                    overflow-hidden rounded-2xl
-                    border border-slate-200/70
+                    animate-pulse
+                    rounded-3xl
+                    border border-slate-200
                     bg-white/80
+                    p-5
                     dark:border-white/10
-                    dark:bg-slate-950/75
+                    dark:bg-[#0d1322]/80
                 "
             >
+                <div className="flex justify-between gap-4">
+                    <div
+                        className="
+                            h-12 w-12
+                            rounded-2xl
+                            bg-slate-200
+                            dark:bg-white/10
+                        "
+                    />
+
+                    <div
+                        className="
+                            h-7 w-24
+                            rounded-full
+                            bg-slate-200
+                            dark:bg-white/10
+                        "
+                    />
+                </div>
+
                 <div
                     className="
-                        h-32 bg-slate-200
-                        dark:bg-slate-800
-                        motion-safe:animate-pulse
+                        mt-6 h-6 w-3/4
+                        rounded-lg
+                        bg-slate-200
+                        dark:bg-white/10
                     "
                 />
 
-                <div className="space-y-4 p-5">
-                    <div
-                        className="
-                            h-6 w-24 rounded-full
-                            bg-slate-200
-                            dark:bg-slate-800
-                            motion-safe:animate-pulse
-                        "
-                    />
-
-                    <div
-                        className="
-                            h-7 w-3/4 rounded-lg
-                            bg-slate-200
-                            dark:bg-slate-800
-                            motion-safe:animate-pulse
-                        "
-                    />
-
-                    <div className="space-y-2">
-                        <div
-                            className="
-                                h-3 w-full rounded
-                                bg-slate-200
-                                dark:bg-slate-800
-                                motion-safe:animate-pulse
-                            "
-                        />
-
-                        <div
-                            className="
-                                h-3 w-4/5 rounded
-                                bg-slate-200
-                                dark:bg-slate-800
-                                motion-safe:animate-pulse
-                            "
-                        />
-                    </div>
-
-                    <div
-                        className="
-                            h-20 rounded-xl
-                            bg-slate-100
-                            dark:bg-slate-900
-                            motion-safe:animate-pulse
-                        "
-                    />
-
-                    <div
-                        className="
-                            h-11 rounded-xl
-                            bg-slate-200
-                            dark:bg-slate-800
-                            motion-safe:animate-pulse
-                        "
-                    />
-                </div>
-            </div>
-        );
-    }
-);
-
-
-// =========================================================
-// EMPTY STATE
-// =========================================================
-
-const EventEmptyState = memo(
-    function EventEmptyState({
-        filtered = false,
-        onReset,
-    }) {
-        return (
-            <div
-                className="
-                    mx-auto flex max-w-lg
-                    flex-col items-center
-                    rounded-2xl border
-                    border-slate-200/80
-                    bg-white/75 p-8
-                    text-center shadow-sm
-                    backdrop-blur-xl
-
-                    dark:border-white/10
-                    dark:bg-slate-950/70
-                "
-            >
                 <div
                     className="
-                        mb-4 flex h-16 w-16
-                        items-center justify-center
+                        mt-4 h-4 w-full
+                        rounded-lg
+                        bg-slate-200
+                        dark:bg-white/10
+                    "
+                />
+
+                <div
+                    className="
+                        mt-2 h-4 w-2/3
+                        rounded-lg
+                        bg-slate-200
+                        dark:bg-white/10
+                    "
+                />
+
+                <div
+                    className="
+                        mt-5 h-24
                         rounded-2xl
-                        bg-sky-100 text-sky-600
-
-                        dark:bg-sky-500/10
-                        dark:text-sky-400
+                        bg-slate-100
+                        dark:bg-white/[0.06]
                     "
-                >
-                    <Inbox size={30} />
-                </div>
+                />
 
-                <h2
+                <div
                     className="
-                        text-xl font-bold
-                        text-slate-900
-                        dark:text-white
+                        mt-5 h-11
+                        rounded-xl
+                        bg-slate-200
+                        dark:bg-white/10
                     "
-                >
-                    {filtered
-                        ? "Tadbir topilmadi"
-                        : "Hozircha tadbirlar yo‘q"}
-                </h2>
-
-                <p
-                    className="
-                        mt-2 text-sm leading-relaxed
-                        text-slate-600
-                        dark:text-slate-400
-                    "
-                >
-                    {filtered
-                        ? "Tanlangan filtr yoki qidiruv " +
-                          "bo‘yicha tadbir topilmadi."
-                        : "Yangi tadbirlar yaratilganda " +
-                          "ular shu yerda paydo bo‘ladi."}
-                </p>
-
-                {filtered && (
-                    <button
-                        type="button"
-                        onClick={onReset}
-                        className="
-                            mt-5 inline-flex min-h-11
-                            items-center gap-2
-                            rounded-xl
-                            bg-slate-900 px-5
-                            text-sm font-semibold
-                            text-white transition-colors
-                            hover:bg-slate-800
-
-                            dark:bg-white
-                            dark:text-slate-950
-                            dark:hover:bg-slate-200
-                        "
-                    >
-                        <X size={16} />
-                        Filtrlarni tozalash
-                    </button>
-                )}
+                />
             </div>
         );
     }
@@ -344,218 +266,253 @@ const EventEmptyState = memo(
 // EVENTS PAGE
 // =========================================================
 
-export default function EventsPage() {
-    const dispatchSearchId = useId();
-
-    const {
-        events,
-        count,
-        next,
-        previous,
-
-        loading,
-        isLoaded,
-        error,
-
-        refresh,
-    } = useEvents();
+function EventsPage() {
+    const dispatch = useDispatch();
 
     // =====================================================
-    // LOCAL UI STATE
+    // REDUX STATE
     // =====================================================
 
-    const [activeFilter, setActiveFilter] =
-        useState("all");
+    const events = useSelector(
+        selectPublicEvents
+    );
+
+    const totalCount = useSelector(
+        selectEventsCount
+    );
+
+    const listStatus = useSelector(
+        selectEventsListStatus
+    );
+
+    const listError = useSelector(
+        selectEventsError
+    );
+
+    const nextPageUrl = useSelector(
+        selectEventsNextPage
+    );
+
+    const previousPageUrl = useSelector(
+        selectEventsPreviousPage
+    );
+
+    // =====================================================
+    // LOCAL VIEW STATE
+    // =====================================================
 
     const [search, setSearch] =
         useState("");
 
-    const [pageNumber, setPageNumber] =
+    const [
+        statusFilter,
+        setStatusFilter,
+    ] = useState("all");
+
+    const [currentPage, setCurrentPage] =
         useState(1);
 
-    const [paginationError, setPaginationError] =
-        useState(null);
+    const [
+        requestedPage,
+        setRequestedPage,
+    ] = useState(null);
+
+    const pageRequestRef =
+        useRef(false);
+
+    const initialRequestRef =
+        useRef(false);
 
     // =====================================================
-    // STATUS COUNTS
+    // INITIAL FETCH
+    // =====================================================
+    //
+    // EventsController may already have
+    // requested the public events catalog.
+    //
+    // Only fetch if Redux state is idle.
+    //
+    // No automatic infinite retry on failure.
+    //
     // =====================================================
 
-    const statusCounts = useMemo(() => {
-        const counts = {
-            all: 0,
-            active: 0,
-            scheduled: 0,
-            finished: 0,
-            disabled: 0,
-        };
-
-        for (const event of events) {
-            counts.all += 1;
-
-            const status =
-                getEventDisplayStatus(event);
-
-            if (
-                Object.prototype.hasOwnProperty.call(
-                    counts,
-                    status
-                )
-            ) {
-                counts[status] += 1;
-            }
+    useEffect(() => {
+        if (
+            listStatus !== IDLE ||
+            initialRequestRef.current
+        ) {
+            return;
         }
 
-        return counts;
-    }, [events]);
+        initialRequestRef.current = true;
+
+        dispatch(
+            fetchPublicEvents()
+        );
+    }, [
+        dispatch,
+        listStatus,
+    ]);
 
     // =====================================================
     // FILTERED EVENTS
     // =====================================================
 
-    const filteredEvents = useMemo(() => {
-        const query = normalizeSearch(search);
+    const visibleEvents = useMemo(
+        () =>
+            filterEvents(
+                Array.isArray(events)
+                    ? events
+                    : [],
+                search,
+                statusFilter
+            ),
+        [
+            events,
+            search,
+            statusFilter,
+        ]
+    );
 
-        return events.filter((event) => {
-            const status =
-                getEventDisplayStatus(event);
+    const isLoading =
+        listStatus === LOADING;
 
+    const isFailed =
+        listStatus === FAILED;
+
+    const isLoaded =
+        listStatus === SUCCEEDED;
+
+    const hasExistingEvents =
+        Array.isArray(events) &&
+        events.length > 0;
+
+    const isInitialLoading =
+        isLoading &&
+        !hasExistingEvents;
+
+    const hasNextPage =
+        Boolean(nextPageUrl);
+
+    const hasPreviousPage =
+        Boolean(previousPageUrl);
+
+    const canChangePage =
+        !isLoading &&
+        !pageRequestRef.current;
+
+    // =====================================================
+    // REFRESH CURRENT PAGE
+    // =====================================================
+
+    const handleRefresh = useCallback(
+        () => {
             if (
-                activeFilter !== "all" &&
-                status !== activeFilter
-            ) {
-                return false;
-            }
-
-            if (!query) {
-                return true;
-            }
-
-            return getEventSearchText(
-                event
-            ).includes(query);
-        });
-    }, [
-        events,
-        activeFilter,
-        search,
-    ]);
-
-    // =====================================================
-    // RESET FILTERS
-    // =====================================================
-
-    const resetFilters = useCallback(() => {
-        setActiveFilter("all");
-        setSearch("");
-    }, []);
-
-    // =====================================================
-    // REFRESH EVENTS
-    // =====================================================
-
-    const handleRefresh = useCallback(() => {
-        setPaginationError(null);
-
-        return refresh();
-    }, [refresh]);
-
-    // =====================================================
-    // PAGINATION
-    // =====================================================
-
-    const handleChangePage = useCallback(
-        async (paginationLink, direction) => {
-            if (
-                loading ||
-                !paginationLink
+                pageRequestRef.current ||
+                listStatus === LOADING
             ) {
                 return;
             }
 
-            const params =
-                getPaginationParams(
-                    paginationLink
-                );
-
-            if (!params) {
-                setPaginationError(
-                    "Backend sahifalash havolasi " +
-                    "tushunarsiz. Ma'lumotlarni " +
-                    "yangilab ko‘ring."
-                );
-                return;
-            }
-
-            setPaginationError(null);
-
-            const action = await refresh({
-                params,
-            });
-
-            if (
-                fetchPublicEvents.fulfilled.match(
-                    action
-                )
-            ) {
-                setPageNumber((current) =>
-                    Math.max(
-                        1,
-                        current + direction
-                    )
-                );
-
-                // Filters are local to the
-                // currently loaded backend page.
-                resetFilters();
-            }
+            dispatch(
+                fetchPublicEvents({
+                    params: {
+                        page: currentPage,
+                    },
+                })
+            );
         },
         [
-            loading,
-            refresh,
-            resetFilters,
+            dispatch,
+            listStatus,
+            currentPage,
         ]
     );
 
     // =====================================================
-    // COUNTDOWN EXPIRED
+    // SERVER PAGINATION
     // =====================================================
     //
-    // Recheck events using GET.
-    // Never automatically claim rewards.
+    // Do not assume the backend page size.
+    //
+    // Use DRF's next/previous links only
+    // to determine navigation availability.
+    //
+    // The API is called with page=N.
+    //
+    // Update currentPage only after a
+    // successful response.
     //
     // =====================================================
 
-    const handleCountdownExpire =
-        useCallback(() => {
-            refresh();
-        }, [refresh]);
+    const handleChangePage = useCallback(
+        async (nextPage) => {
+            if (
+                pageRequestRef.current ||
+                listStatus === LOADING ||
+                !Number.isSafeInteger(
+                    nextPage
+                ) ||
+                nextPage < 1 ||
+                nextPage === currentPage
+            ) {
+                return;
+            }
+
+            pageRequestRef.current = true;
+
+            setRequestedPage(nextPage);
+
+            try {
+                const result = await dispatch(
+                    fetchPublicEvents({
+                        params: {
+                            page: nextPage,
+                        },
+                    })
+                );
+
+                if (
+                    fetchPublicEvents
+                        .fulfilled.match(result)
+                ) {
+                    setCurrentPage(nextPage);
+                }
+            } finally {
+                pageRequestRef.current = false;
+
+                setRequestedPage(null);
+            }
+        },
+        [
+            dispatch,
+            listStatus,
+            currentPage,
+        ]
+    );
 
     // =====================================================
-    // DERIVED UI STATE
+    // CLEAR LOCAL FILTERS
     // =====================================================
 
-    const hasEvents =
-        events.length > 0;
+    const clearFilters = useCallback(
+        () => {
+            setSearch("");
 
-    const hasFilters =
-        activeFilter !== "all" ||
-        normalizeSearch(search).length > 0;
+            setStatusFilter("all");
+        },
+        []
+    );
 
-    const showSkeleton =
-        loading && !hasEvents;
+    // =====================================================
+    // ERROR MESSAGE
+    // =====================================================
 
-    const showError =
-        Boolean(error) && !hasEvents;
-
-    const showEmpty =
-        isLoaded &&
-        !hasEvents &&
-        !loading;
-
-    const showFilteredEmpty =
-        !loading &&
-        hasEvents &&
-        filteredEvents.length === 0;
+    const errorMessage =
+        typeof listError === "string"
+            ? listError
+            : listError?.message ??
+              "Tadbirlarni yuklab bo‘lmadi.";
 
     // =====================================================
     // RENDER
@@ -564,17 +521,20 @@ export default function EventsPage() {
     return (
         <main
             className="
-                relative isolate min-h-screen
-                w-full min-w-0
-                px-3 py-8
-                sm:px-5 sm:py-10
+                relative isolate
+                min-h-screen
+                px-4 pb-16 pt-8
+                text-slate-900
+                sm:px-6
                 lg:px-8
+                dark:text-white
             "
         >
             <div
                 className="
-                    mx-auto flex w-full
-                    max-w-7xl flex-col gap-7
+                    relative z-10
+                    mx-auto
+                    w-full max-w-7xl
                 "
             >
                 {/* =====================================
@@ -583,377 +543,364 @@ export default function EventsPage() {
 
                 <header
                     className="
-                        relative overflow-hidden
-                        rounded-3xl border
-                        border-slate-200/80
-                        bg-white/80 p-5
-                        shadow-xl shadow-slate-900/5
-                        backdrop-blur-xl
-
-                        dark:border-white/10
-                        dark:bg-slate-950/80
-                        dark:shadow-black/20
-
+                        relative
+                        overflow-hidden
+                        rounded-3xl
+                        border border-violet-200/80
+                        bg-white/85
+                        p-5
+                        shadow-sm
                         sm:p-8
+                        dark:border-violet-400/15
+                        dark:bg-[#0d1322]/85
                     "
                 >
                     <div
                         aria-hidden="true"
                         className="
                             pointer-events-none
-                            absolute -right-16 -top-20
-                            h-60 w-60 rounded-full
-                            bg-cyan-400/10 blur-3xl
-                            dark:bg-cyan-400/10
+                            absolute -right-16 -top-24
+                            h-64 w-64
+                            rounded-full
+                            bg-violet-500/15
+                            blur-3xl
                         "
                     />
 
                     <div
+                        aria-hidden="true"
                         className="
-                            relative z-10
-                            flex flex-col gap-5
-                            md:flex-row
-                            md:items-center
-                            md:justify-between
+                            pointer-events-none
+                            absolute -bottom-24 -left-16
+                            h-52 w-52
+                            rounded-full
+                            bg-cyan-400/10
+                            blur-3xl
                         "
-                    >
-                        <div className="max-w-2xl">
-                            <div
-                                className="
-                                    mb-3 inline-flex
-                                    items-center gap-2
-                                    text-xs font-bold
-                                    uppercase tracking-[0.2em]
-                                    text-sky-700
-                                    dark:text-sky-400
-                                "
-                            >
-                                <Sparkles
-                                    size={16}
-                                    aria-hidden="true"
-                                />
+                    />
 
-                                FSOCIETY EVENTS
+                    <div className="relative z-10">
+                        <div
+                            className="
+                                inline-flex items-center
+                                gap-2 rounded-full
+                                border border-violet-500/20
+                                bg-violet-500/10
+                                px-3 py-1.5
+                                text-xs font-bold
+                                text-violet-700
+                                dark:text-violet-300
+                            "
+                        >
+                            <Sparkles
+                                size={15}
+                                aria-hidden="true"
+                            />
+
+                            FSOCIETY EVENTS
+                        </div>
+
+                        <div
+                            className="
+                                mt-5 flex flex-wrap
+                                items-start justify-between
+                                gap-4
+                            "
+                        >
+                            <div className="min-w-0 flex-1">
+                                <h1
+                                    className="
+                                        text-2xl font-black
+                                        tracking-tight
+                                        sm:text-3xl
+                                        lg:text-4xl
+                                    "
+                                >
+                                    Bayramlar va tadbirlar
+                                </h1>
+
+                                <p
+                                    className="
+                                        mt-3 max-w-2xl
+                                        text-sm leading-7
+                                        text-slate-600
+                                        sm:text-base
+                                        dark:text-slate-400
+                                    "
+                                >
+                                    Maxsus tadbirlarni kuzating,
+                                    countdown tugashini kuting
+                                    va bayram sovg‘angizni oching.
+                                    Har bir tadbir uchun
+                                    bitta sovg‘a!
+                                </p>
                             </div>
 
-                            <h1
-                                className="
-                                    text-3xl font-black
-                                    tracking-tight
-                                    text-slate-900
-                                    dark:text-white
-                                    sm:text-4xl
-                                "
-                            >
-                                Tadbirlar markazi
-                            </h1>
-
-                            <p
-                                className="
-                                    mt-3 max-w-xl
-                                    text-sm leading-relaxed
-                                    text-slate-600
-                                    dark:text-slate-400
-                                    sm:text-base
-                                "
-                            >
-                                FSociety bayramlari,
-                                maxsus tadbirlar va
-                                sovg‘alar bir joyda.
-                                Yaqinlashayotgan
-                                tadbirlarni kuzating.
-                            </p>
-
                             <div
                                 className="
-                                    mt-5 inline-flex
-                                    items-center gap-2
-                                    rounded-full border
-                                    border-slate-200
-                                    bg-slate-50 px-3 py-2
+                                    flex h-14 w-14
+                                    shrink-0 items-center
+                                    justify-center
+                                    rounded-2xl
+                                    bg-gradient-to-br
+                                    from-violet-600
+                                    to-fuchsia-600
+                                    text-white
+                                    shadow-lg
+                                    shadow-violet-500/20
+                                "
+                            >
+                                <Gift
+                                    size={27}
+                                    strokeWidth={1.7}
+                                    aria-hidden="true"
+                                />
+                            </div>
+                        </div>
+
+                        <div
+                            className="
+                                mt-5 flex flex-wrap
+                                items-center gap-2
+                            "
+                        >
+                            <span
+                                className="
+                                    inline-flex items-center
+                                    gap-1.5 rounded-full
+                                    border border-slate-200
+                                    bg-slate-50
+                                    px-3 py-1.5
                                     text-xs font-semibold
                                     text-slate-600
-
                                     dark:border-white/10
                                     dark:bg-white/5
                                     dark:text-slate-300
                                 "
                             >
                                 <CalendarDays
-                                    size={15}
+                                    size={14}
                                     aria-hidden="true"
                                 />
 
-                                {loading && !hasEvents
-                                    ? "Tadbirlar yuklanmoqda"
-                                    : `Jami ${count} ta tadbir`}
-                            </div>
-                        </div>
+                                {totalCount} ta tadbir
+                            </span>
 
-                        <div
-                            className="
-                                hidden h-28 w-28 shrink-0
-                                items-center justify-center
-                                rounded-3xl border
-                                border-sky-200/50
-                                bg-gradient-to-br
-                                from-sky-100 to-teal-100
-                                text-sky-700
-
-                                dark:border-sky-500/20
-                                dark:from-sky-500/10
-                                dark:to-emerald-500/10
-                                dark:text-sky-300
-
-                                md:flex
-                            "
-                            aria-hidden="true"
-                        >
-                            <Gift
-                                size={54}
-                                strokeWidth={1.4}
-                            />
+                            <span
+                                className="
+                                    rounded-full
+                                    border border-emerald-500/20
+                                    bg-emerald-500/10
+                                    px-3 py-1.5
+                                    text-xs font-semibold
+                                    text-emerald-700
+                                    dark:text-emerald-300
+                                "
+                            >
+                                Har event uchun 1 ta sovg‘a
+                            </span>
                         </div>
                     </div>
                 </header>
 
                 {/* =====================================
-                    SEARCH AND REFRESH
+                    FILTERS
                 ===================================== */}
 
                 <section
-                    aria-label="Tadbirlarni qidirish"
+                    aria-label="Tadbirlarni qidirish va saralash"
                     className="
-                        flex flex-col gap-3
-                        sm:flex-row
+                        mt-6
+                        rounded-2xl
+                        border border-slate-200/80
+                        bg-white/85
+                        p-4
+                        shadow-sm
+                        sm:p-5
+                        dark:border-white/10
+                        dark:bg-[#0d1322]/85
                     "
                 >
                     <div
                         className="
-                            relative min-w-0 flex-1
+                            grid grid-cols-1
+                            gap-3
+                            md:grid-cols-[minmax(0,1fr)_220px_auto]
                         "
                     >
-                        <label
-                            htmlFor={dispatchSearchId}
-                            className="sr-only"
-                        >
-                            Tadbir nomini qidirish
-                        </label>
+                        {/* SEARCH */}
 
-                        <Search
-                            size={19}
-                            aria-hidden="true"
-                            className="
-                                pointer-events-none
-                                absolute left-4 top-1/2
-                                -translate-y-1/2
-                                text-slate-400
-                            "
-                        />
+                        <div className="relative">
+                            <Search
+                                size={18}
+                                aria-hidden="true"
+                                className="
+                                    pointer-events-none
+                                    absolute left-3 top-1/2
+                                    -translate-y-1/2
+                                    text-slate-400
+                                "
+                            />
 
-                        <input
-                            id={dispatchSearchId}
-                            type="search"
-                            value={search}
+                            <input
+                                type="search"
+                                aria-label="Tadbir qidirish"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(
+                                        event.target.value
+                                    )
+                                }
+                                placeholder="Bayram yoki tadbir nomi..."
+                                className="
+                                    h-11 w-full
+                                    rounded-xl
+                                    border border-slate-200
+                                    bg-slate-50/80
+                                    pl-10 pr-4
+                                    text-sm
+                                    text-slate-900
+                                    outline-none
+                                    transition-colors
+                                    placeholder:text-slate-400
+                                    focus:border-violet-400
+                                    focus:ring-2
+                                    focus:ring-violet-500/10
+                                    dark:border-white/10
+                                    dark:bg-white/[0.04]
+                                    dark:text-white
+                                "
+                            />
+                        </div>
+
+                        {/* STATUS FILTER */}
+
+                        <select
+                            aria-label="Tadbir holati"
+                            value={statusFilter}
                             onChange={(event) =>
-                                setSearch(
+                                setStatusFilter(
                                     event.target.value
                                 )
                             }
-                            placeholder="Tadbirlarni qidirish..."
                             className="
-                                min-h-12 w-full
-                                rounded-xl border
-                                border-slate-200
-                                bg-white/85
-                                pl-11 pr-4
-                                text-sm text-slate-900
+                                h-11 w-full
+                                rounded-xl
+                                border border-slate-200
+                                bg-slate-50/80
+                                px-3
+                                text-sm
+                                text-slate-900
                                 outline-none
-                                backdrop-blur-md
-
-                                placeholder:text-slate-400
-                                focus:border-sky-400
+                                focus:border-violet-400
                                 focus:ring-2
-                                focus:ring-sky-400/20
-
+                                focus:ring-violet-500/10
                                 dark:border-white/10
-                                dark:bg-slate-950/80
+                                dark:bg-[#171d2c]
                                 dark:text-white
-                                dark:focus:border-sky-500
-                            "
-                        />
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={handleRefresh}
-                        disabled={loading}
-                        className="
-                            inline-flex min-h-12
-                            items-center justify-center
-                            gap-2 rounded-xl
-                            border border-slate-200
-                            bg-white/85 px-5
-                            text-sm font-semibold
-                            text-slate-700
-                            transition-colors
-                            hover:bg-slate-100
-                            disabled:cursor-not-allowed
-                            disabled:opacity-60
-
-                            dark:border-white/10
-                            dark:bg-slate-950/80
-                            dark:text-slate-200
-                            dark:hover:bg-slate-900
-                        "
-                    >
-                        <RefreshCw
-                            size={17}
-                            aria-hidden="true"
-                            className={
-                                loading
-                                    ? "motion-safe:animate-spin"
-                                    : ""
-                            }
-                        />
-
-                        Yangilash
-                    </button>
-                </section>
-
-                {/* =====================================
-                    STATUS FILTERS
-                ===================================== */}
-
-                <section
-                    aria-label="Tadbirlar holati"
-                    className="
-                        flex flex-wrap gap-2
-                    "
-                >
-                    {EVENT_FILTERS.map(
-                        (filter) => {
-                            const active =
-                                activeFilter ===
-                                filter.id;
-
-                            return (
-                                <button
-                                    key={filter.id}
-                                    type="button"
-                                    aria-pressed={active}
-                                    onClick={() =>
-                                        setActiveFilter(
-                                            filter.id
-                                        )
-                                    }
-                                    className={[
-                                        "inline-flex min-h-10",
-                                        "items-center gap-2",
-                                        "rounded-full border",
-                                        "px-4 py-2",
-                                        "text-xs font-semibold",
-                                        "transition-colors",
-                                        "focus-visible:outline",
-                                        "focus-visible:outline-2",
-                                        "focus-visible:outline-offset-2",
-                                        "focus-visible:outline-sky-500",
-
-                                        active
-                                            ? [
-                                                "border-slate-900",
-                                                "bg-slate-900",
-                                                "text-white",
-                                                "dark:border-white",
-                                                "dark:bg-white",
-                                                "dark:text-slate-950",
-                                            ].join(" ")
-                                            : [
-                                                "border-slate-200",
-                                                "bg-white/80",
-                                                "text-slate-600",
-                                                "hover:bg-slate-100",
-                                                "dark:border-white/10",
-                                                "dark:bg-slate-950/75",
-                                                "dark:text-slate-300",
-                                                "dark:hover:bg-slate-900",
-                                            ].join(" "),
-                                    ].join(" ")}
-                                >
-                                    {filter.label}
-
-                                    <span
-                                        className={[
-                                            "rounded-full px-1.5",
-                                            "py-0.5 text-[10px]",
-                                            active
-                                                ? "bg-white/20 dark:bg-slate-900/10"
-                                                : "bg-slate-100 dark:bg-white/10",
-                                        ].join(" ")}
-                                    >
-                                        {statusCounts[
-                                            filter.id
-                                        ] ?? 0}
-                                    </span>
-                                </button>
-                            );
-                        }
-                    )}
-                </section>
-
-                {/* =====================================
-                    ERRORS
-                ===================================== */}
-
-                {error && (
-                    <div
-                        role="alert"
-                        className="
-                            flex flex-col gap-3
-                            rounded-xl border
-                            border-rose-200
-                            bg-rose-50 p-4
-                            text-sm text-rose-800
-
-                            dark:border-rose-500/20
-                            dark:bg-rose-500/10
-                            dark:text-rose-200
-
-                            sm:flex-row
-                            sm:items-center
-                            sm:justify-between
-                        "
-                    >
-                        <div
-                            className="
-                                flex items-start gap-2
                             "
                         >
-                            <AlertCircle
-                                size={19}
-                                className="shrink-0"
-                                aria-hidden="true"
-                            />
+                            {STATUS_FILTERS.map(
+                                (filter) => (
+                                    <option
+                                        key={filter.value}
+                                        value={filter.value}
+                                    >
+                                        {filter.label}
+                                    </option>
+                                )
+                            )}
+                        </select>
 
-                            <span>
-                                {error.message ??
-                                    "Tadbirlarni yuklab bo‘lmadi."}
-                            </span>
-                        </div>
+                        {/* REFRESH */}
 
                         <button
                             type="button"
                             onClick={handleRefresh}
-                            disabled={loading}
+                            disabled={isLoading}
                             className="
-                                min-h-10 rounded-lg
-                                border border-rose-300
-                                px-4 font-semibold
-                                hover:bg-rose-100
-                                disabled:opacity-60
+                                inline-flex min-h-11
+                                items-center justify-center
+                                gap-2 rounded-xl
+                                border border-slate-200
+                                bg-slate-50
+                                px-4 py-2
+                                text-sm font-bold
+                                text-slate-700
+                                transition-colors
+                                hover:bg-slate-100
+                                disabled:cursor-not-allowed
+                                disabled:opacity-50
+                                dark:border-white/10
+                                dark:bg-white/5
+                                dark:text-slate-200
+                                dark:hover:bg-white/10
+                            "
+                        >
+                            {isLoading ? (
+                                <Loader2
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                <RefreshCw size={17} />
+                            )}
 
-                                dark:border-rose-500/30
-                                dark:hover:bg-rose-500/10
+                            Yangilash
+                        </button>
+                    </div>
+
+                    <p
+                        className="
+                            mt-3 text-xs
+                            text-slate-500
+                            dark:text-slate-400
+                        "
+                    >
+                        Qidiruv va filter hozir
+                        faqat yuklangan sahifadagi
+                        tadbirlar uchun ishlaydi.
+                    </p>
+                </section>
+
+                {/* =====================================
+                    ERROR / RETRY
+                ===================================== */}
+
+                {isFailed && (
+                    <div
+                        role="alert"
+                        className="
+                            mt-5 flex flex-wrap
+                            items-center gap-3
+                            rounded-2xl
+                            border border-rose-500/20
+                            bg-rose-500/10
+                            p-4
+                            text-sm
+                            text-rose-700
+                            dark:text-rose-300
+                        "
+                    >
+                        <AlertCircle
+                            size={20}
+                            className="shrink-0"
+                        />
+
+                        <span className="min-w-0 flex-1">
+                            {errorMessage}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            className="
+                                rounded-lg
+                                border border-rose-500/30
+                                px-3 py-2
+                                text-xs font-bold
+                                transition-colors
+                                hover:bg-rose-500/10
                             "
                         >
                             Qayta urinish
@@ -961,202 +908,305 @@ export default function EventsPage() {
                     </div>
                 )}
 
-                {paginationError && (
-                    <p
-                        role="alert"
-                        className="
-                            rounded-xl border
-                            border-amber-200
-                            bg-amber-50 p-3
-                            text-sm text-amber-800
-
-                            dark:border-amber-500/20
-                            dark:bg-amber-500/10
-                            dark:text-amber-200
-                        "
-                    >
-                        {paginationError}
-                    </p>
-                )}
-
                 {/* =====================================
-                    EVENT GRID
+                    EVENTS RESULTS
                 ===================================== */}
 
-                {showSkeleton ? (
+                <section
+                    aria-label="Bayram tadbirlari"
+                    aria-busy={isLoading}
+                    className="mt-6"
+                >
+                    {/* RESULTS HEADER */}
+
                     <div
-                        aria-label="Tadbirlar yuklanmoqda"
                         className="
-                            grid grid-cols-1 gap-5
-                            md:grid-cols-2
-                            xl:grid-cols-3
+                            mb-4 flex flex-wrap
+                            items-center justify-between
+                            gap-3
                         "
                     >
-                        {Array.from(
-                            { length: 6 },
-                            (_, index) => (
-                                <EventCardSkeleton
-                                    key={index}
-                                />
-                            )
-                        )}
+                        <h2
+                            className="
+                                text-lg font-black
+                                text-slate-900
+                                dark:text-white
+                            "
+                        >
+                            Tadbirlar ro‘yxati
+                        </h2>
+
+                        <span
+                            className="
+                                text-xs font-semibold
+                                text-slate-500
+                                dark:text-slate-400
+                            "
+                        >
+                            {isLoading
+                                ? "Yuklanmoqda..."
+                                : `Ushbu sahifada ${visibleEvents.length} ta`}
+                        </span>
                     </div>
-                ) : showError ? null : showEmpty ? (
-                    <EventEmptyState />
-                ) : showFilteredEmpty ? (
-                    <EventEmptyState
-                        filtered
-                        onReset={resetFilters}
-                    />
-                ) : (
-                    <section
-                        aria-label="Tadbirlar ro‘yxati"
-                        className="
-                            grid grid-cols-1
-                            gap-5 md:grid-cols-2
-                            xl:grid-cols-3
-                        "
-                    >
-                        {filteredEvents.map(
-                            (event, index) => (
-                                <EventCard
-                                    key={
-                                        event.id ??
-                                        event.slug ??
-                                        index
-                                    }
-                                    event={event}
-                                    onCountdownExpire={
-                                        handleCountdownExpire
-                                    }
-                                />
-                            )
-                        )}
-                    </section>
-                )}
+
+                    {/* FIRST LOAD SKELETONS */}
+
+                    {isInitialLoading ? (
+                        <div
+                            role="status"
+                            aria-label="Tadbirlar yuklanmoqda"
+                            className="
+                                grid grid-cols-1
+                                gap-5
+                                lg:grid-cols-2
+                                xl:grid-cols-3
+                            "
+                        >
+                            {Array.from(
+                                { length: 6 },
+                                (_, index) => (
+                                    <EventSkeleton
+                                        key={index}
+                                    />
+                                )
+                            )}
+                        </div>
+                    ) : visibleEvents.length > 0 ? (
+                        <div
+                            className="
+                                grid grid-cols-1
+                                items-stretch
+                                gap-5
+                                lg:grid-cols-2
+                                xl:grid-cols-3
+                            "
+                        >
+                            {visibleEvents.map(
+                                (event, index) => (
+                                    <EventCard
+                                        key={
+                                            event.slug ??
+                                            event.id ??
+                                            index
+                                        }
+                                        event={event}
+                                        showGift
+                                    />
+                                )
+                            )}
+                        </div>
+                    ) : !isLoading ? (
+                        <div
+                            className="
+                                flex min-h-64
+                                flex-col items-center
+                                justify-center
+                                rounded-3xl
+                                border border-dashed
+                                border-slate-300
+                                bg-white/65
+                                px-5 py-10
+                                text-center
+                                dark:border-white/15
+                                dark:bg-white/[0.025]
+                            "
+                        >
+                            <Gift
+                                size={35}
+                                className="
+                                    text-violet-500
+                                "
+                                aria-hidden="true"
+                            />
+
+                            <h3
+                                className="
+                                    mt-4 text-lg
+                                    font-black
+                                    text-slate-900
+                                    dark:text-white
+                                "
+                            >
+                                {hasExistingEvents
+                                    ? "Mos tadbir topilmadi"
+                                    : "Hozircha tadbirlar yo‘q"}
+                            </h3>
+
+                            <p
+                                className="
+                                    mt-2 max-w-md
+                                    text-sm leading-6
+                                    text-slate-500
+                                    dark:text-slate-400
+                                "
+                            >
+                                {hasExistingEvents
+                                    ? "Ushbu sahifadagi tadbirlar qidiruv yoki filterga mos kelmadi."
+                                    : "Yangi bayram tadbirlari paydo bo‘lganda shu yerda ko‘rinadi."}
+                            </p>
+
+                            {hasExistingEvents && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="
+                                        mt-4 inline-flex
+                                        items-center gap-2
+                                        rounded-xl
+                                        border border-violet-500/20
+                                        bg-violet-500/10
+                                        px-4 py-2
+                                        text-sm font-bold
+                                        text-violet-700
+                                        dark:text-violet-300
+                                    "
+                                >
+                                    <X size={15} />
+                                    Filterlarni tozalash
+                                </button>
+                            )}
+                        </div>
+                    ) : null}
+                </section>
 
                 {/* =====================================
-                    PAGINATION
+                    SERVER PAGINATION
                 ===================================== */}
 
-                {(next || previous) && (
+                {(hasPreviousPage ||
+                    hasNextPage ||
+                    currentPage > 1) && (
                     <nav
                         aria-label="Tadbirlar sahifalari"
                         className="
-                            flex flex-wrap items-center
-                            justify-between gap-3
-                            rounded-2xl border
-                            border-slate-200/80
-                            bg-white/75 p-4
-
-                            dark:border-white/10
-                            dark:bg-slate-950/70
+                            mt-8 flex flex-wrap
+                            items-center justify-center
+                            gap-3
                         "
                     >
                         <button
                             type="button"
                             disabled={
-                                loading ||
-                                !previous
+                                !hasPreviousPage ||
+                                !canChangePage
                             }
                             onClick={() =>
                                 handleChangePage(
-                                    previous,
-                                    -1
+                                    currentPage - 1
                                 )
                             }
                             className="
-                                inline-flex min-h-11
-                                items-center gap-2
+                                inline-flex min-h-10
+                                items-center gap-1.5
                                 rounded-xl
                                 border border-slate-200
-                                px-4 text-sm
-                                font-semibold
+                                bg-white
+                                px-4 py-2
+                                text-sm font-bold
                                 text-slate-700
-                                hover:bg-slate-100
+                                transition-colors
+                                hover:bg-slate-50
                                 disabled:cursor-not-allowed
                                 disabled:opacity-40
-
                                 dark:border-white/10
+                                dark:bg-white/5
                                 dark:text-slate-200
-                                dark:hover:bg-slate-900
+                                dark:hover:bg-white/10
                             "
                         >
-                            <ArrowLeft
-                                size={17}
-                                aria-hidden="true"
-                            />
-
+                            <ChevronLeft size={17} />
                             Oldingi
                         </button>
 
                         <span
                             className="
-                                text-sm font-semibold
-                                text-slate-600
-                                dark:text-slate-300
+                                inline-flex min-h-10
+                                min-w-24
+                                items-center justify-center
+                                gap-2 rounded-xl
+                                border border-violet-500/20
+                                bg-violet-500/10
+                                px-3 py-2
+                                text-sm font-bold
+                                text-violet-700
+                                dark:text-violet-300
                             "
                         >
-                            Sahifa {pageNumber}
+                            {requestedPage !== null
+                                ? (
+                                    <>
+                                        <Loader2
+                                            size={15}
+                                            className="animate-spin"
+                                        />
+                                        {requestedPage}
+                                    </>
+                                )
+                                : `${currentPage}-sahifa`}
                         </span>
 
                         <button
                             type="button"
                             disabled={
-                                loading ||
-                                !next
+                                !hasNextPage ||
+                                !canChangePage
                             }
                             onClick={() =>
                                 handleChangePage(
-                                    next,
-                                    1
+                                    currentPage + 1
                                 )
                             }
                             className="
-                                inline-flex min-h-11
-                                items-center gap-2
+                                inline-flex min-h-10
+                                items-center gap-1.5
                                 rounded-xl
                                 border border-slate-200
-                                px-4 text-sm
-                                font-semibold
+                                bg-white
+                                px-4 py-2
+                                text-sm font-bold
                                 text-slate-700
-                                hover:bg-slate-100
+                                transition-colors
+                                hover:bg-slate-50
                                 disabled:cursor-not-allowed
                                 disabled:opacity-40
-
                                 dark:border-white/10
+                                dark:bg-white/5
                                 dark:text-slate-200
-                                dark:hover:bg-slate-900
+                                dark:hover:bg-white/10
                             "
                         >
                             Keyingi
-
-                            <ArrowRight
-                                size={17}
-                                aria-hidden="true"
-                            />
+                            <ChevronRight size={17} />
                         </button>
                     </nav>
                 )}
 
                 {/* =====================================
-                    FOOTNOTE
+                    FOOTER NOTE
                 ===================================== */}
 
                 <p
                     className="
-                        text-center text-xs
-                        leading-relaxed
+                        mt-9 text-center
+                        text-xs leading-6
                         text-slate-500
                         dark:text-slate-400
                     "
                 >
-                    Tadbirlar ma'lumotlari
-                    FSociety backendidan olinadi.
-                    Qidiruv va filtrlar
-                    yuklangan sahifaga qo‘llanadi.
+                    Sovg‘a ochilish sanasi va mukofot
+                    olish huquqi FSociety serveri
+                    orqali tekshiriladi.
+                    Mukofotlar foydalanuvchi uchun
+                    tasodifiy tanlanadi.
                 </p>
             </div>
         </main>
     );
 }
+
+
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default memo(EventsPage);
