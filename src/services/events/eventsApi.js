@@ -4,21 +4,30 @@
 import api from "../api";
 
 // =========================================================
-// FSOCIETY — EVENTS API SERVICE
+// FSOCIETY — EVENTS API
 // =========================================================
 //
-// Responsibilities:
-// - Public events list
-// - Public event detail
-// - Shared URL resolution
-// - Response normalization
-// - Error normalization
-// - AbortController support
+// Django public API:
 //
-// Uses the existing Axios default export.
+// GET /api/events/
+// GET /api/events/{slug}/
 //
-// Authentication, JWT refresh, cookies and
-// CSRF are managed by src/services/api.js.
+// Backend:
+//
+// opens_at
+// event_status
+// timezone
+//
+// Existing frontend compatibility:
+//
+// gift_opens_at / starts_at
+// status
+// timezone_name
+//
+// Preserve original backend fields.
+//
+// Never invent dates, claim permissions,
+// rewards or user ownership.
 //
 // =========================================================
 
@@ -27,7 +36,8 @@ import api from "../api";
 // CONSTANTS
 // =========================================================
 
-const EVENT_SLUG_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const EVENT_SLUG_PATTERN =
+    /^[a-zA-Z0-9_-]+$/;
 
 const API_PREFIX_PATTERN =
     /(?:^|\/)api(?:\/v\d+)?$/i;
@@ -48,7 +58,24 @@ const ERROR_MESSAGES = Object.freeze({
 
 
 // =========================================================
-// AXIOS CLIENT VALIDATION
+// HELPERS
+// =========================================================
+
+const isRecord = (value) =>
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+
+const firstNonEmptyString = (...values) =>
+    values.find(
+        (value) =>
+            typeof value === "string" &&
+            value.trim().length > 0
+    ) ?? null;
+
+
+// =========================================================
+// AXIOS CLIENT
 // =========================================================
 
 export const getEventsApiClient = () => {
@@ -70,27 +97,11 @@ export const getEventsApiClient = () => {
 // API BASE PATH
 // =========================================================
 //
-// Example 1:
+// baseURL ending with /api:
+//   events/
 //
-// Axios baseURL:
-// https://backend.example.com/api
-//
-// Request path:
-// events/
-//
-// Final URL:
-// https://backend.example.com/api/events/
-//
-// Example 2:
-//
-// Axios baseURL:
-// https://backend.example.com
-//
-// Request path:
-// api/events/
-//
-// Final URL:
-// https://backend.example.com/api/events/
+// baseURL without /api:
+//   api/events/
 //
 // =========================================================
 
@@ -104,10 +115,7 @@ export const getEventsBasePath = () => {
         .split(/[?#]/)[0]
         .replace(/\/+$/, "");
 
-    const hasApiPrefix =
-        API_PREFIX_PATTERN.test(baseURL);
-
-    return hasApiPrefix
+    return API_PREFIX_PATTERN.test(baseURL)
         ? "events/"
         : "api/events/";
 };
@@ -115,14 +123,6 @@ export const getEventsBasePath = () => {
 
 // =========================================================
 // EVENT SLUG VALIDATION
-// =========================================================
-//
-// Prevent:
-// - Empty slugs
-// - Invalid URL path segments
-// - Path traversal
-// - Unexpected characters
-//
 // =========================================================
 
 export const normalizeEventSlug = (slug) => {
@@ -151,44 +151,25 @@ export const normalizeEventSlug = (slug) => {
 // EVENT DETAIL PATH
 // =========================================================
 
-export const getEventDetailPath = (slug) => {
-    const validSlug = normalizeEventSlug(slug);
-
-    return (
-        getEventsBasePath() +
-        encodeURIComponent(validSlug) +
-        "/"
-    );
-};
+export const getEventDetailPath = (slug) =>
+    getEventsBasePath() +
+    encodeURIComponent(
+        normalizeEventSlug(slug)
+    ) +
+    "/";
 
 
 // =========================================================
 // AXIOS RESPONSE UNWRAPPING
 // =========================================================
 //
-// Standard Axios:
-//
-// {
-//     data: {...},
-//     status: 200,
-//     headers: {...},
-//     config: {...}
-// }
-//
-// Some custom response interceptors already
-// return the response.data payload.
-//
-// Avoid unwrapping ordinary business objects
-// that happen to have a "data" field.
+// Keep ordinary business objects with a
+// "data" property intact.
 //
 // =========================================================
 
 export const unwrapEventsResponse = (response) => {
-    if (
-        response === null ||
-        typeof response !== "object" ||
-        Array.isArray(response)
-    ) {
+    if (!isRecord(response)) {
         return response;
     }
 
@@ -209,18 +190,14 @@ export const unwrapEventsResponse = (response) => {
 
 
 // =========================================================
-// RESPONSE ASSERTION
+// RESPONSE VALIDATION
 // =========================================================
 
 export const assertEventsObject = (
     payload,
     operation = "request"
 ) => {
-    if (
-        payload === null ||
-        typeof payload !== "object" ||
-        Array.isArray(payload)
-    ) {
+    if (!isRecord(payload)) {
         throw new TypeError(
             `Events ${operation}: ` +
             "backend noto‘g‘ri javob qaytardi."
@@ -232,15 +209,140 @@ export const assertEventsObject = (
 
 
 // =========================================================
+// NORMALIZE PUBLIC EVENT
+// =========================================================
+//
+// Actual Django serializer:
+//
+// opens_at:
+//   EventCampaign.seasonal_opens_at
+//
+// event_status:
+//   Backend-calculated status
+//
+// timezone:
+//   EventCampaign.timezone_name
+//
+// Existing UI components expect alternate
+// field names.
+//
+// Add compatibility aliases without
+// changing the original data.
+//
+// This function never calculates eligibility.
+//
+// =========================================================
+
+export const normalizePublicEvent = (event) => {
+    const source = assertEventsObject(
+        event,
+        "event"
+    );
+
+    // ================================================
+    // OPENING TIME
+    // ================================================
+
+    const openingAt = firstNonEmptyString(
+        source.opens_at,
+        source.gift_opens_at,
+        source.starts_at,
+        source.start_at
+    );
+
+    // ================================================
+    // EVENT STATUS
+    // ================================================
+
+    const eventStatus = firstNonEmptyString(
+        source.event_status,
+        source.status
+    );
+
+    // ================================================
+    // TIMEZONE
+    // ================================================
+
+    const eventTimezone = firstNonEmptyString(
+        source.timezone,
+        source.timezone_name
+    );
+
+    // ================================================
+    // PRESERVE AND NORMALIZE
+    // ================================================
+
+    return {
+        ...source,
+
+        // ============================================
+        // ORIGINAL BACKEND ALIASES
+        // ============================================
+
+        ...(
+            openingAt && !source.opens_at
+                ? {
+                    opens_at: openingAt,
+                }
+                : {}
+        ),
+
+        ...(
+            eventStatus && !source.event_status
+                ? {
+                    event_status: eventStatus,
+                }
+                : {}
+        ),
+
+        ...(
+            eventTimezone && !source.timezone
+                ? {
+                    timezone: eventTimezone,
+                }
+                : {}
+        ),
+
+        // ============================================
+        // EXISTING FRONTEND COMPATIBILITY
+        // ============================================
+
+        ...(
+            openingAt
+                ? {
+                    gift_opens_at: openingAt,
+                    starts_at: openingAt,
+                }
+                : {}
+        ),
+
+        ...(
+            eventStatus
+                ? {
+                    status: eventStatus,
+                }
+                : {}
+        ),
+
+        ...(
+            eventTimezone
+                ? {
+                    timezone_name: eventTimezone,
+                }
+                : {}
+        ),
+    };
+};
+
+
+// =========================================================
 // GET PUBLIC EVENTS
 // =========================================================
 //
 // GET /api/events/
 //
-// Accepts backend-supported query parameters.
-//
-// The service returns the original payload.
-// Redux can normalize it separately.
+// Axios authentication and cookie handling
+// remain in src/services/api.js.
 //
 // =========================================================
 
@@ -282,9 +384,7 @@ export const getPublicEventDetail = async (
 
     const response = await client.get(
         getEventDetailPath(slug),
-        {
-            ...(signal ? { signal } : {}),
-        }
+        signal ? { signal } : {}
     );
 
     return unwrapEventsResponse(response);
@@ -295,44 +395,39 @@ export const getPublicEventDetail = async (
 // NORMALIZE EVENTS LIST
 // =========================================================
 //
-// Supported response formats:
+// Supported formats:
 //
 // 1. [...]
 //
-// 2. {
-//      count: 10,
-//      next: null,
-//      previous: null,
-//      results: [...]
-//    }
+// 2. DRF pagination:
+// {
+//     count,
+//     next,
+//     previous,
+//     results
+// }
 //
-// 3. {
-//      events: [...]
-//    }
+// 3. { events: [...] }
 //
-// 4. {
-//      data: [...]
-//    }
+// 4. { data: [...] }
 //
-// 5. {
-//      data: {
-//          results: [...]
-//      }
-//    }
+// 5. { data: { results: [...] } }
 //
-// Unexpected formats are rejected instead
-// of silently being interpreted as [].
+// Invalid payloads are rejected.
 //
 // =========================================================
 
-export const normalizeEventsResponse = (
-    payload
-) => {
+export const normalizeEventsResponse = (payload) => {
     if (Array.isArray(payload)) {
         return {
-            items: payload,
+            items: payload.map(
+                normalizePublicEvent
+            ),
+
             count: payload.length,
+
             next: null,
+
             previous: null,
         };
     }
@@ -342,14 +437,13 @@ export const normalizeEventsResponse = (
         "list"
     );
 
-    const source =
-        root.data &&
-        typeof root.data === "object" &&
-        !Array.isArray(root.data)
-            ? root.data
-            : root;
+    const source = isRecord(root.data)
+        ? root.data
+        : root;
 
-    const items = Array.isArray(source.results)
+    const items = Array.isArray(
+        source.results
+    )
         ? source.results
         : Array.isArray(source.events)
           ? source.events
@@ -363,19 +457,34 @@ export const normalizeEventsResponse = (
         );
     }
 
-    const parsedCount = Number(source.count);
+    // ================================================
+    // COUNT
+    // ================================================
+
+    const countValue = Number(
+        source.count
+    );
 
     const count =
         source.count != null &&
-        Number.isSafeInteger(parsedCount) &&
-        parsedCount >= 0
-            ? parsedCount
+        Number.isSafeInteger(countValue) &&
+        countValue >= 0
+            ? countValue
             : items.length;
 
+    // ================================================
+    // RESULT
+    // ================================================
+
     return {
-        items,
+        items: items.map(
+            normalizePublicEvent
+        ),
+
         count,
+
         next: source.next ?? null,
+
         previous: source.previous ?? null,
     };
 };
@@ -397,27 +506,24 @@ export const normalizeEventsResponse = (
 //
 // =========================================================
 
-export const normalizeEventDetailResponse = (
-    payload
-) => {
+export const normalizeEventDetailResponse = (payload) => {
     const root = assertEventsObject(
         payload,
         "detail"
     );
 
-    const nested =
-        root.data &&
-        typeof root.data === "object" &&
-        !Array.isArray(root.data)
-            ? root.data
-            : root;
+    const nested = isRecord(
+        root.data
+    )
+        ? root.data
+        : root;
 
-    const event = nested.event ?? nested;
+    const event =
+        nested.event ??
+        nested;
 
     if (
-        !event ||
-        typeof event !== "object" ||
-        Array.isArray(event) ||
+        !isRecord(event) ||
         (
             event.id == null &&
             !event.slug
@@ -428,7 +534,9 @@ export const normalizeEventDetailResponse = (
         );
     }
 
-    return event;
+    return normalizePublicEvent(
+        event
+    );
 };
 
 
@@ -436,21 +544,25 @@ export const normalizeEventDetailResponse = (
 // ERROR NORMALIZATION
 // =========================================================
 //
-// Do not expose internal Django tracebacks,
-// database errors or arbitrary exception text.
+// Do not expose internal Django
+// database errors or tracebacks.
 //
-// Return serializable error information that
-// Redux Toolkit can safely store.
+// Errors must remain serializable
+// for Redux Toolkit.
 //
 // =========================================================
 
 export const normalizeEventsApiError = (error) => {
-    const isCanceled =
+    const canceled =
         error?.code === "ERR_CANCELED" ||
         error?.name === "CanceledError" ||
         error?.name === "AbortError";
 
-    if (isCanceled) {
+    // ================================================
+    // CANCELED REQUEST
+    // ================================================
+
+    if (canceled) {
         return {
             status: null,
             code: "REQUEST_CANCELED",
@@ -458,6 +570,10 @@ export const normalizeEventsApiError = (error) => {
             canceled: true,
         };
     }
+
+    // ================================================
+    // HTTP STATUS
+    // ================================================
 
     const rawStatus =
         error?.response?.status;
@@ -469,35 +585,41 @@ export const normalizeEventsApiError = (error) => {
             ? rawStatus
             : null;
 
-    const responseData =
-        error?.response?.data;
+    // ================================================
+    // SAFE BACKEND ERROR CODE
+    // ================================================
 
     const backendCode =
-        typeof responseData?.code === "string" &&
+        error?.response?.data?.code;
+
+    const safeCode =
+        typeof backendCode === "string" &&
         /^[A-Za-z0-9_-]{1,80}$/.test(
-            responseData.code
+            backendCode
         )
-            ? responseData.code
+            ? backendCode
             : null;
 
-    const message =
-        status === null
-            ? "Internet aloqasini tekshiring."
-            : ERROR_MESSAGES[status] ??
-              "So‘rovni bajarib bo‘lmadi.";
+    // ================================================
+    // RESULT
+    // ================================================
 
     return {
         status,
 
         code:
-            backendCode ??
+            safeCode ??
             (
                 status
                     ? `HTTP_${status}`
                     : "NETWORK_ERROR"
             ),
 
-        message,
+        message:
+            status === null
+                ? "Internet aloqasini tekshiring."
+                : ERROR_MESSAGES[status] ??
+                  "So‘rovni bajarib bo‘lmadi.",
 
         canceled: false,
     };
