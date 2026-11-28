@@ -1,3 +1,4 @@
+
 import React, {
   memo,
   useCallback,
@@ -119,10 +120,11 @@ const createSoftPuffSprite = (isDark) => {
     grad.addColorStop(0.75, "rgba(186, 230, 253, 0.25)");
     grad.addColorStop(1, "rgba(186, 230, 253, 0)");
   } else {
-    grad.addColorStop(0, "rgba(255, 255, 255, 1)");
-    grad.addColorStop(0.45, "rgba(241, 249, 255, 0.95)");
-    grad.addColorStop(0.75, "rgba(125, 185, 232, 0.45)");
-    grad.addColorStop(1, "rgba(125, 185, 232, 0)");
+    // LIGHT MODE — ICE BLUE SNOW
+    grad.addColorStop(0, "rgba(169, 213, 244, 0.98)");
+    grad.addColorStop(0.45, "rgba(146, 199, 236, 0.86)");
+    grad.addColorStop(0.75, "rgba(117, 174, 222, 0.36)");
+    grad.addColorStop(1, "rgba(117, 174, 222, 0)");
   }
 
   ctx.fillStyle = grad;
@@ -151,7 +153,8 @@ const createCrystalSprite = (isDark) => {
   ctx.lineCap = "round";
 
   if (!isDark) {
-    ctx.shadowColor = "rgba(56, 132, 196, 0.55)";
+    // LIGHT MODE — SOFT BLUE CRYSTAL SHADOW
+    ctx.shadowColor = "rgba(89, 156, 210, 0.42)";
     ctx.shadowBlur = 3;
   } else {
     ctx.shadowColor = "rgba(165, 243, 252, 0.6)";
@@ -160,7 +163,7 @@ const createCrystalSprite = (isDark) => {
 
   ctx.strokeStyle = isDark
     ? "rgba(240, 250, 255, 0.96)"
-    : "rgba(255, 255, 255, 0.98)";
+    : "rgba(129, 181, 222, 0.94)";
   ctx.lineWidth = 1.45;
 
   for (let i = 0; i < 6; i += 1) {
@@ -189,7 +192,7 @@ const createCrystalSprite = (isDark) => {
 
   ctx.fillStyle = isDark
     ? "rgba(255, 255, 255, 0.95)"
-    : "rgba(224, 242, 254, 0.95)";
+    : "rgba(158, 205, 239, 0.96)";
   ctx.beginPath();
   ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
   ctx.fill();
@@ -766,7 +769,7 @@ function Snowfall() {
             );
             context.fillStyle = isDark
               ? "rgba(235, 248, 255, 0.9)"
-              : "rgba(255, 255, 255, 0.95)";
+              : "rgba(132, 184, 224, 0.88)";
             context.fill();
           }
 
