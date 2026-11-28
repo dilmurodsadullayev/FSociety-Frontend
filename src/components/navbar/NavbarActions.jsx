@@ -1,5 +1,5 @@
 
- // src/components/navbar/NavbarActions.jsx
+// src/components/navbar/NavbarActions.jsx
 
 import React, {
     memo,
@@ -32,6 +32,8 @@ import NavbarCoin from "./NavbarCoin";
 
 import NavbarUserMenu from "./NavbarUserMenu";
 
+import NavbarEventGiftButton from "./NavbarEventGiftButton";
+
 // =========================================================
 // WINTER EXPERIENCE
 // =========================================================
@@ -47,25 +49,29 @@ import WinterExperienceButton from "../../features/newYear/components/WinterExpe
 //
 // Features:
 // - FCoin balance
+// - Universal Event Gift icon
+// - Upcoming holiday countdown
+// - Backend-confirmed gift indicator
 // - Light / Dark mode
-// - Winter Experience
+// - Winter Experience settings
 // - Notification dropdown
-// - User profile menu
+// - User profile dropdown
 // - Login navigation
-// - Mobile hamburger
-// - Responsive layout
-// - Accessible controls
-// - Navbar popover exclusivity
+// - Mobile hamburger menu
+// - Accessible interactions
+// - Popover exclusivity
 //
-// EVENTS MIGRATION:
+// IMPORTANT:
 //
-// Legacy DailyGiftButton was removed.
+// No Daily Gift modules are imported.
 //
-// The new universal Events Gift button
-// will be integrated after its UI and
-// backend contract are ready.
+// Event Gift:
+// - Public /events navigation
+// - One gift per user per event
+// - Backend controls eligibility
+// - No automatic gift claim
 //
-// No legacy Daily Gift imports remain.
+// Winter Experience remains independent.
 //
 // =========================================================
 
@@ -76,7 +82,7 @@ import WinterExperienceButton from "../../features/newYear/components/WinterExpe
 
 function NavbarActions({
     // =====================================================
-    // AUTHENTICATION
+    // AUTH
     // =====================================================
 
     isLoggedIn = false,
@@ -114,7 +120,7 @@ function NavbarActions({
     toggleWinterSettings,
 
     // =====================================================
-    // MOBILE NAVIGATION
+    // MOBILE SIDEBAR
     // =====================================================
 
     isMobileMenuOpen = false,
@@ -127,28 +133,30 @@ function NavbarActions({
 
     handleLogout,
 }) {
-
     // =====================================================
     // CLOSE NAVBAR POPOVERS
     // =====================================================
     //
-    // Reused by the Winter Experience button.
+    // Shared by:
+    // - Event Gift navigation
+    // - Winter Experience
     //
-    // Avoid overlapping the user menu,
-    // notifications and winter sidebar.
+    // Prevent overlapping dropdowns.
     //
     // =====================================================
 
     const closeNavbarPopovers = useCallback(
         () => {
             if (
-                typeof setOpenUserMenu === "function"
+                typeof setOpenUserMenu ===
+                "function"
             ) {
                 setOpenUserMenu(false);
             }
 
             if (
-                typeof setOpenNotifications === "function"
+                typeof setOpenNotifications ===
+                "function"
             ) {
                 setOpenNotifications(false);
             }
@@ -160,48 +168,50 @@ function NavbarActions({
     );
 
     // =====================================================
-    // NOTIFICATION MENU EXCLUSIVITY
+    // NOTIFICATIONS EXCLUSIVE TOGGLE
     // =====================================================
     //
-    // Opening notifications closes the
-    // user dropdown.
+    // Opening notifications closes user menu.
     //
-    // Existing parent-controlled behavior
+    // Existing NotificationDropdown contract
     // remains unchanged.
     //
     // =====================================================
 
-    const setNotificationsExclusive = useCallback(
-        (nextValue) => {
-            if (
-                typeof setOpenUserMenu === "function"
-            ) {
-                setOpenUserMenu(false);
-            }
+    const setNotificationsExclusive =
+        useCallback(
+            (nextValue) => {
+                if (
+                    typeof setOpenUserMenu ===
+                    "function"
+                ) {
+                    setOpenUserMenu(false);
+                }
 
-            if (
-                typeof setOpenNotifications === "function"
-            ) {
-                setOpenNotifications(nextValue);
-            }
-        },
-        [
-            setOpenUserMenu,
-            setOpenNotifications,
-        ]
-    );
+                if (
+                    typeof setOpenNotifications ===
+                    "function"
+                ) {
+                    setOpenNotifications(
+                        nextValue
+                    );
+                }
+            },
+            [
+                setOpenUserMenu,
+                setOpenNotifications,
+            ]
+        );
 
     // =====================================================
-    // WINTER SETTINGS TOGGLE
+    // WINTER EXPERIENCE TOGGLE
     // =====================================================
     //
-    // Before opening the winter sidebar:
-    // - Close user menu
-    // - Close notifications
-    // - Toggle winter settings
+    // Close:
+    // - User menu
+    // - Notifications
     //
-    // Sidebar visibility is still controlled
-    // by the existing Navbar.jsx component.
+    // Toggle the existing Winter sidebar.
     //
     // =====================================================
 
@@ -210,7 +220,8 @@ function NavbarActions({
             closeNavbarPopovers();
 
             if (
-                typeof toggleWinterSettings === "function"
+                typeof toggleWinterSettings ===
+                "function"
             ) {
                 toggleWinterSettings();
             }
@@ -222,6 +233,61 @@ function NavbarActions({
     );
 
     // =====================================================
+    // EVENT GIFT NAVIGATION
+    // =====================================================
+    //
+    // Called before Link navigates to /events.
+    //
+    // Close:
+    // - User menu
+    // - Notifications
+    // - Winter Settings
+    // - Mobile navigation
+    //
+    // Do NOT:
+    // - Open an obsolete gift modal
+    // - Dispatch reward claim POST
+    // - Change user FCoin locally
+    //
+    // =====================================================
+
+    const handleEventGiftNavigate =
+        useCallback(
+            () => {
+                closeNavbarPopovers();
+
+                // Close Winter Experience when open.
+
+                if (
+                    winterSettingsOpen &&
+                    typeof toggleWinterSettings ===
+                        "function"
+                ) {
+                    toggleWinterSettings();
+                }
+
+                // Close mobile menu when open.
+
+                if (
+                    isMobileMenuOpen &&
+                    typeof toggleMobileMenu ===
+                        "function"
+                ) {
+                    toggleMobileMenu();
+                }
+            },
+            [
+                closeNavbarPopovers,
+
+                winterSettingsOpen,
+                toggleWinterSettings,
+
+                isMobileMenuOpen,
+                toggleMobileMenu,
+            ]
+        );
+
+    // =====================================================
     // RENDER
     // =====================================================
 
@@ -229,11 +295,8 @@ function NavbarActions({
         <div
             className="
                 relative
-                flex
-                min-w-0
-                shrink-0
-                items-center
-                justify-end
+                flex min-w-0 shrink-0
+                items-center justify-end
                 gap-1
                 min-[390px]:gap-1.5
                 sm:gap-2
@@ -247,8 +310,7 @@ function NavbarActions({
             {isLoggedIn && (
                 <div
                     className="
-                        hidden
-                        shrink-0
+                        hidden shrink-0
                         min-[390px]:flex
                         lg:hidden
                         xl:flex
@@ -263,25 +325,36 @@ function NavbarActions({
             )}
 
             {/* =========================================
-                UNIVERSAL EVENTS GIFT
-            =========================================
-
-                Old DailyGiftButton was deleted.
-
-                The new gift component will be
-                implemented under:
-
-                src/components/events/
-
-                It will support:
-                - Daily Gift
-                - Seasonal Gift
-                - Multiple event campaigns
-
-                No incomplete gift component
-                is mounted here.
-
+                UNIVERSAL EVENT GIFT
             ========================================= */}
+            {/*
+                Placed after FCoin and before
+                the theme toggle.
+
+                Available for:
+                - Guests (view public events)
+                - Authenticated users
+
+                Only signed-in users can claim
+                gifts through the Events page.
+
+                The navbar does not contain
+                any reward-claiming logic.
+            */}
+
+            <div
+                className="
+                    relative flex shrink-0
+                    items-center justify-center
+                "
+            >
+                <NavbarEventGiftButton
+                    isLoggedIn={isLoggedIn}
+                    onNavigate={
+                        handleEventGiftNavigate
+                    }
+                />
+            </div>
 
             {/* =========================================
                 LIGHT / DARK MODE
@@ -289,11 +362,8 @@ function NavbarActions({
 
             <div
                 className="
-                    relative
-                    flex
-                    shrink-0
-                    items-center
-                    justify-center
+                    relative flex shrink-0
+                    items-center justify-center
                 "
             >
                 <ThemeToggle />
@@ -305,11 +375,8 @@ function NavbarActions({
 
             <div
                 className="
-                    relative
-                    flex
-                    shrink-0
-                    items-center
-                    justify-center
+                    relative flex shrink-0
+                    items-center justify-center
                 "
             >
                 <WinterExperienceButton
@@ -378,34 +445,37 @@ function NavbarActions({
                     aria-label="Tizimga kirish"
                     className="
                         group/login
-                        relative
-                        inline-flex
-                        h-10
-                        shrink-0
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
+                        relative inline-flex
+                        h-10 shrink-0
+                        items-center justify-center
+                        gap-2 rounded-xl
                         border border-indigo-500/20
                         bg-indigo-600
                         px-2.5
-                        text-[13px]
-                        font-bold
+                        text-[13px] font-bold
                         text-white
+
                         shadow-[0_4px_14px_rgba(79,70,229,0.15)]
+
                         transition-[background-color,border-color,transform]
                         duration-200
+
                         hover:border-indigo-400/40
                         hover:bg-indigo-500
+
                         active:scale-95
+
                         focus-visible:outline-none
                         focus-visible:ring-2
                         focus-visible:ring-indigo-500
                         focus-visible:ring-offset-2
+
                         dark:border-indigo-400/20
                         dark:shadow-none
                         dark:focus-visible:ring-offset-[#080c12]
+
                         sm:px-4
+
                         motion-reduce:transform-none
                         motion-reduce:transition-none
                     "
@@ -425,10 +495,8 @@ function NavbarActions({
 
                     <span
                         className="
-                            hidden
-                            whitespace-nowrap
-                            font-semibold
-                            sm:inline
+                            hidden whitespace-nowrap
+                            font-semibold sm:inline
                         "
                     >
                         Kirish
@@ -437,7 +505,7 @@ function NavbarActions({
             )}
 
             {/* =========================================
-                MOBILE SIDEBAR BUTTON
+                MOBILE NAVIGATION
             ========================================= */}
 
             <button
@@ -456,34 +524,39 @@ function NavbarActions({
                 aria-controls="fsociety-mobile-navigation"
                 className="
                     group/mobile
-                    relative
-                    inline-flex
-                    h-10 w-10
-                    shrink-0
-                    items-center
-                    justify-center
-                    overflow-hidden
-                    rounded-xl
-                    border
-                    border-cyan-600/20
+                    relative inline-flex
+                    h-10 w-10 shrink-0
+                    items-center justify-center
+                    overflow-hidden rounded-xl
+
+                    border border-cyan-600/20
                     bg-cyan-500/[0.07]
                     text-cyan-700
+
                     transition-[background-color,border-color,transform]
                     duration-200
+
                     hover:border-cyan-600/35
                     hover:bg-cyan-500/[0.12]
+
                     active:scale-95
+
                     focus-visible:outline-none
                     focus-visible:ring-2
                     focus-visible:ring-cyan-500
                     focus-visible:ring-offset-2
+
                     lg:hidden
+
                     dark:border-cyan-400/10
                     dark:bg-cyan-400/[0.05]
                     dark:text-cyan-300
+
                     dark:hover:border-cyan-400/25
                     dark:hover:bg-cyan-400/[0.09]
+
                     dark:focus-visible:ring-offset-[#080c12]
+
                     motion-reduce:transform-none
                     motion-reduce:transition-none
                 "
@@ -504,13 +577,12 @@ function NavbarActions({
                     "
                 />
 
-                {/* MOBILE MENU ICON */}
+                {/* ICON */}
 
                 <span
                     className="
                         relative z-10
-                        flex
-                        items-center
+                        flex items-center
                         justify-center
                     "
                 >
@@ -532,6 +604,7 @@ function NavbarActions({
         </div>
     );
 }
+
 
 // =========================================================
 // EXPORT

@@ -135,20 +135,6 @@ export const getSeasonalGiftEndpoints = (
 //
 // =========================================================
 
-const normalizeSeasonalGiftObject = (
-    response,
-    operation
-) => {
-    const payload =
-        unwrapEventsResponse(response);
-
-    return assertEventsObject(
-        payload,
-        `Seasonal Gift ${operation}`
-    );
-};
-
-
 // =========================================================
 // GET SEASONAL GIFT STATUS
 // =========================================================
@@ -185,10 +171,7 @@ export const getSeasonalGiftStatus = async (
         }
     );
 
-    return normalizeSeasonalGiftObject(
-        response,
-        "status"
-    );
+    return normalizeSeasonalGiftStatus(unwrapEventsResponse(response));
 };
 
 
@@ -241,10 +224,7 @@ export const claimSeasonalGift = async (
         {}
     );
 
-    return normalizeSeasonalGiftObject(
-        response,
-        "claim"
-    );
+    return normalizeSeasonalGiftClaim(unwrapEventsResponse(response));
 };
 
 
@@ -287,18 +267,11 @@ export const getSeasonalGiftHistory = async (
     const payload =
         unwrapEventsResponse(response);
 
-    if (
-        payload === null ||
-        typeof payload !== "object"
-    ) {
-        throw new TypeError(
-            "Seasonal Gift history javobi noto‘g‘ri."
-        );
-    }
-
-    return payload;
+    if (Array.isArray(payload)) return { count: payload.length, next: null, previous: null, results: payload };
+    const history = assertEventsObject(payload, "Seasonal Gift history");
+    if (!Array.isArray(history.results)) throw new TypeError("Seasonal Gift history: results topilmadi.");
+    return history;
 };
-
 
 // =========================================================
 // STATUS RESPONSE NORMALIZER
@@ -312,10 +285,11 @@ export const getSeasonalGiftHistory = async (
 export const normalizeSeasonalGiftStatus = (
     payload
 ) => {
-    return assertEventsObject(
-        payload,
-        "Seasonal Gift status"
-    );
+    const status = assertEventsObject(payload, "Seasonal Gift status");
+    if (typeof status.can_claim !== "boolean" || typeof status.already_claimed !== "boolean" || typeof status.reason !== "string") {
+        throw new TypeError("Seasonal Gift status: javob to‘liq emas.");
+    }
+    return status;
 };
 
 
@@ -339,10 +313,13 @@ export const normalizeSeasonalGiftStatus = (
 export const normalizeSeasonalGiftClaim = (
     payload
 ) => {
-    return assertEventsObject(
-        payload,
-        "Seasonal Gift claim"
-    );
+    const claim = assertEventsObject(payload, "Seasonal Gift claim");
+    if (typeof claim.created !== "boolean" || typeof claim.already_claimed !== "boolean" ||
+        !claim.reward || typeof claim.reward !== "object" || Array.isArray(claim.reward) || claim.claim_id == null) {
+        throw new TypeError("Seasonal Gift claim: mukofot javobi to‘liq emas.");
+    }
+    if (claim.status !== undefined) normalizeSeasonalGiftStatus(claim.status);
+    return claim;
 };
 
 

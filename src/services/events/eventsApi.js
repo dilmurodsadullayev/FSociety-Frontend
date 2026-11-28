@@ -311,7 +311,7 @@ export const normalizePublicEvent = (event) => {
             openingAt
                 ? {
                     gift_opens_at: openingAt,
-                    starts_at: openingAt,
+                    starts_at: source.starts_at || openingAt,
                 }
                 : {}
         ),

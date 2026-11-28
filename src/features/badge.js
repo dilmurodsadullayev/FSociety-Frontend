@@ -1,5 +1,5 @@
 
- // src/features/badge.js
+// src/features/badge.js
 
 import {
     createAsyncThunk,
@@ -8,21 +8,18 @@ import {
 } from "@reduxjs/toolkit";
 
 import BadgeService from "../services/badge";
+import { claimDailyGiftForEvent } from "./events/dailyGiftSlice";
 
 // =========================================================
-// EVENTS — NEW GIFT THUNKS
+// UNIVERSAL EVENT GIFT
 // =========================================================
-
-import {
-    claimDailyGiftForEvent,
-} from "./events/dailyGiftSlice";
 
 import {
     claimSeasonalGiftForEvent,
 } from "./events/seasonalGiftSlice";
 
 // =========================================================
-// AUTH
+// AUTHENTICATION
 // =========================================================
 
 import {
@@ -40,6 +37,7 @@ import {
 // =========================================================
 //
 // Features:
+//
 // - Profile achievements
 // - Server pagination
 // - Local pagination fallback
@@ -48,19 +46,64 @@ import {
 // - Request deduplication
 // - Stale response protection
 // - Auth owner isolation
-// - Gift reward invalidation
+// - Event Gift reward synchronization
 //
-// GIFT INTEGRATION:
+// IMPORTANT:
 //
-// Both Daily Gift and Seasonal Gift can
-// grant badges or achievements.
+// Daily and Seasonal claims invalidate the authoritative collection.
 //
-// After a successful claim:
-// - Mark achievement collection as stale
-// - Do not fabricate badge ownership
-// - Let the next GET retrieve real data
+// Seasonal Gift claims may grant:
+// - FCoin
+// - Badge
+// - Profile Frame
+// - Other backend-supported rewards
+//
+// Badge ownership is always determined
+// by the Django backend.
 //
 // =========================================================
+
+
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+// Must match the backend source filter.
+// Verify this value when integrating
+// the achievements filter endpoint.
+
+const EVENT_BADGE_SOURCE = "seasonal_gift";
+
+
+// =========================================================
+// AUTH HELPERS
+// =========================================================
+
+const getUserFromPayload = (payload) =>
+    payload?.user ??
+    payload?.data?.user ??
+    payload?.data ??
+    payload;
+
+const normalizeOwnerId = (value) => {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+        return null;
+    }
+
+    return String(value);
+};
+
+const getOwnerIdFromPayload = (payload) => {
+    const user = getUserFromPayload(payload);
+
+    return normalizeOwnerId(
+        user?.id ?? user?.pk
+    );
+};
 
 
 // =========================================================
@@ -90,11 +133,13 @@ const isAchievementList = (value) =>
     value.every(
         (item) =>
             item &&
-            typeof item.badge?.name === "string" &&
+            typeof item.badge?.name ===
+                "string" &&
             (
                 item.id != null ||
                 item.badge_id != null ||
-                typeof item.badge.code === "string"
+                typeof item.badge.code ===
+                    "string"
             )
     );
 
@@ -103,15 +148,13 @@ const isAchievementList = (value) =>
 // NORMALIZE ACHIEVEMENT RESPONSE
 // =========================================================
 //
-// Supported:
+// Supported formats:
 //
-// 1. Paginated backend response
-// 2. Existing full badges collection
+// 1. Server-paginated achievements
+// 2. Complete legacy badge collection
 //
-// The full collection can be filtered locally.
-//
-// A paginated response must never be treated
-// as the complete owned badge collection.
+// Only a full collection may be searched
+// and paginated locally.
 //
 // =========================================================
 
@@ -125,14 +168,16 @@ export function normalizeAchievementResponse(
     includeRecent = true
 ) {
     // =====================================================
-    // PAGINATED RESPONSE
+    // SERVER PAGINATION
     // =====================================================
 
     if (
         isAchievementList(data?.results)
     ) {
         if (
-            !Number.isSafeInteger(data.count) ||
+            !Number.isSafeInteger(
+                data.count
+            ) ||
             data.count < 0 ||
             (
                 data.total_badges != null &&
@@ -150,7 +195,8 @@ export function normalizeAchievementResponse(
                 )
             ) ||
             (
-                data.recent_badges !== undefined &&
+                data.recent_badges !==
+                    undefined &&
                 !isAchievementList(
                     data.recent_badges
                 )
@@ -173,13 +219,16 @@ export function normalizeAchievementResponse(
     }
 
     // =====================================================
-    // FULL COLLECTION VALIDATION
+    // LEGACY FULL COLLECTION
     // =====================================================
 
     if (
-        !isAchievementList(data?.badges) ||
+        !isAchievementList(
+            data?.badges
+        ) ||
         (
-            data.total_badges !== undefined &&
+            data.total_badges !==
+                undefined &&
             data.total_badges !==
                 data.badges.length
         ) ||
@@ -191,47 +240,53 @@ export function normalizeAchievementResponse(
     }
 
     // =====================================================
-    // SORT BY AWARD DATE
+    // SORT ACHIEVEMENTS
     // =====================================================
 
     const all = [
         ...data.badges,
-    ].sort((left, right) => {
-        const dateDifference =
-            (
-                Date.parse(
-                    right.awarded_at
-                ) || 0
-            ) -
-            (
-                Date.parse(
-                    left.awarded_at
-                ) || 0
+    ].sort(
+        (left, right) => {
+            const dateDifference =
+                (
+                    Date.parse(
+                        right.awarded_at
+                    ) || 0
+                ) -
+                (
+                    Date.parse(
+                        left.awarded_at
+                    ) || 0
+                );
+
+            if (dateDifference) {
+                return dateDifference;
+            }
+
+            if (
+                Number.isSafeInteger(
+                    left.id
+                ) &&
+                Number.isSafeInteger(
+                    right.id
+                )
+            ) {
+                return right.id - left.id;
+            }
+
+            return String(
+                right.badge.code ??
+                right.badge_id ??
+                right.id
+            ).localeCompare(
+                String(
+                    left.badge.code ??
+                    left.badge_id ??
+                    left.id
+                )
             );
-
-        if (dateDifference) {
-            return dateDifference;
         }
-
-        if (
-            Number.isSafeInteger(left.id) &&
-            Number.isSafeInteger(right.id)
-        ) {
-            return right.id - left.id;
-        }
-
-        return String(
-            right.badge.code ??
-            right.badge_id ??
-            right.id
-        ).localeCompare(
-            String(
-                left.badge.code ??
-                left.badge_id ??
-                left.id
-            )
-        );
-    });
+    );
 
     // =====================================================
     // LOCAL SEARCH
@@ -242,23 +297,25 @@ export function normalizeAchievementResponse(
         .toLocaleLowerCase();
 
     const filtered = term
-        ? all.filter((item) =>
-            [
-                item.badge.name,
-                item.badge.description,
-                item.badge.code,
-            ].some(
-                (value) =>
-                    typeof value === "string" &&
-                    value
-                        .toLocaleLowerCase()
-                        .includes(term)
-            )
+        ? all.filter(
+            (item) =>
+                [
+                    item.badge.name,
+                    item.badge.description,
+                    item.badge.code,
+                ].some(
+                    (value) =>
+                        typeof value ===
+                            "string" &&
+                        value
+                            .toLocaleLowerCase()
+                            .includes(term)
+                )
         )
         : all;
 
     // =====================================================
-    // LOCAL PAGINATION FALLBACK
+    // LOCAL PAGINATION
     // =====================================================
 
     return {
@@ -307,13 +364,7 @@ export const fetchProfileAchievements =
             }
         ) => {
             // =============================================
-            // EXISTING BACKEND FILTER CONTRACT
-            // =============================================
-            //
-            // This preserves the currently known
-            // filters until the final backend
-            // source-filter API is verified.
-            //
+            // BACKEND FILTERS
             // =============================================
 
             const filters =
@@ -323,7 +374,8 @@ export const fetchProfileAchievements =
                     }
                     : filter === "event"
                       ? {
-                          source: "daily_gift",
+                          source:
+                              EVENT_BADGE_SOURCE,
                       }
                       : filter === "achievement"
                         ? {
@@ -390,9 +442,7 @@ export const fetchProfileAchievements =
                 { getState }
             ) => {
                 const collection =
-                    getState()
-                        .badge
-                        .collection;
+                    getState().badge.collection;
 
                 return !(
                     collection.status ===
@@ -449,7 +499,8 @@ const initialState = {
 
     error: null,
 
-    collection: emptyCollection(),
+    collection:
+        emptyCollection(),
 
     revision: 0,
 
@@ -653,20 +704,64 @@ export const BadgeSlice = createSlice({
         );
 
         // ================================================
-        // AUTH — CHECK SUCCESS
+        // EVENT GIFT CLAIM SUCCESS
+        // ================================================
+        //
+        // A Seasonal Gift may grant a Badge.
+        //
+        // Never append a badge locally from
+        // an unverified reward preview.
+        //
+        // Invalidate the collection and let
+        // the backend provide the new list.
+        //
+        // Ignore claims from an old account.
+        //
+        // ================================================
+
+        builder.addCase(
+            claimSeasonalGiftForEvent.fulfilled,
+            (state, action) => {
+                const claimOwnerId =
+                    normalizeOwnerId(
+                        action.payload?.ownerId
+                    );
+
+                if (
+                    !claimOwnerId ||
+                    claimOwnerId !==
+                        state.authOwnerId
+                ) {
+                    return;
+                }
+
+                state.revision += 1;
+
+                state.collection.requestId =
+                    null;
+
+                state.collection.status =
+                    "idle";
+
+                state.collection.key =
+                    null;
+
+                state.collection.recentRevision =
+                    -1;
+            }
+        );
+
+        // ================================================
+        // AUTH CHECK SUCCESS
         // ================================================
 
         builder.addCase(
             checkAuthSuccess,
             (state, action) => {
-                const user =
-                    action.payload?.user ??
-                    action.payload;
-
                 const ownerId =
-                    user?.id ??
-                    user?.pk ??
-                    null;
+                    getOwnerIdFromPayload(
+                        action.payload
+                    );
 
                 if (
                     state.authOwnerId !==
@@ -684,41 +779,17 @@ export const BadgeSlice = createSlice({
         );
 
         // ================================================
-        // DAILY + SEASONAL GIFT REWARDS
-        // ================================================
-        //
-        // Both gift systems can award badges.
-        //
-        // Never create fake owned badges locally.
-        //
-        // Invalidate cached achievements after
-        // a successful claim.
-        //
-        // A new GET retrieves authoritative
-        // ownership data from Django.
-        //
-        // ================================================
-
-        builder.addMatcher(
-            isAnyOf(
-                claimDailyGiftForEvent.fulfilled,
-                claimSeasonalGiftForEvent.fulfilled
-            ),
-
-            (state) => {
-                state.revision += 1;
-
-                state.collection.requestId =
-                    null;
-
-                state.collection.status =
-                    "idle";
-            }
-        );
-
-        // ================================================
         // AUTH RESET / OWNER CHANGE
         // ================================================
+
+        builder.addMatcher(claimDailyGiftForEvent.fulfilled.match, (state, action) => {
+            if (normalizeOwnerId(action.payload?.ownerId) !== state.authOwnerId) return;
+            state.revision += 1;
+            state.collection.requestId = null;
+            state.collection.status = "idle";
+            state.collection.key = null;
+            state.collection.recentRevision = -1;
+        });
 
         builder.addMatcher(
             isAnyOf(
@@ -743,10 +814,9 @@ export const BadgeSlice = createSlice({
                     signUserSuccess.match(
                         action
                     )
-                        ? (
-                            action.payload?.user ??
+                        ? getOwnerIdFromPayload(
                             action.payload
-                        )?.id ?? null
+                        )
                         : null,
             })
         );

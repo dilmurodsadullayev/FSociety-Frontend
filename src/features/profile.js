@@ -55,6 +55,14 @@ export const profileSlice =
                     null;
             },
 
+            syncProfileCoins: (state, action) => {
+                const { username, coins } = action.payload;
+                if (typeof username === "string" &&
+                    state.profile?.username?.toLowerCase() === username.toLowerCase()) {
+                    state.profile.coins = coins;
+                }
+            },
+
             getProfileFailure: (
                 state,
                 action
@@ -107,6 +115,7 @@ export const profileSlice =
 export const {
     getProfileStart,
     getProfileSuccess,
+    syncProfileCoins,
     getProfileFailure,
 
     clearProfileError,

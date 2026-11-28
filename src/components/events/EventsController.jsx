@@ -2,336 +2,140 @@
  // src/components/events/EventsController.jsx
 
 import {
+    memo,
     useEffect,
-    useMemo,
 } from "react";
 
 import {
     useDispatch,
     useSelector,
-    useStore,
 } from "react-redux";
 
-// =========================================================
-// EVENTS REDUX
-// =========================================================
-
 import {
-    fetchPublicEvents,
     EVENT_REQUEST_STATUS,
+    fetchPublicEvents,
 } from "../../features/events/eventsSlice";
 
 // =========================================================
-// DAILY GIFT REDUX
-// =========================================================
-
-import {
-    fetchDailyGiftStatusForEvent,
-} from "../../features/events/dailyGiftSlice";
-
-// =========================================================
-// SEASONAL GIFT REDUX
-// =========================================================
-
-import {
-    fetchSeasonalGiftStatusForEvent,
-} from "../../features/events/seasonalGiftSlice";
-
-// =========================================================
-// FSOCIETY — UNIVERSAL EVENTS CONTROLLER
+// FSOCIETY — GLOBAL EVENTS CONTROLLER
 // =========================================================
 //
-// Responsibilities:
-// - Initialize public Events
-// - Load authenticated gift statuses
-// - Support multiple events
-// - Respect account switching
-// - Avoid duplicate status requests
+// Location:
+// src/components/events/EventsController.jsx
 //
-// This is a headless controller.
+// Purpose:
 //
-// It does NOT render visible UI.
-// It does NOT automatically claim gifts.
-// It does NOT depend on Winter Mode.
+// - Initialize public event catalog
+// - Share event data through Redux
+// - Prevent duplicate initial requests
+// - Avoid infinite retry loops
+// - Remain independent of Winter Mode
+//
+// IMPORTANT:
+//
+// FSociety no longer uses Daily Gifts.
+//
+// A single event may have one Seasonal Gift
+// per authenticated user.
+//
+// Gift eligibility is loaded on demand by
+// useSeasonalGift(eventSlug).
+//
+// This controller never:
+// - Fetches a Daily Gift
+// - Claims a reward
+// - Selects random rewards
+// - Opens gift modals
+// - Calculates event eligibility locally
 //
 // =========================================================
 
 
 // =========================================================
-// HELPERS
+// REQUEST STATUS
 // =========================================================
 
-const getUserId = (user) => {
-    const id =
-        user?.id ??
-        user?.pk ??
-        null;
+const {
+    IDLE,
+} = EVENT_REQUEST_STATUS;
 
-    return id === null ||
-        id === undefined ||
-        id === ""
-        ? null
-        : String(id);
-};
-
-const isValidSlug = (slug) =>
-    typeof slug === "string" &&
-    /^[a-zA-Z0-9_-]+$/.test(slug);
-
-const shouldPreloadGift = (event) => {
-    if (
-        !event ||
-        typeof event !== "object"
-    ) {
-        return false;
-    }
-
-    if (
-        event.is_enabled === false ||
-        event.enabled === false
-    ) {
-        return false;
-    }
-
-    const status = String(
-        event.status ??
-        event.event_status ??
-        ""
-    ).toLowerCase();
-
-    // Finished and disabled events can still
-    // be viewed through the Events pages.
-    // We simply do not eagerly preload their
-    // gift eligibility on every app startup.
-    return ![
-        "finished",
-        "disabled",
-        "ended",
-        "inactive",
-    ].includes(status);
-};
 
 // =========================================================
-// CONTROLLER
+// EVENTS CONTROLLER
 // =========================================================
 
-export default function EventsController() {
+function EventsController({
+    enabled = true,
+}) {
     const dispatch = useDispatch();
 
-    const store = useStore();
-
     // =====================================================
-    // AUTH STATE
+    // PUBLIC EVENT LIST STATUS
     // =====================================================
-
-    const isLoggedIn = useSelector(
-        (state) =>
-            Boolean(state.auth?.isLoggedIn)
-    );
-
-    const isAuthLoading = useSelector(
-        (state) =>
-            Boolean(state.auth?.isLoading)
-    );
-
-    const userId = useSelector(
-        (state) =>
-            getUserId(state.auth?.user)
-    );
-
-    // =====================================================
-    // PUBLIC EVENTS STATE
-    // =====================================================
-
-    const events = useSelector(
-        (state) =>
-            state.events?.items ?? []
-    );
 
     const listStatus = useSelector(
         (state) =>
             state.events?.listStatus ??
-            EVENT_REQUEST_STATUS.IDLE
+            IDLE
     );
 
     // =====================================================
-    // PRIVATE GIFT OWNERS
+    // INITIAL PUBLIC EVENTS LOAD
     // =====================================================
-
-    const dailyGiftOwnerId = useSelector(
-        (state) =>
-            state.eventsDailyGift?.ownerId ??
-            null
-    );
-
-    const seasonalGiftOwnerId = useSelector(
-        (state) =>
-            state.eventsSeasonalGift?.ownerId ??
-            null
-    );
-
-    // =====================================================
-    // PUBLIC EVENTS INITIALIZATION
+    //
+    // Only load events when the list is idle.
+    //
+    // Loading:
+    // Another request is already running.
+    //
+    // Succeeded:
+    // Redux already has event data.
+    //
+    // Failed:
+    // Do not retry endlessly.
+    //
+    // Manual refresh is provided separately
+    // through useEvents().
+    //
     // =====================================================
 
     useEffect(() => {
         if (
-            listStatus !==
-                EVENT_REQUEST_STATUS.IDLE &&
-            listStatus !==
-                EVENT_REQUEST_STATUS.FAILED
+            !enabled ||
+            listStatus !== IDLE
         ) {
             return;
         }
 
-        // Public GET only.
         dispatch(
             fetchPublicEvents()
         );
-
     }, [
         dispatch,
+        enabled,
         listStatus,
     ]);
 
     // =====================================================
-    // EVENT SLUGS
-    // =====================================================
-
-    const eventSlugs = useMemo(() => {
-        if (!Array.isArray(events)) {
-            return [];
-        }
-
-        const uniqueSlugs = new Set();
-
-        for (const event of events) {
-            if (
-                !shouldPreloadGift(event)
-            ) {
-                continue;
-            }
-
-            const slug = event.slug;
-
-            if (isValidSlug(slug)) {
-                uniqueSlugs.add(slug);
-            }
-        }
-
-        return Array.from(uniqueSlugs);
-
-    }, [events]);
-
-    // =====================================================
-    // FETCH AUTHENTICATED GIFT STATUSES
+    // HEADLESS CONTROLLER
     // =====================================================
     //
-    // Both Daily Gift and Seasonal Gift are
-    // independent of Winter Mode.
+    // No visible UI is rendered here.
     //
-    // These GET requests are started only when
-    // Redux has confirmed the current owner.
+    // Event cards and detail pages read
+    // the existing public Redux state.
     //
-    // =====================================================
-
-    useEffect(() => {
-        if (
-            isAuthLoading ||
-            !isLoggedIn ||
-            !userId ||
-            eventSlugs.length === 0
-        ) {
-            return;
-        }
-
-        const currentState =
-            store.getState();
-
-        const dailyOwnerMatches =
-            dailyGiftOwnerId === userId;
-
-        const seasonalOwnerMatches =
-            seasonalGiftOwnerId === userId;
-
-        for (const slug of eventSlugs) {
-            // ============================================
-            // DAILY GIFT STATUS
-            // ============================================
-
-            if (dailyOwnerMatches) {
-                const dailyState =
-                    currentState.eventsDailyGift;
-
-                const hasDailyStatus =
-                    dailyState?.statusByEvent?.[slug] !==
-                    undefined;
-
-                const dailyLoading =
-                    dailyState
-                        ?.statusRequestByEvent
-                        ?.[slug] === "loading";
-
-                if (
-                    !hasDailyStatus &&
-                    !dailyLoading
-                ) {
-                    dispatch(
-                        fetchDailyGiftStatusForEvent(
-                            slug
-                        )
-                    );
-                }
-            }
-
-            // ============================================
-            // SEASONAL GIFT STATUS
-            // ============================================
-
-            if (seasonalOwnerMatches) {
-                const seasonalState =
-                    currentState.eventsSeasonalGift;
-
-                const hasSeasonalStatus =
-                    seasonalState
-                        ?.statusByEvent
-                        ?.[slug] !== undefined;
-
-                const seasonalLoading =
-                    seasonalState
-                        ?.statusRequestByEvent
-                        ?.[slug] === "loading";
-
-                if (
-                    !hasSeasonalStatus &&
-                    !seasonalLoading
-                ) {
-                    dispatch(
-                        fetchSeasonalGiftStatusForEvent(
-                            slug
-                        )
-                    );
-                }
-            }
-        }
-
-    }, [
-        dispatch,
-        store,
-
-        isLoggedIn,
-        isAuthLoading,
-        userId,
-
-        dailyGiftOwnerId,
-        seasonalGiftOwnerId,
-
-        eventSlugs,
-    ]);
-
-    // =====================================================
-    // HEADLESS RENDER
+    // Seasonal Gift status is requested
+    // only when a gift UI needs it.
+    //
     // =====================================================
 
     return null;
 }
+
+
+// =========================================================
+// EXPORT
+// =========================================================
+
+export default memo(EventsController);

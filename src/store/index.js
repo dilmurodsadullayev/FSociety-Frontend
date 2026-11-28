@@ -5,6 +5,7 @@ import {
     combineReducers,
     configureStore,
     createListenerMiddleware,
+    isAnyOf,
 } from "@reduxjs/toolkit";
 
 // =========================================================
@@ -75,8 +76,6 @@ import eventsReducer from "../features/events/eventsSlice";
 // =========================================================
 
 import seasonalGiftReducer, {
-    claimSeasonalGiftForEvent,
-    fetchSeasonalGiftStatusForEvent,
 } from "../features/events/seasonalGiftSlice";
 
 // =========================================================
@@ -84,6 +83,11 @@ import seasonalGiftReducer, {
 // =========================================================
 
 import notificationMiddleware from "../middleware/notificationMiddleware";
+import dailyGiftReducer, { dailyGift } from "../features/events/dailyGiftSlice";
+import { seasonalGift } from "../features/events/seasonalGiftSlice";
+import AuthService from "../services/auth";
+import { setCoinBalance } from "../features/coins";
+import { syncProfileCoins } from "../features/profile";
 
 // =========================================================
 // FSOCIETY — REDUX STORE
@@ -96,15 +100,8 @@ import notificationMiddleware from "../middleware/notificationMiddleware";
 // state.events
 // state.eventsSeasonalGift
 //
-// REMOVED:
-//
-// state.dailyGift
 // state.eventsDailyGift
-//
-// A user may receive ONE randomly selected
-// reward for each eligible holiday event.
-//
-// No daily gift system is registered.
+// Daily and seasonal gift eligibility and claims are independent.
 //
 // =========================================================
 
@@ -168,6 +165,7 @@ const appReducer = combineReducers({
 
     // One-time Holiday Gifts
     eventsSeasonalGift: seasonalGiftReducer,
+    eventsDailyGift: dailyGiftReducer,
 });
 
 // =========================================================
@@ -315,8 +313,9 @@ export const rootReducer = (
             // Private frame inventory
             profileFrames: undefined,
 
-            // Private event gift data
-            eventsSeasonalGift: undefined,
+            // Gift reducers handle auth transitions with their session generation intact.
+            coin: undefined,
+            profile: undefined,
         },
         action
     );
@@ -338,162 +337,57 @@ export const rootReducer = (
 //
 // =========================================================
 
-const eventsListenerMiddleware =
-    createListenerMiddleware();
+export const eventsListenerMiddleware = createListenerMiddleware();
+let accountReadVersion = 0;
 
-// =========================================================
-// VERIFY CURRENT AUTH SESSION
-// =========================================================
-
-const hasCurrentGiftOwner = (
-    state,
-    expectedOwnerId
-) => {
-    if (!expectedOwnerId) {
-        return false;
-    }
-
-    const authOwnerId = getUserId(
-        state.auth?.user
-    );
-
-    return Boolean(
-        state.auth?.isLoggedIn &&
-        authOwnerId === expectedOwnerId &&
-        state.eventsSeasonalGift?.ownerId ===
-            expectedOwnerId
-    );
-};
-
-// =========================================================
-// CLAIM SUCCESS LISTENER
-// =========================================================
-//
-// When a gift is successfully opened:
-//
-// 1. The POST has completed.
-// 2. The Redux claim result is stored.
-// 3. A GET refreshes eligibility.
-//
-// This does not create another reward.
-//
-// =========================================================
-
-eventsListenerMiddleware.startListening({
-    matcher:
-        claimSeasonalGiftForEvent.fulfilled.match,
-
-    effect: (action, listenerApi) => {
-        const {
-            slug,
-            ownerId,
-        } = action.payload ?? {};
-
-        if (!slug || !ownerId) {
-            return;
-        }
-
-        const state =
-            listenerApi.getState();
-
-        if (
-            !hasCurrentGiftOwner(
-                state,
-                ownerId
-            )
-        ) {
-            return;
-        }
-
-        listenerApi.dispatch(
-            fetchSeasonalGiftStatusForEvent(
-                slug
-            )
-        );
-    },
-});
-
-// =========================================================
-// UNCERTAIN CLAIM LISTENER
-// =========================================================
-//
-// Examples:
-//
-// - Network timeout
-// - Disconnected connection
-// - HTTP 503
-// - HTTP 409 requiring reconciliation
-//
-// The server may already have committed
-// the reward.
-//
-// Only GET is safe for automatic recovery.
-//
-// =========================================================
-
-eventsListenerMiddleware.startListening({
-    matcher:
-        claimSeasonalGiftForEvent.rejected.match,
-
-    effect: (action, listenerApi) => {
-        // A rejected condition means that
-        // no POST was executed.
-
-        if (
-            action.meta?.condition === true
-        ) {
-            return;
-        }
-
-        const rawArg = action.meta?.arg;
-
-        const slug =
-            typeof rawArg === "string"
-                ? rawArg.trim()
-                : typeof rawArg?.slug === "string"
-                  ? rawArg.slug.trim()
-                  : "";
-
-        if (!slug) {
-            return;
-        }
-
-        const state =
-            listenerApi.getState();
-
-        const giftState =
-            state.eventsSeasonalGift;
-
-        // Reconcile only when the claim
-        // reducer explicitly marked this
-        // event as uncertain.
-
-        if (
-            giftState
-                ?.needsReconciliationByEvent
-                ?.[slug] !== true
-        ) {
-            return;
-        }
-
-        if (
-            !hasCurrentGiftOwner(
-                state,
-                giftState?.ownerId
-            )
-        ) {
-            return;
-        }
-
-        // Important:
-        // This is a GET, never another POST.
-
-        listenerApi.dispatch(
-            fetchSeasonalGiftStatusForEvent(
-                slug
-            )
-        );
-    },
+[dailyGift, seasonalGift].forEach((gift) => {
+    eventsListenerMiddleware.startListening({
+        matcher: isAnyOf(gift.claim.fulfilled, gift.claim.rejected),
+        effect: (action, listenerApi) => {
+            if (action.meta.condition) return;
+            const slug = typeof action.meta.arg === "string" ? action.meta.arg : action.meta.arg?.slug;
+            const before = gift.select(listenerApi.getOriginalState());
+            // Ignore late POST responses from a previous login, including A → B → A.
+            if (!slug || before.pendingClaimIds[slug] !== action.meta.requestId || !gift.sessionReady(listenerApi.getState())) return;
+            listenerApi.dispatch(gift.fetchStatus(slug));
+            listenerApi.dispatch(gift.fetchHistory({ slug, params: { page: 1, page_size: 5 } }));
+        },
+    });
+    eventsListenerMiddleware.startListening({
+        matcher: isAnyOf(gift.claim.fulfilled, gift.fetchStatus.fulfilled),
+        effect: async (action, listenerApi) => {
+            const { slug, ownerId, sessionVersion } = action.payload;
+            const before = gift.select(listenerApi.getOriginalState());
+            const wasClaim = gift.claim.fulfilled.match(action);
+            const pendingIds = wasClaim ? before.pendingClaimIds : before.pendingStatusIds;
+            if (pendingIds[slug] !== action.meta.requestId ||
+                (!wasClaim && !gift.claimed(action.payload.status))) return;
+            const current = () => {
+                const state = listenerApi.getState();
+                const cache = gift.select(state);
+                return gift.sessionReady(state) && cache.ownerId === ownerId && cache.sessionVersion === sessionVersion;
+            };
+            if (!current()) return;
+            const version = ++accountReadVersion;
+            try {
+                // Confirmed claims and later status reads refresh the authoritative balance.
+                const response = await AuthService.getUser();
+                if (!current() || version !== accountReadVersion) return;
+                const user = response?.user ?? response;
+                if (getUserId(user) !== ownerId) throw new Error("ACCOUNT_CHANGED");
+                listenerApi.dispatch(checkAuthSuccess(user));
+                if (Number.isSafeInteger(user.coins) && user.coins >= 0) {
+                    listenerApi.dispatch(setCoinBalance(user.coins));
+                    listenerApi.dispatch(syncProfileCoins({ username: user.username, coins: user.coins }));
+                }
+                listenerApi.dispatch(gift.actions.setAccountSyncError({ sessionVersion, failed: false }));
+            } catch {
+                if (current() && version === accountReadVersion) {
+                    listenerApi.dispatch(gift.actions.setAccountSyncError({ sessionVersion, failed: true }));
+                }
+            }
+        },
+    });
 });
 
 // =========================================================

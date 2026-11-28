@@ -525,7 +525,7 @@ function EventCountdown({
                 />
 
                 <span>
-                    Bayram sovg‘asining ochilish
+                    Tadbirning boshlanish
                     sanasi hali belgilanmagan.
                 </span>
             </div>
@@ -602,7 +602,7 @@ function EventCountdown({
     return (
         <div
             role="timer"
-            aria-label="Bayram sovg‘asi ochilishigacha qolgan vaqt"
+            aria-label="Tadbir boshlanishigacha qolgan vaqt"
             aria-live="off"
             className={className}
         >
@@ -620,7 +620,7 @@ function EventCountdown({
                     aria-hidden="true"
                 />
 
-                Sovg‘a ochilishigacha
+                Tadbir boshlanishigacha
             </div>
 
             <div
